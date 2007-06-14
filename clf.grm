@@ -1,0 +1,129 @@
+fun objs2spine objs =
+	let fun o2s [] sp = sp
+		  | o2s (ob::objs) sp = o2s objs (Syntax.TApp' (ob,sp))
+	in o2s objs Syntax.TNil' end
+
+%%
+
+%pos int * int
+
+%name Clf
+
+%term ID of string | TYPE | PI | COLON | DOT | UNDERSCORE | LOLLI | BACKLOLLI
+	| AMPH | TOP | LCURLY | RCURLY | TENSOR | ONE | EXISTS | LAMBDA | LINLAMBDA
+	| LANGLE | RANGLE | COMMA | LINAPP | LET | EQUAL | IN | PROJLEFT | PROJRIGHT
+	| LBRACKET | RBRACKET | ARROW | BACKARROW | LPAREN | RPAREN | UNIT | EOF
+
+%nonterm Kind of Syntax.kind | AsyncType of Syntax.asyncType
+	(*| AtomicType of Syntax.atomicType*)
+	| AtomicType of string * Syntax.obj list | SyncType of Syntax.syncType
+	| Obj of Syntax.obj
+	| ExpObj of Syntax.expObj | MonadObj of Syntax.monadObj
+	| Pattern of Syntax.pattern
+	| Decl of Syntax.decl | DeclList of Syntax.decl list
+	| Program of Syntax.decl list
+
+%start Program
+
+%nonassoc DOT
+%left BACKLOLLI BACKARROW
+%right LOLLI ARROW
+%right TENSOR AMPH
+%nonassoc UNIT LPAREN LANGLE LINLAMBDA LAMBDA LCURLY ID UNDERSCORE
+%left LINAPP PROJLEFT PROJRIGHT
+%nonassoc RPAREN
+
+%verbose
+
+
+%noshift EOF
+%eop EOF
+
+%%
+
+Program :
+	  DeclList ( DeclList )
+
+DeclList :
+	  Decl DeclList ( Decl :: DeclList )
+	| Decl          ( [Decl] )
+
+Decl :
+	  ID COLON Kind DOT                 ( Syntax.ConstDecl(ID,[],Syntax.Ki Kind) )
+	| ID COLON AsyncType DOT            ( Syntax.ConstDecl(ID,[],Syntax.Ty AsyncType) )
+	| ID COLON TYPE EQUAL AsyncType DOT ( Syntax.TypeAbbrev(ID,AsyncType) )
+	| ID COLON AsyncType EQUAL Obj DOT  ( Syntax.ObjAbbrev(ID,AsyncType,Obj) )
+
+Kind :
+	  TYPE                           ( Syntax.Type' )
+	| PI ID COLON AsyncType DOT Kind ( Syntax.KPi'(ID,AsyncType,Kind) )
+	| AsyncType ARROW Kind           ( Syntax.KPi'("no dep",AsyncType,Kind) )
+	| PI ID DOT Kind                 ( Syntax.KPi'(ID,Syntax.newTVar(),Kind) )
+
+AsyncType :
+	  AsyncType LOLLI AsyncType           ( Syntax.Lolli'(AsyncType1,AsyncType2) )
+	| AsyncType BACKLOLLI AsyncType       ( Syntax.Lolli'(AsyncType2,AsyncType1) )
+	| PI ID COLON AsyncType DOT AsyncType ( Syntax.TPi'(ID,AsyncType1,AsyncType2) )
+	| PI ID DOT AsyncType                 ( Syntax.TPi'(ID,Syntax.newTVar(),AsyncType) )
+	| AsyncType ARROW AsyncType           ( Syntax.TPi'("no dep",AsyncType1,AsyncType2) )
+	| AsyncType BACKARROW AsyncType       ( Syntax.TPi'("no dep",AsyncType2,AsyncType1) )
+	| AsyncType AMPH AsyncType            ( Syntax.AddProd'(AsyncType1,AsyncType2) )
+	| TOP                                 ( Syntax.Top' )
+	| LCURLY SyncType RCURLY              ( Syntax.TMonad' SyncType )
+	| AtomicType                          ( let val (a,s) = AtomicType
+	                                        in Syntax.TAtomic'(a,[],objs2spine s) end )
+	| LPAREN AsyncType RPAREN             ( AsyncType )
+
+AtomicType :
+	  ID                          ( (ID,[]) )
+	| AtomicType Obj %prec LINAPP ( let val (a,s) = AtomicType in (a,Obj::s) end )
+(*
+AtomicType :
+	  ID                          ( Syntax.TypeConst' ID )
+	| AtomicType Obj %prec LINAPP ( Syntax.TypeFam'(AtomicType,Obj) )
+*)
+
+SyncType :
+	  SyncType TENSOR SyncType               ( Syntax.TTensor'(SyncType1,SyncType2) )
+	| ONE                                    ( Syntax.TOne' )
+	| EXISTS ID COLON AsyncType DOT SyncType ( Syntax.Exists'(ID,AsyncType,SyncType) )
+	| EXISTS ID DOT SyncType                 ( Syntax.Exists'(ID,Syntax.newTVar(),SyncType) )
+	| AsyncType %prec DOT                    ( Syntax.Async' AsyncType )
+	| LPAREN SyncType RPAREN                 ( SyncType )
+
+Obj :
+	  LINLAMBDA ID COLON AsyncType DOT Obj ( Util.linLamConstr(ID,AsyncType,Obj) )
+	| LINLAMBDA ID DOT Obj                 ( Syntax.LinLam'(ID,Obj) )
+	| LAMBDA ID COLON AsyncType DOT Obj    ( Util.lamConstr(ID,AsyncType,Obj) )
+	| LAMBDA ID DOT Obj                    ( Syntax.Lam'(ID,Obj) )
+	| LANGLE Obj COMMA Obj RANGLE          ( Syntax.AddPair'(Obj1,Obj2) )
+	| UNIT                                 ( Syntax.Unit' )
+	| LCURLY ExpObj RCURLY                 ( Syntax.Monad' ExpObj )
+	| ID                                   ( Util.headToObj(Syntax.Const(ID,[])) )
+	| Obj LINAPP Obj                       ( Util.linApp(Obj1,Obj2) )
+	| Obj Obj %prec LINAPP                 ( Util.app(Obj1,Obj2) )
+	| Obj PROJLEFT                         ( Util.projLeft Obj )
+	| Obj PROJRIGHT                        ( Util.projRight Obj )
+	| LPAREN Obj RPAREN                    ( Obj )
+	| LPAREN Obj COLON AsyncType RPAREN    ( Syntax.Constraint'(Obj,AsyncType) )
+	| UNDERSCORE                           ( Util.blank() )
+
+ExpObj :
+	  LET LCURLY Pattern RCURLY EQUAL Obj IN ExpObj ( Syntax.Let'(Pattern,Obj,ExpObj) )
+	| MonadObj                                      ( Syntax.Mon'(MonadObj) )
+	| LPAREN ExpObj RPAREN                          ( ExpObj )
+
+MonadObj :
+	  MonadObj TENSOR MonadObj             ( Syntax.Tensor'(MonadObj1,MonadObj2) )
+	| ONE                                  ( Syntax.One' )
+	| LBRACKET Obj COMMA MonadObj RBRACKET ( Syntax.DepPair'(Obj,MonadObj) )
+	| Obj %prec DOT                        ( Syntax.Norm'(Obj) )
+
+Pattern :
+	  Pattern TENSOR Pattern             ( Syntax.PTensor'(Pattern1,Pattern2) )
+	| ONE                                ( Syntax.POne' )
+	| LBRACKET ID COMMA Pattern RBRACKET ( Syntax.PDepPair'(ID,Syntax.newTVar(),Pattern) )
+	| ID                                 ( Syntax.PVar'(ID,Syntax.newTVar()) )
+	| ID COLON AsyncType                 ( Syntax.PVar'(ID,AsyncType) )
+	| LPAREN Pattern RPAREN              ( Pattern )
+
