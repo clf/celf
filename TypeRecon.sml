@@ -26,6 +26,7 @@ fun reconstructDecl (ConstDecl (id, _, kity)) =
 			val () = ExactTypes.noConstrs ()
 			val () = appKiTy ImplicitVars.logicVarsToUCVarsKind
 			                 ImplicitVars.logicVarsToUCVarsType kity
+			val () = ImplicitVars.mapUCTable Whnf.normalizeType
 			val imps = ImplicitVars.convertUCVarsImps (ImplicitVars.sort ())
 			val imps = map (Util.map2 PrettyPrint.remDepType) imps
 			val kity = mapKiTy (ImplicitVars.convertUCVarsKind imps)
