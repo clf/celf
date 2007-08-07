@@ -17,6 +17,6 @@ msg : chan -> chan -> type.
 p_zero : proc zero -o {1}.
 p_par  : proc (par P Q) -o {proc P @ proc Q}.
 p_new  : proc (new P) -o {Exists u:chan. proc (P u)}.
-p_rep  : proc (rep P) -o {! proc P}.
+p_rep  : proc (rep P) -o {Exists u:proc P. 1}.
 p_out  : proc (out U V) -o {msg U V}.
 p_cin   : proc (cin U P) -o {Pi V:chan. msg U V -o {proc (P V)}}.
