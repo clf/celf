@@ -28,6 +28,6 @@ TypeRecon.sig
 TypeRecon.sml
 Conv.sig
 Conv.sml
-(*TypeCheck.sig
-TypeCheck.sml*)
+TypeCheck.sig
+TypeCheck.sml
 main.sml

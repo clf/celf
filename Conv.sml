@@ -1,10 +1,17 @@
+(* Convertibility among CLF terms and types *)
+(* Author: Carsten Schuermann *)
+(* Walked: Oct 18, 12:00 *)
+
 structure Conv :> CONV =
 struct
 
 (* All objects, types, spines, patterns, expressions and monadic objects are
-   assumed to be well-typed *)
+   assumed to be well-typed and in normal form  *)
+
+(* does currently not weak head reduce.  --cs *)
 
 open Syntax
+
 
 (* Invariant:  convAsynType (ty1, ty2) => ()
    if  G |- ty1 == ty2 : kind
@@ -43,7 +50,7 @@ and convObj (ob1, ob2) = case (Obj.prj ob1, Obj.prj ob2) of
      | (LinLam (x, N), LinLam (y, M)) => convObj (N, M)
      | (AddPair (N1, N2), AddPair (M1, M2)) => (convObj (N1, M1); convObj (N2, M2))
      | (Unit, Unit) => ()
-     | (Monad E1, Monad E2) => convExpObj (E1, E2) ([], [])
+     | (Monad E1, Monad E2) => convExpObj (E1, E2)
      | (Atomic (H1, _, S1), Atomic (H2, _, S2)) => 
 	 (convHead (H1, H2); convSpine (S1, S2))
      | _ => raise Fail "Error in convertibilty"
@@ -90,50 +97,54 @@ and convMonadObj (M1, M2) = case (MonadObj.prj M1, MonadObj.prj M2) of
      | _ => raise Fail "Convertibility failed"
 
 
-(* Invariant:  convExpObj (E1, E2) (C1, C2) => ()
+(* Invariant:  convExpObj (E1, E2)  => ()
    if  G |- let P11 = R11 in ... let P1n = R1n in E1 
             == let P21 = R21 in ... let P2n = R2n in E2 : S
    otherwise Fail is raised 
    where n = |C1| = |C2| 
    and   Ci = ((Pi1, Ri1), ..., (Pin, Rin))
 *)
-and convExpObj (E1, E2) (C1, C2) = case (ExpObj.prj E1, ExpObj.prj E2) of
-       (Mon M1, Mon M2) => 
-	 if subset (C1, C2) andalso subset (C2, C1) then convMonadObj (M1, M2)
-	 else raise Fail "Convertibility failed: Expression is not ok"
+and convExpObj (E1, E2) = case (ExpObj.prj E1, ExpObj.prj E2) of
+       (Mon M1, Mon M2) => convMonadObj (M1, M2)
      | (Let (P1, R1, E1'), Let (P2, R2, E2')) => 
-	 convExpObj (E1', E2') (C1 @ [(P1, R1)], C2 @ [(P2, R2)])
+	 convExpObj (E1', convExpObj1 (E1, E2)) 
      | _ => raise Fail "Convertibility failed"
 
 
-
-(* Invariant:  subset (C1, C2) => true
-   if C1 and C2 are defined as in convExpObj
-   and for every (P,R) in C1, there exists a  (P',R') in C2
-     there exists shifting substituions s,t
-     P[s] = P'[t] and R[s] = R'[t]
-   otherwise subset (C1, C2) => false
+(* Invariant:
+   If    G |- E1 == let P1=R1 in E1' : S
+   and   G |- E2 : S
+   then  there exists E, such that
+   and   G, P1 |- E = convExpObj1 (E1, E2) : S
+   and   E2 == let P1=R1 in E: S
 *)
-and subset (nil, C2) = true
-  | subset ((P1, R1) :: C1, C2) = contained ((P1, R1), C2) andalso
-	 subset (C1, map (fn (P2, R2) => (PClos (P2, Subst.shift (nbinds(P1))),
-					  Clos  (R2, Subst.shift (nbinds(P1))))) C2)
+and convExpObj1 (E1, E2) = case (ExpObj.prj E1, ExpObj.prj E2) of
+       (Let (P1, R1, _), Let (P2, R2, E2')) =>
+	  if ((convObj (R1, R2); true) handle Fail _ => false) then E2'
+	  else
+	    let val s1 = Subst.shift (nbinds P1)
+	    in (Let' (PClos (P2, s1), Clos (R2, s1), 
+		      EClos (convExpObj1 (EClos (E1, Subst.shift (nbinds P2)), E2'),
+			     switchSub (nbinds P1, nbinds P2))))
+	    end
+	| _ => raise Fail "Convertibility failed"
 
+(* please move below *)
 
-(* Invariant:  contained ((P, R), C2) => true
-   if C2 is defined as in convExpObj
-   and there exists a  (P', R') in C2 and
-     shifting substitutions s,t
-     G |- P[s] = P'[t] : S  and G |- R[s] = R'[t] : S for some S.
-   otherwise contained ((P, R), C2) => false
+(* Invariant: 
+   Let G1, G2 contexts,
+   n1 = | G1 | , n2 = | G2 |
+   and G2' = k-prefix of G2
+   G1, G2 |- switchSub' (k,n1,n2) : G1, G2'
 *)
-and contained ((P1, R1), nil) = false
-  | contained ((P1, R1), (P2, R2) :: C2) = 
-	 ((convObj (R1, R2); true) handle Fail _ => false)
-	 orelse contained ((PClos (P1, Subst.shift (nbinds (P2))),
- 	 		   Clos   (R1, Subst.shift (nbinds (P2)))), C2) 
-	 (* we don't need to check P1 = P2, because R1 = R2 implies we 
-	    know S, and because P1, R1, and the C2 are assumed
- 	    to be well-typed, we can infer that P1 = P2 (module alpha) *)
 
+and switchSub' (0, n1, n2) = Subst.dotn n2 (Subst.shift n1)     
+  | switchSub' (k, n1, n2) = Subst.dot (EtaTag (Unit', n2+n1+1-k), switchSub' (k-1, n1, n2))
+
+(* Invariant: 
+   Let G1, G2 contexts,
+   n1 = | G1 | , n2 = | G2 |
+   G1, G2 |- switchSub (n1,n2) : G1, G2
+*)
+and switchSub (n1, n2) = switchSub' (n1, n1, n2)
 end
