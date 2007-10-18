@@ -507,6 +507,7 @@ and checkObj (ctx, ob, ty) = case (Obj.prj ob, Util.typePrjAbbrev ty) of
 and inferHead (ctx, h) = case h of
 	  Const (c, impl) =>
 			(ctx, #3 (inferSpine (ctxDelLin ctx, foldr App' Nil' impl, Signatur.sigLookupType c)))
+			                     (* ctxDelLin ctx, is that really true? --cs *)
 	| Var n => let val (ctxo, A) = ctxLookupNum (ctx, n) in (ctxo, TClos (A, Subst.shift n)) end
 	| UCVar x =>
 			(ctx, TClos (ImplicitVars.ucLookup x, (Subst.shift o length o ctx2list) ctx))

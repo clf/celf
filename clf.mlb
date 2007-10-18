@@ -26,4 +26,8 @@ ExactTypes.sig
 ExactTypes.sml
 TypeRecon.sig
 TypeRecon.sml
+Conv.sig
+Conv.sml
+(*TypeCheck.sig
+TypeCheck.sml*)
 main.sml
