@@ -53,39 +53,39 @@ clo_case :
    closed (case E1 E2 (\x:exp. E3 x))
       <- closed E1
       <- closed E2
-      <- (Pix:exp. closed x -> closed (E3 x)).
+      <- (Pi x:exp. closed x -> closed (E3 x)).
 clo_pair : closed (pair E1 E2) <- closed E1 <- closed E2.
 clo_fst : closed (fst E) <- closed E.
 clo_snd : closed (snd E) <- closed E.
-clo_lam : closed (lam (\x:exp. E x)) <- (Pix:exp. closed x -> closed (E x)).
+clo_lam : closed (lam (\x:exp. E x)) <- (Pi x:exp. closed x -> closed (E x)).
 clo_app : closed (app E1 E2) <- closed E1 <- closed E2.
 clo_letv :
    closed (letv E1 (\x:exp. E2 x))
       <- closed E1
-      <- (Pix:exp. closed x -> closed (E2 x)).
+      <- (Pi x:exp. closed x -> closed (E2 x)).
 clo_letn :
    closed (letn E1 (\x:exp. E2 x))
       <- closed E1
-      <- (Pix:exp. closed x -> closed (E2 x)).
-clo_fix : closed (fix (\x:exp. E x)) <- (Pix:exp. closed x -> closed (E x)).
+      <- (Pi x:exp. closed x -> closed (E2 x)).
+clo_fix : closed (fix (\x:exp. E x)) <- (Pi x:exp. closed x -> closed (E x)).
 % block lc : block {x:exp} {u:closed x}.
 open : exp -> type.
 open_s : open (s E) <- open E.
 open_case1 : open (case E1 E2 (\x:exp. E3 x)) <- open E1.
 open_case2 : open (case E1 E2 (\x:exp. E3 x)) <- open E2.
-open_case3 : open (case E1 E2 (\x:exp. E3 x)) <- (Pix:exp. open (E3 x)).
+open_case3 : open (case E1 E2 (\x:exp. E3 x)) <- (Pi x:exp. open (E3 x)).
 open_pair1 : open (pair E1 E2) <- open E1.
 open_pair2 : open (pair E1 E2) <- open E2.
 open_fst : open (fst E) <- open E.
 open_snd : open (snd E) <- open E.
-open_lam : open (lam (\x:exp. E x)) <- (Pix:exp. open (E x)).
+open_lam : open (lam (\x:exp. E x)) <- (Pi x:exp. open (E x)).
 open_app1 : open (app E1 E2) <- open E1.
 open_app2 : open (app E1 E2) <- open E2.
 open_letv1 : open (letv E1 (\x:exp. E2 x)) <- open E1.
-open_letv2 : open (letv E1 (\x:exp. E2 x)) <- (Pix:exp. open (E2 x)).
+open_letv2 : open (letv E1 (\x:exp. E2 x)) <- (Pi x:exp. open (E2 x)).
 open_letn1 : open (letn E1 (\x:exp. E2 x)) <- open E1.
-open_letn2 : open (letn E1 (\x:exp. E2 x)) <- (Pix:exp. open (E2 x)).
-open_fix : open (fix (\x:exp. E x)) <- (Pix:exp. open (E x)).
+open_letn2 : open (letn E1 (\x:exp. E2 x)) <- (Pi x:exp. open (E2 x)).
+open_fix : open (fix (\x:exp. E x)) <- (Pi x:exp. open (E x)).
 % block lo : block {x:exp}.
 tp : type.
 nat : tp.
@@ -95,24 +95,24 @@ of : exp -> tp -> type.
 tp_z : of z nat.
 tp_s : of (s E) nat <- of E nat.
 tp_case :
-   of (case E1 E2 (\x:exp. E3 x)) T
+   of (case E1 E2 (\x:exp. E3 x)) T'
       <- of E1 nat
-      <- of E2 T
-      <- (Pix:exp. of x nat -> of (E3 x) T).
+      <- of E2 T'
+      <- (Pi x:exp. of x nat -> of (E3 x) T').
 tp_pair : of (pair E1 E2) (cross T1 T2) <- of E1 T1 <- of E2 T2.
 tp_fst : of (fst E) T1 <- of E (cross T1 T2).
 tp_snd : of (snd E) T2 <- of E (cross T1 T2).
 tp_lam :
-   of (lam (\x:exp. E x)) (arrow T1 T2) <- (Pix:exp. of x T1 -> of (E x) T2).
+   of (lam (\x:exp. E x)) (arrow T1 T2) <- (Pi x:exp. of x T1 -> of (E x) T2).
 tp_app : of (app E1 E2) T1 <- of E1 (arrow T2 T1) <- of E2 T2.
 tp_letv :
    of (letv E1 (\x:exp. E2 x)) T2
       <- of E1 T1
-      <- (Pix:exp. of x T1 -> of (E2 x) T2).
+      <- (Pi x:exp. of x T1 -> of (E2 x) T2).
 tp_letn : of (letn E1 (\x:exp. E2 x)) T2 <- of E1 T1 <- of (E2 E1) T2.
-tp_fix : of (fix (\x:exp. E x)) T <- (Pix:exp. of x T -> of (E x) T).
-% block l : some {T:tp} block {x:exp} {d:of x T}.
-tps : Pi E:exp. Pi V:exp. Pi T:tp. eval E V -> of E T -> of V T -> type.
+tp_fix : of (fix (\x:exp. E x)) T' <- (Pi x:exp. of x T' -> of (E x) T').
+% block l : some {T':tp} block {x:exp} {d:of x T'}.
+tps : Pi E:exp. Pi V:exp. Pi T':tp. eval E V -> of E T' -> of V T' -> type.
 tps_z : tps ev_z tp_z tp_z.
 tps_s : tps (ev_s D1) (tp_s P1) (tp_s Q1) <- tps D1 P1 Q1.
 tps_case_z :
@@ -145,3 +145,4 @@ tps_fix :
    tps (ev_fix D1) (tp_fix (\x:exp. \u:of x T1. P1 x u)) Q1
       <- tps D1 (P1 (fix (\x:exp. E1 x)) (tp_fix (\x:exp. \u:of x T1. P1 x u)))
             Q1.
+ 
