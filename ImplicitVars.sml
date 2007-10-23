@@ -1,6 +1,7 @@
 structure ImplicitVars :> IMPLICITVARS =
 struct
 
+open VRef infix ::=
 open Syntax
 open SymbTable
 open Context
@@ -85,11 +86,11 @@ fun raiseLVar' (ctx, B, S, n) =
 		| (x, A, NO)::ctx => raiseLVar' (ctx, sh B, S, n+1)
 	end
 
-fun raiseLVar (Atomic (LogicVar (ref (SOME _), A, s, rctx, _, _), _, _)) = ()
-  | raiseLVar (Atomic (LogicVar (r, A, s, ref NONE, _, l), _, _)) =
-		raise Fail ("Internal error: no context on $"^(Int.toString l)^"\n")
-  | raiseLVar (Atomic (LogicVar (r, A, s, ref (SOME ctx), _, _), _, _)) =
-		r := SOME (raiseLVar' (ctx2list ctx, TClos (A, s), Nil', 1))
+fun raiseLVar (Atomic (LogicVar {X, ty, s, ctx, tag, ...}, _, _)) = (case (!!X, !ctx) of
+	  (SOME _, _) => () (* this can never occur?? --asn *)
+	| (NONE, NONE) => raise Fail ("Internal error: no context on $"^(Int.toString tag)^"\n")
+	| (NONE, SOME ctx) => X ::= SOME (raiseLVar' (ctx2list ctx, TClos (ty, s), Nil', 1)) )
+						(* stub: bug??? ctx |- A : Type or ctx |- A[s] : Type ??? --asn *)
   | raiseLVar _ = ()
 
 (* logicVarsToUCVarsObj : obj -> unit *)

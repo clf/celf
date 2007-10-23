@@ -10,8 +10,6 @@ val occur : Syntax.typeLogicVar -> Syntax.apxAsyncType -> unit
 val apxUnifyType : Syntax.apxAsyncType * Syntax.apxAsyncType -> unit
 
 val pat2apxSyncType : Syntax.pattern -> Syntax.apxSyncType
-val patBind : Syntax.pattern * context -> context
-val patUnbind : Syntax.pattern * context * bool -> context
 
 val apxCheckKind : context * Syntax.kind -> Syntax.kind
 val apxCheckType : context * Syntax.asyncType -> Syntax.asyncType
@@ -25,6 +23,6 @@ val apxInferMonadObj : context * Syntax.monadObj -> context * bool * Syntax.mona
 
 val apxCheckKindEC : Syntax.kind -> Syntax.kind
 val apxCheckTypeEC : Syntax.asyncType -> Syntax.asyncType
-val apxCheckObjEC : Syntax.obj * Syntax.asyncType -> Syntax.obj * Syntax.asyncType
+val apxCheckObjEC : Syntax.obj * Syntax.apxAsyncType -> Syntax.obj
 
 end

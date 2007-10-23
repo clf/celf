@@ -1,6 +1,8 @@
 structure Syntax :> SYNTAX =
 struct
 
+open VRef
+
 datatype kind = FixKind of kind kindF | KClos of kind * subst
 and asyncType = FixAsyncType of asyncType asyncTypeF | TClos of asyncType * subst
 	| TLogicVar of asyncType option ref
@@ -20,8 +22,13 @@ and constr = Solved | Eqn of obj * obj
 and head = Const of string * obj list
 	| Var of int
 	| UCVar of string
-	| LogicVar of obj option ref * asyncType * subst
-			* asyncType Context.context option ref * constr ref list ref * int
+	| LogicVar of {
+		X     : obj option vref,
+		ty    : asyncType,
+		s     : subst,
+		ctx   : asyncType Context.context option ref,
+		cnstr : constr vref list vref,
+		tag   : int }
 
 
 and 'ki kindF = Type
@@ -69,6 +76,7 @@ datatype typeOrKind = Ty of asyncType | Ki of kind
 datatype decl = ConstDecl of string * implicits * typeOrKind
 	| TypeAbbrev of string * asyncType
 	| ObjAbbrev of string * asyncType * obj
+	| Query of int * int * int * asyncType
 
 type apxKind = kind
 type apxAsyncType = asyncType
@@ -95,6 +103,10 @@ datatype 'sTy apxSyncTypeF = ApxTTensor of 'sTy * 'sTy
 fun nbinds (FixPattern (_, n)) = n
   | nbinds (PClos (p, _)) = nbinds p
 
+infix with'ty with's
+fun {X, ty=_, s, ctx, cnstr, tag} with'ty ty' = {X=X, ty=ty', s=s, ctx=ctx, cnstr=cnstr, tag=tag}
+fun {X, ty, s=_, ctx, cnstr, tag} with's s' = {X=X, ty=ty, s=s', ctx=ctx, cnstr=cnstr, tag=tag}
+
 structure Subst =
 struct
 	open Either
@@ -120,8 +132,7 @@ struct
 	(* headSub : head * subst -> (head, obj) either *)
 	fun headSub (Const (c, impl), s) = LEFT (Const (c, map (fn x => Clos (x, s)) impl))
 	  | headSub (UCVar v, _) = LEFT (UCVar v)
-	  | headSub (LogicVar (X, A, s, ctx, cs, l), s') =
-					LEFT (LogicVar (X, A, comp (s, s'), ctx, cs, l))
+	  | headSub (LogicVar X, s') = LEFT (LogicVar (X with's comp (#s X, s')))
 	  | headSub (Var n, Shift n') = LEFT (Var (n+n'))
 	  | headSub (Var 1, Dot (Idx n, s)) = LEFT (Var n)
 	  | headSub (Var 1, Dot (Ob N, s)) = RIGHT N
@@ -318,7 +329,8 @@ end
 (* structure Obj : TYP where type 'a F = 'a objF and type t = obj *)
 structure Obj =
 struct
-	fun tryLVar (Atomic (LogicVar (ref (SOME N), _, s, _, _, _), A, S)) = Redex (Clos (N, s), A, S)
+	fun tryLVar (a as Atomic (LogicVar {X, s, ...}, A, S)) =
+			(case !!X of NONE => a | SOME N => Redex (Clos (N, s), A, S))
 	  | tryLVar a = a
 	type t = obj
 	type 'a F = 'a objF
@@ -461,7 +473,8 @@ fun nextLVarCnt () = (lVarCnt := (!lVarCnt) + 1 ; !lVarCnt)
 
 fun newTVar () = TLogicVar (ref NONE)
 fun newApxTVar () = TLogicVar (ref NONE)
-fun newLVarCtx ctx ty = Atomic' (LogicVar (ref NONE, ty, Subst.id, ref ctx, ref [], nextLVarCnt ()), ty, Nil')
+fun newLVarCtx ctx ty = Atomic' (LogicVar {X=vref NONE, ty=ty, s=Subst.id, ctx=ref ctx,
+											cnstr=vref [], tag=nextLVarCnt ()}, ty, Nil')
 val newLVar = newLVarCtx NONE
 
 
@@ -496,6 +509,7 @@ struct
 	fun idFromDecl (ConstDecl (s, _, _)) = s
 	  | idFromDecl (TypeAbbrev (s, _)) = s
 	  | idFromDecl (ObjAbbrev (s, _, _)) = s
+	  | idFromDecl (Query _) = raise Fail "Internal error: Adding query to sig table\n"
 
 	(******************)
 	
@@ -538,6 +552,7 @@ struct
 		  | SOME (TypeAbbrev (_, ty)) => SOME ty
 		  | SOME (ObjAbbrev _) => raise Fail ("Object "^a^" is used as a type\n")
 		  | SOME (ConstDecl _) => NONE
+		  | SOME (Query _) => raise Fail "Internal error: sigGetTypeAbbrev"
 
 	(* sigGetObjAbbrev : string -> (obj * asyncType) option *)
 	fun sigGetObjAbbrev c =
@@ -546,6 +561,7 @@ struct
 		  | SOME (ObjAbbrev (_, ty, ob)) => SOME (ob, ty)
 		  | SOME (TypeAbbrev _) => raise Fail ("Type "^c^" is used as an object\n")
 		  | SOME (ConstDecl _) => NONE
+		  | SOME (Query _) => raise Fail "Internal error: sigGetObjAbbrev"
 end
 
 (* structure ApxKind : TYP where type 'a F = 'a apxKindF and type t = apxKind *)
@@ -656,131 +672,5 @@ val syncTypeFromApx = apxCopySyncType
 fun kindFromApx ki = case ApxKind.prj ki of
 	ApxType => Type' | ApxKPi (A, K) => KPi' ("", asyncTypeFromApx A, kindFromApx K)
 
-
-end
-
-structure Util =
-struct
-
-open Syntax
-
-fun map1 f (a, b) = (f a, b)
-fun map2 f (a, b) = (a, f b)
-fun map12 f g (a, b) = (f a, g b)
-
-fun linApp (ob1, ob2) = Redex' (ob1, newApxTVar (), LinApp' (ob2, Nil'))
-fun app (ob1, ob2) = Redex' (ob1, newApxTVar (), App' (ob2, Nil'))
-fun projLeft ob = Redex' (ob, newApxTVar (), ProjLeft' Nil')
-fun projRight ob = Redex' (ob, newApxTVar (), ProjRight' Nil')
-fun blank () = newLVar (newTVar ())
-fun headToObj h = Atomic' (h, newApxTVar (), Nil')
-
-fun linLamConstr (x, A, N) = Constraint' (LinLam' (x, N), Lolli' (A, newTVar ()))
-fun lamConstr (x, A, N) = Constraint' (Lam' (x, N), TPi' (x, A, newTVar ()))
-
-(* typePrjAbbrev : asyncType -> asyncType asyncTypeF *)
-fun typePrjAbbrev ty = case AsyncType.prj ty of
-	  TAbbrev (a, ty) => typePrjAbbrev ty
-	| A => A
-
-(* apxTypePrjAbbrev : apxAsyncType -> apxAsyncType apxAsyncTypeF *)
-fun apxTypePrjAbbrev ty = case ApxAsyncType.prj ty of
-	  ApxTAbbrev (a, ty) => apxTypePrjAbbrev (asyncTypeToApx ty)
-	| A => A
-
-(* isNil : spine -> bool *)
-fun isNil S = case Spine.prj S of Nil => true | _ => false
-
-(* appendSpine : spine * spine -> spine *)
-fun appendSpine (S1', S2) = case Spine.prj S1' of
-	  Nil => S2
-	| LinApp (N, S1) => LinApp' (N, appendSpine (S1, S2))
-	| App (N, S1) => App' (N, appendSpine (S1, S2))
-	| ProjLeft S1 => ProjLeft' (appendSpine (S1, S2))
-	| ProjRight S1 => ProjRight' (appendSpine (S1, S2))
-
-(* objAppKind : (unit objF -> unit) -> kind -> unit *)
-(* objAppType : (unit objF -> unit) -> asyncType -> unit *)
-(* objAppObj  : (unit objF -> unit) -> obj -> unit *)
-fun objAppKind f ki = KindAuxDefs.fold
-	(fn Type => () | KPi (_, A, ()) => objAppType f A) ki
-and objAppType f ty = AsyncTypeAuxDefs.fold
-	(fn TMonad S => objAppSyncType f S
-	  | TAtomic (_, os, S) => (List.app (objAppObj f) os; objAppTSpine f S)
-	  | _ => ()) ty
-and objAppTSpine f sp = TypeSpineAuxDefs.fold
-	(fn TNil => () | TApp (ob, ()) => objAppObj f ob) sp
-and objAppSyncType f ty = SyncTypeAuxDefs.fold
-	(fn Exists (_, A, ()) => objAppType f A | Async A => objAppType f A | _ => ()) ty
-and objAppObj f obj = ObjAuxDefs.fold
-	(fn ob =>
-		((case ob of
-			  Monad E => objAppExp f E
-			| Atomic (H, A, S) => (objAppHead f H; objAppSpine f S)
-			| Redex ((), A, S) => objAppSpine f S
-			| Constraint ((), A) => objAppType f A
-			| _ => ())
-		; f ob)) obj
-and objAppHead f h = case h of
-	  Const (_, os) => List.app (objAppObj f) os
-	| Var _ => ()
-	| UCVar _ => ()
-	| LogicVar (_, A, s, rctx, _, _) => objAppType f (TClos (A, s))
-and objAppSpine f sp = SpineAuxDefs.fold
-	(fn App (ob, ()) => objAppObj f ob | LinApp (ob, ()) => objAppObj f ob | _ => ()) sp
-and objAppExp f e = ExpObjAuxDefs.fold
-	(fn Let (p, ob, ()) => (objAppPattern f p; objAppObj f ob) | Mon M => objAppMonad f M) e
-and objAppMonad f m = MonadObjAuxDefs.fold
-	(fn DepPair (ob, ()) => objAppObj f ob | Norm ob => objAppObj f ob | _ => ()) m
-and objAppPattern f p = PatternAuxDefs.fold
-	(fn PDepPair (_, A, ()) => objAppType f A | PVar (_, A) => objAppType f A | _ => ()) p
-
-(* objExpMapKind : (obj -> obj objF) -> (exp -> exp expF) -> kind -> kind *)
-(* objExpMapType : (obj -> obj objF) -> (exp -> exp expF) -> asyncType -> asyncType *)
-(* objExpMapObj : (obj -> obj objF) -> (exp -> exp expF) -> obj -> obj *)
-fun objExpMapKind g f ki = KindAuxDefs.unfold
-	((fn Type => Type | KPi (x, A, k) => KPi (x, objExpMapType g f A, k)) o Kind.prj) ki
-and objExpMapType g f ty = AsyncTypeAuxDefs.unfold
-	((fn TMonad S => TMonad (objExpMapSyncType g f S)
-	  | TAtomic (a, os, S) => TAtomic (a, map (objExpMapObj g f) os, objExpMapTSpine g f S)
-	  | A => A) o AsyncType.prj) ty
-and objExpMapTSpine g f sp = TypeSpineAuxDefs.unfold
-	((fn TNil => TNil | TApp (ob, S) => TApp (objExpMapObj g f ob, S)) o TypeSpine.prj) sp
-and objExpMapSyncType g f ty = SyncTypeAuxDefs.unfold
-	((fn Exists (x, A, S) => Exists (x, objExpMapType g f A, S)
-	   | Async A => Async (objExpMapType g f A)
-	   | S => S) o SyncType.prj) ty
-and objExpMapObj g f obj = ObjAuxDefs.unfold
-	((fn Monad E => Monad (objExpMapExp g f E)
-	   | Atomic (H, A, S) => Atomic (objExpMapHead g f H, A, objExpMapSpine g f S)
-	   | Redex (N, A, S) => Redex (N, A, objExpMapSpine g f S)
-	   | Constraint (N, A) => Constraint (N, objExpMapType g f A)
-	   | N => N) o f) obj
-and objExpMapHead g f h = case h of
-	  Const (c, os) => Const (c, map (objExpMapObj g f) os)
-	| LogicVar (r, A, s, rctx, cs, l) => LogicVar (r, A, s, rctx, cs, l)
-	| _ => h
-and objExpMapSpine g f sp = SpineAuxDefs.unfold
-	((fn App (ob, S) => App (objExpMapObj g f ob, S)
-	   | LinApp (ob, S) => LinApp (objExpMapObj g f ob, S)
-	   | S => S) o Spine.prj) sp
-and objExpMapExp g f e = ExpObjAuxDefs.unfold
-	((fn Let (p, ob, E) => Let (objExpMapPattern g f p, objExpMapObj g f ob, E)
-	   | Mon M => Mon (objExpMapMonad g f M)) o g) e
-and objExpMapMonad g f m = MonadObjAuxDefs.unfold
-	((fn DepPair (ob, M) => DepPair (objExpMapObj g f ob, M)
-	   | Norm ob => Norm (objExpMapObj g f ob)
-	   | M => M) o MonadObj.prj) m
-and objExpMapPattern g f p = PatternAuxDefs.unfold
-	((fn PDepPair (x, A, P) => PDepPair (x, objExpMapType g f A, P)
-	   | PVar (x, A) => PVar (x, objExpMapType g f A)
-	   | P => P) o Pattern.prj) p
-
-(* objMapKind : (obj -> obj objF) -> kind -> kind *)
-(* objMapType : (obj -> obj objF) -> asyncType -> asyncType *)
-(* objMapObj : (obj -> obj objF) -> obj -> obj *)
-val objMapKind = objExpMapKind ExpObj.prj
-val objMapType = objExpMapType ExpObj.prj
-val objMapObj = objExpMapObj ExpObj.prj
 
 end

@@ -4,6 +4,7 @@ struct
 open Syntax
 open Context
 open Either
+open PatternBind
 
 type context = apxAsyncType Context.context
 
@@ -91,15 +92,6 @@ fun apxUnify (ty1ty2 as (ty1, ty2)) = (apxUnifyType ty1ty2)
 			(PrettyPrint.printType (asyncTypeFromApx ty1))^"\nand: "
 						^(PrettyPrint.printType (asyncTypeFromApx ty2))^"\n") ; raise e)
 
-(* nbinds : pattern -> int *)
-(*
-fun nbinds p = case Pattern.prj p of
-	  PTensor (p1, p2) => nbinds p1 + nbinds p2
-	| POne => 0
-	| PDepPair (x, A, p) => 1 + nbinds p
-	| PVar (x, A) => 1
-*)
-
 (* pat2apxSyncType : pattern -> apxSyncType *)
 fun pat2apxSyncType p = case Pattern.prj p of
 	  PTensor (p1, p2) => ApxTTensor' (pat2apxSyncType p1, pat2apxSyncType p2)
@@ -112,20 +104,6 @@ fun pat2syncType (PTensor (p1, p2))   = TTensor (pat2syncType p1, pat2syncType p
   | pat2syncType (PDepPair (x, A, p)) = Exists (x, A, pat2syncType p)
   | pat2syncType (PVar (x, A))        = Async A
   *)
-
-(* patBind : pattern * context -> context *)
-fun patBind (p, ctx) = case Pattern.prj p of
-	  PTensor (p1, p2) => patBind (p2, patBind (p1, ctx)) (* S2[^|S1|] *)
-	| POne => ctx
-	| PDepPair (x, A, p) => patBind (p, ctxPushUN (x, asyncTypeToApx A, ctx))
-	| PVar (x, A) => ctxPushLIN (x, asyncTypeToApx A, ctx)
-
-(* patUnbind : pattern * context * bool -> context *)
-fun patUnbind (p, ctx, t) = case Pattern.prj p of
-	  PTensor (p1, p2) => patUnbind (p1, patUnbind (p2, ctx, t), t)
-	| POne => ctx
-	| PDepPair (x, _, p) => ctxPopUN (patUnbind (p, ctx, t))
-	| PVar (x, _) => ctxPopLIN (t, ctx)
 
 (* apxCheckKind : context * kind -> kind *)
 fun apxCheckKind (ctx, ki) = case Kind.prj ki of
@@ -146,7 +124,7 @@ and apxCheckType (ctx, ty) = case AsyncType.prj ty of
 	| TAtomic (a, _, S) =>
 		(case Signatur.sigGetTypeAbbrev a of
 			  SOME ty =>
-				let val _ = apxCheckTypeSpine (ctx, S, ApxType')
+				let val _ = apxCheckTypeSpine (ctx, S, ApxType') (* S = TNil *)
 				in TAbbrev' (a, ty) end
 			| NONE =>
 				let val K = Signatur.sigLookupApxKind a
@@ -228,7 +206,7 @@ and apxInferHead (ctx, h) = case h of
 									Signatur.sigLookupApxType c)))
 	| Var _ => raise Fail "de Bruijn indices shouldn't occur yet\n"
 	| UCVar _ => raise Fail "Upper case variables shouldn't occur yet\n"
-	| X as LogicVar (_, A, _, _, _, _) => (ctx, true, LEFT X, asyncTypeToApx A)
+	| X as LogicVar {ty, ...} => (ctx, true, LEFT X, asyncTypeToApx ty)
 
 (* apxInferSpine : context * spine * apxAsyncType -> context * bool * spine * apxAsyncType *)
 and apxInferSpine (ctx, sp, ty) = case Spine.prj sp of
@@ -263,7 +241,7 @@ and apxInferExp (ctx, ex) = case ExpObj.prj ex of
 	  Let (p, N, E) =>
 			let val p' = apxCheckPattern (ctxDelLin ctx, p)
 				val (ctxm, t1, N') = apxCheckObj (ctx, N, ApxTMonad' (pat2apxSyncType p'))
-				val (ctxo', t2, E', S) = apxInferExp (patBind (p', ctxm), E)
+				val (ctxo', t2, E', S) = apxInferExp (patBind asyncTypeToApx p' ctxm, E)
 			in (patUnbind (p', ctxo', t2), t1 orelse t2, Let' (p', N', E'), S) end
 	| Mon M => (fn (ctxo, t, M', S) => (ctxo, t, Mon' M', S)) (apxInferMonadObj (ctx, M))
 
@@ -292,8 +270,11 @@ and apxInferMonadObj (ctx, mob) = case MonadObj.prj mob of
 
 fun apxCheckKindEC ki = apxCheckKind (emptyCtx, ki)
 fun apxCheckTypeEC ty = apxCheckType (emptyCtx, ty)
+fun apxCheckObjEC (ob, ty) = #3 (apxCheckObj (emptyCtx, ob, ty))
+(*
 fun apxCheckObjEC (ob, ty) = case (Obj.prj o #3 o apxInferObj) (emptyCtx, Constraint' (ob, ty)) of
 		  Constraint obty => obty
 		| _ => raise Fail "Internal error: apxCheckObjEC\n"
+*)
 
 end

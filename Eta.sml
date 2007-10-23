@@ -1,7 +1,7 @@
 structure Eta :> ETA =
 struct
 
-open Syntax
+open Syntax infix with'ty with's
 open Signatur
 
 (* etaContract : exn -> Syntax.obj -> int *)
@@ -139,13 +139,14 @@ and etaExpandHead h = case h of
 	  Const (c, impl) => Const (c, etaExpandImpl impl)
 	| Var _ => h
 	| UCVar _ => h
-	| LogicVar (r, A, s, ctx, cs, l) => LogicVar (r, etaExpandType A, s, ctx, cs, l)
+	| LogicVar X =>
+		LogicVar (X with'ty etaExpandType (#ty X))
 
 (* etaExpandImpl : obj list -> obj list *)
 and etaExpandImpl impl =
 	let fun f ob = case Obj.prj ob of
-			  Atomic (LogicVar (r, A, s, ctx, cs, l), A', S) =>
-					if Util.isNil S then etaExpand (A', LogicVar (r, etaExpandType A, s, ctx, cs, l), A', S)
+			  Atomic (LogicVar X, A', S) =>
+					if Util.isNil S then etaExpand (A', LogicVar (X with'ty etaExpandType (#ty X)), A', S)
 					else raise Fail "Internal error: etaExpandImpl 1\n"
 			| _ => raise Fail "Internal error: etaExpandImpl 2\n"
 	in map f impl end

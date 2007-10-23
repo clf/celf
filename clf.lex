@@ -6,6 +6,13 @@ val linepos = ref 1
 val linecharpos = ref 0
 fun getpos charcount = (!linepos,charcount - !linecharpos)
 fun eof () = Tokens.EOF((!linepos,0),(!linepos,0))
+fun number (s,p) =
+	if s = "1" then Tokens.ONE(p,p)
+	else Tokens.NUM(
+			case Int.fromString s of
+				  SOME n => n
+				| NONE => raise Fail"Internal error: lexer on int\n",
+			p,p)
 fun keyword (s,p) =
 	(case s of
 		"type" => Tokens.TYPE(p,p)
@@ -15,10 +22,11 @@ fun keyword (s,p) =
 	  | "top" => Tokens.TOP(p,p)
 	  | "T" => Tokens.TOP(p,p)
 	  | "one" => Tokens.ONE(p,p)
-	  | "1" => Tokens.ONE(p,p)
+	  (*| "1" => Tokens.ONE(p,p)*)
 	  | "Exists" => Tokens.EXISTS(p,p)
 	  | "let" => Tokens.LET(p,p)
 	  | "in" => Tokens.IN(p,p)
+	  | "#query" => Tokens.QUERY(p,p)
 	  | _ => Tokens.ID(s,p,p))
 %%
 %header (functor ClfLexFun(structure Tokens: Clf_TOKENS));
@@ -52,6 +60,7 @@ ws = [\ \t];
 ")" => (Tokens.RPAREN(getpos yypos,getpos yypos));
 "->" => (Tokens.ARROW(getpos yypos,getpos yypos));
 "<-" => (Tokens.BACKARROW(getpos yypos,getpos yypos));
+[0-9]+ => (number (yytext,getpos yypos));
 [-a-zA-Z0-9<>=/_'*#+]+ => (keyword (yytext,getpos yypos));
 . => (let val (l,c) = getpos(yypos) in
 		print ("Lexer Warning: Ignoring illegal symbol ``"^yytext^"'' in line "^

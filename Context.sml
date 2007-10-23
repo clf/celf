@@ -1,11 +1,15 @@
 structure Context :> CONTEXT =
 struct
 
+exception ExnCtx of string
+
 datatype mode = UN | LIN | NO
 type 'a context = (string * 'a * mode) list
 
 fun ctx2list ctx = ctx
 fun ctxCons e ctx = e::ctx
+
+fun ctxMap f ctx = map (fn (x, A, t) => (x, f A, t)) ctx
 
 val emptyCtx = []
 
@@ -49,9 +53,11 @@ fun ctxPopUN ((_, _, UN)::ctx) = ctx
 (* ctxPopLIN : bool * 'a context -> 'a context *)
 fun ctxPopLIN (_, (_, _, NO)::ctx) = ctx
   | ctxPopLIN (true, (_, _, LIN)::ctx) = ctx
-  | ctxPopLIN (false, (x, _, LIN)::ctx) = raise Fail (x^" doesn't occur\n")
+  | ctxPopLIN (false, (x, _, LIN)::ctx) = raise ExnCtx (x^" doesn't occur\n")
   | ctxPopLIN _ = raise Fail "Internal error: ctxPopLIN"
 
+(* ctxPopLINopt : bool * 'a context -> 'a context option *)
+fun ctxPopLINopt tCtx = SOME (ctxPopLIN tCtx) handle ExnCtx _ => NONE
 
 fun addJoin (t1, t2) ((x, A, f1), (_, _, f2)) =
 	let val f = case (t1, f1, t2, f2) of
@@ -59,13 +65,16 @@ fun addJoin (t1, t2) ((x, A, f1), (_, _, f2)) =
 				  | (_, NO, _, NO) => NO
 				  | (_, LIN, _, LIN) => LIN
 				  | (_, NO, true, LIN) => NO
-				  | (_, NO, false, LIN) => raise Fail "Contexts can't join\n"
+				  | (_, NO, false, LIN) => raise ExnCtx "Contexts can't join\n"
 				  | (true, LIN, _, NO) => NO
-				  | (false, LIN, _, NO) => raise Fail "Contexts can't join\n"
+				  | (false, LIN, _, NO) => raise ExnCtx "Contexts can't join\n"
 				  | _ => raise Fail "Internal error: context misalignment\n"
 	in (x, A, f) end
 
 (* ctxAddJoin : bool * bool -> 'a context * 'a context -> 'a context *)
 fun ctxAddJoin topFlags ctxs = ListPair.mapEq (addJoin topFlags) ctxs
+
+(* ctxAddJoinOpt : bool * bool -> 'a context * 'a context -> 'a context option *)
+fun ctxAddJoinOpt topFlags ctxs = SOME (ctxAddJoin topFlags ctxs) handle ExnCtx _ => NONE
 
 end

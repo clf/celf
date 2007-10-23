@@ -74,9 +74,9 @@ and pHead ctx h = case h of
 	  Const (c, impl) => [c] @ join (map (pObj ctx false) impl)
 	| Var n => [lookup ctx n] (*[Int.toString n]*)
 	| UCVar v => ["#"^v]
-	| LogicVar (r, A, s, ref G, cs, l) =>
-		["_$", Int.toString l]
-		(*@ ["<"] @ pContext ctx G @ [", "] @ pType ctx false (TClos (A, s)) @ [">"]*)
+	| LogicVar {ty, s, ctx=ref G, tag, ...} =>
+		["_$", Int.toString tag]
+		(*@ ["<"] @ pContext ctx G @ [", "] @ pType ctx false (TClos (ty, s)) @ [">"]*)
 		@ [Subst.substToStr (String.concat o (pObj ctx true)) s]
 and pContext ctx NONE = ["--"]
   | pContext ctx (SOME G) = join (map (pType ctx false o #2) (Context.ctx2list G))
@@ -167,7 +167,7 @@ and rdHead h = case h of
 			in (Const (c, impl'), foldl union empty occs) end
 	| Var n => (Var n, occur n)
 	| UCVar v => (UCVar v, empty)
-	| LogicVar (r, A, s, G, cs, l) => raise Fail "Internal error: rdHead\n"
+	| LogicVar _ => raise Fail "Internal error: rdHead\n"
 and rdSpine sp = case Spine.prj sp of
 	  Nil => (Nil', empty)
 	| App (N, S) => join2 App' (rdObj N) (rdSpine S)

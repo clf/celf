@@ -13,6 +13,7 @@ fun objs2spine objs =
 	| AMPH | TOP | LCURLY | RCURLY | TENSOR | ONE | EXISTS | LAMBDA | LINLAMBDA
 	| LANGLE | RANGLE | COMMA | LINAPP | LET | EQUAL | IN | PROJLEFT | PROJRIGHT
 	| LBRACKET | RBRACKET | ARROW | BACKARROW | LPAREN | RPAREN | UNIT | EOF
+	| QUERY | NUM of int
 
 %nonterm Kind of Syntax.kind | AsyncType of Syntax.asyncType
 	(*| AtomicType of Syntax.atomicType*)
@@ -22,6 +23,7 @@ fun objs2spine objs =
 	| Pattern of Syntax.pattern
 	| Decl of Syntax.decl | DeclList of Syntax.decl list
 	| Program of Syntax.decl list
+	| Number of int
 
 %start Program
 
@@ -49,10 +51,15 @@ DeclList :
 	| Decl          ( [Decl] )
 
 Decl :
-	  ID COLON Kind DOT                 ( Syntax.ConstDecl(ID,[],Syntax.Ki Kind) )
-	| ID COLON AsyncType DOT            ( Syntax.ConstDecl(ID,[],Syntax.Ty AsyncType) )
-	| ID COLON TYPE EQUAL AsyncType DOT ( Syntax.TypeAbbrev(ID,AsyncType) )
-	| ID COLON AsyncType EQUAL Obj DOT  ( Syntax.ObjAbbrev(ID,AsyncType,Obj) )
+	  ID COLON Kind DOT                        ( Syntax.ConstDecl(ID,[],Syntax.Ki Kind) )
+	| ID COLON AsyncType DOT                   ( Syntax.ConstDecl(ID,[],Syntax.Ty AsyncType) )
+	| ID COLON TYPE EQUAL AsyncType DOT        ( Syntax.TypeAbbrev(ID,AsyncType) )
+	| ID COLON AsyncType EQUAL Obj DOT         ( Syntax.ObjAbbrev(ID,AsyncType,Obj) )
+	| QUERY Number Number Number AsyncType DOT ( Syntax.Query(Number1,Number2,Number3,AsyncType) )
+
+Number :
+	  ONE ( 1 )
+	| NUM ( NUM )
 
 Kind :
 	  TYPE                           ( Syntax.Type' )

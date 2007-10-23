@@ -24,9 +24,30 @@ datatype constr = Solved | Eqn of obj * obj
 datatype head = Const of string * obj list
 	| Var of int
 	| UCVar of string
-	| LogicVar of obj option ref * asyncType * subst
-			* asyncType Context.context option ref * constr ref list ref * int
+	(*| LogicVar of obj option VRef.vref * asyncType * subst
+			* asyncType Context.context option ref * constr ref list ref * int*)
+	| LogicVar of {
+		X     : obj option VRef.vref,
+		ty    : asyncType,
+		s     : subst,
+		ctx   : asyncType Context.context option ref,
+		cnstr : constr VRef.vref list VRef.vref,
+		tag   : int }
 
+val with'ty :
+	{X : obj option VRef.vref, ty : asyncType, s : subst,
+		ctx : asyncType Context.context option ref,
+		cnstr : constr VRef.vref list VRef.vref, tag : int }
+	* asyncType -> {X : obj option VRef.vref, ty : asyncType, s : subst,
+		ctx : asyncType Context.context option ref,
+		cnstr : constr VRef.vref list VRef.vref, tag : int }
+val with's :
+	{X : obj option VRef.vref, ty : asyncType, s : subst,
+		ctx : asyncType Context.context option ref,
+		cnstr : constr VRef.vref list VRef.vref, tag : int }
+	* subst -> {X : obj option VRef.vref, ty : asyncType, s : subst,
+		ctx : asyncType Context.context option ref,
+		cnstr : constr VRef.vref list VRef.vref, tag : int }
 
 datatype 'ki apxKindF = ApxType
 	| ApxKPi of apxAsyncType * 'ki
@@ -156,6 +177,7 @@ datatype typeOrKind = Ty of asyncType | Ki of kind
 datatype decl = ConstDecl of string * implicits * typeOrKind
 	| TypeAbbrev of string * asyncType
 	| ObjAbbrev of string * asyncType * obj
+	| Query of int * int * int * asyncType
 
 
 structure Kind : TYP where type 'a F = 'a kindF and type t = kind

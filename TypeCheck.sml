@@ -6,6 +6,7 @@ struct
 
 open Syntax
 open Context
+open PatternBind
 
 type context = asyncType Context.context
 
@@ -111,7 +112,7 @@ and checkExp (ctx, exp, S) = case (ExpObj.prj exp) of
 	   val _ = case (Util.typePrjAbbrev ty) of
 	                (TMonad S') => checkPattern (ctx1, P, S')
 			  | _ => raise Fail "Type checking: sync type expected"
-	   val ctx2 = patBind P ctx1
+	   val ctx2 = patBind (fn x=>x) P ctx1
 	   val (ctx3, tf3) = checkExp (ctx2, E, STClos (S, Subst.shift (nbinds P)))
 	   val ctx4 = patUnbind (P, ctx3, tf3)
 	 in
@@ -154,21 +155,6 @@ and checkPattern (ctx, pat, S) = case (Pattern.prj pat, SyncType.prj S) of
 	 Conv.convAsyncType (A1, A2)
      | _ => raise Fail "Type mismatch in checkPattern"
 
-
-(* patBind : pattern -> context -> context *)
-and patBind p ctx = case Pattern.prj p of
-	  PTensor (p1, p2) => patBind (PClos (p2, Subst.shift (nbinds p1))) (patBind p1 ctx)
-	| POne => ctx
-	| PDepPair (x, A, p) => patBind p (ctxPushUN (x, A, ctx))
-	| PVar (x, A) => ctxPushLIN (x, A, ctx)
-
-
-(* patUnbind : pattern * context * bool -> context *)
-and patUnbind (p, ctx, t) = case Pattern.prj p of
-	  PTensor (p1, p2) => patUnbind (p1, patUnbind (p2, ctx, t), t)
-	| POne => ctx
-	| PDepPair (x, _, p) => ctxPopUN (patUnbind (p, ctx, t))
-	| PVar (x, _) => ctxPopLIN (t, ctx)
 
 
 end
