@@ -10,5 +10,6 @@ val toList : 'a Table -> (string * 'a) list
 val numItems : 'a Table -> int
 val delete : 'a Table * string -> 'a Table
 val mapTable : ('a -> 'b) -> 'a Table -> 'b Table
+val appTable : ('a -> unit) -> 'a Table -> unit
 
 end

@@ -62,10 +62,8 @@ and inferAtomic (ctx, ob) = case (Obj.prj ob) of
    otherwise Fail is raised 
 *)
 and inferHead (ctx, hd) = case hd of
-        (Const (c, impl)) => 
-	  inferSpine (ctx, foldr App' Nil' impl, Signatur.sigLookupType c)
-	  (* by invariant, should return (ctx, false) *)
-     | (Var (n)) => 
+        Const c => (ctx, false, Signatur.sigLookupType c)
+     | Var n => 
 	  let 
 	    val (ctx1, A) = ctxLookupNum (ctx, n)     (* think about shifting  --cs *)
 	  in 

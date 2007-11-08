@@ -10,7 +10,6 @@ val etaExpandTypeSpine : Syntax.typeSpine * Syntax.apxKind -> Syntax.typeSpine
 val etaExpandSyncType : Syntax.syncType -> Syntax.syncType
 val etaExpandObj : Syntax.obj * Syntax.apxAsyncType -> Syntax.obj
 val etaExpandHead : Syntax.head -> Syntax.head
-val etaExpandImpl : Syntax.obj list -> Syntax.obj list
 val etaExpandSpine : Syntax.spine * Syntax.apxAsyncType -> Syntax.spine
 val etaExpandExp : Syntax.expObj * Syntax.apxSyncType -> Syntax.expObj
 val etaExpandPattern : Syntax.pattern -> Syntax.pattern

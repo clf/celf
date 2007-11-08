@@ -30,6 +30,10 @@ fun appDecl fk ft fo (ConstDecl (_, _, Ki ki)) = fk ki
   | appDecl fk ft fo (ObjAbbrev (_, ty, ob)) = (ft ty ; fo (ob, ty))
   | appDecl fk ft fo (Query (_, _, _, ty)) = ft ty
 
+(* isQuery : decl -> bool *)
+fun isQuery (Query _) = true
+  | isQuery _ = false
+
 (* reconstructDecl : decl -> unit *)
 fun reconstructDecl dec =
 		let val () = ImplicitVars.resetUCTable ()
@@ -41,26 +45,32 @@ fun reconstructDecl dec =
 			                  (Eta.etaExpandObj o (Util.map2 asyncTypeToApx)) dec
 			val () = ImplicitVars.mapUCTable Eta.etaExpandType
 			val () = Unify.resetConstrs ()
-			val () = ImplicitVars.mapUCTable (fn A => (ExactTypes.checkTypeEC A; A))
+			val () = ImplicitVars.appUCTable ExactTypes.checkTypeEC
 			val () = appDecl ExactTypes.checkKindEC
 			                 ExactTypes.checkTypeEC
 			                 ExactTypes.checkObjEC dec
 			val () = Unify.noConstrs ()
-			val () = appDecl ImplicitVars.logicVarsToUCVarsKind
-			                 ImplicitVars.logicVarsToUCVarsType
-			                 (ImplicitVars.logicVarsToUCVarsObj o Constraint') dec
-			val () = ImplicitVars.mapUCTable Whnf.normalizeType
+			val () = if isQuery dec then () else
+					( appDecl ImplicitVars.logicVarsToUCVarsKind
+					          ImplicitVars.logicVarsToUCVarsType
+					          (ImplicitVars.logicVarsToUCVarsObj o Constraint') dec
+					; ImplicitVars.appUCTable (Util.objAppType
+						(fn Atomic (LogicVar _, _, _) => raise Fail "stub: LogicVar here???\n"
+						  | _ => ())) )
+			val () = ImplicitVars.mapUCTable Util.forceNormalizeType
 			val dec = case dec of
 				  ConstDecl (id, _, kity) =>
-						let val imps = ImplicitVars.convertUCVarsImps (ImplicitVars.sort ())
+						let val imps = ImplicitVars.convUCVars2VarsImps (ImplicitVars.sort ())
 							val imps = map (Util.map2 PrettyPrint.remDepType) imps
-							val kity = mapKiTy (ImplicitVars.convertUCVarsKind imps)
-							                   (ImplicitVars.convertUCVarsType imps) kity
+							val kity = mapKiTy (ImplicitVars.convUCVars2VarsKind imps)
+							                   (ImplicitVars.convUCVars2VarsType imps) kity
 						in ConstDecl (id, imps, kity) end
 				| TypeAbbrev _ => (ImplicitVars.noUCVars () ; dec)
 				| ObjAbbrev _ => (ImplicitVars.noUCVars () ; dec)
-				| Query _ => raise Fail "stub"
-			val dec = mapDecl Whnf.normalizeKind Whnf.normalizeType (Whnf.normalizeObj o #1) dec
+				| Query (e, l, a, ty) => Query (e, l, a, ImplicitVars.convUCVars2LogicVarsType ty)
+			val dec = mapDecl Util.forceNormalizeKind
+			                  Util.forceNormalizeType
+			                  (Util.forceNormalizeObj o #1) dec
 			val dec = mapDecl PrettyPrint.remDepKind
 			                  PrettyPrint.remDepType
 			                  (PrettyPrint.remDepObj o #1) dec
@@ -76,8 +86,13 @@ fun reconstructDecl dec =
 				| TypeAbbrev (id, ty) => print (id^": Type = "^(PrettyPrint.printType ty)^".\n")
 				| ObjAbbrev (id, ty, ob) => print (id^": "^(PrettyPrint.printType ty)
 													^" = "^(PrettyPrint.printObj ob)^".\n")
-				| Query _ => print "QUERY\n"
-			val () = Signatur.sigAddDecl dec
+				| Query (e, l, a, ty) =>
+						let val () = print ("Query ("^Int.toString e^", "^Int.toString l^", "
+								^Int.toString a^") "^PrettyPrint.printType ty^".\n")
+						in OpSem.solveEC (ty,
+							fn N => print ("Solution: "^PrettyPrint.printObj N^"\n"))
+						end
+			val () = if isQuery dec then () else Signatur.sigAddDecl dec
 		in () end
 
 

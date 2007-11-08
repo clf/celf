@@ -25,8 +25,8 @@ fun convAsyncType (ty1, ty2) = case (Util.typePrjAbbrev ty1, Util.typePrjAbbrev 
      | (AddProd (A1, A2), AddProd (B1, B2)) =>
          (convAsyncType (A1, B1); convAsyncType (A2, B2))
      | (Top, Top) => ()
-     | (TAtomic (a1, imp1, TS1), TAtomic (a2, imp2, TS2)) =>
-	 if (a1 = a2) then convTypeSpine (foldr TApp' TS1 imp1, foldr TApp' TS2 imp2)
+     | (TAtomic (a1, TS1), TAtomic (a2, TS2)) =>
+	 if (a1 = a2) then convTypeSpine (TS1, TS2)
 	   else raise Fail "Convertibility: Type Clash"
      | _ => raise Fail "Convertibility"
 
@@ -61,8 +61,8 @@ and convObj (ob1, ob2) = case (Obj.prj ob1, Obj.prj ob2) of
    otherwise Fail is raised 
 *)
 and convHead (hd1, hd2) = case (hd1, hd2) of
-      (Const (c1, impl1), Const (c2, impl2)) => 
-	if c1 = c2 then convSpine (foldr App' Nil' impl1, foldr App' Nil' impl2)
+      (Const c1, Const c2) => 
+	if c1 = c2 then ()
 	  else raise Fail "Convertibilty failed: Head mismatch"
      | (Var n1, Var n2) =>  
 	if n1 = n2 then ()

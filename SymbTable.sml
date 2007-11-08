@@ -11,5 +11,6 @@ val toList = Binarymap.listItems
 val numItems = Binarymap.numItems
 fun delete tk = #1 (Binarymap.remove tk)
 fun mapTable f t = Binarymap.map (f o #2) t
+fun appTable f t = Binarymap.app (f o #2) t
 
 end

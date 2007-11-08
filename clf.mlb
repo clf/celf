@@ -12,6 +12,9 @@ BackTrack.sml
 VRef.sig
 VRef.sml
 Syntax.sig
+Subst.sml
+Whnf.sig
+Whnf.sml
 Syntax.sml
 Util.sig
 Util.sml
@@ -26,16 +29,12 @@ PatternBind.sig
 PatternBind.sml
 ApproxTypes.sig
 ApproxTypes.sml
-Whnf.sig
-Whnf.sml
 Eta.sig
 Eta.sml
 Unify.sig
 Unify.sml
 ExactTypes.sig
 ExactTypes.sml
-TypeRecon.sig
-TypeRecon.sml
 Conv.sig
 Conv.sml
 TypeCheck.sig
@@ -43,6 +42,10 @@ TypeCheck.sml
 $(SML_LIB)/smlnj-lib/Util/smlnj-lib.mlb
 PermuteList.sig
 PermuteList.sml
+SignaturTable.sig
+SignaturTable.sml
 OpSem.sig
 OpSem.sml
+TypeRecon.sig
+TypeRecon.sml
 main.sml

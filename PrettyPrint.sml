@@ -1,7 +1,7 @@
 structure PrettyPrint :> PRETTYPRINT =
 struct
 
-open Syntax
+open Syntax infix with'ty
 
 fun join' [] = []
   | join' [x] = x
@@ -31,7 +31,7 @@ fun pKind ctx ki = case Kind.prj ki of
 	| KPi (x, A, K) =>
 			let val (x', ctx') = add x ctx
 			in ["Pi "^x'^": "] @ pType ctx false A @ [". "] @ pKind ctx' K end
-and pType ctx pa ty = case AsyncType.prj ty of
+and pType ctx pa ty = if isUnknown ty then ["???"] else case AsyncType.prj ty of
 	  Lolli (A, B) => paren pa (pType ctx true A @ [" -o "] @ pType ctx false B)
 	| TPi ("no dep", A, B) => paren pa (pType ctx true A @ [" -> "] @ pType (e::ctx) false B)
 	| TPi (x, A, B) =>
@@ -41,10 +41,9 @@ and pType ctx pa ty = case AsyncType.prj ty of
 	| AddProd (A, B) => paren pa (pType ctx true A @ [" & "] @ pType ctx true B)
 	| Top => ["T"]
 	| TMonad S => ["{"] @ pSyncType ctx false S @ ["}"]
-	| TAtomic (a, impl, S) => (*(fn (a', []) => a' | (a', ts) => paren pa (a' @ ts)) ([a] @ join (map (pObj ctx true) impl), pTypeSpine ctx S)*)
-			[a] @ join (map (pObj ctx false) impl) @ pTypeSpine ctx S
+	| TAtomic (a, S) => (*(fn (a', []) => a' | (a', ts) => paren pa (a' @ ts)) ([a] @ join (map (pObj ctx true) impl), pTypeSpine ctx S)*)
+			[a] @ (*join (map (pObj ctx false) impl) @*) pTypeSpine ctx S
 	| TAbbrev (a, ty) => [a]
-	| TUnknown => ["???"]
 and pTypeSpine ctx sp = case TypeSpine.prj sp of
 	  TNil => []
 	| TApp (N, S) => [" "] @ pObj ctx true N @ pTypeSpine ctx S
@@ -71,7 +70,7 @@ and pObj ctx pa ob = case Obj.prj ob of
 			(fn [] => pObj ctx pa N | s => paren pa (pObj ctx true N @ s)) (pSpine ctx S)
 	| Constraint (N, A) => pObj ctx pa N
 and pHead ctx h = case h of
-	  Const (c, impl) => [c] @ join (map (pObj ctx false) impl)
+	  Const c => [c] (*@ join (map (pObj ctx false) impl)*)
 	| Var n => [lookup ctx n] (*[Int.toString n]*)
 	| UCVar v => ["#"^v]
 	| LogicVar {ty, s, ctx=ref G, tag, ...} =>
@@ -123,6 +122,7 @@ fun decrn n is = List.filter (fn x => x>=1) (map (fn x => x-n) is)
 fun decr is = decrn 1 is
 fun depend is = List.exists (fn x => x=1) is
 fun union (is1, is2) = is1 @ is2
+fun occurFromTo a b = if a <= b then a::occurFromTo (a+1) b else []
 fun depName x is = if depend is then x else "no dep"
 
 fun join2 f (a1, occ1) (a2, occ2) = (f (a1, a2), union (occ1, occ2))
@@ -137,12 +137,11 @@ and rdType ty = case AsyncType.prj ty of
 	| AddProd (A, B) => join2 AddProd' (rdType A) (rdType B)
 	| Top => (Top', empty)
 	| TMonad S => Util.map1 TMonad' (rdSyncType S)
-	| TAtomic (a, impl, S) =>
-			let val (impl', occs) = ListPair.unzip (map rdObj impl)
+	| TAtomic (a, S) => Util.map1 (fn S' => TAtomic' (a, S')) (rdTypeSpine S)
+(*			let val (impl', occs) = ListPair.unzip (map rdObj impl)
 				val (S', occS) = rdTypeSpine S
-			in (TAtomic' (a, impl', S'), foldl union occS occs) end
+			in (TAtomic' (a, impl', S'), foldl union occS occs) end*)
 	| TAbbrev (a, ty) => (TAbbrev' (a, ty), empty)
-	| TUnknown => raise Fail "Internal error: rdType\n"
 and rdTypeSpine sp = case TypeSpine.prj sp of
 	  TNil => (TNil', empty)
 	| TApp (N, S) => join2 TApp' (rdObj N) (rdTypeSpine S)
@@ -150,7 +149,8 @@ and rdSyncType sty = case SyncType.prj sty of
 	  TTensor (S1, S2) => join2 TTensor' (rdSyncType S1) (rdSyncType S2)
 	| TOne => (TOne', empty)
 	| Exists (x, A, S) =>
-			join2 (fn (A', S') => Exists' (x, A', S')) (rdType A) (Util.map2 decr (rdSyncType S))
+			joinDep Exists' x (rdType A) (rdSyncType S)
+		(*join2 (fn (A', S') => Exists' (x, A', S')) (rdType A) (Util.map2 decr (rdSyncType S))*)
 	| Async A => Util.map1 Async' (rdType A)
 and rdObj ob = case Obj.prj ob of
 	  LinLam (x, N) => Util.map12 (fn N' => LinLam' (x, N')) decr (rdObj N)
@@ -162,12 +162,20 @@ and rdObj ob = case Obj.prj ob of
 	| Redex (N, A, S) => join2 (fn (N', S') => Redex' (N', A, S')) (rdObj N) (rdSpine S)
 	| Constraint (N, A) => join2 Constraint' (rdObj N) (rdType A)
 and rdHead h = case h of
-	  Const (c, impl) =>
-			let val (impl', occs) = ListPair.unzip (map rdObj impl)
-			in (Const (c, impl'), foldl union empty occs) end
+	  Const c => (Const c, empty)
+(*			let val (impl', occs) = ListPair.unzip (map rdObj impl)
+			in (Const (c, impl'), foldl union empty occs) end*)
 	| Var n => (Var n, occur n)
 	| UCVar v => (UCVar v, empty)
-	| LogicVar _ => raise Fail "Internal error: rdHead\n"
+	| LogicVar (X as {ctx, s, ty, ...}) =>
+			let val ctxL = (length o Context.ctx2list o valOf o !) ctx
+				val subL = Subst.fold (fn (_, n) => n+1) (fn _ => 0) s
+				fun occurSubOb Undef = empty
+				  | occurSubOb (Ob ob) = #2 (rdObj ob)
+				  | occurSubOb (Idx n) = occur n
+				val occurSub = Subst.fold (union o (Util.map1 occurSubOb))
+							(fn m => occurFromTo (m+1) (ctxL-subL+m)) s
+			in (LogicVar (X with'ty (#1 (rdType ty))), occurSub) end
 and rdSpine sp = case Spine.prj sp of
 	  Nil => (Nil', empty)
 	| App (N, S) => join2 App' (rdObj N) (rdSpine S)

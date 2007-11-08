@@ -1,13 +1,19 @@
 signature WHNF =
 sig
 
-val whnfObj : Syntax.obj -> Syntax.obj Syntax.objF
-val whnfExp : Syntax.expObj -> Syntax.expObj Syntax.expObjF
+structure Syn : SYNTAX_CORE2
+val whnfObj : Syn.obj -> (Syn.spine, Syn.expObj, Syn.obj) Syn.nfObjFF
+val whnfExp : Syn.expObj ->
+	(Syn.head * Syn.apxAsyncType * Syn.spine, Syn.monadObj, Syn.pattern, Syn.expObj) Syn.expObjFF
 
+val appendSpine : Syn.spine * Syn.spine -> Syn.spine
+
+(*
 val whnfLetSpine : Syntax.expObj -> Syntax.expObj
 
 val normalizeKind : Syntax.kind -> Syntax.kind
 val normalizeType : Syntax.asyncType -> Syntax.asyncType
 val normalizeObj : Syntax.obj -> Syntax.obj
+*)
 
 end

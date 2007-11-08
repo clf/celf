@@ -29,13 +29,10 @@ and checkType (ctx, ty) = case AsyncType.prj ty of
 	| AddProd (A, B) => (checkType (ctx, A); checkType (ctx, B))
 	| Top => ()
 	| TMonad S => checkSyncType (ctx, S)
-	| TAtomic (a, impl, S) =>
+	| TAtomic (a, S) =>
 			let val K = Signatur.sigLookupKind a
-				(*fun impl2sp [] = S
-				  | impl2sp (N::Ns) = TApp' (N, impl2sp Ns)*)
-			in checkTypeSpine (ctx, foldr TApp' S impl, K) end
+			in checkTypeSpine (ctx, S, K) end
 	| TAbbrev aA => ()
-	| TUnknown => raise Fail "Ambiguous typing\n"
 
 (* checkTypeSpine : context * typeSpine * kind -> unit *)
 (* checks that the spine is : ki > Type *)
@@ -92,14 +89,11 @@ and checkObj (ctx, ob, ty) = case (Obj.prj ob, Util.typePrjAbbrev ty) of
 							^"\nbut expected:\n"^(PrettyPrint.printType ty)
 				val () = unify (AsyncType.inj A, A', errmsg)
 			in checkObj (ctx, N, A') end
-	| (_, TUnknown) => raise Fail "Ambiguous typing\n"
 	| _ => raise Fail "Internal error match: checkObj\n"
 
 (* inferHead : context * head -> context * asyncType *)
 and inferHead (ctx, h) = case h of
-	  Const (c, impl) =>
-			(ctx, #3 (inferSpine (ctxDelLin ctx, foldr App' Nil' impl, Signatur.sigLookupType c)))
-			                     (* ctxDelLin ctx, is that really true? --cs  Yes --asn *)
+	  Const c => (ctx, Signatur.sigLookupType c)
 	| Var n => let val (ctxo, A) = ctxLookupNum (ctx, n) in (ctxo, TClos (A, Subst.shift n)) end
 	| UCVar x =>
 			(ctx, TClos (ImplicitVars.ucLookup x, (Subst.shift o length o ctx2list) ctx))
@@ -130,7 +124,6 @@ and inferSpine (ctx, sp, ty) = case (Spine.prj sp, Util.typePrjAbbrev ty) of
 			in (ctxo, t1 orelse t2, tyo) end
 	| (ProjLeft S, AddProd (A, B)) => inferSpine (ctx, S, A)
 	| (ProjRight S, AddProd (A, B)) => inferSpine (ctx, S, B)
-	| (_, TUnknown) => raise Fail "Ambiguous typing\n"
 	| _ => raise Fail "Internal error match: inferSpine\n"
 
 (* checkExp : context * expObj * syncType -> context * bool *)

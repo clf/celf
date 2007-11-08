@@ -14,49 +14,9 @@ exception ExnApxUnifyType of string
 fun ucase x = x<>"" andalso Char.isUpper (String.sub (x, 0))
 
 (* occur : typeLogicVar -> apxAsyncType -> unit *)
-fun occur X ty = ApxAsyncTypeAuxDefs.fold
+fun occur X = foldApxType {fki = ignore, fsTy = ignore, faTy =
 	(fn ApxTLogicVar X' => if X=X' then raise ExnApxUnifyType "Occurs check" else ()
-	  | ApxTMonad S => occurSync X S
-	  | _ => ()) ty
-and occurSync X sty = ApxSyncTypeAuxDefs.fold
-	(fn ApxExists (A, ()) => occur X A
-	  | ApxAsync A => occur X A
-	  | _ => ()) sty
-
-(* occur : typeLogicVar -> apxAsyncType -> unit *)
-(*
-fun occur X ty = case ApxAsyncType.prj ty of
-	  ApxTLogicVar X' =>
-		if X=X' then raise ExnApxUnifyType "Occurs check"
-		else ()
-	| ApxLolli (A, B) => (occur X A; occur X B)
-	| ApxTPi (A, B) => (occur X A; occur X B)
-	| ApxAddProd (A, B) => (occur X A; occur X B)
-	| ApxTop => ()
-	| ApxTMonad S => occurSync X S
-	| ApxTAtomic _ => () (* atomic types contain no logic vars *)
-and occurSync X sty = case ApxSyncType.prj sty of
-	  ApxTTensor (S1, S2) => (occurSync X S1; occurSync X S2)
-	| ApxTOne => ()
-	| ApxExists (A, S) => (occur X A; occurSync X S)
-	| ApxAsync A => occur X A
-*)
-
-(* apxCopyType : asyncType -> asyncType *)
-(*
-fun apxCopyType (Lolli (A, B)) = Lolli (apxCopyType A, apxCopyType B)
-  | apxCopyType (TPi (x, A, B)) = TPi (x, apxCopyType A, apxCopyType B)
-  | apxCopyType (AddProd (A, B)) = AddProd (apxCopyType A, apxCopyType B)
-  | apxCopyType Top = Top
-  | apxCopyType (TMonad S) = TMonad (apxCopySyncType S)
-  | apxCopyType (TAtomic (a, _, _)) = Signatur.sigNewTAtomic a
-  | apxCopyType (X as TLogicVar (ref NONE)) = X
-  | apxCopyType (TLogicVar (ref (SOME A))) = apxCopyType A (* continue to make new obj logic vars *)
-and apxCopySyncType (TTensor (S1, S2)) = TTensor (apxCopySyncType S1, apxCopySyncType S2)
-  | apxCopySyncType TOne = TOne
-  | apxCopySyncType (Exists (x, A, S)) = Exists (x, apxCopyType A, apxCopySyncType S)
-  | apxCopySyncType (Async A) = Async (apxCopyType A)
-*)
+	  | _ => ()) }
 
 (* apxUnifyType : apxAsyncType * apxAsyncType -> unit *)
 fun apxUnifyType (ty1, ty2) = case (Util.apxTypePrjAbbrev ty1, Util.apxTypePrjAbbrev ty2) of
@@ -113,7 +73,7 @@ fun apxCheckKind (ctx, ki) = case Kind.prj ki of
 			in KPi' (x, A', apxCheckKind (ctxPushUN (x, asyncTypeToApx A', ctx), K)) end
 
 (* apxCheckType : context * asyncType -> asyncType *)
-and apxCheckType (ctx, ty) = case AsyncType.prj ty of
+and apxCheckType (ctx, ty) = if isUnknown ty then ty else case AsyncType.prj ty of
 	  Lolli (A, B) => Lolli' (apxCheckType (ctx, A), apxCheckType (ctx, B))
 	| TPi (x, A, B) =>
 			let val A' = apxCheckType (ctx, A)
@@ -121,16 +81,16 @@ and apxCheckType (ctx, ty) = case AsyncType.prj ty of
 	| AddProd (A, B) => AddProd' (apxCheckType (ctx, A), apxCheckType (ctx, B))
 	| Top => Top'
 	| TMonad S => TMonad' (apxCheckSyncType (ctx, S))
-	| TAtomic (a, _, S) =>
+	| TAtomic (a, S) =>
 		(case Signatur.sigGetTypeAbbrev a of
 			  SOME ty =>
 				let val _ = apxCheckTypeSpine (ctx, S, ApxType') (* S = TNil *)
 				in TAbbrev' (a, ty) end
 			| NONE =>
 				let val K = Signatur.sigLookupApxKind a
-				in TAtomic' (a, Signatur.sigNewImplicitsType a, apxCheckTypeSpine (ctx, S, K)) end)
+				in TAtomic' (a, foldr TApp' (apxCheckTypeSpine (ctx, S, K))
+					(Signatur.sigNewImplicitsType a)) end)
 	| TAbbrev _ => raise Fail "Internal error: TAbbrev cannot occur yet\n"
-	| TUnknown => ty (* Important to return ty, since TUnknown cannot be injected *)
 
 (* apxCheckTypeSpine : context * typeSpine * apxKind -> typeSpine *)
 (* checks that the spine is : ki > Type *)
@@ -157,9 +117,9 @@ and apxCheckObj (ctx, ob, A) =
 	in apxUnify (A, A'); (ctxo, t, N) end
 
 (* apxInferObj : context * obj -> context * bool * obj * apxAsyncType *)
-and apxInferObj (ctx, ob) = case ObjAuxDefs.prj2 ob of
-	  Redex (Redex (N, A, S1), _, S2) => apxInferObj (ctx, Redex' (N, A, Util.appendSpine (S1, S2)))
-	| Redex (Atomic (H, A, S1), _, S2) => apxInferObj (ctx, Atomic' (H, A, Util.appendSpine (S1, S2)))
+and apxInferObj (ctx, ob) = case Util.ObjAuxDefs.prj2 ob of
+	  Redex (Redex (N, A, S1), _, S2) => apxInferObj (ctx, Redex' (N, A, appendSpine (S1, S2)))
+	| Redex (Atomic (H, A, S1), _, S2) => apxInferObj (ctx, Atomic' (H, A, appendSpine (S1, S2)))
 	| _ => case Obj.prj ob of
 	  LinLam (x, N) =>
 			let val A = newApxTVar()
@@ -178,10 +138,10 @@ and apxInferObj (ctx, ob) = case ObjAuxDefs.prj2 ob of
 	| Monad E => (fn (c, t, e, s) => (c, t, Monad' e, ApxTMonad' s)) (apxInferExp (ctx, E))
 	| Atomic (H, _, S) =>
 			let val (ctxm, t1, H', A) = apxInferHead (ctx, H)
-				val (ctxo, t2, S', B) = apxInferSpine (ctxm, S, A)
-				fun atomRedex (LEFT h, ty, sp) = Atomic' (h, ty, sp)
+				val (ctxo, t2, S', B) = apxInferSpine (ctxm, S, #1 A)
+				fun atomRedex (LEFT (h, impl), ty, sp) = Atomic' (h, ty, foldr App' sp impl)
 				  | atomRedex (RIGHT h, ty, sp) = Redex' (h, ty, sp)
-			in (ctxo, t1 orelse t2, atomRedex (H', A, S'), B) end
+			in (ctxo, t1 orelse t2, atomRedex (H', #2 A, S'), B) end
 	| Redex (N, A, S) =>
 			let val (ctxm, t1, N') = apxCheckObj (ctx, N, A)
 				val (ctxo, t2, S', B) = apxInferSpine (ctxm, S, A)
@@ -192,21 +152,22 @@ and apxInferObj (ctx, ob) = case ObjAuxDefs.prj2 ob of
 				val (ctxo, t, N') = apxCheckObj (ctx, N, apxA')
 			in (ctxo, t, Constraint' (N', A'), apxA') end
 
-(* apxInferHead : context * head -> context * bool * (head, obj) either * apxAsyncType *)
-and apxInferHead (ctx, h) = case h of
-	  Const (c, _) => (* set Top flag to true in case of Top type *)
+(* apxInferHead : context * head -> context * bool * (head * obj list, obj) either * apxAsyncType *)
+and apxInferHead (ctx, h) = let fun x2 x = (x, x) in case h of
+	  Const c => (* set Top flag to true in case of Top type *)
 			(case ctxLookupName (ctx, c) of
-				  (SOME (n, A, ctxo)) => (ctxo, true, LEFT (Var n), A)
+				  (SOME (n, A, ctxo)) => (ctxo, true, LEFT (Var n, []), x2 A)
 				| NONE =>
 					if ucase c then
-						(ctx, true, LEFT (UCVar c), ImplicitVars.apxUCLookup c)
+						(ctx, true, LEFT (UCVar c, []), x2 (ImplicitVars.apxUCLookup c))
 					else (case Signatur.sigGetObjAbbrev c of
-						  SOME (ob, ty) => (ctx, true, RIGHT ob, asyncTypeToApx ty)
-						| NONE => (ctx, true, LEFT (Const (c, Signatur.sigNewImplicitsObj c)),
-									Signatur.sigLookupApxType c)))
+						  SOME (ob, ty) => (ctx, true, RIGHT ob, x2 (asyncTypeToApx ty))
+						| NONE => (ctx, true, LEFT (Const c, Signatur.sigNewImplicitsObj c),
+							(Signatur.sigLookupApxType c, asyncTypeToApx (Signatur.sigLookupType c)))))
 	| Var _ => raise Fail "de Bruijn indices shouldn't occur yet\n"
 	| UCVar _ => raise Fail "Upper case variables shouldn't occur yet\n"
-	| X as LogicVar {ty, ...} => (ctx, true, LEFT X, asyncTypeToApx ty)
+	| X as LogicVar {ty, ...} => (ctx, true, LEFT (X, []), x2 (asyncTypeToApx ty))
+	end
 
 (* apxInferSpine : context * spine * apxAsyncType -> context * bool * spine * apxAsyncType *)
 and apxInferSpine (ctx, sp, ty) = case Spine.prj sp of

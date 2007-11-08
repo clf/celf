@@ -78,7 +78,7 @@ AsyncType :
 	| TOP                                 ( Syntax.Top' )
 	| LCURLY SyncType RCURLY              ( Syntax.TMonad' SyncType )
 	| AtomicType                          ( let val (a,s) = AtomicType
-	                                        in Syntax.TAtomic'(a,[],objs2spine s) end )
+	                                        in Syntax.TAtomic'(a,objs2spine s) end )
 	| LPAREN AsyncType RPAREN             ( AsyncType )
 
 AtomicType :
@@ -106,7 +106,7 @@ Obj :
 	| LANGLE Obj COMMA Obj RANGLE          ( Syntax.AddPair'(Obj1,Obj2) )
 	| UNIT                                 ( Syntax.Unit' )
 	| LCURLY ExpObj RCURLY                 ( Syntax.Monad' ExpObj )
-	| ID                                   ( Util.headToObj(Syntax.Const(ID,[])) )
+	| ID                                   ( Util.headToObj(Syntax.Const(ID)) )
 	| Obj LINAPP Obj                       ( Util.linApp(Obj1,Obj2) )
 	| Obj Obj %prec LINAPP                 ( Util.app(Obj1,Obj2) )
 	| Obj PROJLEFT                         ( Util.projLeft Obj )

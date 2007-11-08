@@ -11,20 +11,22 @@ fun etaContract e ob =
 		fun nbinds sp = length (List.filter (fn Ap => true | LAp => true | _ => false) sp)
 		fun etaC (ob, sp) = case etaShortcut ob of NONE => etaC' (ob, sp) | SOME k => k
 		and etaC' (ob, sp) = case Whnf.whnfObj ob of
-			  Lam (_, N) => etaC (N, Ap::sp)
-			| LinLam (_, N) => etaC (N, LAp::sp)
-			| AddPair (N1, N2) => eq (etaC (N1, Pl::sp), etaC (N1, Pr::sp))
-			| Monad E => (case ExpObjAuxDefs.prj2 E (* stub: whnf *) of
-							  Let (p, N, Mon M) => (etaP (p, M); etaC (N, sp))
-							| _ => raise e)
-			| Atomic (Var n, _, S) =>
+			  NfLam (_, N) => etaC (N, Ap::sp)
+			| NfLinLam (_, N) => etaC (N, LAp::sp)
+			| NfAddPair (N1, N2) => eq (etaC (N1, Pl::sp), etaC (N1, Pr::sp))
+			| NfMonad E =>
+				let fun expFmap f = ExpObj.Fmap ((fn x=>x, fn x=>x, fn x=>x), f)
+				in case expFmap Whnf.whnfExp (Whnf.whnfExp E) of
+					  Let (p, N, Mon M) => (etaP (p, M); etaC (Atomic' N, sp))
+					| _ => raise e
+				end
+			| NfAtomic (Var n, _, S) =>
 				let val k = n - nbinds sp
 					val () = if k>0 then () else raise e
 					val () = etaSp (1, S, sp)
 				in k end
-			| Atomic _ => raise e
-			| Unit => raise e
-			| _ => raise Fail "Internal error: etaContract\n"
+			| NfAtomic _ => raise e
+			| NfUnit => raise e
 		and etaP (p, m) = ignore (etaP' (1, p, m))
 		and etaP' (n, p, m) = case (Pattern.prj p, MonadObj.prj m) of
 			  (PTensor (p1, p2), Tensor (M1, M2)) => etaP' (n + etaP' (n, p1, M1), p2, M2)
@@ -67,7 +69,7 @@ fun etaExpand (A, H, AH, S) =
 				(*Atomic' (Either.leftOf (Subst.headSub (H, Shift n)), 
 						Whnf.appendSpine (S, Shift n, (Sf (1, Nil), id)))*)
 				Atomic' (Subst.shiftHead (H, n), AH,
-						Util.appendSpine (SClos (S, Subst.shift n), Sf (1, Nil')))
+						appendSpine (SClos (S, Subst.shift n), Sf (1, Nil')))
 		fun eta' (ty, n, Sf) = case Util.apxTypePrjAbbrev ty of
 			  ApxLolli (A, B) =>
 				LinLam' ("", eta' (B, n+1, fn (n, S) => Sf (n+1, LinApp' (Idx A n, S))))
@@ -89,9 +91,11 @@ fun etaExpand (A, H, AH, S) =
 	end
 
 (* etaExpandKind : kind -> kind *)
+fun etaExpandKind ki = Util.KindRec.unfold etaExpandType Kind.prj ki
+(*
 fun etaExpandKind ki = case Kind.prj ki of
 	  Type => Type'
-	| KPi (x, A, K) => KPi' (x, etaExpandType A, etaExpandKind K)
+	| KPi (x, A, K) => KPi' (x, etaExpandType A, etaExpandKind K)*)
 
 (* etaExpandType : asyncType -> asyncType *)
 and etaExpandType ty = case AsyncType.prj ty of
@@ -100,10 +104,8 @@ and etaExpandType ty = case AsyncType.prj ty of
 	| AddProd (A, B) => AddProd' (etaExpandType A, etaExpandType B)
 	| Top => Top'
 	| TMonad S => TMonad' (etaExpandSyncType S)
-	| TAtomic (a, impl, S) =>
-			TAtomic' (a, etaExpandImpl impl, etaExpandTypeSpine (S, sigLookupApxKind a))
+	| TAtomic (a, S) => TAtomic' (a, etaExpandTypeSpine (S, kindToApx (sigLookupKind a)))
 	| TAbbrev aA => TAbbrev' aA
-	| TUnknown => raise Fail "Ambiguous typing\n"
 
 (* etaExpandTypeSpine : typeSpine * apxKind -> typeSpine *)
 and etaExpandTypeSpine (sp, ki) = case (TypeSpine.prj sp, ApxKind.prj ki) of
@@ -112,11 +114,13 @@ and etaExpandTypeSpine (sp, ki) = case (TypeSpine.prj sp, ApxKind.prj ki) of
 	| _ => raise Fail "Internal error etaExpandTypeSpine: Match\n"
 
 (* etaExpandSyncType : syncType -> syncType *)
+and etaExpandSyncType ty = Util.SyncTypeRec.unfold etaExpandType SyncType.prj ty
+(*
 and etaExpandSyncType ty = case SyncType.prj ty of
 	  TTensor (S1, S2) => TTensor' (etaExpandSyncType S1, etaExpandSyncType S2)
 	| TOne => TOne'
 	| Exists (x, A, S) => Exists' (x, etaExpandType A, etaExpandSyncType S)
-	| Async A => Async' (etaExpandType A)
+	| Async A => Async' (etaExpandType A)*)
 
 (* etaExpandObj : obj * apxAsyncType -> obj *)
 and etaExpandObj (ob, ty) = case (Obj.prj ob, Util.apxTypePrjAbbrev ty) of
@@ -136,13 +140,11 @@ and etaExpandObj (ob, ty) = case (Obj.prj ob, Util.apxTypePrjAbbrev ty) of
 
 (* etaExpandHead : head -> head *)
 and etaExpandHead h = case h of
-	  Const (c, impl) => Const (c, etaExpandImpl impl)
-	| Var _ => h
-	| UCVar _ => h
-	| LogicVar X =>
-		LogicVar (X with'ty etaExpandType (#ty X))
+	  LogicVar X => LogicVar (X with'ty etaExpandType (#ty X))
+	| _ => h
 
 (* etaExpandImpl : obj list -> obj list *)
+(*
 and etaExpandImpl impl =
 	let fun f ob = case Obj.prj ob of
 			  Atomic (LogicVar X, A', S) =>
@@ -150,6 +152,7 @@ and etaExpandImpl impl =
 					else raise Fail "Internal error: etaExpandImpl 1\n"
 			| _ => raise Fail "Internal error: etaExpandImpl 2\n"
 	in map f impl end
+*)
 
 (* etaExpandSpine : spine * apxAsyncType -> spine *)
 and etaExpandSpine (sp, ty) = case (Spine.prj sp, Util.apxTypePrjAbbrev ty) of
@@ -170,11 +173,13 @@ and etaExpandExp (ex, ty) = case ExpObj.prj ex of
 	| Mon M => Mon' (etaExpandMonadObj (M, ty))
 
 (* etaExpandPattern : pattern -> pattern *)
+and etaExpandPattern p = Util.PatternRec.unfold etaExpandType Pattern.prj p
+(*
 and etaExpandPattern p = case Pattern.prj p of
 	  PTensor (p1, p2) => PTensor' (etaExpandPattern p1, etaExpandPattern p2)
 	| POne => POne'
 	| PDepPair (x, A, p) => PDepPair' (x, etaExpandType A, etaExpandPattern p)
-	| PVar (x, A) => PVar' (x, etaExpandType A)
+	| PVar (x, A) => PVar' (x, etaExpandType A)*)
 
 (* etaExpandMonadObj : monadObj * apxSyncType -> monadObj *)
 and etaExpandMonadObj (mob, ty) = case (MonadObj.prj mob, ApxSyncType.prj ty) of
