@@ -1,0 +1,15 @@
+o : type.
+atm : type.
+=> : o <- o <- o.
+&' : o <- o <- o.
+true : o.
+` : o <- atm.
+!^ : o -> type.
+!v : o -> type.
+trueI^ : !^ true.
+andI^ : !^ (A &' B) <- !^ B <- !^ A.
+andEvL : !v A <- !v (A &' B).
+andEvR : !v B <- !v (A &' B).
+impI^ : !^ (A => B) <- (!v A -> !^ B).
+impEv : !v B <- !^ A <- !v (A => B).
+close : !^ (` P) <- !v (` P).

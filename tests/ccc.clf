@@ -1,0 +1,235 @@
+obj : type.
+mor : obj -> obj -> type.
+== : Pi A:obj. Pi B:obj. mor A B -> mor A B -> type.
+id : mor A A.
+@' : mor A C <- mor A B <- mor B C.
+refl : F == F.
+then : F == F'' <- F' == F'' <- F == F'.
+sym : F' == F <- F == F'.
+=@= : F @' G == F' @' G' <- G == G' <- F == F'.
+id_l : id @' F == F.
+id_r : F @' id == F.
+ass : H @' (G @' F) == (H @' G) @' F.
+1 : obj.
+* : obj <- obj <- obj.
+drop : mor A 1.
+fst : mor (A * B) A.
+snd : mor (A * B) B.
+pair : mor A (B * C) <- mor A C <- mor A B.
+=pair= : pair F G == pair F' G' <- G == G' <- F == F'.
+term_u : H == drop.
+prod_l : fst @' pair F G == F.
+prod_r : snd @' pair F G == G.
+prod_u : pair (fst @' H) (snd @' H) == H.
+=> : obj <- obj <- obj.
+app : mor ((B => C) * B) C.
+cur : mor A (B => C) <- mor (A * B) C.
+=cur= : cur F == cur F' <- F == F'.
+exp_e : app @' pair (cur F @' fst) snd == F.
+exp_u : cur (app @' pair (G @' fst) snd) == G.
+term : obj -> type.
+conv : Pi A:obj. term A -> term A -> type.
+lpair : term (A * B) <- term B <- term A.
+lfst : term A <- term (A * B).
+lsnd : term B <- term (A * B).
+lunit : term 1.
+llam : term (A => B) <- (term A -> term B).
+lapp : term B <- term A <- term (A => B).
+c_refl : conv E E.
+c_trans : conv E E'' <- conv E' E'' <- conv E E'.
+c_sym : conv E' E <- conv E E'.
+c_fst : conv (lfst E) (lfst E') <- conv E E'.
+c_snd : conv (lsnd E) (lsnd E') <- conv E E'.
+c_pair : conv (lpair E1 E2) (lpair E1' E2') <- conv E2 E2' <- conv E1 E1'.
+c_lam :
+   conv (llam (\_e:term _A1. E _e)) (llam (\_e:term _A1. E' _e))
+      <- (Pi x:term _A1. conv (E x) (E' x)).
+c_app : conv (lapp E1 E2) (lapp E1' E2') <- conv E2 E2' <- conv E1 E1'.
+c_unit : conv lunit E.
+c_prl : conv (lfst (lpair E1 E2)) E1.
+c_prr : conv (lsnd (lpair E1 E2)) E2.
+c_surj : conv (lpair (lfst E) (lsnd E)) E.
+c_beta : conv (lapp (llam (\_e:term _A2. E1 _e)) E2) (E1 E2).
+c_eta : conv (llam (\x:term _A1. lapp E x)) E.
+distp :
+   Pi _A1:obj. Pi _A2:obj. Pi _A3:obj. Pi _A4:obj. Pi F:mor _A4 _A2.
+      Pi G:mor _A4 _A3. Pi H:mor _A1 _A4.
+      pair F G @' H == pair (F @' H) (G @' H) -> type.
+distp1 :
+   distp
+      (sym prod_u
+          then =pair= (ass then =@= prod_l refl) (ass then =@= prod_r refl)).
+appl :
+   Pi _A1:obj. Pi _A2:obj. Pi _A3:obj. Pi _A4:obj. Pi F:mor (_A4 * _A3) _A2.
+      Pi G:mor _A1 _A4. Pi H:mor _A1 _A3.
+      app @' pair (cur F @' G) H == F @' pair G H -> type.
+appl1 :
+   appl
+      (=@= refl
+          (=pair= (=@= refl (sym prod_l) then ass) (sym prod_r) then sym DP)
+          then ass then =@= exp_e refl)
+      <- distp DP.
+distc :
+   Pi _A1:obj. Pi _A2:obj. Pi _A3:obj. Pi _A4:obj. Pi F:mor (_A4 * _A2) _A3.
+      Pi G:mor _A1 _A4. cur F @' G == cur (F @' pair (G @' fst) snd) -> type.
+distc1 :
+   distc (sym exp_u then =cur= (=@= refl (=pair= (sym ass) refl) then AP))
+      <- appl AP.
+cong :
+   Pi A:obj. Pi B:obj. Pi E:term A. Pi E':term A. Pi M:term A -> term B.
+      (conv E E' -> conv (M E) (M E')) -> type.
+cong_var : cong (\x:term _A1. x) (\c:conv _E1 _E2. c).
+cong_unit : cong (\x:term _A1. lunit) (\c:conv _E1 _E2. c_refl).
+cong_pair :
+   cong (\x:term _A1. lpair (E1 x) (E2 x))
+      (\c:conv _E1 _E2. c_pair (CP1 c) (CP2 c))
+      <- cong (\_e:term _A1. E1 _e) (\_lc:conv _E1 _E2. CP1 _lc)
+      <- cong (\_e:term _A1. E2 _e) (\_lc:conv _E1 _E2. CP2 _lc).
+cong_fst :
+   cong (\x:term _A1. lfst (E x)) (\c:conv _E1 _E2. c_fst (CP c))
+      <- cong (\_e:term _A1. E _e) (\_lc:conv _E1 _E2. CP _lc).
+cong_snd :
+   cong (\x:term _A1. lsnd (E x)) (\c:conv _E1 _E2. c_snd (CP c))
+      <- cong (\_e:term _A1. E _e) (\_lc:conv _E1 _E2. CP _lc).
+cong_lam :
+   cong (\x:term _A3. llam (\y:term _A1. E x y))
+      (\c:conv _E3 _E4. c_lam (\y:term _A1. CP c y))
+      <- (Pi y:term _A1.
+             cong (\x:term (_A2 y). y) (\c:conv (_E1 y) (_E2 y). c_refl)
+                -> cong (\x:term _A3. E x y) (\c:conv _E3 _E4. CP c y)).
+cong_app :
+   cong (\x:term _A1. lapp (E1 x) (E2 x))
+      (\c:conv _E1 _E2. c_app (CP1 c) (CP2 c))
+      <- cong (\_e:term _A1. E1 _e) (\_lc:conv _E1 _E2. CP1 _lc)
+      <- cong (\_e:term _A1. E2 _e) (\_lc:conv _E1 _E2. CP2 _lc).
+env : obj -> type.
+empty : env 1.
+addv : env (P * A) <- term A <- env P.
+absv : Pi A:obj. Pi B:obj. env A -> term B -> mor A B -> type.
+av_x : absv (addv G X) X snd.
+av_y : absv (addv G Y) X (M @' fst) <- absv G X M.
+abse : Pi A:obj. Pi B:obj. env A -> term B -> mor A B -> type.
+avar : abse G X M <- absv G X M.
+aunit : abse G lunit drop.
+apair : abse G (lpair E1 E2) (pair F1 F2) <- abse G E2 F2 <- abse G E1 F1.
+afst : abse G (lfst E) (fst @' F) <- abse G E F.
+asnd : abse G (lsnd E) (snd @' F) <- abse G E F.
+alam :
+   abse G (llam (\x:term _A1. E x)) (cur F)
+      <- (Pi x:term _A1. abse (addv G x) (E x) F).
+aapp : abse G (lapp E1 E2) (app @' pair F1 F2) <- abse G E2 F2 <- abse G E1 F1.
+conc : Pi A:obj. Pi B:obj. mor A B -> (term A -> term B) -> type.
+cid : conc id (\x:term _A1. x).
+ccomp :
+   conc (F @' G) (\x:term _A3. M (N x))
+      <- conc G (\_e:term _A3. N _e)
+      <- conc F (\_e:term _A1. M _e).
+cunit : conc drop (\x:term _A1. lunit).
+cpair :
+   conc (pair F G) (\x:term _A1. lpair (M x) (N x))
+      <- conc G (\_e:term _A1. N _e)
+      <- conc F (\_e:term _A1. M _e).
+cfst : conc fst (\x:term (_A1 * _A2). lfst x).
+csnd : conc snd (\x:term (_A1 * _A2). lsnd x).
+ccur :
+   conc (cur F) (\a:term _A1. llam (\b:term _A2. M (lpair a b)))
+      <- conc F (\_e:term (_A1 * _A2). M _e).
+capp : conc app (\a:term ((_A1 => _A2) * _A1). lapp (lfst a) (lsnd a)).
+etoc :
+   Pi _A1:obj. Pi _A2:obj. Pi F:mor _A1 _A2. Pi F':mor _A1 _A2.
+      Pi M:term _A1 -> term _A2. Pi M':term _A1 -> term _A2.
+      F == F' -> conc F (\_e:term _A1. M _e) -> conc F' (\_e:term _A1. M' _e)
+         -> (Pi x:term _A1. conv (M x) (M' x)) -> type.
+etoc_refl : etoc refl CF CF (\x:term _A1. c_refl).
+etoc_then :
+   etoc (EP1 then EP2) CF CF' (\x:term _A1. c_trans (CP1 x) (CP2 x))
+      <- etoc EP1 CF CF'' (\x:term _A1. CP1 x)
+      <- etoc EP1 CF'' CF' (\x:term _A1. CP2 x).
+etoc_sym :
+   etoc (sym EP) CF CF' (\x:term _A1. c_sym (CP x))
+      <- etoc EP CF' CF (\x:term _A1. CP x).
+etoc_comp :
+   etoc (=@= EPF EPG) (ccomp CF CG) (ccomp CF' CG')
+      (\x:term _A1. c_trans (CPF (M x)) (CVF' x (CPG x)))
+      <- etoc EPF CF CF' (\x:term _A2. CPF x)
+      <- etoc EPG CG CG' (\x:term _A1. CPG x)
+      <- (Pi x:term _A1.
+             cong (\_e:term _A2. N' _e) (\_lc:conv (M x) (_E1 x). CVF' x _lc)).
+etoc_pair :
+   etoc (=pair= EPF EPG) (cpair CF CG) (cpair CF' CG')
+      (\x:term _A1. c_pair (CPF x) (CPG x))
+      <- etoc EPF CF CF' (\x:term _A1. CPF x)
+      <- etoc EPG CG CG' (\x:term _A1. CPG x).
+etoc_cur :
+   etoc (=cur= EPF) (ccur CF) (ccur CF')
+      (\x:term _A1. c_lam (\y:term _A2. CPF (lpair x y)))
+      <- etoc EPF CF CF' (\x:term (_A1 * _A2). CPF x).
+etoc_idl : etoc id_l (ccomp cid CF) CF (\x:term _A1. c_refl).
+etoc_idr : etoc id_r (ccomp CF cid) CF (\x:term _A1. c_refl).
+etoc_ass :
+   etoc ass (ccomp CF (ccomp CG CH)) (ccomp (ccomp CF CG) CH)
+      (\x:term _A1. c_refl).
+etoc_termu : etoc term_u cunit CF (\x:term _A1. c_unit).
+etoc_prodl : etoc prod_l (ccomp cfst (cpair CF CG)) CF (\x:term _A1. c_prl).
+etoc_prodr : etoc prod_r (ccomp csnd (cpair CF CG)) CG (\x:term _A1. c_prr).
+etoc_produ :
+   etoc prod_u (cpair (ccomp cfst CF) (ccomp csnd CF)) CF (\x:term _A1. c_surj).
+etoc_expe :
+   etoc exp_e (ccomp capp (cpair (ccomp (ccur CF) cfst) csnd)) CF
+      (\x:term (_A1 * _A2).
+          c_trans (c_app c_prl c_prr) (c_trans c_beta (CC x c_surj)))
+      <- (Pi x:term (_A1 * _A2).
+             cong (\_e:term (_A1 * _A2). M _e)
+                (\_lc:conv (lpair (lfst x) (lsnd x)) x. CC x _lc)).
+etoc_expu :
+   etoc exp_u (ccur (ccomp capp (cpair (ccomp CF cfst) csnd))) CF
+      (\x:term _A1.
+          c_trans
+             (c_lam
+                 (\y:term _A2.
+                     c_app (c_trans c_prl (CC x y c_prl)) (c_trans c_prr c_prr)))
+             c_eta)
+      <- (Pi x:term _A1. Pi y:term _A2.
+             cong (\_e:term _A1. M _e)
+                (\_lc:conv (lfst (lpair x y)) x. CC x y _lc)).
+exp : Pi P:obj. env P -> term P -> type.
+exp_empty : exp empty lunit.
+exp_addv : exp (addv G X) (lpair N X) <- exp G N.
+invcav :
+   Pi _A1:obj. Pi _A2:obj. Pi G:env _A1. Pi X:term _A2. Pi F:mor _A1 _A2.
+      Pi M:term _A1 -> term _A2. Pi N:term _A1.
+      absv G X F -> conc F (\_e:term _A1. M _e) -> exp G N -> conv (M N) X
+         -> type.
+invcav_x : invcav av_x csnd (exp_addv EP) c_prr.
+invcav_y :
+   invcav (av_y AV) (ccomp CP cfst) (exp_addv EP) (c_trans (CC c_prl) CVP)
+      <- cong (\_e:term _A1. M _e) (\_lc:conv (lfst (lpair MG Y)) MG. CC _lc)
+      <- invcav AV CP EP CVP.
+invca :
+   Pi _A1:obj. Pi _A2:obj. Pi G:env _A1. Pi E:term _A2. Pi F:mor _A1 _A2.
+      Pi M:term _A1 -> term _A2. Pi N:term _A1.
+      abse G E F -> conc F (\_e:term _A1. M _e) -> exp G N -> conv (M N) E
+         -> type.
+invca_var : invca (avar AV) CP EP CVP <- invcav AV CP EP CVP.
+invca_fst :
+   invca (afst AP) (ccomp cfst CP) EP (c_fst CVP) <- invca AP CP EP CVP.
+invca_snd :
+   invca (asnd AP) (ccomp csnd CP) EP (c_snd CVP) <- invca AP CP EP CVP.
+invca_pair :
+   invca (apair AP1 AP2) (cpair CP1 CP2) EP (c_pair CVP1 CVP2)
+      <- invca AP1 CP1 EP CVP1
+      <- invca AP2 CP2 EP CVP2.
+invca_lam :
+   invca (alam (\x:term _A1. AP x)) (ccur CP) EP (c_lam (\x:term _A1. CVP x))
+      <- (Pi x:term _A1. invca (AP x) CP (exp_addv EP) (CVP x)).
+invca_app :
+   invca (aapp AP1 AP2) (ccomp capp (cpair CP1 CP2)) EP
+      (c_app (c_trans c_prl CVP1) (c_trans c_prr CVP2))
+      <- invca AP1 CP1 EP CVP1
+      <- invca AP2 CP2 EP CVP2.
+zconc : Pi A:obj. Pi B:obj. mor A B -> env A -> term B -> type.
+zconc1 : zconc F G (M MG) <- conc F (\_e:term _A1. M _e) <- exp G MG.
+inv :
+   Pi _A1:obj. Pi _A2:obj. Pi G:env _A1. Pi E:term _A2. Pi F:mor _A1 _A2.
+      Pi E':term _A2. abse G E F -> zconc F G E' -> conv E' E -> type.
+inv1 : inv AP (zconc1 EXP CP) EE <- invca AP CP EXP EE.

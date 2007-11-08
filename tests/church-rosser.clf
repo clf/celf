@@ -35,7 +35,7 @@ id_lam :
    identity (lam (\m:term. M1 m)) (lm (\x:term. \r:x => x. R1 x r))
       <- (Pi x:term. Pi eqx:x => x. identity x eqx -> identity (M1 x) (R1 x eqx)).
 id_app : identity (app M1 M2) (ap R1 R2) <- identity M1 R1 <- identity M2 R2.
-% block lid : block {x:term} {eqx:x => x} {u:identity x eqx}.
+
 append :
    Pi M:term. Pi M':term. Pi M'':term.
       M =>* M' -> M' =>* M'' -> M =>* M'' -> type.
@@ -66,9 +66,7 @@ subst_lm :
              (Pi N:term. Pi N':term. Pi S':N => N'.
                  subst (\x:term. \idx:x => x. idy) S' idy)
                 -> subst (\x:term. \idx:x => x. R1 x idx y idy) S (R1' y idy)).
-% block l1 : block {x:term} {idx:x => x}
-   {hs:Pi N:term. Pi N':term. Pi S':N => N'.
-          subst (\y:term. \idy:y => y. idx) S' idx}.
+
 dia :
    Pi M:term. Pi M':term. Pi M'':term. Pi N:term.
       M => M' -> M => M'' -> M' => N -> M'' => N -> type.
@@ -117,9 +115,7 @@ dia_ll :
                  subst (\y:term. \idy:y => y. idx) S' idx)
                 -> dia idx idx idx idx
                 -> dia (R1' x idx) (R1'' x idx) (S1' x idx) (S1'' x idx)).
-% block l2 : block {x:term} {idx:x => x}
-   {hs:Pi N:term. Pi N':term. Pi S':N => N'.
-          subst (\y:term. \idy:y => y. idx) S' idx} {hd:dia idx idx idx idx}.
+
 strip :
    Pi M:term. Pi M':term. Pi M'':term. Pi N:term.
       M => M' -> M =>* M'' -> M' =>* N -> M'' => N -> type.
@@ -146,7 +142,7 @@ cr_compose :
       <- conf R1* R2* T1* T2*
       <- append S1* T1* S*
       <- append S2* T2* S*'.
-% block ltm : block {x:term}.
+
 appd :
    Pi M:term. Pi M':term. Pi M'':term.
       M -->* M' -> M' -->* M'' -> M -->* M'' -> type.
@@ -191,7 +187,7 @@ eq1_lm :
    eq1 (lm (\x:term. \r:x => x. R1 x r)) S*
       <- (Pi x:term. Pi eqx:x => x. eq1 eqx id1 -> eq1 (R1 x eqx) (S1* x))
       <- lm1* (\x:term. S1* x) S*.
-% block leq1 : block {x:term} {eqx:x => x} {e:eq1 eqx id1}.
+
 eq2 : Pi M:term. Pi N:term. M --> N -> M => N -> type.
 eq2_beta1 :
    eq2 beta1 (beta (\x:term. \r:x => x. I1 x r) I2)

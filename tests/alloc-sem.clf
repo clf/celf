@@ -1,0 +1,7 @@
+absurd : type.
+nat : type.
+z_nat : nat.
+s_nat : nat <- nat.
+nat_lt : nat -> nat -> type.
+nat_lt_z : nat_lt z_nat (s_nat N1).
+nat_lt_s : nat_lt (s_nat N1) (s_nat N2) <- nat_lt N1 N2.

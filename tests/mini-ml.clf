@@ -68,7 +68,7 @@ clo_letn :
       <- closed E1
       <- (Pi x:exp. closed x -> closed (E2 x)).
 clo_fix : closed (fix (\x:exp. E x)) <- (Pi x:exp. closed x -> closed (E x)).
-% block lc : block {x:exp} {u:closed x}.
+
 open : exp -> type.
 open_s : open (s E) <- open E.
 open_case1 : open (case E1 E2 (\x:exp. E3 x)) <- open E1.
@@ -86,7 +86,7 @@ open_letv2 : open (letv E1 (\x:exp. E2 x)) <- (Pi x:exp. open (E2 x)).
 open_letn1 : open (letn E1 (\x:exp. E2 x)) <- open E1.
 open_letn2 : open (letn E1 (\x:exp. E2 x)) <- (Pi x:exp. open (E2 x)).
 open_fix : open (fix (\x:exp. E x)) <- (Pi x:exp. open (E x)).
-% block lo : block {x:exp}.
+
 tp : type.
 nat : tp.
 cross : tp <- tp <- tp.
@@ -111,7 +111,7 @@ tp_letv :
       <- (Pi x:exp. of x T1 -> of (E2 x) T2).
 tp_letn : of (letn E1 (\x:exp. E2 x)) T2 <- of E1 T1 <- of (E2 E1) T2.
 tp_fix : of (fix (\x:exp. E x)) T' <- (Pi x:exp. of x T' -> of (E x) T').
-% block l : some {T':tp} block {x:exp} {d:of x T'}.
+
 tps : Pi E:exp. Pi V:exp. Pi T':tp. eval E V -> of E T' -> of V T' -> type.
 tps_z : tps ev_z tp_z tp_z.
 tps_s : tps (ev_s D1) (tp_s P1) (tp_s Q1) <- tps D1 P1 Q1.
@@ -145,4 +145,3 @@ tps_fix :
    tps (ev_fix D1) (tp_fix (\x:exp. \u:of x T1. P1 x u)) Q1
       <- tps D1 (P1 (fix (\x:exp. E1 x)) (tp_fix (\x:exp. \u:of x T1. P1 x u)))
             Q1.
- 

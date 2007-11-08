@@ -1,0 +1,15 @@
+nat : type.
+z : nat.
+s : nat <- nat.
+nt : nat -> type.
+nt_z : nt z.
+nt_s : nt (s X) <- nt X.
+plus : nat -> nat -> nat -> type.
+p_z : plus z Y Y.
+p_s : plus (s X) Y (s Z) <- plus X Y Z.
+acker : nat -> nat -> nat -> type.
+a_1 : acker z Y (s Y).
+a_2 : acker (s X) z Z <- acker X (s z) Z.
+a_3 : acker (s X) (s Y) Z <- acker (s X) Y Z' <- acker X Z' Z.
+arg1 : nat = s (s (s z)).
+arg2 : nat = s (s (s (s (s z)))).
