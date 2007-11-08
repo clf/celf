@@ -408,6 +408,7 @@ end
 structure Signatur : sig
 	val getSigDelta : unit -> decl list
 	val sigAddDecl : decl -> unit
+	val getImplLength : string -> int
 	val sigLookupKind : string -> kind
 	val sigLookupType : string -> asyncType
 	val sigLookupApxKind : string -> apxKind

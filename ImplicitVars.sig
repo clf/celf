@@ -17,6 +17,6 @@ val convUCVars2VarsKind : Syntax.implicits -> Syntax.kind -> Syntax.kind
 val convUCVars2VarsType : Syntax.implicits -> Syntax.asyncType -> Syntax.asyncType
 val convUCVars2VarsImps : Syntax.implicits -> Syntax.implicits
 
-val convUCVars2LogicVarsType : Syntax.asyncType -> Syntax.asyncType
+val convUCVars2LogicVarsType : Syntax.asyncType -> Syntax.asyncType * (string * Syntax.obj) list
 
 end

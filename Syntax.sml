@@ -444,19 +444,19 @@ struct
 	val sigTable = ref (empty()) : decl Table ref
 	val sigDelta = ref [] : decl list ref
 
-	fun getType c =
+	fun getKiTy c =
 		case peek (!sigTable, c) of
 			NONE => raise Fail ("Undeclared identifier: "^c^"\n")
-		  | SOME (ConstDecl (_, imps, Ty ty)) => (imps, ty)
-		  | SOME (ConstDecl (_, _, Ki _)) => raise Fail ("Type "^c^" is used as a object\n")
-		  | SOME _ => raise Fail "Internal error: getType called on abbrev\n"
+		  | SOME (ConstDecl (_, imps, kity)) => (imps, kity)
+		  | SOME _ => raise Fail "Internal error: getKiTy called on abbrev\n"
 
-	fun getKind a =
-		case peek (!sigTable, a) of
-			NONE => raise Fail ("Undeclared identifier: "^a^"\n")
-		  | SOME (ConstDecl (_, _, Ty _)) => raise Fail ("Object "^a^" is used as a type\n")
-		  | SOME (ConstDecl (_, imps, Ki ki)) => (imps, ki)
-		  | SOME _ => raise Fail "Internal error: getKind called on abbrev\n"
+	fun getType c = case getKiTy c of
+		  (imps, Ty ty) => (imps, ty)
+		| (_, Ki _) => raise Fail ("Type "^c^" is used as a object\n")
+
+	fun getKind a = case getKiTy a of
+		  (_, Ty _) => raise Fail ("Object "^a^" is used as a type\n")
+		| (imps, Ki ki) => (imps, ki)
 
 	(* newImplicits implicits -> obj list *)
 	fun newImplicits imps = map (fn (_, A) => newLVar A) imps
@@ -480,6 +480,9 @@ struct
 	fun sigAddDecl dec =
 		( sigTable := insert (!sigTable, idFromDecl dec, dec)
 		; sigDelta := dec :: !sigDelta )
+
+	(* getImplLength : string -> int *)
+	val getImplLength = length o #1 o getKiTy
 
 	(* sigLookupKind : string -> kind *)
 	fun sigLookupKind a =

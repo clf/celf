@@ -67,7 +67,7 @@ fun reconstructDecl dec =
 						in ConstDecl (id, imps, kity) end
 				| TypeAbbrev _ => (ImplicitVars.noUCVars () ; dec)
 				| ObjAbbrev _ => (ImplicitVars.noUCVars () ; dec)
-				| Query (e, l, a, ty) => Query (e, l, a, ImplicitVars.convUCVars2LogicVarsType ty)
+				| Query q => Query q
 			val dec = mapDecl Util.forceNormalizeKind
 			                  Util.forceNormalizeType
 			                  (Util.forceNormalizeObj o #1) dec
@@ -89,9 +89,12 @@ fun reconstructDecl dec =
 				| Query (e, l, a, ty) =>
 						let val () = print ("Query ("^Int.toString e^", "^Int.toString l^", "
 								^Int.toString a^") "^PrettyPrint.printType ty^".\n")
-						in OpSem.solveEC (ty,
-							fn N => print ("Solution: "^PrettyPrint.printObj N^"\n"))
-						end
+							val (ty, lvars) = ImplicitVars.convUCVars2LogicVarsType ty
+							fun printInst (a, ob) = print (" #"^a^" = "^PrettyPrint.printObj ob^"\n")
+							fun sc N =
+								( print ("Solution: "^PrettyPrint.printObj N^"\n")
+								; app printInst lvars )
+						in OpSem.solveEC (ty, sc) end
 			val () = if isQuery dec then () else Signatur.sigAddDecl dec
 		in () end
 

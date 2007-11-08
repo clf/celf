@@ -42,8 +42,11 @@ and pType ctx pa ty = if isUnknown ty then ["???"] else case AsyncType.prj ty of
 	| Top => ["T"]
 	| TMonad S => ["{"] @ pSyncType ctx false S @ ["}"]
 	| TAtomic (a, S) => (*(fn (a', []) => a' | (a', ts) => paren pa (a' @ ts)) ([a] @ join (map (pObj ctx true) impl), pTypeSpine ctx S)*)
-			[a] @ (*join (map (pObj ctx false) impl) @*) pTypeSpine ctx S
+			[a] @ (*join (map (pObj ctx false) impl) @*) pTypeSpineSkip ctx S (Signatur.getImplLength a)
 	| TAbbrev (a, ty) => [a]
+and pTypeSpineSkip ctx sp n = if n=0 then pTypeSpine ctx sp else case TypeSpine.prj sp of
+	  TNil => raise Fail "Internal error: pTypeSpineSkip\n"
+	| TApp (_, S) => pTypeSpineSkip ctx S (n-1)
 and pTypeSpine ctx sp = case TypeSpine.prj sp of
 	  TNil => []
 	| TApp (N, S) => [" "] @ pObj ctx true N @ pTypeSpine ctx S
@@ -51,7 +54,7 @@ and pSyncType ctx pa sty = case SyncType.prj sty of
 	  TTensor (S1, S2) => paren pa (pSyncType ctx true S1 @ [" @ "] @ pSyncType ctx true S2)
 	| TOne => ["1"]
 	| Exists (x, A, S) =>
-			let val (x', ctx') = add x ctx
+			let val (x', ctx') = if x = "no dep" then ("!", e::ctx) else add x ctx
 			in paren pa (["Exists "^x'^": "] @ pType ctx false A @ [". "]
 					@ pSyncType ctx' false S) end
 	| Async A => pType ctx pa A
@@ -65,7 +68,12 @@ and pObj ctx pa ob = case Obj.prj ob of
 	| AddPair (N1, N2) => ["<"] @ pObj ctx false N1 @ [", "] @ pObj ctx false N2 @ [">"]
 	| Unit => ["<>"]
 	| Monad E => ["{"] @ pExp ctx E @ ["}"]
-	| Atomic (H, _, S) => (fn (h, []) => h | (h, s) => paren pa (h @ s)) (pHead ctx H, pSpine ctx S)
+	| Atomic (H, _, S) =>
+			let val skip = case H of Const c => Signatur.getImplLength c | _ => 0
+			in case (pHead ctx H, pSpineSkip ctx S skip) of
+				  (h, []) => h
+				| (h, s) => paren pa (h @ s)
+			end
 	| Redex (N, _, S) =>
 			(fn [] => pObj ctx pa N | s => paren pa (pObj ctx true N @ s)) (pSpine ctx S)
 	| Constraint (N, A) => pObj ctx pa N
@@ -79,6 +87,9 @@ and pHead ctx h = case h of
 		@ [Subst.substToStr (String.concat o (pObj ctx true)) s]
 and pContext ctx NONE = ["--"]
   | pContext ctx (SOME G) = join (map (pType ctx false o #2) (Context.ctx2list G))
+and pSpineSkip ctx sp n = if n=0 then pSpine ctx sp else case Spine.prj sp of
+	  App (_, S) => pSpineSkip ctx S (n-1)
+	| _ => raise Fail "Internal error: pSpineSkip\n"
 and pSpine ctx sp = case Spine.prj sp of
 	  Nil => []
 	| App (N, S) => [" "] @ pObj ctx true N @ pSpine ctx S

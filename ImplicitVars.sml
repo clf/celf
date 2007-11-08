@@ -170,12 +170,12 @@ fun convUCVars2VarsImps imp =
 		  | conv ((x, A)::ctx) imps = conv ctx ((x, uc2xType (ctx2Lookup ctx) 1 A)::imps)
 	in conv (rev imp) [] end
 
-(* convUCVars2LogicVarsType : asyncType -> asyncType *)
+(* convUCVars2LogicVarsType : asyncType -> asyncType * (string * obj) list *)
 fun convUCVars2LogicVarsType ty =
 	let val table = mapTable (fn A => newLVarCtx (SOME emptyCtx) A) (!ucTable)
 		fun uc2lvar n x = case Obj.prj (Clos (valOf (peek (table, x)), Subst.shift n)) of
 			  Atomic (X as LogicVar _, _, _) => X
 			| _ => raise Fail "Internal error: uc2lvar\n"
-	in uc2xType uc2lvar 0 ty end
+	in (uc2xType uc2lvar 0 ty, toList table) end
 
 end
