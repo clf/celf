@@ -1,3 +1,5 @@
 CLF Compilation
 
+mllex clf.lex
+mlyacc clf.grm
 mlton clf.mlb
