@@ -1,0 +1,70 @@
+exp : type.
+z : exp.
+s : exp -> exp.
+case : exp -> exp -> (exp -> exp) -> exp.
+pair : exp -> exp -> exp.
+fst : exp -> exp.
+snd : exp -> exp.
+lam : (exp -> exp) -> exp.
+app : exp -> exp -> exp.
+letv : exp -> (exp -> exp) -> exp.
+letn : exp -> (exp -> exp) -> exp.
+fix : (exp -> exp) -> exp.
+cexp : type.
+cval : type.
+z+ : cval.
+s+ : cval -> cval.
+case+ : cval -> cexp -> (cval -> cexp) -> cexp.
+pair+ : cval -> cval -> cval.
+fst+ : cval -> (cval -> cexp) -> cexp.
+snd+ : cval -> (cval -> cexp) -> cexp.
+lam+ : (cval -> (cval -> cexp) -> cexp) -> cval.
+app+ : cval -> cval -> (cval -> cexp) -> cexp.
+vl+ : cval -> cexp.
+cmp : exp -> (cval -> cexp) -> cexp -> type.
+cmp_z : cmp z (\x:cval. K x) (K z+).
+cmp_s : cmp E (\x:cval. K (s+ x)) E' -> cmp (s E) (\x:cval. K x) E'.
+cmp_case :
+   cmp E1 (\x1:cval. case+ x1 E2' (\x:cval. E3' x)) E'
+      -> (Pi x:exp. Pi x':cval.
+             (Pi K':cval -> cexp. cmp x (\x1:cval. K' x1) (K' x'))
+                -> cmp (E3 x) (\x1:cval. K x1) (E3' x'))
+      -> cmp E2 (\x:cval. K x) E2'
+      -> cmp (case E1 E2 (\e:exp. E3 e)) (\x:cval. K x) E'.
+cmp_pair :
+   cmp E1 (\x:cval. E2' x) E'
+      -> (Pi x1':cval. cmp E2 (\x2':cval. K (pair+ x1' x2')) (E2' x1'))
+      -> cmp (pair E1 E2) (\x:cval. K x) E'.
+cmp_fst :
+   cmp E (\x:cval. fst+ x (\x1:cval. K x1)) E' -> cmp (fst E) (\x:cval. K x) E'.
+cmp_snd :
+   cmp E (\x:cval. snd+ x (\x1:cval. K x1)) E' -> cmp (snd E) (\x:cval. K x) E'.
+cmp_lam :
+   (Pi x:exp. Pi x':cval.
+       (Pi K':cval -> cexp. cmp x (\x1:cval. K' x1) (K' x'))
+          -> (Pi k:cval -> cexp.
+                 cmp (E x) (\x1:cval. k x1) (E' x' (\x1:cval. k x1))))
+      -> cmp (lam (\e:exp. E e)) (\x:cval. K x)
+            (K (lam+ (\x:cval. \x1:cval -> cexp. E' x (\x2:cval. x1 x2)))).
+cmp_app :
+   cmp E1 (\x1:cval. E2' x1) E'
+      -> (Pi x1:cval. cmp E2 (\x2:cval. app+ x1 x2 (\x:cval. K x)) (E2' x1))
+      -> cmp (app E1 E2) (\x:cval. K x) E'.
+cmp_letv :
+   cmp E1 (\x:cval. E2' x) E'
+      -> (Pi x:exp. Pi x':cval.
+             (Pi K':cval -> cexp. cmp x (\x1:cval. K' x1) (K' x'))
+                -> cmp (E2 x) (\x1:cval. K x1) (E2' x'))
+      -> cmp (letv E1 (\e:exp. E2 e)) (\x:cval. K x) E'.
+ceval : cexp -> cval -> type.
+ceval_vl : ceval (vl+ V) V.
+ceval_case_z : ceval E2 V -> ceval (case+ z+ E2 (\x:cval. E3 x)) V.
+ceval_case_s : ceval (E3 V1') V -> ceval (case+ (s+ V1') E2 (\x:cval. E3 x)) V.
+ceval_fst : ceval (K V1) V -> ceval (fst+ (pair+ V1 V2) (\x:cval. K x)) V.
+ceval_snd : ceval (K V2) V -> ceval (snd+ (pair+ V1 V2) (\x:cval. K x)) V.
+ceval_app :
+   ceval (E1' V2 (\x:cval. K x)) V
+      -> ceval
+            (app+ (lam+ (\x:cval. \x1:cval -> cexp. E1' x (\x2:cval. x1 x2))) V2
+                (\x:cval. K x))
+            V.

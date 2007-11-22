@@ -1,0 +1,86 @@
+exp : type.
+val : type.
+z : exp.
+s : exp -> exp.
+case : exp -> exp -> (val -> exp) -> exp.
+pair : exp -> exp -> exp.
+fst : exp -> exp.
+snd : exp -> exp.
+lam : (val -> exp) -> exp.
+app : exp -> exp -> exp.
+letv : exp -> (val -> exp) -> exp.
+letn : exp -> (exp -> exp) -> exp.
+fix : (exp -> exp) -> exp.
+vl : val -> exp.
+z* : val.
+s* : val -> val.
+pair* : val -> val -> val.
+lam* : (val -> exp) -> val.
+eval : exp -> val -> type.
+ev_z : eval z z*.
+ev_s : eval E V -> eval (s E) (s* V).
+ev_case_z : eval E2 V -> eval E1 z* -> eval (case E1 E2 (\v:val. E3 v)) V.
+ev_case_s :
+   eval (E3 V1') V -> eval E1 (s* V1') -> eval (case E1 E2 (\v:val. E3 v)) V.
+ev_pair : eval E2 V2 -> eval E1 V1 -> eval (pair E1 E2) (pair* V1 V2).
+ev_fst : eval E (pair* V1 V2) -> eval (fst E) V1.
+ev_snd : eval E (pair* V1 V2) -> eval (snd E) V2.
+ev_lam : eval (lam (\v:val. E v)) (lam* (\v:val. E v)).
+ev_app :
+   eval (E1' V2) V -> eval E2 V2 -> eval E1 (lam* (\v:val. E1' v))
+      -> eval (app E1 E2) V.
+ev_letv : eval (E2 V1) V -> eval E1 V1 -> eval (letv E1 (\v:val. E2 v)) V.
+ev_letn : eval (E2 E1) V -> eval (letn E1 (\e:exp. E2 e)) V.
+ev_fix : eval (E (fix (\e:exp. E e))) V -> eval (fix (\e:exp. E e)) V.
+ev_vl : eval (vl V) V.
+==> : exp -> exp -> type.
+red_z : ==> z (vl z*).
+red_s : ==> (s (vl V)) (vl (s* V)).
+red_case_z : ==> (case (vl z*) E2 (\v:val. E3 v)) E2.
+red_case_s : ==> (case (vl (s* V1')) E2 (\v:val. E3 v)) (E3 V1').
+red_pair : ==> (pair (vl V1) (vl V2)) (vl (pair* V1 V2)).
+red_fst : ==> (fst (vl (pair* V1 V2))) (vl V1).
+red_snd : ==> (snd (vl (pair* V2 V2))) (vl V2).
+red_lam : ==> (lam (\v:val. E v)) (vl (lam* (\v:val. E v))).
+red_app : ==> (app (vl (lam* (\v:val. E1' v))) (vl V2)) (E1' V2).
+red_letv : ==> (letv (vl V1) (\v:val. E2 v)) (E2 V1).
+red_letn : ==> (letn E1 (\e:exp. E2 e)) (E2 E1).
+red_fix : ==> (fix (\e:exp. E e)) (E (fix (\e:exp. E e))).
+redex : exp -> type.
+rdx : ==> E E' -> redex E.
+split : (exp -> exp) -> exp -> (exp -> exp) -> exp -> type.
+sp_redex : redex E -> split (\e:exp. C e) E (\e:exp. C e) E.
+sp_s :
+   split (\h:exp. C (s h)) E1 (\e:exp. C' e) E'
+      -> split (\e:exp. C e) (s E1) (\e:exp. C' e) E'.
+sp_case :
+   split (\h:exp. C (case h E2 (\v:val. E3 v))) E1 (\e:exp. C' e) E'
+      -> split (\e:exp. C e) (case E1 E2 (\v:val. E3 v)) (\e:exp. C' e) E'.
+sp_pair2 :
+   split (\h:exp. C (pair (vl V1) h)) E2 (\e:exp. C' e) E'
+      -> split (\e:exp. C e) (pair (vl V1) E2) (\e:exp. C' e) E'.
+sp_pair1 :
+   split (\h:exp. C (pair h E2)) E1 (\e:exp. C' e) E'
+      -> split (\e:exp. C e) (pair E1 E2) (\e:exp. C' e) E'.
+sp_fst :
+   split (\h:exp. C (fst h)) E (\e:exp. C' e) E'
+      -> split (\e:exp. C e) (fst E) (\e:exp. C' e) E'.
+sp_snd :
+   split (\h:exp. C (snd h)) E (\e:exp. C' e) E'
+      -> split (\e:exp. C e) (snd E) (\e:exp. C' e) E'.
+sp_app2 :
+   split (\h:exp. C (app (vl V1) h)) E2 (\e:exp. C' e) E'
+      -> split (\e:exp. C e) (app (vl V1) E2) (\e:exp. C' e) E'.
+sp_app1 :
+   split (\h:exp. C (app h E2)) E1 (\e:exp. C' e) E'
+      -> split (\e:exp. C e) (app E1 E2) (\e:exp. C' e) E'.
+sp_letv :
+   split (\h:exp. C (letv h (\v:val. E2 v))) E1 (\e:exp. C' e) E'
+      -> split (\e:exp. C e) (letv E1 (\v:val. E2 v)) (\e:exp. C' e) E'.
+split_exp : exp -> (exp -> exp) -> exp -> type.
+spe : split (\h:exp. h) E (\e:exp. C e) E' -> split_exp E (\e:exp. C e) E'.
+one_step : exp -> exp -> type.
+ostp : ==> R R' -> split_exp E (\e:exp. C e) R -> one_step E (C R').
+xeval : exp -> val -> type.
+xev_vl : xeval (vl V) V.
+xev_step : xeval E' V -> one_step E E' -> xeval E V.

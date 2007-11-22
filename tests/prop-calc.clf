@@ -1,32 +1,32 @@
 o : type.
-=> : o <- o <- o.
-&' : o <- o <- o.
+=> : o -> o -> o.
+&' : o -> o -> o.
 true : o.
 |- : o -> type.
-K : |- A => B => A.
-S : |- (A => B => C) => (A => B) => A => C.
+K : |- (=> A (=> B A)).
+S : |- (=> (=> A (=> B C)) (=> (=> A B) (=> A C))).
 ONE : |- true.
-PAIR : |- A => B => A &' B.
-LEFT : |- A &' B => A.
-RIGHT : |- A &' B => B.
-MP : |- B <- |- A <- |- A => B.
+PAIR : |- (=> A (=> B (&' A B))).
+LEFT : |- (=> (&' A B) A).
+RIGHT : |- (=> (&' A B) B).
+MP : |- (=> A B) -> |- A -> |- B.
 ! : o -> type.
 trueI : ! true.
-andI : ! A &' B <- ! B <- ! A.
-andEL : ! A <- ! A &' B.
-andER : ! B <- ! A &' B.
-impliesI : ! A => B <- (! A -> ! B).
-impliesE : ! B <- ! A <- ! A => B.
+andI : ! A -> ! B -> ! (&' A B).
+andEL : ! (&' A B) -> ! A.
+andER : ! (&' A B) -> ! B.
+impliesI : (! A -> ! B) -> ! (=> A B).
+impliesE : ! (=> A B) -> ! A -> ! B.
 !^ : o -> type.
 !v : o -> type.
 trueI^ : !^ true.
-andI^ : !^ (A &' B) <- !^ B <- !^ A.
-andEvL : !v A <- !v (A &' B).
-andEvR : !v B <- !v (A &' B).
-impI^ : !^ (A => B) <- (!v A -> !^ B).
-impEv : !v B <- !^ A <- !v (A => B).
-close : !^ A <- !v A.
-abs : Pi A:o. Pi B:o. (|- A -> |- B) -> |- A => B -> type.
+andI^ : !^ A -> !^ B -> !^ (&' A B).
+andEvL : !v (&' A B) -> !v A.
+andEvR : !v (&' A B) -> !v B.
+impI^ : (!v A -> !^ B) -> !^ (=> A B).
+impEv : !v (=> A B) -> !^ A -> !v B.
+close : !v A -> !^ A.
+abs : (|- A -> |- B) -> |- (=> A B) -> type.
 aONE : abs (\x:|- A1. ONE) (MP K ONE).
 aPAIR : abs (\x:|- A1. PAIR) (MP K PAIR).
 aLEFT : abs (\x:|- A1. LEFT) (MP K LEFT).
@@ -34,34 +34,32 @@ aRIGHT : abs (\x:|- A1. RIGHT) (MP K RIGHT).
 aK : abs (\x:|- A1. K) (MP K K).
 aS : abs (\x:|- A1. S) (MP K S).
 aMP :
-   abs (\x:|- A1. MP (P x) (Q x)) (MP (MP S P') Q')
-      <- abs (\p:|- A1. P p) P'
-      <- abs (\p:|- A1. Q p) Q'.
-comb : Pi A:o. ! A -> |- A -> type.
+   abs (\p:|- A1. Q p) Q' -> abs (\p:|- A1. P p) P'
+      -> abs (\x:|- A1. MP (P x) (Q x)) (MP (MP S P') Q').
+comb : ! A -> |- A -> type.
 ctrue : comb trueI ONE.
-candI : comb (andI P Q) (MP (MP PAIR P') Q') <- comb P P' <- comb Q Q'.
-candEL : comb (andEL P) (MP LEFT P') <- comb P P'.
-candER : comb (andER P) (MP RIGHT P') <- comb P P'.
+candI : comb Q Q' -> comb P P' -> comb (andI P Q) (MP (MP PAIR P') Q').
+candEL : comb P P' -> comb (andEL P) (MP LEFT P').
+candER : comb P P' -> comb (andER P) (MP RIGHT P').
 cimpliesI :
-   comb (impliesI (\d:! A1. PP d)) Q
-      <- (Pi x:! A1. Pi y:|- A1.
-             comb x y
-                -> (Pi B:o. abs (\z:|- B. y) (MP K y))
+   abs (\p:|- A1. PP' p) Q
+      -> (Pi x:! A1. Pi y:|- A1.
+             comb x y -> (Pi B:o. abs (\z:|- B. y) (MP K y))
                 -> comb (PP x) (PP' y))
-      <- abs (\p:|- A1. PP' p) Q.
-cimpliesE : comb (impliesE P Q) (MP P' Q') <- comb P P' <- comb Q Q'.
+      -> comb (impliesI (\d:! A1. PP d)) Q.
+cimpliesE : comb Q Q' -> comb P P' -> comb (impliesE P Q) (MP P' Q').
 
-combdefn : Pi A:o. |- A -> ! A -> type.
+combdefn : |- A -> ! A -> type.
 cdK : combdefn K (impliesI (\p:! A1. impliesI (\q:! A2. p))).
 cdS :
    combdefn S
       (impliesI
-          (\p:! A1 => A2 => A3.
+          (\p:! (=> A1 (=> A2 A3)).
               impliesI
-                 (\q:! A1 => A2.
+                 (\q:! (=> A1 A2).
                      impliesI (\r:! A1. impliesE (impliesE p r) (impliesE q r))))).
 cdONE : combdefn ONE trueI.
 cdPAIR : combdefn PAIR (impliesI (\p:! A1. impliesI (\q:! A2. andI p q))).
-cdLEFT : combdefn LEFT (impliesI (\p:! A1 &' A2. andEL p)).
-cdRIGHT : combdefn RIGHT (impliesI (\p:! A1 &' A2. andER p)).
-cdMP : combdefn (MP P Q) (impliesE P' Q') <- combdefn P P' <- combdefn Q Q'.
+cdLEFT : combdefn LEFT (impliesI (\p:! (&' A1 A2). andEL p)).
+cdRIGHT : combdefn RIGHT (impliesI (\p:! (&' A1 A2). andER p)).
+cdMP : combdefn Q Q' -> combdefn P P' -> combdefn (MP P Q) (impliesE P' Q').

@@ -1,179 +1,149 @@
 sort : type.
-arrow : sort <- sort <- sort.
-cross : sort <- sort <- sort.
+arrow : sort -> sort -> sort.
+cross : sort -> sort -> sort.
 trm : sort -> type.
-app : trm B <- trm A <- trm (arrow A B).
-lam : trm (arrow A B) <- (trm A -> trm B).
-pair : trm (cross A B) <- trm B <- trm A.
-eval : Pi A:sort. trm A -> trm A -> type.
+app : trm (arrow A B) -> trm A -> trm B.
+lam : (trm A -> trm B) -> trm (arrow A B).
+pair : trm A -> trm B -> trm (cross A B).
+eval : trm A -> trm A -> type.
 eval_lam : eval (lam (\m:trm X1. E m)) (lam (\m:trm X1. E m)).
 eval_app :
-   eval (app (lam (\m:trm X2. E m)) E') V <- eval E' V' <- eval (E V') V.
+   eval (E V') V -> eval E' V' -> eval (app (lam (\m:trm X2. E m)) E') V.
 atm : type.
 frm : type.
 int : sort.
-1 : trm %int%.
+1' : trm %int%.
 2 : trm %int%.
 3 : trm %int%.
 4 : trm %int%.
 5 : trm %int%.
-list : sort <- sort.
+list : sort -> sort.
 nil : trm (list A).
-| : trm (list A) <- trm (list A) <- trm A.
-^' : frm <- atm.
-=> : frm <- frm <- frm.
-=0 : frm <- frm <- frm.
-=>> : frm <- frm <- frm.
->=> : frm <- frm <- frm.
-forall : Pi s1:sort. frm <- (trm s1 -> frm).
-forall2 : Pi s1:sort. Pi s2:sort. frm <- ((trm s2 <- trm s1) -> frm).
-<= : frm -> frm -> frm = \x:frm. \y:frm. y => x.
-0= : frm -> frm -> frm = \x:frm. \y:frm. y =0 x.
-<<= : frm -> frm -> frm = \x:frm. \y:frm. y =>> x.
-<=< : frm -> frm -> frm = \x:frm. \y:frm. y >=> x.
+| : trm A -> trm (list A) -> trm (list A).
+^' : atm -> frm.
+=> : frm -> frm -> frm.
+=0 : frm -> frm -> frm.
+=>> : frm -> frm -> frm.
+>=> : frm -> frm -> frm.
+forall : Pi s1:sort. (trm s1 -> frm) -> frm.
+forall2 : Pi s1:sort. Pi s2:sort. ((trm s1 -> trm s2) -> frm) -> frm.
+<= : frm -> frm -> frm = \x:frm. \y:frm. => y x.
+0= : frm -> frm -> frm = \x:frm. \y:frm. =0 y x.
+<<= : frm -> frm -> frm = \x:frm. \y:frm. =>> y x.
+<=< : frm -> frm -> frm = \x:frm. \y:frm. >=> y x.
 elmt : type.
 del : elmt.
-# : elmt <- frm.
+# : frm -> elmt.
 rctx : type.
 rnil : rctx.
-,r : rctx <- elmt <- rctx.
+,r : rctx -> elmt -> rctx.
 appr : rctx -> rctx -> rctx -> type.
 appr_0 : appr R rnil R.
-appr_1 : appr R (T' ,r H) (T' ,r H) <- appr R T' T'.
+appr_1 : appr R T' T' -> appr R (,r T' H) (,r T' H).
 lctx : type.
 lnil : lctx.
-,l : lctx <- lctx <- elmt.
+,l : elmt -> lctx -> lctx.
 appl : lctx -> lctx -> lctx -> type.
 appl_0 : appl lnil L L.
-appl_1 : appl (H ,l T') L (H ,l T') <- appl T' L T'.
+appl_1 : appl T' L T' -> appl (,l H T') L (,l H T').
 l2r : lctx -> rctx -> type.
 l2r_0 : l2r lnil rnil.
-l2r_1 : l2r (H ,l T') T'' <- l2r T' T' <- appr (rnil ,r H) T' T''.
+l2r_1 : appr (,r rnil H) T' T'' -> l2r T' T' -> l2r (,l H T') T''.
 r2l : rctx -> lctx -> type.
 r2l_0 : r2l rnil lnil.
-r2l_1 : r2l (T' ,r H) T'' <- r2l T' T' <- appl T' (H ,l lnil) T''.
+r2l_1 : appl T' (,l H lnil) T'' -> r2l T' T' -> r2l (,r T' H) T''.
 insertAfter : rctx -> elmt -> rctx -> rctx -> type.
-insertAfter_0 : insertAfter rnil E L (L ,r E).
+insertAfter_0 : insertAfter rnil E L (,r L E).
 insertAfter_N :
-   insertAfter (I ,r X1) E (L ,r H) (L' ,r H) <- insertAfter I E L L'.
+   insertAfter I E L L' -> insertAfter (,r I X1) E (,r L H) (,r L' H).
 choose : rctx -> rctx -> frm -> rctx -> type.
-choose_0 : choose (T' ,r # A) T' A rnil.
-choose_1 : choose (T' ,r E) Tl A (Tr ,r E) <- choose T' Tl A Tr.
+choose_0 : choose (,r T' (# A)) T' A rnil.
+choose_1 : choose T' Tl A Tr -> choose (,r T' E) Tl A (,r Tr E).
 splitr : rctx -> rctx -> rctx -> type.
 spitr_rnil : splitr rnil rnil rnil.
-splitr_del : splitr (T' ,r del) (T' ,r del) rnil.
-splitr_# : splitr (T' ,r # A) Tl (Tr ,r # A) <- splitr T' Tl Tr.
+splitr_del : splitr (,r T' del) (,r T' del) rnil.
+splitr_# : splitr T' Tl Tr -> splitr (,r T' (# A)) Tl (,r Tr (# A)).
 splitl : lctx -> lctx -> lctx -> type.
 spitl_lnil : splitl lnil lnil lnil.
-splitl_del : splitl (del ,l T') lnil (del ,l T').
-splitl_# : splitl (# A ,l T') (# A ,l Tl) Tr <- splitl T' Tl Tr.
+splitl_del : splitl (,l del T') lnil (,l del T').
+splitl_# : splitl T' Tl Tr -> splitl (,l (# A) T') (,l (# A) Tl) Tr.
 prog : frm -> type.
 sqnt : rctx -> rctx -> rctx -> rctx -> frm -> type.
 ie_sqnt1 : rctx -> rctx -> rctx -> rctx -> rctx -> rctx -> frm -> atm -> type.
 ie_sqnt2 : rctx -> rctx -> rctx -> rctx -> rctx -> rctx -> frm -> atm -> type.
-=>_R : sqnt Di Do Oi Oo (A => B) <- (prog A -> sqnt Di Do Oi Oo B).
-=0_R : sqnt Di Do Oi Oo (A =0 B) <- sqnt (Di ,r # A) (Do ,r del) Oi Oo B.
+=>_R : (prog A -> sqnt Di Do Oi Oo B) -> sqnt Di Do Oi Oo (=> A B).
+=0_R : sqnt (,r Di (# A)) (,r Do del) Oi Oo B -> sqnt Di Do Oi Oo (=0 A B).
 >=>_R :
-   sqnt Di Do Oi Oo (A >=> B)
-      <- r2l Oi Oi'
-      <- l2r (# A ,l Oi') Oi''
-      <- sqnt Di Do Oi'' Oo'' B
-      <- r2l Oo'' (del ,l Oo')
-      <- l2r Oo' Oo.
-=>>_R : sqnt Di Do Oi Oo (A =>> B) <- sqnt Di Do (Oi ,r # A) (Oo ,r del) B.
+   l2r Oo' Oo -> r2l Oo'' (,l del Oo') -> sqnt Di Do Oi'' Oo'' B
+      -> l2r (,l (# A) Oi') Oi'' -> r2l Oi Oi' -> sqnt Di Do Oi Oo (>=> A B).
+=>>_R : sqnt Di Do (,r Oi (# A)) (,r Oo del) B -> sqnt Di Do Oi Oo (=>> A B).
 forall_R :
-   sqnt Di Do Oi Oo (forall Srt (\m:trm Srt. Frm m))
-      <- (Pi x:trm Srt. sqnt Di Do Oi Oo (Frm x)).
+   (Pi x:trm Srt. sqnt Di Do Oi Oo (Frm x))
+      -> sqnt Di Do Oi Oo (forall Srt (\m:trm Srt. Frm m)).
 forall2_R :
-   sqnt Di Do Oi Oo
-      (forall2 Srt1 Srt2 (\m:trm Srt1 -> trm Srt2. Frm (\m1:trm Srt1. m m1)))
-      <- (Pi x:trm Srt1 -> trm Srt2. sqnt Di Do Oi Oo (Frm (\m:trm Srt1. x m))).
+   (Pi x:trm Srt1 -> trm Srt2. sqnt Di Do Oi Oo (Frm (\m:trm Srt1. x m)))
+      -> sqnt Di Do Oi Oo
+            (forall2 Srt1 Srt2
+                (\m:trm Srt1 -> trm Srt2. Frm (\m1:trm Srt1. m m1))).
 choice_O :
-   sqnt Di Do Oi Oo (^' P)
-      <- choose Oi OiL A OiR
-      <- ie_sqnt1 Di Do OiL OoL OiR OoR A P
-      <- appr (OoL ,r del) OoR Oo.
+   appr (,r OoL del) OoR Oo -> ie_sqnt1 Di Do OiL OoL OiR OoR A P
+      -> choose Oi OiL A OiR -> sqnt Di Do Oi Oo (^' P).
 choice_D :
-   sqnt Di Do Oi Oo (^' P)
-      <- choose Di DiL A DiR
-      <- appr DiL DiR Di'
-      <- ie_sqnt2 Di' Do' Oi Ol Om Or A P
-      <- insertAfter DiR (# A) Di' Di
-      <- insertAfter DiR del Do' Do
-      <- appr Ol Om Oo'
-      <- appr Oo' Or Oo.
+   appr Oo' Or Oo -> appr Ol Om Oo' -> insertAfter DiR del Do' Do
+      -> insertAfter DiR (# A) Di' Di -> ie_sqnt2 Di' Do' Oi Ol Om Or A P
+      -> appr DiL DiR Di' -> choose Di DiL A DiR -> sqnt Di Do Oi Oo (^' P).
 choice_G :
-   sqnt Di Do Oi Oo (^' P)
-      <- prog A
-      <- ie_sqnt2 Di Do Oi Ol Om Or A P
-      <- appr Ol Om Oo'
-      <- appr Oo' Or Oo.
+   appr Oo' Or Oo -> appr Ol Om Oo' -> ie_sqnt2 Di Do Oi Ol Om Or A P -> prog A
+      -> sqnt Di Do Oi Oo (^' P).
 forall_L1 :
    Pi t1:trm Srt.
-      ie_sqnt1 Di Do OiL OoL OiR OoR (forall Srt (\m:trm Srt. Frm m)) P
-         <- ie_sqnt1 Di Do OiL OoL OiR OoR (Frm t1) P.
+      ie_sqnt1 Di Do OiL OoL OiR OoR (Frm t1) P
+         -> ie_sqnt1 Di Do OiL OoL OiR OoR (forall Srt (\m:trm Srt. Frm m)) P.
 forall_L2 :
    Pi t1:trm Srt.
-      ie_sqnt2 Di Do Oi Ol Om Or (forall Srt (\m:trm Srt. Frm m)) P
-         <- ie_sqnt2 Di Do Oi Ol Om Or (Frm t1) P.
+      ie_sqnt2 Di Do Oi Ol Om Or (Frm t1) P
+         -> ie_sqnt2 Di Do Oi Ol Om Or (forall Srt (\m:trm Srt. Frm m)) P.
 forall2_L1 :
    Pi t1:trm Srt1 -> trm Srt2.
-      ie_sqnt1 Di Do OiL OoL OiR OoR
-         (forall2 Srt1 Srt2 (\m:trm Srt1 -> trm Srt2. Frm (\m1:trm Srt1. m m1)))
-         P
-         <- ie_sqnt1 Di Do OiL OoL OiR OoR (Frm (\m:trm Srt1. t1 m)) P.
+      ie_sqnt1 Di Do OiL OoL OiR OoR (Frm (\m:trm Srt1. t1 m)) P
+         -> ie_sqnt1 Di Do OiL OoL OiR OoR
+               (forall2 Srt1 Srt2
+                   (\m:trm Srt1 -> trm Srt2. Frm (\m1:trm Srt1. m m1))) P.
 forall2_L2 :
    Pi t1:trm Srt1 -> trm Srt2.
-      ie_sqnt2 Di Do Oi Ol Om Or
-         (forall2 Srt1 Srt2 (\m:trm Srt1 -> trm Srt2. Frm (\m1:trm Srt1. m m1)))
-         P
-         <- ie_sqnt2 Di Do Oi Ol Om Or (Frm (\m:trm Srt1. t1 m)) P.
+      ie_sqnt2 Di Do Oi Ol Om Or (Frm (\m:trm Srt1. t1 m)) P
+         -> ie_sqnt2 Di Do Oi Ol Om Or
+               (forall2 Srt1 Srt2
+                   (\m:trm Srt1 -> trm Srt2. Frm (\m1:trm Srt1. m m1))) P.
 =>_L1 :
-   ie_sqnt1 Di Do OiL OoL OiR OoR (A => B) P
-      <- ie_sqnt1 Di Do OiL OoL OiR OoR B P
-      <- sqnt rnil rnil rnil rnil A.
+   sqnt rnil rnil rnil rnil A -> ie_sqnt1 Di Do OiL OoL OiR OoR B P
+      -> ie_sqnt1 Di Do OiL OoL OiR OoR (=> A B) P.
 =0_L1 :
-   ie_sqnt1 Di Do OiL OoL OiR OoR (A =0 B) P
-      <- ie_sqnt1 Di Dm OiL OoL OiR OoR B P
-      <- sqnt Dm Do rnil rnil A.
+   sqnt Dm Do rnil rnil A -> ie_sqnt1 Di Dm OiL OoL OiR OoR B P
+      -> ie_sqnt1 Di Do OiL OoL OiR OoR (=0 A B) P.
 >=>_L1 :
-   ie_sqnt1 Di Do OiL OoL OiR OoR (A >=> B) P
-      <- ie_sqnt1 Di Dm OiL OoL' OiR OoR B P
-      <- splitr OoL' OoLL OiA
-      <- sqnt Dm Do OiA OoA A
-      <- appr OoLL OoA OoL.
+   appr OoLL OoA OoL -> sqnt Dm Do OiA OoA A -> splitr OoL' OoLL OiA
+      -> ie_sqnt1 Di Dm OiL OoL' OiR OoR B P
+      -> ie_sqnt1 Di Do OiL OoL OiR OoR (>=> A B) P.
 =>>_L1 :
-   ie_sqnt1 Di Do OiL OoL OiR OoR (A =>> B) P
-      <- ie_sqnt1 Di Dm OiL OoL OiR OoR' B P
-      <- r2l OoR' OoRl
-      <- splitl OoRl OiAl OoRl'
-      <- l2r OoRl' OoRL
-      <- l2r OiAl OiA
-      <- sqnt Dm Do OiA OoA A
-      <- appr OoA OoRL OoR.
+   appr OoA OoRL OoR -> sqnt Dm Do OiA OoA A -> l2r OiAl OiA -> l2r OoRl' OoRL
+      -> splitl OoRl OiAl OoRl' -> r2l OoR' OoRl
+      -> ie_sqnt1 Di Dm OiL OoL OiR OoR' B P
+      -> ie_sqnt1 Di Do OiL OoL OiR OoR (=>> A B) P.
 =>_L2 :
-   ie_sqnt2 Di Do Oi Ol Om Or (A => B) P
-      <- ie_sqnt2 Di Do Oi Ol Om Or B P
-      <- sqnt rnil rnil rnil rnil A.
+   sqnt rnil rnil rnil rnil A -> ie_sqnt2 Di Do Oi Ol Om Or B P
+      -> ie_sqnt2 Di Do Oi Ol Om Or (=> A B) P.
 =0_L2 :
-   ie_sqnt2 Di Do Oi Ol Om Or (A =0 B) P
-      <- ie_sqnt2 Di Dm Oi Ol Om Or B P
-      <- sqnt Dm Do rnil rnil A.
+   sqnt Dm Do rnil rnil A -> ie_sqnt2 Di Dm Oi Ol Om Or B P
+      -> ie_sqnt2 Di Do Oi Ol Om Or (=0 A B) P.
 >=>_L2 :
-   ie_sqnt2 Di Do Oi Ol OmR Or (A >=> B) P
-      <- ie_sqnt2 Di Dm Oi Ol' Om Or B P
-      <- sqnt Dm Do Om Om' A
-      <- splitr Om' OmL OmR
-      <- appr Ol' OmL Ol.
+   appr Ol' OmL Ol -> splitr Om' OmL OmR -> sqnt Dm Do Om Om' A
+      -> ie_sqnt2 Di Dm Oi Ol' Om Or B P
+      -> ie_sqnt2 Di Do Oi Ol OmR Or (>=> A B) P.
 =>>_L2 :
-   ie_sqnt2 Di Do Oi Ol OmL Or (A =>> B) P
-      <- ie_sqnt2 Di Dm Oi Ol Om Or' B P
-      <- sqnt Dm Do Om Om' A
-      <- r2l Om' Om'l
-      <- splitl Om'l OmLl OmRl
-      <- l2r OmLl OmL
-      <- l2r OmRl OmR
-      <- appr OmR Or' Or.
+   appr OmR Or' Or -> l2r OmRl OmR -> l2r OmLl OmL -> splitl Om'l OmLl OmRl
+      -> r2l Om' Om'l -> sqnt Dm Do Om Om' A -> ie_sqnt2 Di Dm Oi Ol Om Or' B P
+      -> ie_sqnt2 Di Do Oi Ol OmL Or (=>> A B) P.
 init_1 : ie_sqnt1 Di Di OiL OiL OiR OiR (^' P) P.
 init_2 : ie_sqnt2 Di Di Oi rnil Oi rnil (^' P) P.
 wd : sort.
@@ -205,57 +175,72 @@ jill' : trm prs.
 loves' : trm prs.
 married' : trm prs.
 believes' : trm prs.
-snt' : trm prs <- trm prs <- trm prs.
-vp' : trm prs <- trm prs <- trm prs.
-np' : trm prs <- trm prs.
-npD' : trm prs <- trm prs <- trm prs.
-npR' : trm prs <- trm prs <- trm prs <- trm prs.
-stv' : trm prs <- trm prs <- trm prs.
-sbar' : trm prs <- trm prs <- trm prs.
-det' : trm prs <- trm prs.
-rel' : trm prs <- trm prs <- trm prs.
-n' : trm prs <- trm prs.
-pn' : trm prs <- trm prs.
-tv' : trm prs <- trm prs.
-stv' : trm prs <- trm prs.
-snt : atm <- trm prs <- trm (list wd) <- trm (list wd).
-vp : atm <- trm prs <- trm (list wd) <- trm (list wd).
-np : atm <- trm prs <- trm (list wd) <- trm (list wd).
-stv : atm <- trm prs <- trm (list wd) <- trm (list wd).
-sbar : atm <- trm prs <- trm (list wd) <- trm (list wd).
-n : atm <- trm prs <- trm (list wd) <- trm (list wd).
-det : atm <- trm prs <- trm (list wd) <- trm (list wd).
-rel : atm <- trm prs <- trm (list wd) <- trm (list wd).
-pn : atm <- trm prs <- trm (list wd) <- trm (list wd).
-tv : atm <- trm prs <- trm (list wd) <- trm (list wd).
-stv : atm <- trm prs <- trm (list wd) <- trm (list wd).
-snt_0 : prog (^' %snt% P1 P2 (snt' N V) <= ^' %np% P1 P0 N <<= ^' %vp% P0 P2 V).
-vp_0 : prog (^' %vp% P1 P2 (vp' T' N) <<= ^' %tv% P1 P0 T' <<= ^' %np% P0 P2 N).
+snt' : trm prs -> trm prs -> trm prs.
+vp' : trm prs -> trm prs -> trm prs.
+np' : trm prs -> trm prs.
+npD' : trm prs -> trm prs -> trm prs.
+npR' : trm prs -> trm prs -> trm prs -> trm prs.
+stv' : trm prs -> trm prs -> trm prs.
+sbar' : trm prs -> trm prs -> trm prs.
+det' : trm prs -> trm prs.
+rel' : trm prs -> trm prs -> trm prs.
+n' : trm prs -> trm prs.
+pn' : trm prs -> trm prs.
+tv' : trm prs -> trm prs.
+stv' : trm prs -> trm prs.
+snt : trm (list wd) -> trm (list wd) -> trm prs -> atm.
+vp : trm (list wd) -> trm (list wd) -> trm prs -> atm.
+np : trm (list wd) -> trm (list wd) -> trm prs -> atm.
+stv : trm (list wd) -> trm (list wd) -> trm prs -> atm.
+sbar : trm (list wd) -> trm (list wd) -> trm prs -> atm.
+n : trm (list wd) -> trm (list wd) -> trm prs -> atm.
+det : trm (list wd) -> trm (list wd) -> trm prs -> atm.
+rel : trm (list wd) -> trm (list wd) -> trm prs -> atm.
+pn : trm (list wd) -> trm (list wd) -> trm prs -> atm.
+tv : trm (list wd) -> trm (list wd) -> trm prs -> atm.
+stv : trm (list wd) -> trm (list wd) -> trm prs -> atm.
+snt_0 :
+   prog
+      (<<= (<= (^' (%snt% P1 P2 (snt' N V))) (^' (%np% P1 P0 N)))
+          (^' (%vp% P0 P2 V))).
+vp_0 :
+   prog
+      (<<= (<<= (^' (%vp% P1 P2 (vp' T' N))) (^' (%tv% P1 P0 T')))
+          (^' (%np% P0 P2 N))).
 vp_1 :
-   prog (^' %vp% P1 P2 (vp' T' N) <<= ^' %stv% P1 P0 T' <<= ^' %sbar% P0 P2 N).
-sbar_0 : prog (^' %sbar% (%that% | P1) P2 (sbar' that' S) <<= ^' %snt% P1 P2 S).
-np_0 : prog (^' %np% P1 P2 (npD' D N) <<= ^' %det% P1 P0 D <<= ^' %n% P0 P2 N).
+   prog
+      (<<= (<<= (^' (%vp% P1 P2 (vp' T' N))) (^' (%stv% P1 P0 T')))
+          (^' (%sbar% P0 P2 N))).
+sbar_0 :
+   prog
+      (<<= (^' (%sbar% (| %that% P1) P2 (sbar' that' S))) (^' (%snt% P1 P2 S))).
+np_0 :
+   prog
+      (<<= (<<= (^' (%np% P1 P2 (npD' D N))) (^' (%det% P1 P0 D)))
+          (^' (%n% P0 P2 N))).
 np_1 :
    prog
-      (^' %np% P1 P2 (npR' D N R) <<= ^' %det% P1 P0 D <<= ^' %n% P0 P3 N
-          <<= ^' %rel% P3 P2 R).
-np_2 : prog (^' %np% P1 P2 (np' P) <<= ^' %pn% P1 P2 P).
+      (<<=
+          (<<= (<<= (^' (%np% P1 P2 (npR' D N R))) (^' (%det% P1 P0 D)))
+              (^' (%n% P0 P3 N)))
+          (^' (%rel% P3 P2 R))).
+np_2 : prog (<<= (^' (%np% P1 P2 (np' P))) (^' (%pn% P1 P2 P))).
 rel_0 :
    prog
-      (^' %rel% (%whom% | P1) P2 (rel' whom' S)
-          <<= forall (list wd) (\Z:trm (list wd). ^' %np% Z Z (np' gap))
-                 =0 ^' %snt% P1 P2 S).
-det_the : prog (^' %det% (%the% | L) L (det' the')).
-n_man : prog (^' %n% (%man% | L) L (n' man')).
-n_woman : prog (^' %n% (%woman% | L) L (n' woman')).
-n_girl : prog (^' %n% (%girl% | L) L (n' girl')).
-n_boy : prog (^' %n% (%boy% | L) L (n' boy')).
-pn_mary : prog (^' %pn% (%mary% | L) L (pn' mary')).
-pn_bob : prog (^' %pn% (%bob% | L) L (pn' bob')).
-pn_jill : prog (^' %pn% (%jill% | L) L (pn' jill')).
-tv_loves : prog (^' %tv% (%loves% | L) L (tv' loves')).
-tv_married : prog (^' %tv% (%married% | L) L (tv' married')).
-tv_believes : prog (^' %stv% (%believes% | L) L (stv' believes')).
+      (<<= (^' (%rel% (| %whom% P1) P2 (rel' whom' S)))
+          (=0 (forall (list wd) (\Z:trm (list wd). ^' (%np% Z Z (np' gap))))
+              (^' (%snt% P1 P2 S)))).
+det_the : prog (^' (%det% (| %the% L) L (det' the'))).
+n_man : prog (^' (%n% (| %man% L) L (n' man'))).
+n_woman : prog (^' (%n% (| %woman% L) L (n' woman'))).
+n_girl : prog (^' (%n% (| %girl% L) L (n' girl'))).
+n_boy : prog (^' (%n% (| %boy% L) L (n' boy'))).
+pn_mary : prog (^' (%pn% (| %mary% L) L (pn' mary'))).
+pn_bob : prog (^' (%pn% (| %bob% L) L (pn' bob'))).
+pn_jill : prog (^' (%pn% (| %jill% L) L (pn' jill'))).
+tv_loves : prog (^' (%tv% (| %loves% L) L (tv' loves'))).
+tv_married : prog (^' (%tv% (| %married% L) L (tv' married'))).
+tv_believes : prog (^' (%stv% (| %believes% L) L (stv' believes'))).
 snt : atm.
 snt1 : atm.
 np : atm.
@@ -280,223 +265,251 @@ jill : atm.
 loves : atm.
 married : atm.
 believes : atm.
-snt_0 : prog (^' np =>> ^' vp =>> ^' snt).
-snt1_0 : prog (^' np =>> (^' np =0 ^' vp) =>> ^' snt1).
-vp_0 : prog (^' tv =>> ^' np =>> ^' vp).
-vp_1 : prog (^' stv =>> ^' sbar =>> ^' vp).
-sbar_0 : prog (^' snt =>> ^' that >=> ^' sbar).
-np_0 : prog (^' det =>> ^' %n% =>> ^' np).
-np_1 : prog (^' det =>> ^' %n% =>> ^' rel =>> ^' np).
-np_2 : prog (^' pn =>> ^' np).
-rel_0 : prog (^' snt1 =>> ^' whom >=> ^' rel).
-det_0 : prog (^' the =>> ^' det).
-n_man : prog (^' man =>> ^' %n%).
-n_woman : prog (^' woman =>> ^' %n%).
-n_girl : prog (^' girl =>> ^' %n%).
-n_boy : prog (^' boy =>> ^' %n%).
-pn_mary : prog (^' mary =>> ^' pn).
-pn_bob : prog (^' bob =>> ^' pn).
-pn_jill : prog (^' jill =>> ^' pn).
-tv_loves : prog (^' loves =>> ^' tv).
-tv_married : prog (^' married =>> ^' tv).
-tv_believes : prog (^' believes =>> ^' stv).
+snt_0 : prog (=>> (^' np) (=>> (^' vp) (^' snt))).
+snt1_0 : prog (=>> (^' np) (=>> (=0 (^' np) (^' vp)) (^' snt1))).
+vp_0 : prog (=>> (^' tv) (=>> (^' np) (^' vp))).
+vp_1 : prog (=>> (^' stv) (=>> (^' sbar) (^' vp))).
+sbar_0 : prog (=>> (^' snt) (>=> (^' that) (^' sbar))).
+np_0 : prog (=>> (^' det) (=>> (^' %n%) (^' np))).
+np_1 : prog (=>> (^' det) (=>> (^' %n%) (=>> (^' rel) (^' np)))).
+np_2 : prog (=>> (^' pn) (^' np)).
+rel_0 : prog (=>> (^' snt1) (>=> (^' whom) (^' rel))).
+det_0 : prog (=>> (^' the) (^' det)).
+n_man : prog (=>> (^' man) (^' %n%)).
+n_woman : prog (=>> (^' woman) (^' %n%)).
+n_girl : prog (=>> (^' girl) (^' %n%)).
+n_boy : prog (=>> (^' boy) (^' %n%)).
+pn_mary : prog (=>> (^' mary) (^' pn)).
+pn_bob : prog (=>> (^' bob) (^' pn)).
+pn_jill : prog (=>> (^' jill) (^' pn)).
+tv_loves : prog (=>> (^' loves) (^' tv)).
+tv_married : prog (=>> (^' married) (^' tv)).
+tv_believes : prog (=>> (^' believes) (^' stv)).
 pint : sort.
 z : trm pint.
-s : trm pint <- trm pint.
+s : trm pint -> trm pint.
 omega : trm pint.
 gtype : sort = list (cross %int% (list %int%)).
 rtype : sort = list (cross pint %int%).
-nodes : atm <- trm gtype.
-node : atm <- trm (cross %int% (list %int%)).
-used : atm <- trm (cross pint %int%).
-next : atm <- trm (cross %int% pint).
-finish : atm <- trm rtype <- trm gtype.
-bfs_main : atm <- trm rtype <- trm %int% <- trm gtype.
-bfs : atm <- trm rtype <- trm %int% <- trm gtype.
-bfs' : atm <- trm rtype <- trm pint <- trm %int%.
-bfs'' : atm <- trm rtype <- trm pint <- trm (list %int%).
-dfs_main : atm <- trm rtype <- trm %int% <- trm gtype.
-dfs : atm <- trm rtype <- trm %int% <- trm gtype.
-dfs' : atm <- trm rtype <- trm pint <- trm %int%.
-dfs'' : atm <- trm rtype <- trm pint <- trm (list %int%).
-finish1 : prog (^' finish nil nil).
+nodes : trm gtype -> atm.
+node : trm (cross %int% (list %int%)) -> atm.
+used : trm (cross pint %int%) -> atm.
+next : trm (cross %int% pint) -> atm.
+finish : trm gtype -> trm rtype -> atm.
+bfs_main : trm gtype -> trm %int% -> trm rtype -> atm.
+bfs : trm gtype -> trm %int% -> trm rtype -> atm.
+bfs' : trm %int% -> trm pint -> trm rtype -> atm.
+bfs'' : trm (list %int%) -> trm pint -> trm rtype -> atm.
+dfs_main : trm gtype -> trm %int% -> trm rtype -> atm.
+dfs : trm gtype -> trm %int% -> trm rtype -> atm.
+dfs' : trm %int% -> trm pint -> trm rtype -> atm.
+dfs'' : trm (list %int%) -> trm pint -> trm rtype -> atm.
+finish1 : prog (^' (finish nil nil)).
 finish2 :
    prog
-      (^' finish (%pair% V E | G) (%pair% D V | R) 0= ^' used (%pair% D V)
-          0= ^' finish G R).
+      (0=
+          (0= (^' (finish (| (%pair% V E) G) (| (%pair% D V) R)))
+              (^' (used (%pair% D V))))
+          (^' (finish G R))).
 finish3 :
    prog
-      (^' finish (%pair% V E | G) (%pair% omega V | R) 0= ^' node (%pair% V E)
-          0= ^' finish G R).
-bfs1 : prog (^' bfs_main G S R <= ^' nodes G => ^' bfs G S R).
-bfs2 : prog (^' bfs (N | G) S R 0= ^' node N =0 ^' bfs G S R).
-bfs3 : prog (^' bfs nil S R 0= ^' bfs' S %z% R).
+      (0=
+          (0= (^' (finish (| (%pair% V E) G) (| (%pair% omega V) R)))
+              (^' (node (%pair% V E))))
+          (^' (finish G R))).
+bfs1 : prog (<= (^' (bfs_main G S R)) (=> (^' (nodes G)) (^' (bfs G S R)))).
+bfs2 : prog (0= (^' (bfs (| N G) S R)) (=0 (^' (node N)) (^' (bfs G S R)))).
+bfs3 : prog (0= (^' (bfs nil S R)) (^' (bfs' S %z% R))).
 bfs4 :
    prog
-      (^' bfs' V D R 0= ^' node (%pair% V E)
-          <<= ^' used (%pair% D V) =0 ^' bfs'' E D R).
+      (<<= (0= (^' (bfs' V D R)) (^' (node (%pair% V E))))
+          (=0 (^' (used (%pair% D V))) (^' (bfs'' E D R)))).
 bfs5 :
    prog
-      (^' bfs' V D R 0= ^' used (%pair% D' V)
-          <<= ^' used (%pair% D' V) =0 ^' bfs'' nil D R).
+      (<<= (0= (^' (bfs' V D R)) (^' (used (%pair% D' V))))
+          (=0 (^' (used (%pair% D' V))) (^' (bfs'' nil D R)))).
 bfs6 :
-   prog (^' bfs'' (E | Es) D R <<= ^' next (%pair% E D) >=> ^' bfs'' Es D R).
+   prog
+      (<<= (^' (bfs'' (| E Es) D R))
+          (>=> (^' (next (%pair% E D))) (^' (bfs'' Es D R)))).
 bfs7 :
-   prog (^' bfs'' nil D R <<= ^' next (%pair% V D') <<= ^' bfs' V (%s% D') R).
-bfs8 : prog (^' bfs'' nil D R <= ^' nodes G 0= ^' finish G R).
-dfs1 : prog (^' dfs_main G S R <= ^' nodes G => ^' dfs G S R).
-dfs2 : prog (^' dfs (N | G) S R 0= ^' node N =0 ^' dfs G S R).
-dfs3 : prog (^' dfs nil S R 0= ^' dfs' S %z% R).
+   prog
+      (<<= (<<= (^' (bfs'' nil D R)) (^' (next (%pair% V D'))))
+          (^' (bfs' V (%s% D') R))).
+bfs8 : prog (0= (<= (^' (bfs'' nil D R)) (^' (nodes G))) (^' (finish G R))).
+dfs1 : prog (<= (^' (dfs_main G S R)) (=> (^' (nodes G)) (^' (dfs G S R)))).
+dfs2 : prog (0= (^' (dfs (| N G) S R)) (=0 (^' (node N)) (^' (dfs G S R)))).
+dfs3 : prog (0= (^' (dfs nil S R)) (^' (dfs' S %z% R))).
 dfs4 :
    prog
-      (^' dfs' V D R 0= ^' node (%pair% V E)
-          <<= ^' used (%pair% D V) =0 ^' dfs'' E D R).
+      (<<= (0= (^' (dfs' V D R)) (^' (node (%pair% V E))))
+          (=0 (^' (used (%pair% D V))) (^' (dfs'' E D R)))).
 dfs5 :
    prog
-      (^' dfs' V D R 0= ^' used (%pair% D' V)
-          <<= ^' used (%pair% D' V) =0 ^' dfs'' nil D R).
+      (<<= (0= (^' (dfs' V D R)) (^' (used (%pair% D' V))))
+          (=0 (^' (used (%pair% D' V))) (^' (dfs'' nil D R)))).
 dfs6 :
-   prog (^' dfs'' (E | Es) D R <<= ^' next (%pair% E D) =>> ^' dfs'' Es D R).
+   prog
+      (<<= (^' (dfs'' (| E Es) D R))
+          (=>> (^' (next (%pair% E D))) (^' (dfs'' Es D R)))).
 dfs7 :
-   prog (^' dfs'' nil D R <<= ^' next (%pair% V D') <<= ^' dfs' V (%s% D') R).
-dfs8 : prog (^' dfs'' nil D R <= ^' nodes G 0= ^' finish G R).
-edge1 : trm (list %int%) = 2 | 3 | nil.
-edge2 : trm (list %int%) = 1 | 4 | nil.
-edge3 : trm (list %int%) = 1 | 4 | nil.
-edge4 : trm (list %int%) = 2 | 3 | nil.
+   prog
+      (<<= (<<= (^' (dfs'' nil D R)) (^' (next (%pair% V D'))))
+          (^' (dfs' V (%s% D') R))).
+dfs8 : prog (0= (<= (^' (dfs'' nil D R)) (^' (nodes G))) (^' (finish G R))).
+edge1 : trm (list %int%) = | 2 (| 3 nil).
+edge2 : trm (list %int%) = | 1' (| 4 nil).
+edge3 : trm (list %int%) = | 1' (| 4 nil).
+edge4 : trm (list %int%) = | 2 (| 3 nil).
 g1 : trm (list (cross %int% (list %int%)))
-   = %pair% 1 edge1 | %pair% 2 edge2 | %pair% 3 edge3 | %pair% 4 edge4 | nil.
-e1 : trm (list %int%) = 2 | 3 | nil.
-e2 : trm (list %int%) = 1 | 3 | nil.
-e3 : trm (list %int%) = 1 | 2 | nil.
+   = | (%pair% 1' edge1)
+        (| (%pair% 2 edge2) (| (%pair% 3 edge3) (| (%pair% 4 edge4) nil))).
+e1 : trm (list %int%) = | 2 (| 3 nil).
+e2 : trm (list %int%) = | 1' (| 3 nil).
+e3 : trm (list %int%) = | 1' (| 2 nil).
 g2 : trm (list (cross %int% (list %int%)))
-   = %pair% 1 e1 | %pair% 2 e2 | %pair% 3 e3 | nil.
-l4 : trm (list %int%) = 1 | 2 | 3 | 4 | nil.
-l3 : trm (list %int%) = 1 | 2 | 3 | nil.
-l2 : trm (list %int%) = 1 | 2 | nil.
-perm : atm <- trm (list A) <- trm (list A).
-rev : atm <- trm (list A) <- trm (list A).
-id : atm <- trm (list A) <- trm (list A).
-idl : atm <- trm (list A) <- trm (list A).
-elem : atm <- trm %int%.
-perm1 : prog ((^' elem X =0 ^' perm L K) =0 ^' perm (X | L) K).
-perm2 : prog (^' perm nil K =0 ^' elem X =0 ^' perm nil (X | K)).
-perm3 : prog (^' perm nil nil).
-rev1 : prog ((^' elem X =>> ^' rev L K) =>> ^' rev (X | L) K).
-rev2 : prog (^' rev nil K =>> ^' elem X =>> ^' rev nil (X | K)).
-rev3 : prog (^' rev nil nil).
-id1 : prog ((^' elem X >=> ^' id L K) =>> ^' id (X | L) K).
-id2 : prog (^' id nil K =>> ^' elem X =>> ^' id nil (X | K)).
-id3 : prog (^' id nil nil).
-idl1 : prog ((^' elem X >=> ^' idl L K) >=> ^' idl (X | L) K).
-idl2 : prog (^' idl nil K =>> ^' elem X =>> ^' idl nil (X | K)).
-idl3 : prog (^' idl nil nil).
+   = | (%pair% 1' e1) (| (%pair% 2 e2) (| (%pair% 3 e3) nil)).
+l4 : trm (list %int%) = | 1' (| 2 (| 3 (| 4 nil))).
+l3 : trm (list %int%) = | 1' (| 2 (| 3 nil)).
+l2 : trm (list %int%) = | 1' (| 2 nil).
+perm : trm (list A) -> trm (list A) -> atm.
+rev : trm (list A) -> trm (list A) -> atm.
+id : trm (list A) -> trm (list A) -> atm.
+idl : trm (list A) -> trm (list A) -> atm.
+elem : trm %int% -> atm.
+perm1 : prog (=0 (=0 (^' (elem X)) (^' (perm L K))) (^' (perm (| X L) K))).
+perm2 : prog (=0 (^' (perm nil K)) (=0 (^' (elem X)) (^' (perm nil (| X K))))).
+perm3 : prog (^' (perm nil nil)).
+rev1 : prog (=>> (=>> (^' (elem X)) (^' (rev L K))) (^' (rev (| X L) K))).
+rev2 : prog (=>> (^' (rev nil K)) (=>> (^' (elem X)) (^' (rev nil (| X K))))).
+rev3 : prog (^' (rev nil nil)).
+id1 : prog (=>> (>=> (^' (elem X)) (^' (id L K))) (^' (id (| X L) K))).
+id2 : prog (=>> (^' (id nil K)) (=>> (^' (elem X)) (^' (id nil (| X K))))).
+id3 : prog (^' (id nil nil)).
+idl1 : prog (>=> (>=> (^' (elem X)) (^' (idl L K))) (^' (idl (| X L) K))).
+idl2 : prog (=>> (^' (idl nil K)) (=>> (^' (elem X)) (^' (idl nil (| X K))))).
+idl3 : prog (^' (idl nil nil)).
 rInt : sort.
-mergeSort : atm <- trm (list rInt) <- trm (list rInt).
-msort : atm <- trm (list rInt).
-srt : atm <- trm (list rInt).
-merge : atm <- trm (list rInt) <- trm (list rInt) <- trm (list rInt).
-gt : atm <- trm rInt <- trm rInt.
-lte : atm <- trm rInt <- trm rInt.
+mergeSort : trm (list rInt) -> trm (list rInt) -> atm.
+msort : trm (list rInt) -> atm.
+srt : trm (list rInt) -> atm.
+merge : trm (list rInt) -> trm (list rInt) -> trm (list rInt) -> atm.
+gt : trm rInt -> trm rInt -> atm.
+lte : trm rInt -> trm rInt -> atm.
 z : trm rInt.
-s : trm rInt <- trm rInt.
-gt1 : prog (^' gt (%s% X) (%s% Y) <= ^' gt X Y).
-gt2 : prog (^' gt (%s% X) %z%).
-lte1 : prog (^' lte (%s% X) (%s% Y) <= ^' lte X Y).
-lte2 : prog (^' lte %z% X).
+s : trm rInt -> trm rInt.
+gt1 : prog (<= (^' (gt (%s% X) (%s% Y))) (^' (gt X Y))).
+gt2 : prog (^' (gt (%s% X) %z%)).
+lte1 : prog (<= (^' (lte (%s% X) (%s% Y))) (^' (lte X Y))).
+lte2 : prog (^' (lte %z% X)).
 merge1 :
    prog
-      (^' merge (H1 | T1) (H2 | T2) (H2 | T3) <= ^' gt H1 H2
-          <= ^' merge (H1 | T1) T2 T3).
+      (<= (<= (^' (merge (| H1 T1) (| H2 T2) (| H2 T3))) (^' (gt H1 H2)))
+          (^' (merge (| H1 T1) T2 T3))).
 merge2 :
    prog
-      (^' merge (H1 | T1) (H2 | T2) (H1 | T3) <= ^' lte H1 H2
-          <= ^' merge T1 (H2 | T2) T3).
-merge3 : prog (^' merge L nil L).
-merge4 : prog (^' merge nil L L).
+      (<= (<= (^' (merge (| H1 T1) (| H2 T2) (| H1 T3))) (^' (lte H1 H2)))
+          (^' (merge T1 (| H2 T2) T3))).
+merge3 : prog (^' (merge L nil L)).
+merge4 : prog (^' (merge nil L L)).
 msort1 :
-   prog (^' mergeSort (H | T') L <<= ^' srt (H | nil) =>> ^' mergeSort T' L).
-msort2 : prog (^' mergeSort nil L <<= ^' msort L).
+   prog
+      (<<= (^' (mergeSort (| H T') L))
+          (=>> (^' (srt (| H nil))) (^' (mergeSort T' L)))).
+msort2 : prog (<<= (^' (mergeSort nil L)) (^' (msort L))).
 msort3 :
    prog
-      (^' msort L <<= ^' srt L1 <<= ^' srt L2 <= ^' merge L1 L2 L12
-          <=< ^' srt L12 >=> ^' msort L).
-msort4 : prog (^' msort L <<= ^' srt L).
+      (<=<
+          (<= (<<= (<<= (^' (msort L)) (^' (srt L1))) (^' (srt L2)))
+              (^' (merge L1 L2 L12)))
+          (>=> (^' (srt L12)) (^' (msort L)))).
+msort4 : prog (<<= (^' (msort L)) (^' (srt L))).
 exp : sort.
 val : sort.
 z : trm exp.
-s : trm exp <- trm exp.
-case : trm exp <- (trm val -> trm exp) <- trm exp <- trm exp.
-pair : trm exp <- trm exp <- trm exp.
-fst : trm exp <- trm exp.
-snd : trm exp <- trm exp.
-lamm : trm exp <- (trm val -> trm exp).
-appm : trm exp <- trm exp <- trm exp.
-letv : trm exp <- (trm val -> trm exp) <- trm exp.
-letn : trm exp <- (trm exp -> trm exp) <- trm exp.
-fix : trm exp <- (trm exp -> trm exp).
-vl : trm exp <- trm val.
+s : trm exp -> trm exp.
+case : trm exp -> trm exp -> (trm val -> trm exp) -> trm exp.
+pair : trm exp -> trm exp -> trm exp.
+fst : trm exp -> trm exp.
+snd : trm exp -> trm exp.
+lamm : (trm val -> trm exp) -> trm exp.
+appm : trm exp -> trm exp -> trm exp.
+letv : trm exp -> (trm val -> trm exp) -> trm exp.
+letn : trm exp -> (trm exp -> trm exp) -> trm exp.
+fix : (trm exp -> trm exp) -> trm exp.
+vl : trm val -> trm exp.
 z* : trm val.
-s* : trm val <- trm val.
-pair* : trm val <- trm val <- trm val.
-lamm* : trm val <- (trm val -> trm exp).
-ev : atm <- trm exp.
-return : atm <- trm val.
-case1 : atm <- (trm val -> trm exp) <- trm exp <- trm val.
-pair1 : atm <- trm exp <- trm val.
-fst1 : atm <- trm val.
-snd1 : atm <- trm val.
-appm1 : atm <- trm exp <- trm val.
-appm2 : atm <- trm val <- trm val.
-ev2 : prog (^' ev %z% <<= ^' return z*).
+s* : trm val -> trm val.
+pair* : trm val -> trm val -> trm val.
+lamm* : (trm val -> trm exp) -> trm val.
+ev : trm exp -> atm.
+return : trm val -> atm.
+case1 : trm val -> trm exp -> (trm val -> trm exp) -> atm.
+pair1 : trm val -> trm exp -> atm.
+fst1 : trm val -> atm.
+snd1 : trm val -> atm.
+appm1 : trm val -> trm exp -> atm.
+appm2 : trm val -> trm val -> atm.
+ev2 : prog (<<= (^' (ev %z%)) (^' (return z*))).
 ev3 :
    prog
-      (^' ev (%s% E)
-          <<= forall val (\V:trm val. ^' return V <=< ^' return (s* V))
-                 =>> ^' ev E).
+      (<<= (^' (ev (%s% E)))
+          (=>>
+              (forall val (\V:trm val. <=< (^' (return V)) (^' (return (s* V)))))
+              (^' (ev E)))).
 ev4 :
    prog
-      (^' ev (case E1 E2 (\m:trm val. E3 m))
-          <<= forall val
-                 (\V:trm val. ^' return V <=< ^' case1 V E2 (\m:trm val. E3 m))
-                 =>> ^' ev E1).
-ev5 : prog (^' case1 z* E2 (\m:trm val. E3 m) <<= ^' ev E2).
-ev6 : prog (^' case1 (s* V) E2 (\m:trm val. E3 m) <<= ^' ev (E3 V)).
+      (<<= (^' (ev (case E1 E2 (\m:trm val. E3 m))))
+          (=>>
+              (forall val
+                  (\V:trm val.
+                      <=< (^' (return V)) (^' (case1 V E2 (\m:trm val. E3 m)))))
+              (^' (ev E1)))).
+ev5 : prog (<<= (^' (case1 z* E2 (\m:trm val. E3 m))) (^' (ev E2))).
+ev6 : prog (<<= (^' (case1 (s* V) E2 (\m:trm val. E3 m))) (^' (ev (E3 V)))).
 ev7 :
-   prog (^' ev (lamm (\m:trm val. E m)) <<= ^' return (lamm* (\m:trm val. E m))).
+   prog
+      (<<= (^' (ev (lamm (\m:trm val. E m))))
+          (^' (return (lamm* (\m:trm val. E m))))).
 ev8 :
    prog
-      (^' ev (appm E1 E2)
-          <<= forall val (\V1:trm val. ^' return V1 <=< ^' appm1 V1 E2)
-                 =>> ^' ev E1).
+      (<<= (^' (ev (appm E1 E2)))
+          (=>>
+              (forall val (\V1:trm val. <=< (^' (return V1)) (^' (appm1 V1 E2))))
+              (^' (ev E1)))).
 ev9 :
    prog
-      (^' appm1 V1 E2
-          <<= forall val (\V2:trm val. ^' return V2 <=< ^' appm2 V1 V2)
-                 =>> ^' ev E2).
-ev10 : prog (^' appm2 (lamm* (\m:trm val. E1' m)) V2 <<= ^' ev (E1' V2)).
+      (<<= (^' (appm1 V1 E2))
+          (=>>
+              (forall val (\V2:trm val. <=< (^' (return V2)) (^' (appm2 V1 V2))))
+              (^' (ev E2)))).
+ev10 :
+   prog (<<= (^' (appm2 (lamm* (\m:trm val. E1' m)) V2)) (^' (ev (E1' V2)))).
 ev11 :
    prog
-      (^' ev (letv E1 (\m:trm val. E2 m))
-          <<= forall val (\V1:trm val. ^' ev (E2 V1) >=> ^' return V1)
-                 =>> ^' ev E1).
-ev12 : prog (^' ev (letn E1 (\m:trm exp. E2 m)) <<= ^' ev (E2 E1)).
+      (<<= (^' (ev (letv E1 (\m:trm val. E2 m))))
+          (=>>
+              (forall val (\V1:trm val. >=> (^' (ev (E2 V1))) (^' (return V1))))
+              (^' (ev E1)))).
+ev12 : prog (<<= (^' (ev (letn E1 (\m:trm exp. E2 m)))) (^' (ev (E2 E1)))).
 ev13 :
-   prog (^' ev (fix (\m:trm exp. E m)) <<= ^' ev (E (fix (\m:trm exp. E m)))).
-ev14 : prog (^' ev (vl V) <<= ^' return V).
+   prog
+      (<<= (^' (ev (fix (\m:trm exp. E m))))
+          (^' (ev (E (fix (\m:trm exp. E m)))))).
+ev14 : prog (<<= (^' (ev (vl V))) (^' (return V))).
 int : sort.
 z : trm int.
-s : trm int <- trm int.
+s : trm int -> trm int.
 tree : sort.
 e : trm tree.
-t : trm tree <- trm tree <- trm tree <- trm int.
-bf : atm <- trm tree <- trm tree.
-n : atm <- trm tree <- trm tree.
-bff : atm <- trm int.
-bf0 : prog (^' bf T' T' <<= ^' n T' T' =>> ^' bff (s z)).
-bffdone : prog (^' bff N).
-bffe : prog (^' bff N <<= ^' n e e <<= ^' bff N).
+t : trm int -> trm tree -> trm tree -> trm tree.
+bf : trm tree -> trm tree -> atm.
+n : trm tree -> trm tree -> atm.
+bff : trm int -> atm.
+bf0 : prog (<<= (^' (bf T' T')) (=>> (^' (n T' T')) (^' (bff (s z))))).
+bffdone : prog (^' (bff N)).
+bffe : prog (<<= (<<= (^' (bff N)) (^' (n e e))) (^' (bff N))).
 bfft :
    prog
-      (^' bff N <<= ^' n (t M1 L R) (t N L' R')
-          <<= ^' n L L' >=> ^' n R R' >=> ^' bff (s N)).
+      (<<= (<<= (^' (bff N)) (^' (n (t M1 L R) (t N L' R'))))
+          (>=> (^' (n L L')) (>=> (^' (n R R')) (^' (bff (s N)))))).

@@ -1,0 +1,268 @@
+exp : type.
+z : exp.
+s : exp -> exp.
+case : exp -> exp -> (exp -> exp) -> exp.
+pair : exp -> exp -> exp.
+fst : exp -> exp.
+snd : exp -> exp.
+lam : (exp -> exp) -> exp.
+app : exp -> exp -> exp.
+letv : exp -> (exp -> exp) -> exp.
+letn : exp -> (exp -> exp) -> exp.
+fix : (exp -> exp) -> exp.
+exp' : type.
+1' : exp'.
+^' : exp' -> exp'.
+z' : exp'.
+s' : exp' -> exp'.
+case' : exp' -> exp' -> exp' -> exp'.
+pair' : exp' -> exp' -> exp'.
+fst' : exp' -> exp'.
+snd' : exp' -> exp'.
+lam' : exp' -> exp'.
+app' : exp' -> exp' -> exp'.
+letv' : exp' -> exp' -> exp'.
+letn' : exp' -> exp' -> exp'.
+fix' : exp' -> exp'.
+env : type.
+val : type.
+empty : env.
+;' : env -> val -> env.
++ : env -> exp' -> env.
+z* : val.
+s* : val -> val.
+pair* : val -> val -> val.
+clo : env -> exp' -> val.
+trans : env -> exp' -> exp -> type.
+vtrans : val -> exp -> type.
+tr_z : trans K z' z.
+tr_s : trans K F E -> trans K (s' F) (s E).
+tr_case :
+   (Pi w:val. Pi x:exp. vtrans w x -> trans (;' K w) F3 (E3 x)) -> trans K F2 E2
+      -> trans K F1 E1 -> trans K (case' F1 F2 F3) (case E1 E2 (\e:exp. E3 e)).
+tr_pair : trans K F2 E2 -> trans K F1 E1 -> trans K (pair' F1 F2) (pair E1 E2).
+tr_fst : trans K F1 E1 -> trans K (fst' F1) (fst E1).
+tr_snd : trans K F1 E1 -> trans K (snd' F1) (snd E1).
+tr_lam :
+   (Pi w:val. Pi x:exp. vtrans w x -> trans (;' K w) F (E x))
+      -> trans K (lam' F) (lam (\e:exp. E e)).
+tr_app : trans K F2 E2 -> trans K F1 E1 -> trans K (app' F1 F2) (app E1 E2).
+tr_letv :
+   (Pi w:val. Pi x:exp. vtrans w x -> trans (;' K w) F2 (E2 x)) -> trans K F1 E1
+      -> trans K (letv' F1 F2) (letv E1 (\e:exp. E2 e)).
+tr_letn :
+   (Pi f:exp'. Pi x:exp. trans K f x -> trans (+ K f) F2 (E2 x))
+      -> trans K F1 E1 -> trans K (letn' F1 F2) (letn E1 (\e:exp. E2 e)).
+tr_fix :
+   (Pi f:exp'. Pi x:exp. trans K f x -> trans (+ K f) F (E x))
+      -> trans K (fix' F) (fix (\e:exp. E e)).
+tr_1 : vtrans W E -> trans (;' K W) 1' E.
+tr_^ : trans K F E -> trans (;' K W) (^' F) E.
+tr_1+ : trans K F E -> trans (+ K F) 1' E.
+tr_^+ : trans K F E -> trans (+ K F') (^' F) E.
+vtr_z : vtrans z* z.
+vtr_s : vtrans W V -> vtrans (s* W) (s V).
+vtr_pair : vtrans W2 V2 -> vtrans W1 V1 -> vtrans (pair* W1 W2) (pair V1 V2).
+vtr_lam :
+   trans K (lam' F) (lam (\e:exp. E e))
+      -> vtrans (clo K (lam' F)) (lam (\e:exp. E e)).
+feval : env -> exp' -> val -> type.
+fev_1 : feval (;' K W) 1' W.
+fev_^ : feval K F W -> feval (;' K W') (^' F) W.
+fev_1+ : feval K F W -> feval (+ K F) 1' W.
+fev_^+ : feval K F W -> feval (+ K F') (^' F) W.
+fev_z : feval K z' z*.
+fev_s : feval K F W -> feval K (s' F) (s* W).
+fev_case_z : feval K F2 W -> feval K F1 z* -> feval K (case' F1 F2 F3) W.
+fev_case_s :
+   feval (;' K W1) F3 W -> feval K F1 (s* W1) -> feval K (case' F1 F2 F3) W.
+fev_pair :
+   feval K F2 W2 -> feval K F1 W1 -> feval K (pair' F1 F2) (pair* W1 W2).
+fev_fst : feval K F (pair* W1 W2) -> feval K (fst' F) W1.
+fev_snd : feval K F (pair* W1 W2) -> feval K (snd' F) W2.
+fev_lam : feval K (lam' F) (clo K (lam' F)).
+fev_app :
+   feval (;' K' W2) F1' W -> feval K F2 W2 -> feval K F1 (clo K' (lam' F1'))
+      -> feval K (app' F1 F2) W.
+fev_letv : feval (;' K W1) F2 W -> feval K F1 W1 -> feval K (letv' F1 F2) W.
+fev_letn : feval (+ K F1) F2 W -> feval K (letn' F1 F2) W.
+fev_fix : feval (+ K (fix' F)) F W -> feval K (fix' F) W.
+instruction : type.
+program : type.
+envstack : type.
+state : type.
+ev : exp' -> instruction.
+add1 : instruction.
+branch : instruction.
+mkpair : instruction.
+getfst : instruction.
+getsnd : instruction.
+apply : instruction.
+bind : instruction.
+done : program.
+&' : instruction -> program -> program.
+emptys : envstack.
+;; : envstack -> env -> envstack.
+st : envstack -> program -> env -> state.
+=> : state -> state -> type.
+c_1 : => (st (;; Ks (;' K W)) (&' (ev 1') P) S) (st Ks P (;' S W)).
+c_^ :
+   => (st (;; Ks (;' K W')) (&' (ev (^' F)) P) S) (st (;; Ks K) (&' (ev F) P) S).
+c_1+ : => (st (;; Ks (+ K F)) (&' (ev 1') P) S) (st (;; Ks K) (&' (ev F) P) S).
+c_^+ :
+   => (st (;; Ks (+ K F')) (&' (ev (^' F)) P) S) (st (;; Ks K) (&' (ev F) P) S).
+c_z : => (st (;; Ks K) (&' (ev z') P) S) (st Ks P (;' S z*)).
+c_s :
+   => (st (;; Ks K) (&' (ev (s' F)) P) S)
+      (st (;; Ks K) (&' (ev F) (&' add1 P)) S).
+c_add1 : => (st Ks (&' add1 P) (;' S W)) (st Ks P (;' S (s* W))).
+c_case :
+   => (st (;; Ks K) (&' (ev (case' F1 F2 F3)) P) S)
+      (st (;; (;; Ks K) K) (&' (ev F1) (&' branch (&' (ev F2) (&' (ev F3) P))))
+          S).
+c_branch_z :
+   => (st (;; Ks K) (&' branch (&' (ev F2) (&' (ev F3) P))) (;' S z*))
+      (st (;; Ks K) (&' (ev F2) P) S).
+c_branch_s :
+   => (st (;; Ks K) (&' branch (&' (ev F2) (&' (ev F3) P))) (;' S (s* W)))
+      (st (;; Ks (;' K W)) (&' (ev F3) P) S).
+c_pair :
+   => (st (;; Ks K) (&' (ev (pair' F1 F2)) P) S)
+      (st (;; (;; Ks K) K) (&' (ev F1) (&' (ev F2) (&' mkpair P))) S).
+c_mkpair :
+   => (st Ks (&' mkpair P) (;' (;' S W1) W2)) (st Ks P (;' S (pair* W1 W2))).
+c_fst :
+   => (st (;; Ks K) (&' (ev (fst' F)) P) S)
+      (st (;; Ks K) (&' (ev F) (&' getfst P)) S).
+c_getfst : => (st Ks (&' getfst P) (;' S (pair* W1 W2))) (st Ks P (;' S W1)).
+c_snd :
+   => (st (;; Ks K) (&' (ev (snd' F)) P) S)
+      (st (;; Ks K) (&' (ev F) (&' getsnd P)) S).
+c_getsnd : => (st Ks (&' getsnd P) (;' S (pair* W1 W2))) (st Ks P (;' S W2)).
+c_lam :
+   => (st (;; Ks K) (&' (ev (lam' F)) P) S) (st Ks P (;' S (clo K (lam' F)))).
+c_app :
+   => (st (;; Ks K) (&' (ev (app' F1 F2)) P) S)
+      (st (;; (;; Ks K) K) (&' (ev F1) (&' (ev F2) (&' apply P))) S).
+c_apply :
+   => (st Ks (&' apply P) (;' (;' S (clo K' (lam' F1'))) W2))
+      (st (;; Ks (;' K' W2)) (&' (ev F1') P) S).
+c_letv :
+   => (st (;; Ks K) (&' (ev (letv' F1 F2)) P) S)
+      (st (;; (;; Ks K) K) (&' (ev F1) (&' bind (&' (ev F2) P))) S).
+c_bind :
+   => (st (;; Ks K) (&' bind (&' (ev F2) P)) (;' S W1))
+      (st (;; Ks (;' K W1)) (&' (ev F2) P) S).
+c_letn :
+   => (st (;; Ks K) (&' (ev (letn' F1 F2)) P) S)
+      (st (;; Ks (+ K F1)) (&' (ev F2) P) S).
+c_fix :
+   => (st (;; Ks K) (&' (ev (fix' F)) P) S)
+      (st (;; Ks (+ K (fix' F))) (&' (ev F) P) S).
+=>* : state -> state -> type.
+id : =>* St St.
+~ : => St St' -> =>* St' St'' -> =>* St St''.
+ceval : env -> exp' -> val -> type.
+run :
+   =>* (st (;; emptys K) (&' (ev F) done) empty) (st emptys done (;' empty W))
+      -> ceval K F W.
+>=>* : state -> state -> type.
+id< : >=>* St St.
+<=< : >=>* St' St'' -> => St St' -> >=>* St St''.
+>ceval : env -> exp' -> val -> type.
+>run :
+   >=>* (st (;; emptys K) (&' (ev F) done) empty) (st emptys done (;' empty W))
+      -> >ceval K F W.
+append :
+   =>* (st Ks P S) (st Ks' P' S') -> =>* (st Ks' P' S') (st Ks'' P'' S'')
+      -> =>* (st Ks P S) (st Ks'' P'' S'') -> type.
+apd_id : append id C' C'.
+apd_step : append C C' C'' -> append (~ R C) C' (~ R C'').
+subcomp :
+   feval K F W -> =>* (st (;; Ks K) (&' (ev F) P) S) (st Ks P (;' S W)) -> type.
+sc_1 : subcomp fev_1 (~ c_1 id).
+sc_^ : subcomp D1 C1 -> subcomp (fev_^ D1) (~ c_^ C1).
+sc_1+ : subcomp D1 C1 -> subcomp (fev_1+ D1) (~ c_1+ C1).
+sc_^+ : subcomp D1 C1 -> subcomp (fev_^+ D1) (~ c_^+ C1).
+sc_z : subcomp fev_z (~ c_z id).
+sc_s :
+   append (~ c_s C1) (~ c_add1 id) C -> subcomp D1 C1 -> subcomp (fev_s D1) C.
+sc_branch_z :
+   append (~ c_case C1) (~ c_branch_z C2) C -> subcomp D2 C2 -> subcomp D1 C1
+      -> subcomp (fev_case_z D2 D1) C.
+sc_branch_s :
+   append (~ c_case C1) (~ c_branch_s C3) C -> subcomp D3 C3 -> subcomp D1 C1
+      -> subcomp (fev_case_s D3 D1) C.
+sc_pair :
+   append C' (~ c_mkpair id) C -> append (~ c_pair C1) C2 C' -> subcomp D2 C2
+      -> subcomp D1 C1 -> subcomp (fev_pair D2 D1) C.
+sc_fst :
+   append (~ c_fst C1) (~ c_getfst id) C -> subcomp D1 C1
+      -> subcomp (fev_fst D1) C.
+sc_snd :
+   append (~ c_snd C1) (~ c_getsnd id) C -> subcomp D1 C1
+      -> subcomp (fev_snd D1) C.
+sc_lam : subcomp fev_lam (~ c_lam id).
+sc_app :
+   append C' (~ c_apply C3) C -> append (~ c_app C1) C2 C' -> subcomp D3 C3
+      -> subcomp D2 C2 -> subcomp D1 C1 -> subcomp (fev_app D3 D2 D1) C.
+sc_letv :
+   append (~ c_letv C1) (~ c_bind C2) C -> subcomp D2 C2 -> subcomp D1 C1
+      -> subcomp (fev_letv D2 D1) C.
+sc_letn : subcomp D2 C2 -> subcomp (fev_letn D2) (~ c_letn C2).
+sc_fix : subcomp D1 C1 -> subcomp (fev_fix D1) (~ c_fix C1).
+cev_complete : feval K F W -> ceval K F W -> type.
+cevc : subcomp D C -> cev_complete D (run C).
+<' : =>* (st KS1 P1 S1) (st KS P S) -> =>* (st KS2 P2 S2) (st KS P S) -> type.
+sub_imm : <' C (~ R C).
+sub_med : <' C C' -> <' C (~ R C').
+trans* : <' C1 C2 -> <' C2 C3 -> <' C1 C3 -> type.
+trans*_imm : trans* R2 sub_imm (sub_med R2).
+trans*_med : trans* R1 R2 R3 -> trans* R1 (sub_med R2) (sub_med R3).
+spl :
+   Pi C:=>* (st (;; KS K) (&' (ev F) P) S) (st emptys done (;' empty W')).
+      feval K F W
+         -> (Pi C':=>* (st KS P (;' S W)) (st emptys done (;' empty W')).
+                <' C' C -> type).
+spl_1 : spl (~ c_1 C1) fev_1 C1 sub_imm.
+spl_^ : spl C1 D1 C2 C2<C1 -> spl (~ c_^ C1) (fev_^ D1) C2 (sub_med C2<C1).
+spl_1+ : spl C1 D1 C2 C2<C1 -> spl (~ c_1+ C1) (fev_1+ D1) C2 (sub_med C2<C1).
+spl_^+ : spl C1 D1 C2 C2<C1 -> spl (~ c_^+ C1) (fev_^+ D1) C2 (sub_med C2<C1).
+spl_z : spl (~ c_z C1) fev_z C1 sub_imm.
+spl_s :
+   trans* sub_imm C2<C1 C2'<C1 -> spl C1 D1 (~ c_add1 C2') C2<C1
+      -> spl (~ c_s C1) (fev_s D1) C2' (sub_med C2'<C1).
+spl_case_z :
+   trans* C3<C2' C2'<C1 C3<C1 -> trans* sub_imm C2<C1 C2'<C1
+      -> spl C2' D2 C3 C3<C2' -> spl C1 D1 (~ c_branch_z C2') C2<C1
+      -> spl (~ c_case C1) (fev_case_z D2 D1) C3 (sub_med C3<C1).
+spl_case_s :
+   trans* C3<C2' C2'<C1 C3<C1 -> trans* sub_imm C2<C1 C2'<C1
+      -> spl C2' D3 C3 C3<C2' -> spl C1 D1 (~ c_branch_s C2') C2<C1
+      -> spl (~ c_case C1) (fev_case_s D3 D1) C3 (sub_med C3<C1).
+spl_pair :
+   trans* C3'<C2 C2<C1 C3'<C1 -> trans* sub_imm C3<C2 C3'<C2
+      -> spl C2 D2 (~ c_mkpair C3') C3<C2 -> spl C1 D1 C2 C2<C1
+      -> spl (~ c_pair C1) (fev_pair D2 D1) C3' (sub_med C3'<C1).
+spl_fst :
+   trans* sub_imm C2<C1 C2'<C1 -> spl C1 D1 (~ c_getfst C2') C2<C1
+      -> spl (~ c_fst C1) (fev_fst D1) C2' (sub_med C2'<C1).
+spl_snd :
+   trans* sub_imm C2<C1 C2'<C1 -> spl C1 D1 (~ c_getsnd C2') C2<C1
+      -> spl (~ c_snd C1) (fev_snd D1) C2' (sub_med C2'<C1).
+spl_lam : spl (~ c_lam C1) fev_lam C1 sub_imm.
+spl_app :
+   trans* C4<C3' C3'<C1 C4<C1 -> trans* sub_imm C3<C1 C3'<C1
+      -> trans* C3<C2 C2<C1 C3<C1 -> spl C3' D3 C4 C4<C3'
+      -> spl C2 D2 (~ c_apply C3') C3<C2 -> spl C1 D1 C2 C2<C1
+      -> spl (~ c_app C1) (fev_app D3 D2 D1) C4 (sub_med C4<C1).
+spl_letv :
+   trans* C3<C2' C2'<C1 C3<C1 -> trans* sub_imm C2<C1 C2'<C1
+      -> spl C2' D2 C3 C3<C2' -> spl C1 D1 (~ c_bind C2') C2<C1
+      -> spl (~ c_letv C1) (fev_letv D2 D1) C3 (sub_med C3<C1).
+spl_letn :
+   spl C2 D2 C3 C3<C2 -> spl (~ c_letn C2) (fev_letn D2) C3 (sub_med C3<C2).
+spl_fix :
+   spl C1 D1 C2 C2<C1 -> spl (~ c_fix C1) (fev_fix D1) C2 (sub_med C2<C1).
+cls_sound : ceval K F W -> feval K F W -> type.
+clss : spl C D id Id<C -> cls_sound (run C) D.

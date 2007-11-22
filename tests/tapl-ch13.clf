@@ -1,0 +1,359 @@
+nat : type.
+z : nat.
+s : nat -> nat.
+nat_eq : nat -> nat -> type.
+nat_neq : nat -> nat -> type.
+nat_lt : nat -> nat -> type.
+neq_eq_refl : nat_eq N N.
+nat_neq_zs : nat_neq z (s N).
+nat_neq_sz : nat_neq (s N) z.
+nat_neq_ss : nat_neq N1 N2 -> nat_neq (s N1) (s N2).
+nat_lt_zs : nat_lt z (s N).
+nat_lt_ss : nat_lt N1 N2 -> nat_lt (s N1) (s N2).
+tp : type.
+=> : tp -> tp -> tp.
+unit : tp.
+ref : tp -> tp.
+label : type.
+lbl : nat -> label.
+exp : type.
+@' : exp -> exp -> exp.
+lam : tp -> (exp -> exp) -> exp.
+dot : exp.
+alloc : exp -> exp.
+deref : exp -> exp.
+gets : exp -> exp -> exp.
+loc : label -> exp.
+value : exp -> type.
+v_lam : value (lam T1 (\e:exp. E1 e)).
+v_dot : value dot.
+v_loc : value (loc L1).
+store : type.
+store_nil : store.
+store_cons : tp -> store -> store.
+length_store : store -> nat -> type.
+length_store_nil : length_store store_nil z.
+length_store_cons : length_store S N -> length_store (store_cons T1 S) (s N).
+find_in_store : label -> store -> tp -> type.
+find_in_store_yes : find_in_store (lbl z) (store_cons T' S1) T'.
+find_in_store_no :
+   find_in_store (lbl N) S T' -> find_in_store (lbl (s N)) (store_cons T1 S) T'.
+store_extends : store -> store -> type.
+store_extends_base : store_extends store_nil S.
+store_extends_ind :
+   store_extends S1 S2 -> store_extends (store_cons T' S1) (store_cons T' S2).
+append_store : store -> tp -> store -> type.
+append_store_nil : append_store store_nil T' (store_cons T' store_nil).
+append_store_cons :
+   append_store S T2 S' -> append_store (store_cons T1 S) T2 (store_cons T1 S').
+of : store -> exp -> tp -> type.
+var : exp -> tp -> type.
+t_var : var E T' -> of S E T'.
+t_abs :
+   (Pi x:exp. var x T1 -> of S (E x) T2)
+      -> of S (lam T1 (\e:exp. E e)) (=> T1 T2).
+t_app : of S E2 T1 -> of S E1 (=> T1 T2) -> of S (@' E1 E2) T2.
+t_unit : of S dot unit.
+t_loc : find_in_store L S T' -> of S (loc L) (ref T').
+t_ref : of S E T' -> of S (alloc E) (ref T').
+t_deref : of S E (ref T') -> of S (deref E) T'.
+t_assign : of S E2 T' -> of S E1 (ref T') -> of S (gets E1 E2) unit.
+heap : type.
+heap_nil : heap.
+heap_cons : exp -> heap -> heap.
+length_heap : heap -> nat -> type.
+length_heap_nil : length_heap heap_nil z.
+length_heap_cons : length_heap H N -> length_heap (heap_cons E1 H) (s N).
+find_in_heap : label -> heap -> exp -> type.
+find_in_heap_yes : find_in_heap (lbl z) (heap_cons E H1) E.
+find_in_heap_no :
+   find_in_heap (lbl N) H E -> find_in_heap (lbl (s N)) (heap_cons E1 H) E.
+replace_in_heap : heap -> label -> exp -> heap -> type.
+replace_in_heap_yes :
+   replace_in_heap (heap_cons E1 H) (lbl z) E2 (heap_cons E2 H).
+replace_in_heap_no :
+   replace_in_heap H (lbl N) E2 H'
+      -> replace_in_heap (heap_cons E1 H) (lbl (s N)) E2 (heap_cons E1 H').
+append_heap : heap -> exp -> heap -> type.
+append_heap_nil : append_heap heap_nil E (heap_cons E heap_nil).
+append_heap_cons :
+   append_heap H E2 H' -> append_heap (heap_cons E1 H) E2 (heap_cons E1 H').
+check_wt : store -> store -> heap -> type.
+check_wt_nil : check_wt S1 store_nil heap_nil.
+check_wt_cons :
+   check_wt S1 S2 H -> of S1 E T'
+      -> check_wt S1 (store_cons T' S2) (heap_cons E H).
+wt_heap : store -> heap -> type.
+wt_heap_def : check_wt S S H -> wt_heap S H.
+step : heap -> exp -> heap -> exp -> type.
+e_app1 : step H E1 H' E1' -> step H (@' E1 E2) H' (@' E1' E2).
+e_app2 : step H E2 H' E2' -> value E1 -> step H (@' E1 E2) H' (@' E1 E2').
+e_alloc : step H E H' E' -> step H (alloc E) H' (alloc E').
+e_deref : step H E H' E' -> step H (deref E) H' (deref E').
+e_gets1 : step H E1 H' E1' -> step H (gets E1 E2) H' (gets E1' E2).
+e_gets2 : step H E2 H' E2' -> value E1 -> step H (gets E1 E2) H' (gets E1 E2').
+e_appabs : value E2 -> step H (@' (lam T1 (\e:exp. E1 e)) E2) H (E1 E2).
+e_allocVal :
+   length_heap H N' -> append_heap H E H' -> value E
+      -> step H (alloc E) H' (loc (lbl N')).
+e_derefVal : find_in_heap L H E -> step H (deref (loc L)) H E.
+e_getsVal :
+   replace_in_heap H L E H' -> value E -> step H (gets (loc L) E) H' dot.
+
+store_extends_refl : Pi S:store. store_extends S S -> type.
+- : store_extends_refl store_nil store_extends_base.
+- :
+   store_extends_refl S P
+      -> store_extends_refl (store_cons T1 S) (store_extends_ind P).
+wt_same_length_store_check :
+   check_wt S1 S2 H -> length_heap H N -> length_store S2 N -> type.
+- : wt_same_length_store_check check_wt_nil length_heap_nil length_store_nil.
+- :
+   wt_same_length_store_check C H S
+      -> wt_same_length_store_check (check_wt_cons C Q1) (length_heap_cons H)
+            (length_store_cons S).
+wt_same_length_store :
+   wt_heap S H -> length_heap H N -> length_store S N -> type.
+- :
+   wt_same_length_store_check C L1 L2
+      -> wt_same_length_store (wt_heap_def C) L1 L2.
+can_append_store : Pi S:store. Pi T':tp. append_store S T' S' -> type.
+- : can_append_store store_nil T' append_store_nil.
+- :
+   can_append_store S T2 A
+      -> can_append_store (store_cons T1 S) T2 (append_store_cons A).
+does_extend : append_store S T' S' -> store_extends S S' -> type.
+- : does_extend append_store_nil store_extends_base.
+- : does_extend A E -> does_extend (append_store_cons A) (store_extends_ind E).
+can_length_heap : Pi H:heap. length_heap H N -> type.
+- : can_length_heap heap_nil length_heap_nil.
+- :
+   can_length_heap H L -> can_length_heap (heap_cons E1 H) (length_heap_cons L).
+can_append_heap : Pi H:heap. Pi E:exp. append_heap H E H' -> type.
+- : can_append_heap heap_nil E append_heap_nil.
+- :
+   can_append_heap H E2 A
+      -> can_append_heap (heap_cons E1 H) E2 (append_heap_cons A).
+append_store_findable :
+   append_store S T' S' -> length_store S N -> find_in_store (lbl N) S' T'
+      -> type.
+- : append_store_findable append_store_nil length_store_nil find_in_store_yes.
+- :
+   append_store_findable A L F
+      -> append_store_findable (append_store_cons A) (length_store_cons L)
+            (find_in_store_no F).
+append_heap_findable :
+   append_heap H E H' -> length_heap H N -> find_in_heap (lbl N) H' E -> type.
+- : append_heap_findable append_heap_nil length_heap_nil find_in_heap_yes.
+- :
+   append_heap_findable A L F
+      -> append_heap_findable (append_heap_cons A) (length_heap_cons L)
+            (find_in_heap_no F).
+check_find_lemma :
+   check_wt S1 S2 H -> find_in_store L S2 T' -> find_in_heap L H E -> type.
+- : check_find_lemma X1 find_in_store_yes find_in_heap_yes.
+- :
+   check_find_lemma C F F'
+      -> check_find_lemma (check_wt_cons C Q1) (find_in_store_no F)
+            (find_in_heap_no F').
+find_lemma : wt_heap S H -> find_in_store L S T' -> find_in_heap L H E -> type.
+- : check_find_lemma C F H -> find_lemma (wt_heap_def C) F H.
+check_replace_lemma :
+   Pi E:exp.
+      check_wt S1 S2 H -> find_in_store L S2 T' -> replace_in_heap H L E H'
+         -> type.
+- : check_replace_lemma E2 X1 find_in_store_yes replace_in_heap_yes.
+- :
+   check_replace_lemma E C F R
+      -> check_replace_lemma E (check_wt_cons C Q1) (find_in_store_no F)
+            (replace_in_heap_no R).
+replace_lemma :
+   Pi E:exp.
+      wt_heap S H -> find_in_store L S T' -> replace_in_heap H L E H' -> type.
+- : check_replace_lemma E C F R -> replace_lemma E (wt_heap_def C) F R.
+check_wt_inv :
+   check_wt S' S H -> find_in_store L S T' -> find_in_heap L H E -> of S' E T'
+      -> type.
+- : check_wt_inv (check_wt_cons X1 Q) find_in_store_yes find_in_heap_yes Q.
+- :
+   check_wt_inv C Fstore Fheap Q
+      -> check_wt_inv (check_wt_cons C Q1) (find_in_store_no Fstore)
+            (find_in_heap_no Fheap) Q.
+wt_heap_inv :
+   wt_heap S H -> find_in_store L S T' -> find_in_heap L H E -> of S E T'
+      -> type.
+- : check_wt_inv C Fstore Fheap Q -> wt_heap_inv (wt_heap_def C) Fstore Fheap Q.
+substitution :
+   (Pi x:exp. var x T2 -> of S (E1 x) T1) -> of S E2 T2 -> of S (E1 E2) T1
+      -> type.
+- : substitution (\x:exp. \d:var x T1. t_var d) Q Q.
+- : substitution (\x:exp. \d:var x T1. t_var D') Q1 (t_var D').
+- :
+   (Pi y:exp. Pi f:var y T2.
+       substitution (\x:exp. \v:var x T1. Q1 y f x v) Q2 (Q1' y f))
+      -> substitution
+            (\x:exp. \d:var x T1. t_abs (\y:exp. \f:var y T2. Q1 y f x d)) Q2
+            (t_abs (\x:exp. \v:var x T2. Q1' x v)).
+- :
+   substitution (\x:exp. \v:var x T1. Q2 x v) Q3 Q2'
+      -> substitution (\x:exp. \v:var x T1. Q1 x v) Q3 Q1'
+      -> substitution (\x:exp. \d:var x T1. t_app (Q1 x d) (Q2 x d)) Q3
+            (t_app Q1' Q2').
+- : substitution (\x:exp. \d:var x T1. t_unit) Q1 t_unit.
+- : substitution (\x:exp. \d:var x T1. t_loc L) Q1 (t_loc L).
+- :
+   substitution (\x:exp. \v:var x T1. Q1 x v) Q2 Q1'
+      -> substitution (\x:exp. \d:var x T1. t_ref (Q1 x d)) Q2 (t_ref Q1').
+- :
+   substitution (\x:exp. \v:var x T1. Q1 x v) Q2 Q1'
+      -> substitution (\x:exp. \d:var x T1. t_deref (Q1 x d)) Q2 (t_deref Q1').
+- :
+   substitution (\x:exp. \v:var x T1. Q2 x v) Q3 Q2'
+      -> substitution (\x:exp. \v:var x T1. Q1 x v) Q3 Q1'
+      -> substitution (\x:exp. \d:var x T1. t_assign (Q1 x d) (Q2 x d)) Q3
+            (t_assign Q1' Q2').
+store_find_extends :
+   find_in_store L S T' -> store_extends S S' -> find_in_store L S' T' -> type.
+- :
+   store_find_extends find_in_store_yes (store_extends_ind X) find_in_store_yes.
+- :
+   store_find_extends F X F'
+      -> store_find_extends (find_in_store_no F) (store_extends_ind X)
+            (find_in_store_no F').
+of_store_extends : of S1 E T' -> store_extends S1 S2 -> of S2 E T' -> type.
+- :
+   (Pi x:exp. Pi d:var x T'. of_store_extends (Q x d) P (Q' x d))
+      -> of_store_extends (t_abs (\x:exp. \v:var x T'. Q x v)) P
+            (t_abs (\x:exp. \v:var x T'. Q' x v)).
+- : of_store_extends (t_var V) P (t_var V).
+- :
+   of_store_extends Qfun P Qfun' -> of_store_extends Qarg P Qarg'
+      -> of_store_extends (t_app Qarg Qfun) P (t_app Qarg' Qfun').
+- : of_store_extends t_unit P t_unit.
+- : store_find_extends F P F' -> of_store_extends (t_loc F) P (t_loc F').
+- : of_store_extends Q P Q' -> of_store_extends (t_ref Q) P (t_ref Q').
+- : of_store_extends Q P Q' -> of_store_extends (t_deref Q) P (t_deref Q').
+- :
+   of_store_extends Q2 P Q2' -> of_store_extends Q1 P Q1'
+      -> of_store_extends (t_assign Q1 Q2) P (t_assign Q1' Q2').
+extend_check_wt_store :
+   check_wt S1 S2 H -> store_extends S1 S1' -> check_wt S1' S2 H -> type.
+- : extend_check_wt_store check_wt_nil X1 check_wt_nil.
+- :
+   extend_check_wt_store C P C' -> of_store_extends Q P Q'
+      -> extend_check_wt_store (check_wt_cons C Q) P (check_wt_cons C' Q').
+extend_check_wt :
+   check_wt S1 S2 H -> of S1 E T' -> append_store S2 T' S2'
+      -> append_heap H E H' -> check_wt S1 S2' H' -> type.
+- :
+   extend_check_wt check_wt_nil Q append_store_nil append_heap_nil
+      (check_wt_cons check_wt_nil Q).
+- :
+   extend_check_wt C Q S H C'
+      -> extend_check_wt (check_wt_cons C Qc) Q (append_store_cons S)
+            (append_heap_cons H) (check_wt_cons C' Qc).
+extend_wt_heap :
+   wt_heap S H -> of S E T' -> append_store S T' S' -> append_heap H E H'
+      -> wt_heap S' H' -> type.
+- :
+   extend_check_wt_store C' P C'' -> does_extend As P
+      -> extend_check_wt C Q As Ah C'
+      -> extend_wt_heap (wt_heap_def C) Q As Ah (wt_heap_def C'').
+assign_lemma_check :
+   check_wt S1 S2 H -> of S1 E T' -> find_in_store L S2 T'
+      -> replace_in_heap H L E H' -> store_extends S2 S2' -> check_wt S1 S2' H'
+      -> type.
+- :
+   store_extends_refl (store_cons T' S) P
+      -> assign_lemma_check (check_wt_cons C Qc) Q find_in_store_yes
+            replace_in_heap_yes P (check_wt_cons C Q).
+- :
+   assign_lemma_check C Q F R P C'
+      -> assign_lemma_check (check_wt_cons C Qc) Q (find_in_store_no F)
+            (replace_in_heap_no R) (store_extends_ind P) (check_wt_cons C' Qc).
+assign_lemma :
+   wt_heap S H -> of S E T' -> find_in_store L S T' -> replace_in_heap H L E H'
+      -> store_extends S S' -> wt_heap S' H' -> type.
+- :
+   extend_check_wt_store C' P' C'' -> assign_lemma_check C Q F R P' C'
+      -> assign_lemma (wt_heap_def C) Q F R P' (wt_heap_def C'').
+preservation :
+   of S E T' -> wt_heap S H -> step H E H' E' -> store_extends S S'
+      -> wt_heap S' H' -> of S' E' T' -> type.
+- :
+   of_store_extends Qarg P' Qarg' -> preservation Qfun W S P' W' Q'
+      -> preservation (t_app Qarg Qfun) W (e_app1 S) P' W' (t_app Qarg' Q').
+- :
+   of_store_extends Qfun P' Qfun' -> preservation Qarg W S P' W' Q'
+      -> preservation (t_app Qarg Qfun) W (e_app2 S V) P' W' (t_app Q' Qfun').
+- :
+   preservation Q W S P' W' Q'
+      -> preservation (t_ref Q) W (e_alloc S) P' W' (t_ref Q').
+- :
+   preservation Q W S P' W' Q'
+      -> preservation (t_deref Q) W (e_deref S) P' W' (t_deref Q').
+- :
+   of_store_extends Qv P' Qv' -> preservation Ql W S P' W' Ql'
+      -> preservation (t_assign Qv Ql) W (e_gets1 S) P' W' (t_assign Qv' Ql').
+- :
+   of_store_extends Ql P' Ql' -> preservation Qv W S P' W' Qv'
+      -> preservation (t_assign Qv Ql) W (e_gets2 S V) P' W' (t_assign Qv' Ql').
+- :
+   store_extends_refl S P
+      -> substitution (\x:exp. \v:var x T1. Qbody x v) Qarg Qres
+      -> preservation (t_app Qarg (t_abs (\x:exp. \v:var x T1. Qbody x v))) W
+            (e_appabs V) P W Qres.
+- :
+   extend_wt_heap W Q As Ah W' -> append_store_findable As L F'
+      -> wt_same_length_store W Lh L -> does_extend As P
+      -> can_append_store S T' As
+      -> preservation (t_ref Q) W (e_allocVal Lh Ah V) P W' (t_loc F').
+- :
+   store_extends_refl S P -> wt_heap_inv W Fstore Fheap Qres
+      -> preservation (t_deref (t_loc Fstore)) W (e_derefVal Fheap) P W Qres.
+- :
+   assign_lemma W Qval F R P' W'
+      -> preservation (t_assign Qval (t_loc F)) W (e_getsVal R V) P' W' t_unit.
+progresses : heap -> exp -> type.
+can_step : step H E H' E' -> progresses H E.
+is_val : value E -> progresses H1 E.
+progress : of S E T' -> wt_heap S H -> progresses H E -> type.
+- : progress t_unit X1 (is_val v_dot).
+- : progress (t_loc X1) X2 (is_val v_loc).
+- : progress (t_abs (\x:exp. \v:var x T1. Q1 x v)) X1 (is_val v_lam).
+alloc_progresses : progresses H E -> progresses H (alloc E) -> type.
+- :
+   can_length_heap H L -> can_append_heap H E A
+      -> alloc_progresses (is_val V) (can_step (e_allocVal L A V)).
+- : alloc_progresses (can_step S) (can_step (e_alloc S)).
+- : alloc_progresses Pind P -> progress Q Z Pind -> progress (t_ref Q) Z P.
+app_progresses :
+   of S E1 (=> T1 T2) -> progresses H E1 -> progresses H E2
+      -> progresses H (@' E1 E2) -> type.
+- : app_progresses Q1 (can_step S) X1 (can_step (e_app1 S)).
+- : app_progresses Q1 (is_val V) (can_step S) (can_step (e_app2 S V)).
+- : app_progresses Q1 (is_val v_lam) (is_val V2) (can_step (e_appabs V2)).
+- :
+   app_progresses Qbody Pbody Parg P -> progress Qbody Z Pbody
+      -> progress Qarg Z Parg -> progress (t_app Qarg Qbody) Z P.
+deref_progresses :
+   of S E (ref T') -> wt_heap S H -> progresses H E -> progresses H (deref E)
+      -> type.
+- : deref_progresses Q1 X1 (can_step S) (can_step (e_deref S)).
+- :
+   find_lemma W X Y
+      -> deref_progresses (t_loc X) W (is_val v_loc) (can_step (e_derefVal Y)).
+- :
+   deref_progresses Q Z Pind P -> progress Q Z Pind -> progress (t_deref Q) Z P.
+assign_progresses :
+   of S E1 (ref T') -> wt_heap S H -> progresses H E1 -> progresses H E2
+      -> progresses H (gets E1 E2) -> type.
+- : assign_progresses Q1 X1 (can_step S) X2 (can_step (e_gets1 S)).
+- : assign_progresses Q1 X1 (is_val V) (can_step S) (can_step (e_gets2 S V)).
+- :
+   replace_lemma E W X Y
+      -> assign_progresses (t_loc X) W (is_val v_loc) (is_val V2)
+            (can_step (e_getsVal Y V2)).
+- :
+   assign_progresses Qloc Z Ploc Pval P -> progress Qloc Z Ploc
+      -> progress Qval Z Pval -> progress (t_assign Qval Qloc) Z P.

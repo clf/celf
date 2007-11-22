@@ -1,83 +1,83 @@
 i : type.
 o : type.
-and : o <- o <- o.
-imp : o <- o <- o.
-or : o <- o <- o.
-not : o <- o.
+and : o -> o -> o.
+imp : o -> o -> o.
+or : o -> o -> o.
+not : o -> o.
 true : o.
 false : o.
-forall : o <- (i -> o).
-exists : o <- (i -> o).
+forall : (i -> o) -> o.
+exists : (i -> o) -> o.
 nk : o -> type.
-nk_andi : nk (A and B) <- nk B <- nk A.
-nk_andel : nk A <- nk (A and B).
-nk_ander : nk B <- nk (A and B).
-nk_impi : nk (A imp B) <- (nk A -> nk B).
-nk_impe : nk B <- nk A <- nk (A imp B).
-nk_oril : nk (A or B) <- nk A.
-nk_orir : nk (A or B) <- nk B.
-nk_ore : nk C <- (nk B -> nk C) <- (nk A -> nk C) <- nk (A or B).
-nk_noti : nk (not A) <- (Pi p:o. nk A -> nk p).
-nk_note : (Pi C:o. nk C <- nk A) <- nk (not A).
+nk_andi : nk A -> nk B -> nk (and A B).
+nk_andel : nk (and A B) -> nk A.
+nk_ander : nk (and A B) -> nk B.
+nk_impi : (nk A -> nk B) -> nk (imp A B).
+nk_impe : nk (imp A B) -> nk A -> nk B.
+nk_oril : nk A -> nk (or A B).
+nk_orir : nk B -> nk (or A B).
+nk_ore : nk (or A B) -> (nk A -> nk C) -> (nk B -> nk C) -> nk C.
+nk_noti : (Pi p:o. nk A -> nk p) -> nk (not A).
+nk_note : nk (not A) -> (Pi C:o. nk A -> nk C).
 nk_truei : nk true.
-nk_falsee : nk C <- nk false.
-nk_foralli : nk (forall (\t:i. A t)) <- (Pi a:i. nk (A a)).
-nk_foralle : (Pi T':i. nk (A T')) <- nk (forall (\t:i. A t)).
-nk_existsi : Pi T':i. nk (exists (\t:i. A t)) <- nk (A T').
-nk_existse : nk C <- (Pi a:i. nk (A a) -> nk C) <- nk (exists (\t:i. A t)).
-nk_dnotr : nk A <- nk (not not A).
-nk_dnotx_auto : Pi A:o. (nk A -> nk (not not A)) -> type.
-% skolem nk_dnotx_auto#1 : Pi A:o. nk A -> nk (not not A).
-nk_dnotx : Pi A:o. nk A -> nk (not not A)
-   = \A:o. \NK:nk A. nk_noti (\p:o. \u:nk (not A). nk_note u p NK).
+nk_falsee : nk false -> nk C.
+nk_foralli : (Pi a:i. nk (A a)) -> nk (forall (\t:i. A t)).
+nk_foralle : nk (forall (\t:i. A t)) -> (Pi T':i. nk (A T')).
+nk_existsi : Pi T':i. nk (A T') -> nk (exists (\t:i. A t)).
+nk_existse : nk (exists (\t:i. A t)) -> (Pi a:i. nk (A a) -> nk C) -> nk C.
+nk_dnotr : nk (not (not A)) -> nk A.
+nk_dnotx_auto : (nk A -> nk (not (not A))) -> type.
+% skolem nk_dnotx_auto#1 : nk A -> nk (not (not A)).
+nk_dnotx : nk A -> nk (not (not A))
+   = \NK:nk A. nk_noti (\p:o. \u:nk (not A). nk_note u p NK).
 nj : o -> type.
-nj_andi : nj (A and B) <- nj B <- nj A.
-nj_andel : nj A <- nj (A and B).
-nj_ander : nj B <- nj (A and B).
-nj_impi : nj (A imp B) <- (nj A -> nj B).
-nj_impe : nj B <- nj A <- nj (A imp B).
-nj_oril : nj (A or B) <- nj A.
-nj_orir : nj (A or B) <- nj B.
-nj_ore : nj C <- (nj B -> nj C) <- (nj A -> nj C) <- nj (A or B).
-nj_noti : nj (not A) <- (Pi p:o. nj A -> nj p).
-nj_note : (Pi C:o. nj C <- nj A) <- nj (not A).
+nj_andi : nj A -> nj B -> nj (and A B).
+nj_andel : nj (and A B) -> nj A.
+nj_ander : nj (and A B) -> nj B.
+nj_impi : (nj A -> nj B) -> nj (imp A B).
+nj_impe : nj (imp A B) -> nj A -> nj B.
+nj_oril : nj A -> nj (or A B).
+nj_orir : nj B -> nj (or A B).
+nj_ore : nj (or A B) -> (nj A -> nj C) -> (nj B -> nj C) -> nj C.
+nj_noti : (Pi p:o. nj A -> nj p) -> nj (not A).
+nj_note : nj (not A) -> (Pi C:o. nj A -> nj C).
 nj_truei : nj true.
-nj_falsee : nj C <- nj false.
-nj_foralli : nj (forall (\t:i. A t)) <- (Pi a:i. nj (A a)).
-nj_foralle : (Pi T':i. nj (A T')) <- nj (forall (\t:i. A t)).
-nj_existsi : Pi T':i. nj (exists (\t:i. A t)) <- nj (A T').
-nj_existse : nj C <- (Pi a:i. nj (A a) -> nj C) <- nj (exists (\t:i. A t)).
-nj_dnotx_auto : Pi A:o. (nj A -> nj (not not A)) -> type.
-% skolem nj_dnotx_auto#1 : Pi A:o. nj A -> nj (not not A).
-nj_dnotx : Pi A:o. nj A -> nj (not not A)
-   = \A:o. \NJ:nj A. nj_noti (\p:o. \u:nj (not A). nj_note u p NJ).
-nj_triple_neg_red : Pi A:o. nj (not not not A) -> nj (not A)
-   = \A:o. \NJ:nj (not not not A).
+nj_falsee : nj false -> nj C.
+nj_foralli : (Pi a:i. nj (A a)) -> nj (forall (\t:i. A t)).
+nj_foralle : nj (forall (\t:i. A t)) -> (Pi T':i. nj (A T')).
+nj_existsi : Pi T':i. nj (A T') -> nj (exists (\t:i. A t)).
+nj_existse : nj (exists (\t:i. A t)) -> (Pi a:i. nj (A a) -> nj C) -> nj C.
+nj_dnotx_auto : (nj A -> nj (not (not A))) -> type.
+% skolem nj_dnotx_auto#1 : nj A -> nj (not (not A)).
+nj_dnotx : nj A -> nj (not (not A))
+   = \NJ:nj A. nj_noti (\p:o. \u:nj (not A). nj_note u p NJ).
+nj_triple_neg_red : nj (not (not (not A))) -> nj (not A)
+   = \NJ:nj (not (not (not A))).
         nj_noti (\q:o. \u:nj A. nj_note NJ q (nj_dnotx u)).
-nj_dneg_falser_auto : o -> (nj (not not false) -> (Pi C:o. nj C)) -> type.
-% skolem nk_dnotx_auto#2 : Pi A:o. nk A -> nk (not not A).
-nj_dneg_falser : nj (not not false) -> (Pi C:o. nj C)
-   = \NJ1:nj (not not false). \C:o.
+nj_dneg_falser_auto : (nj (not (not false)) -> (Pi C:o. nj C)) -> type.
+% skolem nk_dnotx_auto#2 : nk A -> nk (not (not A)).
+nj_dneg_falser : nj (not (not false)) -> (Pi C:o. nj C)
+   = \NJ1:nj (not (not false)). \C:o.
         nj_note NJ1 C (nj_noti (\p:o. \u:nj false. nj_falsee u)).
-n : o -> o = \p:o. not not p.
+n : o -> o = \p:o. not (not p).
 kolm : o -> o -> type.
-kolm_and : kolm (A and B) (n (A* and B*)) <- kolm A A* <- kolm B B*.
-kolm_imp : kolm (A imp B) (n (A* imp B*)) <- kolm A A* <- kolm B B*.
-kolm_or : kolm (A or B) (n (A* or B*)) <- kolm A A* <- kolm B B*.
-kolm_not : kolm (not A) (n (not A*)) <- kolm A A*.
+kolm_and : kolm B B* -> kolm A A* -> kolm (and A B) (n (and A* B*)).
+kolm_imp : kolm B B* -> kolm A A* -> kolm (imp A B) (n (imp A* B*)).
+kolm_or : kolm B B* -> kolm A A* -> kolm (or A B) (n (or A* B*)).
+kolm_not : kolm A A* -> kolm (not A) (n (not A*)).
 kolm_true : kolm true (n true).
 kolm_false : kolm false (n false).
 kolm_forall :
-   kolm (forall (\t:i. A t)) (n (forall (\t:i. A* t)))
-      <- (Pi a:i. kolm (A a) (A* a)).
+   (Pi a:i. kolm (A a) (A* a))
+      -> kolm (forall (\t:i. A t)) (n (forall (\t:i. A* t))).
 kolm_exists :
-   kolm (exists (\t:i. A t)) (n (exists (\t:i. A* t)))
-      <- (Pi a:i. kolm (A a) (A* a)).
+   (Pi a:i. kolm (A a) (A* a))
+      -> kolm (exists (\t:i. A t)) (n (exists (\t:i. A* t))).
 prop : o -> type.
-and_prop : prop (A and B) <- prop B <- prop A.
-imp_prop : prop (A imp B) <- prop B <- prop A.
-or_prop : prop (A or B) <- prop B <- prop A.
-not_prop : prop (not A) <- prop A.
+and_prop : prop A -> prop B -> prop (and A B).
+imp_prop : prop A -> prop B -> prop (imp A B).
+or_prop : prop A -> prop B -> prop (or A B).
+not_prop : prop A -> prop (not A).
 true_prop : prop true.
 false_prop : prop false.
 exkolm : Pi A:o. Pi A*:o. kolm A A* -> type.
@@ -85,233 +85,230 @@ exkolm : Pi A:o. Pi A*:o. kolm A A* -> type.
 % skolem exkolm#2 : Pi A:o. kolm A (exkolm#1 A).
 existskolm : Pi A:o. Pi A*:o. kolm A A* -> type.
 existskolm_and :
-   existskolm (A and B) (n (A* and B*)) (kolm_and KB KA)
-      <- existskolm A A* KA
-      <- existskolm B B* KB.
+   existskolm B B* KB -> existskolm A A* KA
+      -> existskolm (and A B) (n (and A* B*)) (kolm_and KB KA).
 existskolm_imp :
-   existskolm (A imp B) (n (A* imp B*)) (kolm_imp KB KA)
-      <- existskolm A A* KA
-      <- existskolm B B* KB.
+   existskolm B B* KB -> existskolm A A* KA
+      -> existskolm (imp A B) (n (imp A* B*)) (kolm_imp KB KA).
 existskolm_or :
-   existskolm (A or B) (n (A* or B*)) (kolm_or KB KA)
-      <- existskolm A A* KA
-      <- existskolm B B* KB.
+   existskolm B B* KB -> existskolm A A* KA
+      -> existskolm (or A B) (n (or A* B*)) (kolm_or KB KA).
 existskolm_not :
-   existskolm (not A) (n (not A*)) (kolm_not KA) <- existskolm A A* KA.
+   existskolm A A* KA -> existskolm (not A) (n (not A*)) (kolm_not KA).
 existskolm_true : existskolm true (n true) kolm_true.
 existskolm_false : existskolm false (n false) kolm_false.
 existskolm_forall :
-   existskolm (forall (\t:i. A t)) (n (forall (\t:i. A* t)))
-      (kolm_forall (\a:i. KA a))
-      <- (Pi a:i. existskolm (A a) (A* a) (KA a)).
+   (Pi a:i. existskolm (A a) (A* a) (KA a))
+      -> existskolm (forall (\t:i. A t)) (n (forall (\t:i. A* t)))
+            (kolm_forall (\a:i. KA a)).
 existskolm_exists :
-   existskolm (exists (\t:i. A t)) (n (exists (\t:i. A* t)))
-      (kolm_exists (\a:i. KA a))
-      <- (Pi a:i. existskolm (A a) (A* a) (KA a)).
-sound_auto : Pi A:o. Pi A*:o. nk A -> kolm A A* -> nj A* -> type.
-sound : Pi A:o. Pi A*:o. nk A -> kolm A A* -> nj A* -> type.
+   (Pi a:i. existskolm (A a) (A* a) (KA a))
+      -> existskolm (exists (\t:i. A t)) (n (exists (\t:i. A* t)))
+            (kolm_exists (\a:i. KA a)).
+sound_auto : nk A -> kolm A A* -> nj A* -> type.
+sound : nk A -> kolm A A* -> nj A* -> type.
 sound_andi :
-   sound (nk_andi NKA NKB) (kolm_and KB KA) (nj_dnotx (nj_andi NJA NJB))
-      <- sound NKA KA NJA
-      <- sound NKB KB NJB.
+   sound NKB KB NJB -> sound NKA KA NJA
+      -> sound (nk_andi NKA NKB) (kolm_and KB KA) (nj_dnotx (nj_andi NJA NJB)).
 sound_andel :
-   sound (nk_andel NK1) KA
-      (nj_noti
-          (\q:o. \u:nj (not A+).
-              nj_note NJ1 q
-                 (nj_noti (\p:o. \v:nj (n A+ and B*). nj_note (nj_andel v) p u))))
-      <- existskolm B B* KB
-      <- sound NK1 (kolm_and KB KA) NJ1.
+   sound NK1 (kolm_and KB KA) NJ1 -> existskolm B B* KB
+      -> sound (nk_andel NK1) KA
+            (nj_noti
+                (\q:o. \u:nj (not A+).
+                    nj_note NJ1 q
+                       (nj_noti
+                           (\p:o. \v:nj (and (n A+) B*).
+                               nj_note (nj_andel v) p u)))).
 sound_ander :
-   sound (nk_ander NK1) KB
-      (nj_noti
-          (\q:o. \u:nj (not B+).
-              nj_note NJ1 q
-                 (nj_noti (\p:o. \v:nj (A* and n B+). nj_note (nj_ander v) p u))))
-      <- existskolm A A* KA
-      <- sound NK1 (kolm_and KB KA) NJ1.
+   sound NK1 (kolm_and KB KA) NJ1 -> existskolm A A* KA
+      -> sound (nk_ander NK1) KB
+            (nj_noti
+                (\q:o. \u:nj (not B+).
+                    nj_note NJ1 q
+                       (nj_noti
+                           (\p:o. \v:nj (and A* (n B+)).
+                               nj_note (nj_ander v) p u)))).
 sound_impi :
-   sound (nk_impi (\x:nk A. NKB x)) (kolm_imp KB KA)
-      (nj_dnotx (nj_impi (\x:nj A*. NJB x)))
-      <- (Pi u:nk A. Pi v:nj A*. sound u KA v -> sound (NKB u) KB (NJB v)).
+   (Pi u:nk A. Pi v:nj A*. sound u KA v -> sound (NKB u) KB (NJB v))
+      -> sound (nk_impi (\x:nk A. NKB x)) (kolm_imp KB KA)
+            (nj_dnotx (nj_impi (\x:nj A*. NJB x))).
 sound_impe :
-   sound (nk_impe NKI NKA) KB
-      (nj_noti
-          (\q:o. \v:nj (not B+).
-              nj_note NJI q
-                 (nj_noti
-                     (\p:o. \u:nj (A* imp n B+). nj_note (nj_impe u NJA) p v))))
-      <- existskolm A A* KA
-      <- sound NKA KA NJA
-      <- sound NKI (kolm_imp KB KA) NJI.
+   sound NKI (kolm_imp KB KA) NJI -> sound NKA KA NJA -> existskolm A A* KA
+      -> sound (nk_impe NKI NKA) KB
+            (nj_noti
+                (\q:o. \v:nj (not B+).
+                    nj_note NJI q
+                       (nj_noti
+                           (\p:o. \u:nj (imp A* (n B+)).
+                               nj_note (nj_impe u NJA) p v)))).
 sound_oril :
-   sound (nk_oril NK) (kolm_or KB KA) (nj_dnotx (nj_oril NJ)) <- sound NK KA NJ.
+   sound NK KA NJ -> sound (nk_oril NK) (kolm_or KB KA) (nj_dnotx (nj_oril NJ)).
 sound_orir :
-   sound (nk_orir NK) (kolm_or KB KA) (nj_dnotx (nj_orir NJ)) <- sound NK KB NJ.
+   sound NK KB NJ -> sound (nk_orir NK) (kolm_or KB KA) (nj_dnotx (nj_orir NJ)).
 sound_ore :
-   sound (nk_ore NK (\x:nk A. NKA x) (\x:nk B. NKB x)) KC
-      (nj_noti
-          (\q:o. \v:nj (not C+).
-              nj_note NJ q
-                 (nj_noti
-                     (\p:o. \u:nj (A* or B*).
-                         nj_note (nj_ore u (\x:nj A*. NJA x) (\x:nj B*. NJB x))
-                            p v))))
-      <- existskolm A A* KA
-      <- existskolm B B* KB
-      <- sound NK (kolm_or KB KA) NJ
-      <- (Pi u:nk A. Pi v:nj A*. sound u KA v -> sound (NKA u) KC (NJA v))
-      <- (Pi u:nk B. Pi v:nj B*. sound u KB v -> sound (NKB u) KC (NJB v)).
+   (Pi u:nk B. Pi v:nj B*. sound u KB v -> sound (NKB u) KC (NJB v))
+      -> (Pi u:nk A. Pi v:nj A*. sound u KA v -> sound (NKA u) KC (NJA v))
+      -> sound NK (kolm_or KB KA) NJ -> existskolm B B* KB -> existskolm A A* KA
+      -> sound (nk_ore NK (\x:nk A. NKA x) (\x:nk B. NKB x)) KC
+            (nj_noti
+                (\q:o. \v:nj (not C+).
+                    nj_note NJ q
+                       (nj_noti
+                           (\p:o. \u:nj (or A* B*).
+                               nj_note
+                                  (nj_ore u (\x:nj A*. NJA x) (\x:nj B*. NJB x))
+                                  p v)))).
 sound_noti :
-   sound (nk_noti (\p:o. \x:nk A. NK1 p x)) (kolm_not K)
-      (nj_dnotx (nj_noti (\q:o. \v:nj A*. nj_dneg_falser (NJ1 false v) q)))
-      <- (Pi p:o. Pi u:nk A. Pi v:nj A*. Pi kp:kolm p (n p).
-             existskolm p (n p) kp
-                -> sound u K v
-                -> sound (NK1 p u) kp (NJ1 p v)).
+   (Pi p:o. Pi u:nk A. Pi v:nj A*. Pi kp:kolm p (n p).
+       existskolm p (n p) kp -> sound u K v -> sound (NK1 p u) kp (NJ1 p v))
+      -> sound (nk_noti (\p:o. \x:nk A. NK1 p x)) (kolm_not K)
+            (nj_dnotx (nj_noti (\q:o. \v:nj A*. nj_dneg_falser (NJ1 false v) q))).
 sound_note :
-   sound (nk_note NK2 C NK1) KC (nj_note (nj_triple_neg_red NJ2) (n C*) NJ1)
-      <- existskolm A A* KA
-      <- sound NK2 (kolm_not KA) NJ2
-      <- sound NK1 KA NJ1.
+   sound NK1 KA NJ1 -> sound NK2 (kolm_not KA) NJ2 -> existskolm A A* KA
+      -> sound (nk_note NK2 C NK1) KC
+            (nj_note (nj_triple_neg_red NJ2) (n C*) NJ1).
 sound_truei : sound nk_truei kolm_true (nj_dnotx nj_truei).
 sound_falsee :
-   sound (nk_falsee NK) KC (nj_dneg_falser NJ C*) <- sound NK kolm_false NJ.
+   sound NK kolm_false NJ -> sound (nk_falsee NK) KC (nj_dneg_falser NJ C*).
 sound_foralli :
-   sound (nk_foralli (\a:i. NK a)) (kolm_forall (\a:i. KA a))
-      (nj_dnotx (nj_foralli (\a:i. NJ a)))
-      <- (Pi a:i. sound (NK a) (KA a) (NJ a)).
+   (Pi a:i. sound (NK a) (KA a) (NJ a))
+      -> sound (nk_foralli (\a:i. NK a)) (kolm_forall (\a:i. KA a))
+            (nj_dnotx (nj_foralli (\a:i. NJ a))).
 sound_foralle :
-   sound (nk_foralle NK T') (KA T')
-      (nj_noti
-          (\q:o. \v:nj (not A+ T').
-              nj_note NJ q
-                 (nj_noti
-                     (\p:o. \u:nj (forall (\x:i. n (A+ x))).
-                         nj_note (nj_foralle u T') p v))))
-      <- existskolm (forall (\t:i. A t)) (n (forall (\x:i. n (A+ x))))
+   sound NK (kolm_forall (\a:i. KA a)) NJ
+      -> existskolm (forall (\t:i. A t)) (n (forall (\x:i. n (A+ x))))
             (kolm_forall (\a:i. KA a))
-      <- sound NK (kolm_forall (\a:i. KA a)) NJ.
+      -> sound (nk_foralle NK T') (KA T')
+            (nj_noti
+                (\q:o. \v:nj (not (A+ T')).
+                    nj_note NJ q
+                       (nj_noti
+                           (\p:o. \u:nj (forall (\x:i. n (A+ x))).
+                               nj_note (nj_foralle u T') p v)))).
 sound_existi :
-   sound (nk_existsi T' NK) (kolm_exists (\a:i. KA a))
-      (nj_dnotx (nj_existsi T' NJ))
-      <- sound NK (KA T') NJ.
+   sound NK (KA T') NJ
+      -> sound (nk_existsi T' NK) (kolm_exists (\a:i. KA a))
+            (nj_dnotx (nj_existsi T' NJ)).
 sound_existse :
-   sound (nk_existse NKEA (\a:i. \x:nk (A a). NKC a x)) KC
-      (nj_noti
-          (\q:o. \v:nj (not C+).
-              nj_note NJnnEA q
-                 (nj_noti
-                     (\p:o. \u:nj (exists (\t:i. A* t)).
-                         nj_note (nj_existse u (\a:i. \x:nj (A* a). NJC a x)) p
-                            v))))
-      <- existskolm (exists (\t:i. A t)) (n (exists (\t:i. A* t)))
+   (Pi a:i. Pi u:nk (A a). Pi v:nj (A* a).
+       sound u (KA a) v -> sound (NKC a u) KC (NJC a v))
+      -> sound NKEA (kolm_exists (\a:i. KA a)) NJnnEA
+      -> existskolm (exists (\t:i. A t)) (n (exists (\t:i. A* t)))
             (kolm_exists (\a:i. KA a))
-      <- sound NKEA (kolm_exists (\a:i. KA a)) NJnnEA
-      <- (Pi a:i. Pi u:nk (A a). Pi v:nj (A* a).
-             sound u (KA a) v -> sound (NKC a u) KC (NJC a v)).
+      -> sound (nk_existse NKEA (\a:i. \x:nk (A a). NKC a x)) KC
+            (nj_noti
+                (\q:o. \v:nj (not C+).
+                    nj_note NJnnEA q
+                       (nj_noti
+                           (\p:o. \u:nj (exists (\t:i. A* t)).
+                               nj_note
+                                  (nj_existse u (\a:i. \x:nj (A* a). NJC a x)) p
+                                  v)))).
 sound_dnotr :
-   sound (nk_dnotr NK1) KA
-      (nj_triple_neg_red (nj_triple_neg_red (nj_triple_neg_red NJ1)))
-      <- sound NK1 (kolm_not (kolm_not KA)) NJ1.
+   sound NK1 (kolm_not (kolm_not KA)) NJ1
+      -> sound (nk_dnotr NK1) KA
+            (nj_triple_neg_red (nj_triple_neg_red (nj_triple_neg_red NJ1))).
 
 
 
 
-nj_nk : Pi A:o. nj A -> nk A -> type.
+nj_nk : nj A -> nk A -> type.
 nj_nk_andi :
-   nj_nk (nj_andi NJA NJB) (nk_andi NKA NKB) <- nj_nk NJA NKA <- nj_nk NJB NKB.
-nj_nk_andel : nj_nk (nj_andel NJ) (nk_andel NK) <- nj_nk NJ NK.
-nj_nk_ander : nj_nk (nj_ander NJ) (nk_ander NK) <- nj_nk NJ NK.
+   nj_nk NJB NKB -> nj_nk NJA NKA -> nj_nk (nj_andi NJA NJB) (nk_andi NKA NKB).
+nj_nk_andel : nj_nk NJ NK -> nj_nk (nj_andel NJ) (nk_andel NK).
+nj_nk_ander : nj_nk NJ NK -> nj_nk (nj_ander NJ) (nk_ander NK).
 nj_nk_impi :
-   nj_nk (nj_impi (\x:nj A1. NJ x)) (nk_impi (\x:nk A1. NK x))
-      <- (Pi u:nj A1. Pi v:nk A1. nj_nk u v -> nj_nk (NJ u) (NK v)).
+   (Pi u:nj A1. Pi v:nk A1. nj_nk u v -> nj_nk (NJ u) (NK v))
+      -> nj_nk (nj_impi (\x:nj A1. NJ x)) (nk_impi (\x:nk A1. NK x)).
 nj_nk_impe :
-   nj_nk (nj_impe NJI NJA) (nk_impe NKI NKA) <- nj_nk NJI NKI <- nj_nk NJA NKA.
-nj_nk_oril : nj_nk (nj_oril NJ) (nk_oril NK) <- nj_nk NJ NK.
-nj_nk_oril : nj_nk (nj_orir NJ) (nk_orir NK) <- nj_nk NJ NK.
+   nj_nk NJA NKA -> nj_nk NJI NKI -> nj_nk (nj_impe NJI NJA) (nk_impe NKI NKA).
+nj_nk_oril : nj_nk NJ NK -> nj_nk (nj_oril NJ) (nk_oril NK).
+nj_nk_oril : nj_nk NJ NK -> nj_nk (nj_orir NJ) (nk_orir NK).
 nj_nk_ore :
-   nj_nk (nj_ore NJ (\x:nj A3. NJ1 x) (\x:nj A1. NJ2 x))
-      (nk_ore NK (\x:nk A3. NK1 x) (\x:nk A1. NK2 x))
-      <- nj_nk NJ NK
-      <- (Pi u:nj A3. Pi v:nk A3. nj_nk u v -> nj_nk (NJ1 u) (NK1 v))
-      <- (Pi u:nj A1. Pi v:nk A1. nj_nk u v -> nj_nk (NJ2 u) (NK2 v)).
+   (Pi u:nj A1. Pi v:nk A1. nj_nk u v -> nj_nk (NJ2 u) (NK2 v))
+      -> (Pi u:nj A3. Pi v:nk A3. nj_nk u v -> nj_nk (NJ1 u) (NK1 v))
+      -> nj_nk NJ NK
+      -> nj_nk (nj_ore NJ (\x:nj A3. NJ1 x) (\x:nj A1. NJ2 x))
+            (nk_ore NK (\x:nk A3. NK1 x) (\x:nk A1. NK2 x)).
 nj_nk_noti :
-   nj_nk (nj_noti (\p:o. \x:nj A1. NJ p x)) (nk_noti (\p:o. \x:nk A1. NK p x))
-      <- (Pi p:o. Pi u:nj A1. Pi v:nk A1. nj_nk u v -> nj_nk (NJ p u) (NK p v)).
+   (Pi p:o. Pi u:nj A1. Pi v:nk A1. nj_nk u v -> nj_nk (NJ p u) (NK p v))
+      -> nj_nk (nj_noti (\p:o. \x:nj A1. NJ p x))
+            (nk_noti (\p:o. \x:nk A1. NK p x)).
 nj_nk_note :
-   nj_nk (nj_note NJ1 C NJ2) (nk_note NK1 C NK2)
-      <- nj_nk NJ1 NK1
-      <- nj_nk NJ2 NK2.
+   nj_nk NJ2 NK2 -> nj_nk NJ1 NK1
+      -> nj_nk (nj_note NJ1 C NJ2) (nk_note NK1 C NK2).
 nj_nk_truei : nj_nk nj_truei nk_truei.
-nj_nk_falsee : nj_nk (nj_falsee NJ) (nk_falsee NK) <- nj_nk NJ NK.
+nj_nk_falsee : nj_nk NJ NK -> nj_nk (nj_falsee NJ) (nk_falsee NK).
 nj_nk_foralli :
-   nj_nk (nj_foralli (\a:i. NJ a)) (nk_foralli (\a:i. NK a))
-      <- (Pi a:i. nj_nk (NJ a) (NK a)).
-nj_nk_foralle : nj_nk (nj_foralle NJ T') (nk_foralle NK T') <- nj_nk NJ NK.
-nj_nk_existsi : nj_nk (nj_existsi T' NJ) (nk_existsi T' NK) <- nj_nk NJ NK.
+   (Pi a:i. nj_nk (NJ a) (NK a))
+      -> nj_nk (nj_foralli (\a:i. NJ a)) (nk_foralli (\a:i. NK a)).
+nj_nk_foralle : nj_nk NJ NK -> nj_nk (nj_foralle NJ T') (nk_foralle NK T').
+nj_nk_existsi : nj_nk NJ NK -> nj_nk (nj_existsi T' NJ) (nk_existsi T' NK).
 nj_nk_existse :
-   nj_nk (nj_existse NJ1 (\a:i. \x:nj (A1 a). NJ2 a x))
-      (nk_existse NK1 (\a:i. \x:nk (A1 a). NK2 a x))
-      <- nj_nk NJ1 NK1
-      <- (Pi a:i. Pi u:nj (A1 a). Pi v:nk (A1 a).
-             nj_nk u v -> nj_nk (NJ2 a u) (NK2 a v)).
+   (Pi a:i. Pi u:nj (A1 a). Pi v:nk (A1 a).
+       nj_nk u v -> nj_nk (NJ2 a u) (NK2 a v)) -> nj_nk NJ1 NK1
+      -> nj_nk (nj_existse NJ1 (\a:i. \x:nj (A1 a). NJ2 a x))
+            (nk_existse NK1 (\a:i. \x:nk (A1 a). NK2 a x)).
 
 
-equiv :
-   Pi A:o. Pi A*:o. kolm A A* -> (nk A -> nk A*) -> (nk A* -> nk A) -> type.
+equiv : kolm A A* -> (nk A -> nk A*) -> (nk A* -> nk A) -> type.
 equiv_and :
-   equiv (kolm_and KB KA)
-      (\u:nk (A and B).
-          nk_dnotx (nk_andi (NKA* (nk_andel u)) (NKB* (nk_ander u))))
-      (\u:nk (n (A* and B*)).
-          nk_andi (NKA (nk_andel (nk_dnotr u))) (NKB (nk_ander (nk_dnotr u))))
-      <- equiv KA (\x:nk A. NKA* x) (\x:nk A*. NKA x)
-      <- equiv KB (\x:nk B. NKB* x) (\x:nk B*. NKB x).
+   equiv KB (\x:nk B. NKB* x) (\x:nk B*. NKB x)
+      -> equiv KA (\x:nk A. NKA* x) (\x:nk A*. NKA x)
+      -> equiv (kolm_and KB KA)
+            (\u:nk (and A B).
+                nk_dnotx (nk_andi (NKA* (nk_andel u)) (NKB* (nk_ander u))))
+            (\u:nk (n (and A* B*)).
+                nk_andi (NKA (nk_andel (nk_dnotr u)))
+                   (NKB (nk_ander (nk_dnotr u)))).
 equiv_imp :
-   equiv (kolm_imp KB KA)
-      (\v:nk (A imp B). nk_dnotx (nk_impi (\u:nk A*. NKB* (nk_impe v (NKA u)))))
-      (\v:nk (n (A* imp B*)).
-          nk_impi (\u:nk A. NKB (nk_impe (nk_dnotr v) (NKA* u))))
-      <- equiv KA (\x:nk A. NKA* x) (\x:nk A*. NKA x)
-      <- equiv KB (\x:nk B. NKB* x) (\x:nk B*. NKB x).
+   equiv KB (\x:nk B. NKB* x) (\x:nk B*. NKB x)
+      -> equiv KA (\x:nk A. NKA* x) (\x:nk A*. NKA x)
+      -> equiv (kolm_imp KB KA)
+            (\v:nk (imp A B).
+                nk_dnotx (nk_impi (\u:nk A*. NKB* (nk_impe v (NKA u)))))
+            (\v:nk (n (imp A* B*)).
+                nk_impi (\u:nk A. NKB (nk_impe (nk_dnotr v) (NKA* u)))).
 equiv_or :
-   equiv (kolm_or KB KA)
-      (\v:nk (A or B).
-          nk_dnotx
-             (nk_ore v (\u:nk A. nk_oril (NKA* u)) (\u:nk B. nk_orir (NKB* u))))
-      (\v:nk (n (A* or B*)).
-          nk_ore (nk_dnotr v) (\u:nk A*. nk_oril (NKA u))
-             (\u:nk B*. nk_orir (NKB u)))
-      <- equiv KA (\x:nk A. NKA* x) (\x:nk A*. NKA x)
-      <- equiv KB (\x:nk B. NKB* x) (\x:nk B*. NKB x).
+   equiv KB (\x:nk B. NKB* x) (\x:nk B*. NKB x)
+      -> equiv KA (\x:nk A. NKA* x) (\x:nk A*. NKA x)
+      -> equiv (kolm_or KB KA)
+            (\v:nk (or A B).
+                nk_dnotx
+                   (nk_ore v (\u:nk A. nk_oril (NKA* u))
+                       (\u:nk B. nk_orir (NKB* u))))
+            (\v:nk (n (or A* B*)).
+                nk_ore (nk_dnotr v) (\u:nk A*. nk_oril (NKA u))
+                   (\u:nk B*. nk_orir (NKB u))).
 equiv_not :
-   equiv (kolm_not K)
-      (\v:nk (not A).
-          nk_noti (\p:o. \u:nk (not not A*). nk_note v p (NKA (nk_dnotr u))))
-      (\v:nk (n (not A*)).
-          nk_noti (\p:o. \u:nk A. nk_note (nk_dnotr v) p (NKA* u)))
-      <- equiv K (\x:nk A. NKA* x) (\x:nk A*. NKA x).
+   equiv K (\x:nk A. NKA* x) (\x:nk A*. NKA x)
+      -> equiv (kolm_not K)
+            (\v:nk (not A).
+                nk_noti
+                   (\p:o. \u:nk (not (not A*)). nk_note v p (NKA (nk_dnotr u))))
+            (\v:nk (n (not A*)).
+                nk_noti (\p:o. \u:nk A. nk_note (nk_dnotr v) p (NKA* u))).
 equiv_true :
    equiv kolm_true (\v:nk true. nk_dnotx v) (\v:nk (n true). nk_dnotr v).
 equiv_false :
    equiv kolm_false (\v:nk false. nk_dnotx v) (\v:nk (n false). nk_dnotr v).
 equiv_forall :
-   equiv (kolm_forall (\a:i. K a))
-      (\v:nk (forall (\t:i. A t)).
-          nk_dnotx (nk_foralli (\a:i. NK* a (nk_foralle v a))))
-      (\v:nk (n (forall (\t:i. A* t))).
-          nk_foralli (\a:i. NK a (nk_foralle (nk_dnotr v) a)))
-      <- (Pi a:i. equiv (K a) (\x:nk (A a). NK* a x) (\x:nk (A* a). NK a x)).
+   (Pi a:i. equiv (K a) (\x:nk (A a). NK* a x) (\x:nk (A* a). NK a x))
+      -> equiv (kolm_forall (\a:i. K a))
+            (\v:nk (forall (\t:i. A t)).
+                nk_dnotx (nk_foralli (\a:i. NK* a (nk_foralle v a))))
+            (\v:nk (n (forall (\t:i. A* t))).
+                nk_foralli (\a:i. NK a (nk_foralle (nk_dnotr v) a))).
 equiv_exists :
-   equiv (kolm_exists (\a:i. K a))
-      (\v:nk (exists (\t:i. A t)).
-          nk_dnotx (nk_existse v (\a:i. \u:nk (A a). nk_existsi a (NK* a u))))
-      (\v:nk (n (exists (\t:i. A* t))).
-          nk_existse (nk_dnotr v) (\a:i. \u:nk (A* a). nk_existsi a (NK a u)))
-      <- (Pi a:i. equiv (K a) (\x:nk (A a). NK* a x) (\x:nk (A* a). NK a x)).
-complete : Pi A:o. Pi A*:o. kolm A A* -> nj A* -> nk A -> type.
+   (Pi a:i. equiv (K a) (\x:nk (A a). NK* a x) (\x:nk (A* a). NK a x))
+      -> equiv (kolm_exists (\a:i. K a))
+            (\v:nk (exists (\t:i. A t)).
+                nk_dnotx
+                   (nk_existse v (\a:i. \u:nk (A a). nk_existsi a (NK* a u))))
+            (\v:nk (n (exists (\t:i. A* t))).
+                nk_existse (nk_dnotr v)
+                   (\a:i. \u:nk (A* a). nk_existsi a (NK a u))).
+complete : kolm A A* -> nj A* -> nk A -> type.
 complete1 :
-   complete K NJ (NK2 NK1*)
-      <- nj_nk NJ NK1*
-      <- equiv K (\x:nk A1. NK2* x) (\x:nk A2. NK2 x).
+   equiv K (\x:nk A1. NK2* x) (\x:nk A2. NK2 x) -> nj_nk NJ NK1*
+      -> complete K NJ (NK2 NK1*).

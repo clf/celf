@@ -1,788 +1,615 @@
 false : type.
 nat : type.
 z : nat.
-s : nat <- nat.
+s : nat -> nat.
 pred : nat -> nat -> type.
 pred_z : pred z z.
 pred_s : pred (s N) N.
 plus : nat -> nat -> nat -> type.
 plus_z : plus z N N.
-plus_s : plus (s N1) N2 (s N3) <- plus N1 N2 N3.
+plus_s : plus N1 N2 N3 -> plus (s N1) N2 (s N3).
 nat_eq : nat -> nat -> type.
 nat_refl : nat_eq N N.
 nat_neq : nat -> nat -> type.
 nat_neq_zs : nat_neq z (s N).
 nat_neq_sz : nat_neq (s N) z.
-nat_neq_ss : nat_neq (s N1) (s N2) <- nat_neq N1 N2.
+nat_neq_ss : nat_neq N1 N2 -> nat_neq (s N1) (s N2).
 nat_lt : nat -> nat -> type.
 nat_lt_z : nat_lt z (s N).
-nat_lt_s : nat_lt (s N1) (s N2) <- nat_lt N1 N2.
+nat_lt_s : nat_lt N1 N2 -> nat_lt (s N1) (s N2).
 nat_lte : nat -> nat -> type.
 nat_lte_z : nat_lte z N.
-nat_lte_s : nat_lte (s N1) (s N2) <- nat_lte N1 N2.
+nat_lte_s : nat_lte N1 N2 -> nat_lte (s N1) (s N2).
 comp_nat_lte : Pi N1:nat. Pi N2:nat. nat_lte N1 N2 -> type.
 comp_nat_lte_z : comp_nat_lte z N nat_lte_z.
 comp_nat_lte_s :
-   comp_nat_lte (s N1) (s N2) (nat_lte_s LTE) <- comp_nat_lte N1 N2 LTE.
+   comp_nat_lte N1 N2 LTE -> comp_nat_lte (s N1) (s N2) (nat_lte_s LTE).
 nat_gt : nat -> nat -> type.
 nat_gt_z : nat_gt (s N) z.
-nat_gt_s : nat_gt (s N1) (s N2) <- nat_gt N1 N2.
+nat_gt_s : nat_gt N1 N2 -> nat_gt (s N1) (s N2).
 comp_nat_gt : Pi N1:nat. Pi N2:nat. nat_gt N1 N2 -> type.
 comp_nat_gt_z : comp_nat_gt (s N) z nat_gt_z.
-comp_nat_gt_s : comp_nat_gt (s N1) (s N2) (nat_gt_s GT) <- comp_nat_gt N1 N2 GT.
+comp_nat_gt_s : comp_nat_gt N1 N2 GT -> comp_nat_gt (s N1) (s N2) (nat_gt_s GT).
 nat_em : nat -> nat -> type.
-nat_em_eq : nat_em N M <- nat_eq N M.
-nat_em_neq : nat_em N M <- nat_neq N M.
+nat_em_eq : nat_eq N M -> nat_em N M.
+nat_em_neq : nat_neq N M -> nat_em N M.
 nat_excluded : Pi N:nat. Pi M:nat. nat_em N M -> type.
 - : nat_excluded z z (nat_em_eq nat_refl).
 - : nat_excluded (s N) z (nat_em_neq nat_neq_sz).
 - : nat_excluded z (s N) (nat_em_neq nat_neq_zs).
-nat_em_helper : Pi N:nat. Pi M:nat. nat_em N M -> nat_em (s N) (s M) -> type.
+nat_em_helper : nat_em N M -> nat_em (s N) (s M) -> type.
 - : nat_em_helper (nat_em_eq nat_refl) (nat_em_eq nat_refl).
 - : nat_em_helper (nat_em_neq R) (nat_em_neq (nat_neq_ss R)).
-- : nat_excluded (s N) (s M) RR <- nat_excluded N M R <- nat_em_helper R RR.
-nat_trans :
-   Pi M:nat. Pi N:nat. Pi P:nat. nat_eq M N -> nat_eq N P -> nat_eq M P -> type.
+- : nat_em_helper R RR -> nat_excluded N M R -> nat_excluded (s N) (s M) RR.
+nat_trans : nat_eq M N -> nat_eq N P -> nat_eq M P -> type.
 - : nat_trans nat_refl nat_refl nat_refl.
-nat_sym : Pi M:nat. Pi N:nat. nat_eq M N -> nat_eq N M -> type.
+nat_sym : nat_eq M N -> nat_eq N M -> type.
 - : nat_sym nat_refl nat_refl.
-nat_neq_sym : Pi M:nat. Pi N:nat. nat_neq M N -> nat_neq N M -> type.
+nat_neq_sym : nat_neq M N -> nat_neq N M -> type.
 - : nat_neq_sym nat_neq_zs nat_neq_sz.
 - : nat_neq_sym nat_neq_sz nat_neq_zs.
 - :
-   nat_neq_sym (nat_neq_ss NNEQ1) (nat_neq_ss NNEQ2) <- nat_neq_sym NNEQ1 NNEQ2.
-nat_cong :
-   Pi M:nat. Pi N:nat. Pi P:nat.
-      nat_eq M N -> nat_neq M P -> nat_neq N P -> type.
+   nat_neq_sym NNEQ1 NNEQ2 -> nat_neq_sym (nat_neq_ss NNEQ1) (nat_neq_ss NNEQ2).
+nat_cong : nat_eq M N -> nat_neq M P -> nat_neq N P -> type.
 - : nat_cong nat_refl nat_neq_zs nat_neq_zs.
 - : nat_cong nat_refl nat_neq_sz nat_neq_sz.
 - :
-   nat_cong nat_refl (nat_neq_ss NEQ1) (nat_neq_ss NEQ2)
-      <- nat_cong nat_refl NEQ1 NEQ2.
-nat_eq_exclusive :
-   Pi N:nat. Pi M:nat. nat_eq N M -> nat_neq N M -> false -> type.
+   nat_cong nat_refl NEQ1 NEQ2
+      -> nat_cong nat_refl (nat_neq_ss NEQ1) (nat_neq_ss NEQ2).
+nat_eq_exclusive : nat_eq N M -> nat_neq N M -> false -> type.
 - :
-   nat_eq_exclusive nat_refl (nat_neq_ss NEQ) FALSE
-      <- nat_eq_exclusive nat_refl NEQ FALSE.
+   nat_eq_exclusive nat_refl NEQ FALSE
+      -> nat_eq_exclusive nat_refl (nat_neq_ss NEQ) FALSE.
 false_imp_nat_eq : Pi N1:nat. Pi N2:nat. false -> nat_eq N1 N2 -> type.
 pred_eq_lemma :
-   Pi N1:nat. Pi N2:nat. Pi N3:nat. Pi N4:nat.
-      nat_neq N1 z -> nat_neq N2 z -> nat_eq N1 N2 -> pred N1 N3 -> pred N2 N4
-         -> nat_eq N3 N4 -> type.
+   nat_neq N1 z -> nat_neq N2 z -> nat_eq N1 N2 -> pred N1 N3 -> pred N2 N4
+      -> nat_eq N3 N4 -> type.
 - : pred_eq_lemma NNEQ1 NNEQ2 NEQ1 PRED4 PRED5 nat_refl.
-pred_eq_lemma_alt :
-   Pi N1:nat. Pi N2:nat. nat_eq (s N1) (s N2) -> nat_eq N1 N2 -> type.
+pred_eq_lemma_alt : nat_eq (s N1) (s N2) -> nat_eq N1 N2 -> type.
 - : pred_eq_lemma_alt NEQ nat_refl.
-succ_eq_lemma :
-   Pi N1:nat. Pi N2:nat. nat_eq N1 N2 -> nat_eq (s N1) (s N2) -> type.
+succ_eq_lemma : nat_eq N1 N2 -> nat_eq (s N1) (s N2) -> type.
 - : succ_eq_lemma NEQ nat_refl.
 plus_eq_lemma :
-   Pi N1:nat. Pi N2:nat. Pi N3:nat. Pi N4:nat. Pi N5:nat. Pi N6:nat.
-      nat_eq N1 N2 -> nat_eq N3 N4 -> plus N1 N3 N5 -> plus N2 N4 N6
-         -> nat_eq N5 N6 -> type.
+   nat_eq N1 N2 -> nat_eq N3 N4 -> plus N1 N3 N5 -> plus N2 N4 N6
+      -> nat_eq N5 N6 -> type.
 - : plus_eq_lemma NEQ1 NEQ2 plus_z plus_z NEQ2.
 - :
-   plus_eq_lemma NEQ1 NEQ2 (plus_s PL1) (plus_s PL2) NEQ5
-      <- pred_eq_lemma_alt NEQ1 NEQ3
-      <- plus_eq_lemma NEQ3 NEQ2 PL1 PL2 NEQ4
-      <- succ_eq_lemma NEQ4 NEQ5.
-nat_lt_eq :
-   Pi N1:nat. Pi N2:nat. Pi N3:nat.
-      nat_lt N1 N2 -> nat_eq N2 N3 -> nat_lt N1 N3 -> type.
+   succ_eq_lemma NEQ4 NEQ5 -> plus_eq_lemma NEQ3 NEQ2 PL1 PL2 NEQ4
+      -> pred_eq_lemma_alt NEQ1 NEQ3
+      -> plus_eq_lemma NEQ1 NEQ2 (plus_s PL1) (plus_s PL2) NEQ5.
+nat_lt_eq : nat_lt N1 N2 -> nat_eq N2 N3 -> nat_lt N1 N3 -> type.
 - : nat_lt_eq nat_lt_z nat_refl nat_lt_z.
 - :
-   nat_lt_eq (nat_lt_s NLT1) NEQ1 (nat_lt_s NLT2)
-      <- pred_eq_lemma_alt NEQ1 NEQ2
-      <- nat_lt_eq NLT1 NEQ2 NLT2.
+   nat_lt_eq NLT1 NEQ2 NLT2 -> pred_eq_lemma_alt NEQ1 NEQ2
+      -> nat_lt_eq (nat_lt_s NLT1) NEQ1 (nat_lt_s NLT2).
 className : type.
 methodName : type.
-methodName_nat : methodName <- nat.
-cn : className <- nat.
+methodName_nat : nat -> methodName.
+cn : nat -> className.
 object : className = cn z.
 cnlist : nat -> type.
 cnnil : cnlist z.
-cncons : cnlist (s N) <- cnlist N <- className.
+cncons : className -> cnlist N -> cnlist (s N).
 exp : type.
 elist : nat -> type.
-fieldProj : exp <- nat <- exp.
-methodInvk : exp <- elist N <- methodName <- exp.
-new : exp <- elist N <- className.
-cast : exp <- exp <- className.
+fieldProj : exp -> nat -> exp.
+methodInvk : exp -> methodName -> elist N -> exp.
+new : className -> elist N -> exp.
+cast : className -> exp -> exp.
 enil : elist z.
-econs : elist (s N) <- elist N <- exp.
+econs : exp -> elist N -> elist (s N).
 unit : exp = new object enil.
-bexp : Pi N:nat. cnlist N -> type.
-base : bexp cnnil <- (exp -> exp).
-bind : Pi C:className. bexp (cncons C CS) <- (exp -> bexp CS).
+bexp : cnlist N -> type.
+base : (exp -> exp) -> bexp cnnil.
+bind : Pi C:className. (exp -> bexp CS) -> bexp (cncons C CS).
 methodDef : methodName -> type.
-method : (Pi M:methodName. methodDef M <- bexp CS) <- className.
+method : className -> (Pi M:methodName. bexp CS -> methodDef M).
 methodTable : type.
 classDef : className -> type.
-class : Pi C:className. classDef C <- methodTable <- cnlist N <- className.
+class : Pi C:className. className -> cnlist N -> methodTable -> classDef C.
 classTable : type.
 className_eq : className -> className -> type.
 className_refl : className_eq N N.
 className_neq : className -> className -> type.
-className_neq_natnat : className_neq (cn N1) (cn N2) <- nat_neq N1 N2.
+className_neq_natnat : nat_neq N1 N2 -> className_neq (cn N1) (cn N2).
 methodName_eq : methodName -> methodName -> type.
 methodName_refl : methodName_eq M1 M1.
 methodName_neq : methodName -> methodName -> type.
 methodName_neq_base :
-   methodName_neq (methodName_nat N1) (methodName_nat N2) <- nat_neq N1 N2.
-enth_opt : Pi N:nat. nat -> elist N -> exp -> type.
+   nat_neq N1 N2 -> methodName_neq (methodName_nat N1) (methodName_nat N2).
+enth_opt : nat -> elist N -> exp -> type.
 enth_sz : enth_opt z (econs E ES1) E.
-enth_sn : enth_opt (s N) (econs E' TL) E <- enth_opt N TL E.
-cnnth_opt : Pi N:nat. nat -> cnlist N -> className -> type.
+enth_sn : enth_opt N TL E -> enth_opt (s N) (econs E' TL) E.
+cnnth_opt : nat -> cnlist N -> className -> type.
 cnnth_sz : cnnth_opt z (cncons C CS) C.
-cnnth_sn : cnnth_opt (s N) (cncons D CS) C <- cnnth_opt N CS C.
-cnappend :
-   Pi N1:nat. Pi N2:nat. Pi N3:nat.
-      cnlist N1 -> cnlist N2 -> cnlist N3 -> plus N1 N2 N3 -> type.
+cnnth_sn : cnnth_opt N CS C -> cnnth_opt (s N) (cncons D CS) C.
+cnappend : cnlist N1 -> cnlist N2 -> cnlist N3 -> plus N1 N2 N3 -> type.
 cnappend_cnnil : cnappend cnnil CS CS plus_z.
 cnappend_cncons :
-   cnappend (cncons CN CS1) CS2 (cncons CN CS3) (plus_s PL)
-      <- cnappend CS1 CS2 CS3 PL.
+   cnappend CS1 CS2 CS3 PL
+      -> cnappend (cncons CN CS1) CS2 (cncons CN CS3) (plus_s PL).
 notInMT : methodTable -> methodName -> type.
 notInCT : classTable -> className -> type.
 mrnil : methodTable.
-mrcons : (Pi MT:methodTable. methodTable <- notInMT MT M) <- methodDef M.
+mrcons : methodDef M -> (Pi MT:methodTable. notInMT MT M -> methodTable).
 crnil : classTable.
-crcons : (Pi CT:classTable. classTable <- notInCT CT C) <- classDef C.
+crcons : classDef C -> (Pi CT:classTable. notInCT CT C -> classTable).
 notInMT_mrnil : notInMT mrnil M.
 notInMT_mrcons :
-   notInMT (mrcons (method C1 M' BE1) MT NI') M
-      <- methodName_neq M M'
-      <- notInMT MT M.
+   notInMT MT M -> methodName_neq M M'
+      -> notInMT (mrcons (method C1 M' BE1) MT NI') M.
 nnil : notInCT crnil C.
 ncons :
-   notInCT (crcons (class N' C1 CS1 MR1) CT NI') N
-      <- className_neq N N'
-      <- notInCT CT N.
+   notInCT CT N -> className_neq N N'
+      -> notInCT (crcons (class N' C1 CS1 MR1) CT NI') N.
 lookupMethod : methodTable -> (Pi M:methodName. methodDef M -> type).
 lookupMethod_mrcons1 :
    lookupMethod (mrcons (method C MN1 BE) MT MU) MN1 (method C MN1 BE).
 lookupMethod_mrcons2 :
-   lookupMethod (mrcons (method C MN2 BE) MR MU) MN1 MD
-      <- lookupMethod MR MN1 MD
-      <- methodName_neq MN1 MN2.
+   methodName_neq MN1 MN2 -> lookupMethod MR MN1 MD
+      -> lookupMethod (mrcons (method C MN2 BE) MR MU) MN1 MD.
 lookupClass : classTable -> (Pi C:className. classDef C -> type).
 lookupClass_crcons1 :
    lookupClass (crcons (class CN2 CN3 CNL MR) CT CTU) CN2 (class CN2 CN3 CNL MR).
 lookupClass_crcons2 :
-   lookupClass (crcons (class CN2 CN3 CNL MR) CT CTU) CN1 CD
-      <- lookupClass CT CN1 CD
-      <- className_neq CN1 CN2.
+   className_neq CN1 CN2 -> lookupClass CT CN1 CD
+      -> lookupClass (crcons (class CN2 CN3 CNL MR) CT CTU) CN1 CD.
 subtyping : classTable -> className -> className -> type.
 s_refl : subtyping CT C C.
 s_super :
-   subtyping CT C E
-      <- className_neq C object
-      <- lookupClass CT C (class C D CS1 MR1)
-      <- subtyping CT D E.
+   subtyping CT D E -> lookupClass CT C (class C D CS1 MR1)
+      -> className_neq C object -> subtyping CT C E.
 fields : classTable -> className -> (Pi N:nat. cnlist N -> type).
 f_obj : fields CT1 object z cnnil.
 f_class :
-   fields CT C N CS3
-      <- className_neq C object
-      <- lookupClass CT C (class C D CS1 MR1)
-      <- fields CT D PRED1 CS2
-      <- cnappend CS2 CS1 CS3 PL1.
-mtype :
-   Pi N:nat.
-      classTable -> methodName -> className -> cnlist N -> className -> type.
+   cnappend CS2 CS1 CS3 PL1 -> fields CT D PRED1 CS2
+      -> lookupClass CT C (class C D CS1 MR1) -> className_neq C object
+      -> fields CT C N CS3.
+mtype : classTable -> methodName -> className -> cnlist N -> className -> type.
 mt_class :
-   mtype CT M C1 CS C2
-      <- className_neq C1 object
-      <- lookupClass CT C1 (class C1 C3 CS1 MT)
-      <- lookupMethod MT M (method C2 M BE).
+   lookupMethod MT M (method C2 M BE) -> lookupClass CT C1 (class C1 C3 CS1 MT)
+      -> className_neq C1 object -> mtype CT M C1 CS C2.
 mt_super :
-   mtype CT M C1 CS C0
-      <- className_neq C1 object
-      <- lookupClass CT C1 (class C1 C2 CS1 MT)
-      <- notInMT MT M
-      <- mtype CT M C2 CS C0.
-mbody :
-   Pi PRED1:nat. Pi CS:cnlist PRED1.
-      classTable -> methodName -> className -> bexp CS -> type.
+   mtype CT M C2 CS C0 -> notInMT MT M -> lookupClass CT C1 (class C1 C2 CS1 MT)
+      -> className_neq C1 object -> mtype CT M C1 CS C0.
+mbody : classTable -> methodName -> className -> bexp CS -> type.
 mb_class :
-   mbody CT M C2 BE
-      <- className_neq C2 object
-      <- lookupClass CT C2 (class C2 C3 CS2 MT)
-      <- lookupMethod MT M (method C1 M BE).
+   lookupMethod MT M (method C1 M BE) -> lookupClass CT C2 (class C2 C3 CS2 MT)
+      -> className_neq C2 object -> mbody CT M C2 BE.
 mb_super :
-   mbody CT M C1 BE
-      <- className_neq C1 object
-      <- lookupClass CT C1 (class C1 C2 CS2 MT)
-      <- mbody CT M C2 BE
-      <- notInMT MT M.
+   notInMT MT M -> mbody CT M C2 BE -> lookupClass CT C1 (class C1 C2 CS2 MT)
+      -> className_neq C1 object -> mbody CT M C1 BE.
 method_undefined : classTable -> methodName -> className -> type.
 mu_object : method_undefined CT M object.
 mu_super :
-   method_undefined CT M C
-      <- className_neq C object
-      <- lookupClass CT C (class C D CS1 MT)
-      <- notInMT MT M
-      <- method_undefined CT M D.
+   method_undefined CT M D -> notInMT MT M
+      -> lookupClass CT C (class C D CS1 MT) -> className_neq C object
+      -> method_undefined CT M C.
 typing : classTable -> exp -> className -> type.
-typing_list : Pi N:nat. classTable -> elist N -> cnlist N -> type.
+typing_list : classTable -> elist N -> cnlist N -> type.
 t_field :
-   typing CT (fieldProj E FI) CI
-      <- typing CT E C1
-      <- fields CT C1 N2 CS
-      <- cnnth_opt FI CS CI.
+   cnnth_opt FI CS CI -> fields CT C1 N2 CS -> typing CT E C1
+      -> typing CT (fieldProj E FI) CI.
 t_invk :
-   typing CT (methodInvk E0 M ES) C
-      <- typing CT E0 C0
-      <- mtype CT M C0 DS C
-      <- typing_list CT ES DS.
-t_new : typing CT (new C ES) C <- fields CT C N DS <- typing_list CT ES DS.
-t_cast : typing CT (cast C2 E) C2 <- typing CT E C1.
+   typing_list CT ES DS -> mtype CT M C0 DS C -> typing CT E0 C0
+      -> typing CT (methodInvk E0 M ES) C.
+t_new : typing_list CT ES DS -> fields CT C N DS -> typing CT (new C ES) C.
+t_cast : typing CT E C1 -> typing CT (cast C2 E) C2.
 tl_nil : typing_list CT enil cnnil.
 tl_cons :
-   typing_list CT (econs E ES) (cncons C CS)
-      <- typing CT E C0
-      <- typing_list CT ES CS
-      <- subtyping CT C0 C.
-typing_bexp :
-   Pi PRED1:nat. Pi CS:cnlist PRED1.
-      classTable -> bexp CS -> className -> className -> type.
+   subtyping CT C0 C -> typing_list CT ES CS -> typing CT E C0
+      -> typing_list CT (econs E ES) (cncons C CS).
+typing_bexp : classTable -> bexp CS -> className -> className -> type.
 t_base :
-   typing_bexp CT (base (\e:exp. E e)) C E0
-      <- (Pi THIS:exp. typing CT THIS C -> typing CT (E THIS) E0).
+   (Pi THIS:exp. typing CT THIS C -> typing CT (E THIS) E0)
+      -> typing_bexp CT (base (\e:exp. E e)) C E0.
 t_bind :
-   typing_bexp CT (bind CI (\e:exp. E e)) C E0
-      <- (Pi XI:exp. typing CT XI CI -> typing_bexp CT (E XI) C E0).
+   (Pi XI:exp. typing CT XI CI -> typing_bexp CT (E XI) C E0)
+      -> typing_bexp CT (bind CI (\e:exp. E e)) C E0.
 override :
-   Pi N:nat.
-      classTable -> methodName -> className -> cnlist N -> className -> type.
-ov1 : override CT M D CS C <- mtype CT M D CS C.
-ov2 : override CT M D CS C <- method_undefined CT M D.
+   classTable -> methodName -> className -> cnlist N -> className -> type.
+ov1 : mtype CT M D CS C -> override CT M D CS C.
+ov2 : method_undefined CT M D -> override CT M D CS C.
 method_typing :
    classTable -> (Pi M:methodName. methodDef M -> className -> type).
 t_method :
-   method_typing CT M (method C0 M BE) C
-      <- lookupClass CT C (class C D FS MT)
-      <- override CT M D CS C0
-      <- typing_bexp CT BE C E0
-      <- subtyping CT E0 C0.
+   subtyping CT E0 C0 -> typing_bexp CT BE C E0 -> override CT M D CS C0
+      -> lookupClass CT C (class C D FS MT)
+      -> method_typing CT M (method C0 M BE) C.
 method_table_typing : classTable -> methodTable -> className -> type.
 mtt_nil : method_table_typing CT mrnil C.
 mtt_cons :
-   method_table_typing CT (mrcons MD MT MNI) C
-      <- method_typing CT M MD C
-      <- method_table_typing CT MT C.
+   method_table_typing CT MT C -> method_typing CT M MD C
+      -> method_table_typing CT (mrcons MD MT MNI) C.
 class_typing : classTable -> (Pi C:className. classDef C -> type).
 t_class :
-   class_typing CT C (class C D FS MT)
-      <- subtyping CT D object
-      <- method_table_typing CT MT C
-      <- fields CT D N DS.
+   fields CT D N DS -> method_table_typing CT MT C -> subtyping CT D object
+      -> class_typing CT C (class C D FS MT).
 class_table_typing_help : classTable -> classTable -> type.
 ctt_nil : class_table_typing_help CT0 crnil.
 ctt_cons :
-   class_table_typing_help CT0 (crcons CD CT CTI)
-      <- className_neq C object
-      <- class_typing CT0 C CD
-      <- class_table_typing_help CT0 CT.
+   class_table_typing_help CT0 CT -> class_typing CT0 C CD
+      -> className_neq C object
+      -> class_table_typing_help CT0 (crcons CD CT CTI).
 class_table_typing : classTable -> type.
-ctt : class_table_typing CT <- class_table_typing_help CT CT.
-invoc : Pi N:nat. Pi CS:cnlist N. bexp CS -> elist N -> exp -> exp -> type.
+ctt : class_table_typing_help CT CT -> class_table_typing CT.
+invoc : bexp CS -> elist N -> exp -> exp -> type.
 invoc_base : invoc (base (\this:exp. E1 this)) enil E2 (E1 E2).
 invoc_bind :
-   invoc (bind C1 (\x:exp. BE x)) (econs E1 EL) E2 E3 <- invoc (BE E1) EL E2 E3.
-value_list : Pi N:nat. elist N -> type.
+   invoc (BE E1) EL E2 E3 -> invoc (bind C1 (\x:exp. BE x)) (econs E1 EL) E2 E3.
+value_list : elist N -> type.
 value : exp -> type.
 v_nil : value_list enil.
-v_cons : value_list (econs E EL) <- value E <- value_list EL.
-v_newv : value (new C EL) <- value_list EL.
-reduction_list : Pi N:nat. classTable -> elist N -> elist N -> type.
+v_cons : value_list EL -> value E -> value_list (econs E EL).
+v_newv : value_list EL -> value (new C EL).
+reduction_list : classTable -> elist N -> elist N -> type.
 reduction : classTable -> exp -> exp -> type.
-r_field : reduction CT (fieldProj (new C EL) N2) E <- enth_opt N2 EL E.
+r_field : enth_opt N2 EL E -> reduction CT (fieldProj (new C EL) N2) E.
 r_invk :
-   reduction CT (methodInvk (new C EL1) M EL2) E
-      <- invoc BE EL2 (new C EL1) E
-      <- mbody CT M C BE
-      <- value_list EL2.
-r_cast : reduction CT (cast C2 (new C1 EL)) (new C1 EL) <- subtyping CT C1 C2.
-rc_field : reduction CT (fieldProj E1 N) (fieldProj E2 N) <- reduction CT E1 E2.
+   value_list EL2 -> mbody CT M C BE -> invoc BE EL2 (new C EL1) E
+      -> reduction CT (methodInvk (new C EL1) M EL2) E.
+r_cast : subtyping CT C1 C2 -> reduction CT (cast C2 (new C1 EL)) (new C1 EL).
+rc_field : reduction CT E1 E2 -> reduction CT (fieldProj E1 N) (fieldProj E2 N).
 rc_invk_recv :
-   reduction CT (methodInvk E1 M EL) (methodInvk E2 M EL) <- reduction CT E1 E2.
+   reduction CT E1 E2 -> reduction CT (methodInvk E1 M EL) (methodInvk E2 M EL).
 rc_invk_arg :
-   reduction CT (methodInvk E M EL1) (methodInvk E M EL2)
-      <- reduction_list CT EL1 EL2
-      <- value E.
-rc_new_arg : reduction CT (new C EL1) (new C EL2) <- reduction_list CT EL1 EL2.
-rc_cast : reduction CT (cast C E1) (cast C E2) <- reduction CT E1 E2.
-rl_hd : reduction_list CT (econs E1 EL) (econs E2 EL) <- reduction CT E1 E2.
+   value E -> reduction_list CT EL1 EL2
+      -> reduction CT (methodInvk E M EL1) (methodInvk E M EL2).
+rc_new_arg : reduction_list CT EL1 EL2 -> reduction CT (new C EL1) (new C EL2).
+rc_cast : reduction CT E1 E2 -> reduction CT (cast C E1) (cast C E2).
+rl_hd : reduction CT E1 E2 -> reduction_list CT (econs E1 EL) (econs E2 EL).
 rl_tl :
-   reduction_list CT (econs E EL1) (econs E EL2)
-      <- reduction_list CT EL1 EL2
-      <- value E.
+   value E -> reduction_list CT EL1 EL2
+      -> reduction_list CT (econs E EL1) (econs E EL2).
 
-classDef_eq : Pi C:className. classDef C -> classDef C -> type.
+classDef_eq : classDef C -> classDef C -> type.
 classDef_refl : classDef_eq CD CD.
-methodDef_eq : Pi C:methodName. methodDef C -> methodDef C -> type.
+methodDef_eq : methodDef C -> methodDef C -> type.
 methodDef_refl : methodDef_eq CD CD.
-bexp_eq :
-   Pi PRED1:nat. Pi CS:cnlist PRED1. Pi PRED2:nat. Pi DS:cnlist PRED2.
-      bexp CS -> bexp DS -> type.
+bexp_eq : bexp CS -> bexp DS -> type.
 bexp_refl : bexp_eq B B.
 methodTable_eq : methodTable -> methodTable -> type.
 methodTable_refl : methodTable_eq B B.
-cnlist_eq : Pi N1:nat. Pi N2:nat. cnlist N1 -> cnlist N2 -> type.
+cnlist_eq : cnlist N1 -> cnlist N2 -> type.
 cnlist_eq_refl : cnlist_eq X X.
 classDef_eq_extract :
-   Pi C:className. Pi PRED1:nat. Pi D1:className. Pi CS1:cnlist PRED1.
-      Pi MT1:methodTable. Pi PRED2:nat. Pi D2:className. Pi CS2:cnlist PRED2.
-      Pi MT2:methodTable.
-      classDef_eq (class C D1 CS1 MT1) (class C D2 CS2 MT2)
-         -> className_eq D1 D2 -> cnlist_eq CS1 CS2 -> methodTable_eq MT1 MT2
-         -> type.
+   classDef_eq (class C D1 CS1 MT1) (class C D2 CS2 MT2) -> className_eq D1 D2
+      -> cnlist_eq CS1 CS2 -> methodTable_eq MT1 MT2 -> type.
 - :
    classDef_eq_extract classDef_refl className_refl cnlist_eq_refl
       methodTable_refl.
 refineMTEQ :
-   Pi MT1:methodTable. Pi MT2:methodTable. Pi M:methodName. Pi MD:methodDef M.
-      methodTable_eq MT1 MT2 -> lookupMethod MT1 M MD -> lookupMethod MT2 M MD
-         -> type.
+   methodTable_eq MT1 MT2 -> lookupMethod MT1 M MD -> lookupMethod MT2 M MD
+      -> type.
 - : refineMTEQ methodTable_refl LM LM.
 refineCEQ :
-   Pi C1:className. Pi C2:className. Pi PRED1:nat. Pi CT:classTable.
-      Pi M:methodName. Pi C:cnlist PRED1. Pi O1:className.
-      className_eq C1 C2 -> mtype CT M C1 C O1 -> mtype CT M C2 C O1 -> type.
+   className_eq C1 C2 -> mtype CT M C1 C O1 -> mtype CT M C2 C O1 -> type.
 - : refineCEQ className_refl LM LM.
 refineMDEQ :
-   Pi M:methodName. Pi PRED1:nat. Pi DS:cnlist PRED1. Pi D0:className.
-      Pi BE0:bexp DS. Pi PRED2:nat. Pi CS:cnlist PRED2. Pi C0:className.
-      Pi BE1:bexp CS. Pi MR1:methodTable. Pi BE2:bexp DS. Pi BE3:bexp CS.
-      methodDef_eq (method D0 M BE0) (method C0 M BE1)
-         -> lookupMethod MR1 M (method D0 M BE2)
-         -> lookupMethod MR1 M (method C0 M BE3) -> type.
+   methodDef_eq (method D0 M BE0) (method C0 M BE1)
+      -> lookupMethod MR1 M (method D0 M BE2)
+      -> lookupMethod MR1 M (method C0 M BE3) -> type.
 - : refineMDEQ methodDef_refl LM1 LM1.
-sub_trans :
-   Pi CT:classTable. Pi C:className. Pi D:className. Pi E:className.
-      subtyping CT C D -> subtyping CT D E -> subtyping CT C E -> type.
+sub_trans : subtyping CT C D -> subtyping CT D E -> subtyping CT C E -> type.
 - : sub_trans s_refl SB SB.
 - :
-   sub_trans (s_super SB LC NEQ) SB2 (s_super SB3 LC NEQ)
-      <- sub_trans SB SB2 SB3.
+   sub_trans SB SB2 SB3
+      -> sub_trans (s_super SB LC NEQ) SB2 (s_super SB3 LC NEQ).
 lookupClass_strengthen :
-   Pi CT:classTable. Pi C:className. Pi PRED1:nat. Pi D:className.
-      Pi FS:cnlist PRED1. Pi MT:exp -> methodTable.
-      (Pi x:exp. lookupClass CT C (class C D FS (MT x)))
-         -> lookupClass CT C (class C D FS (MT unit)) -> type.
+   (Pi x:exp. lookupClass CT C (class C D FS (MT x)))
+      -> lookupClass CT C (class C D FS (MT unit)) -> type.
 - : lookupClass_strengthen (\x:exp. lookupClass_crcons1) lookupClass_crcons1.
 - :
-   lookupClass_strengthen (\x:exp. lookupClass_crcons2 NEQ (LC1 x))
-      (lookupClass_crcons2 NEQ LC2)
-      <- lookupClass_strengthen (\x:exp. LC1 x) LC2.
-sub_strengthen :
-   Pi CT:classTable. Pi C:className. Pi D:className.
-      (exp -> subtyping CT C D) -> subtyping CT C D -> type.
+   lookupClass_strengthen (\x:exp. LC1 x) LC2
+      -> lookupClass_strengthen (\x:exp. lookupClass_crcons2 NEQ (LC1 x))
+            (lookupClass_crcons2 NEQ LC2).
+sub_strengthen : (exp -> subtyping CT C D) -> subtyping CT C D -> type.
 - : sub_strengthen (\x:exp. s_refl) s_refl.
 - :
-   sub_strengthen (\x:exp. s_super (SB1 x) (LC1 x) NEQ) (s_super SB2 LC2 NEQ)
-      <- lookupClass_strengthen (\x:exp. LC1 x) LC2
-      <- sub_strengthen (\e:exp. SB1 e) SB2.
+   sub_strengthen (\e:exp. SB1 e) SB2
+      -> lookupClass_strengthen (\x:exp. LC1 x) LC2
+      -> sub_strengthen (\x:exp. s_super (SB1 x) (LC1 x) NEQ)
+            (s_super SB2 LC2 NEQ).
 append_total :
-   Pi N1:nat. Pi N2:nat. Pi N3:nat. Pi CS:cnlist N1. Pi DS:cnlist N2.
-      Pi ES:cnlist N3. Pi PL:plus N1 N2 N3. cnappend CS DS ES PL -> type.
+   Pi CS:cnlist N1. Pi DS:cnlist N2. Pi ES:cnlist N3. Pi PL:plus N1 N2 N3.
+      cnappend CS DS ES PL -> type.
 - : append_total cnnil CS CS plus_z cnappend_cnnil.
 - :
-   append_total (cncons CN CS1) CS2 (cncons CN CS3) (plus_s PL)
-      (cnappend_cncons D)
-      <- append_total CS1 CS2 CS3 PL D.
-cnappend_cnnil_lemma :
-   Pi N:nat. Pi PL:plus N z N. Pi CS:cnlist N. cnappend CS cnnil CS PL -> type.
+   append_total CS1 CS2 CS3 PL D
+      -> append_total (cncons CN CS1) CS2 (cncons CN CS3) (plus_s PL)
+            (cnappend_cncons D).
+cnappend_cnnil_lemma : Pi CS:cnlist N. cnappend CS cnnil CS PL -> type.
 cnappend_cnnil_lemma_cnnil : cnappend_cnnil_lemma cnnil cnappend_cnnil.
 cnappend_cnnil_lemma_cncons :
-   cnappend_cnnil_lemma (cncons C CS) (cnappend_cncons CAP)
-      <- cnappend_cnnil_lemma CS CAP.
+   cnappend_cnnil_lemma CS CAP
+      -> cnappend_cnnil_lemma (cncons C CS) (cnappend_cncons CAP).
 append_assoc :
-   Pi PRED1:nat. Pi PRED2:nat. Pi PRED3:nat. Pi XS:cnlist PRED1.
-      Pi YS:cnlist PRED2. Pi US:cnlist PRED3. Pi P3:plus PRED1 PRED2 PRED3.
-      Pi PRED4:nat. Pi PRED5:nat. Pi ZS:cnlist PRED4. Pi RESULT:cnlist PRED5.
-      Pi P4:plus PRED3 PRED4 PRED5. Pi PRED6:nat. Pi TS:cnlist PRED6.
-      Pi P2:plus PRED2 PRED4 PRED6. Pi P1:plus PRED1 PRED6 PRED5.
-      cnappend XS YS US P3 -> cnappend US ZS RESULT P4 -> cnappend YS ZS TS P2
-         -> cnappend XS TS RESULT P1 -> type.
+   cnappend XS YS US P3 -> cnappend US ZS RESULT P4 -> cnappend YS ZS TS P2
+      -> cnappend XS TS RESULT P1 -> type.
 - : append_assoc cnappend_cnnil UZ YZ cnappend_cnnil.
 - :
    append_assoc cnappend_cnnil (cnappend_cncons R1) (cnappend_cncons R2)
       cnappend_cnnil.
 - :
-   append_assoc (cnappend_cncons R1) (cnappend_cncons R2) YZ
-      (cnappend_cncons R3)
-      <- append_assoc R1 R2 YZ R3.
+   append_assoc R1 R2 YZ R3
+      -> append_assoc (cnappend_cncons R1) (cnappend_cncons R2) YZ
+            (cnappend_cncons R3).
 sub_fields :
-   Pi CT:classTable. Pi C:className. Pi D:className. Pi N:nat. Pi DG:cnlist N.
-      Pi PRED1:nat. Pi M:nat. Pi EF:cnlist PRED1. Pi CS:cnlist M.
-      Pi PL:plus N PRED1 M.
-      subtyping CT C D -> fields CT D N DG -> cnappend DG EF CS PL
-         -> fields CT C M CS -> type.
-- : sub_fields s_refl FS APP FS <- cnappend_cnnil_lemma CS APP.
+   subtyping CT C D -> fields CT D N DG -> cnappend DG EF CS PL
+      -> fields CT C M CS -> type.
+- : cnappend_cnnil_lemma CS APP -> sub_fields s_refl FS APP FS.
 - :
    Pi SB:subtyping CT D E. Pi QFE:fields CT E NE FE.
       Pi APD:cnappend FE FSD FD PLD. Pi QFD:fields CT D ND FD.
       Pi LC1:lookupClass CT C (class C D FSC MTC).
       Pi APC:cnappend FD FSC FC PLC. Pi APCD:cnappend FSD FSC FSCD PLCD.
-      sub_fields (s_super SB LC1 NEQ) QFE XXX (f_class APC QFD LC1 NEQ)
-         <- sub_fields SB QFE APD QFD
-         <- append_total FD FSC FC PLC APC
-         <- append_total FSD FSC FSCD PLCD APCD
-         <- append_assoc APD APC APCD XXX.
+      append_assoc APD APC APCD XXX -> append_total FSD FSC FSCD PLCD APCD
+         -> append_total FD FSC FC PLC APC -> sub_fields SB QFE APD QFD
+         -> sub_fields (s_super SB LC1 NEQ) QFE XXX (f_class APC QFD LC1 NEQ).
 append_nth :
-   Pi PRED1:nat. Pi N:nat. Pi DG:cnlist PRED1. Pi PRED2:nat. Pi PRED3:nat.
-      Pi EF:cnlist PRED2. Pi CS:cnlist PRED3. Pi PL:plus PRED1 PRED2 PRED3.
-      Pi C:className.
+   Pi C:className.
       cnnth_opt N DG C -> cnappend DG EF CS PL -> cnnth_opt N CS C -> type.
 - : append_nth C cnnth_sz APP cnnth_sz.
 - :
-   append_nth C (cnnth_sn D) (cnappend_cncons APP) (cnnth_sn E)
-      <- append_nth C D APP E.
+   append_nth C D APP E
+      -> append_nth C (cnnth_sn D) (cnappend_cncons APP) (cnnth_sn E).
 typing_list_proj_lemma :
-   Pi PRED1:nat. Pi CT:classTable. Pi ES:elist PRED1. Pi CS:cnlist PRED1.
-      Pi N:nat. Pi E:exp. Pi C:className. Pi C0:className.
-      typing_list CT ES CS -> enth_opt N ES E -> cnnth_opt N CS C
-         -> subtyping CT C0 C -> typing CT E C0 -> type.
+   typing_list CT ES CS -> enth_opt N ES E -> cnnth_opt N CS C
+      -> subtyping CT C0 C -> typing CT E C0 -> type.
 typing_list_proj_lemma_sz :
    typing_list_proj_lemma (tl_cons QS QL QT) enth_sz cnnth_sz QS QT.
 typing_list_proj_lemma_sn :
-   typing_list_proj_lemma (tl_cons PS PL PT) (enth_sn ENTH) (cnnth_sn CNTH) QS
-      QT
-      <- typing_list_proj_lemma PL ENTH CNTH QS QT.
+   typing_list_proj_lemma PL ENTH CNTH QS QT
+      -> typing_list_proj_lemma (tl_cons PS PL PT) (enth_sn ENTH)
+            (cnnth_sn CNTH) QS QT.
 meq_trans :
-   Pi M1:methodName. Pi M2:methodName. Pi M3:methodName.
-      methodName_eq M1 M2 -> methodName_eq M2 M3 -> methodName_eq M1 M3 -> type.
+   methodName_eq M1 M2 -> methodName_eq M2 M3 -> methodName_eq M1 M3 -> type.
 - : meq_trans methodName_refl methodName_refl methodName_refl.
-meq_sym :
-   Pi M1:methodName. Pi M2:methodName.
-      methodName_eq M1 M2 -> methodName_eq M2 M1 -> type.
+meq_sym : methodName_eq M1 M2 -> methodName_eq M2 M1 -> type.
 - : meq_sym methodName_refl methodName_refl.
-meq_neq :
-   Pi M:methodName. Pi N:methodName. Pi P:methodName.
-      methodName_eq M N -> methodName_neq M P -> methodName_neq N P -> type.
+meq_neq : methodName_eq M N -> methodName_neq M P -> methodName_neq N P -> type.
 - : meq_neq methodName_refl (methodName_neq_base NEQ) (methodName_neq_base NEQ).
 meq_lcm :
-   Pi M:methodName. Pi N:methodName. Pi MT:methodTable. Pi MD:methodDef M.
-      Pi ND:methodDef N.
-      methodName_eq M N -> lookupMethod MT M MD -> lookupMethod MT N ND -> type.
+   methodName_eq M N -> lookupMethod MT M MD -> lookupMethod MT N ND -> type.
 - : meq_lcm methodName_refl LCM LCM.
-meq_notInMT :
-   Pi M:methodName. Pi N:methodName. Pi MT:methodTable.
-      methodName_eq M N -> notInMT MT M -> notInMT MT N -> type.
+meq_notInMT : methodName_eq M N -> notInMT MT M -> notInMT MT N -> type.
 - : meq_notInMT methodName_refl N1 N1.
 mneq_em : methodName -> methodName -> type.
-mneq_eq : mneq_em M N <- methodName_eq M N.
-mneq_neq : mneq_em M N <- methodName_neq M N.
+mneq_eq : methodName_eq M N -> mneq_em M N.
+mneq_neq : methodName_neq M N -> mneq_em M N.
 mneq_helper :
-   Pi M:nat. Pi N:nat.
-      nat_em M N -> mneq_em (methodName_nat M) (methodName_nat N) -> type.
+   nat_em M N -> mneq_em (methodName_nat M) (methodName_nat N) -> type.
 - : mneq_helper (nat_em_eq EQ) (mneq_eq methodName_refl).
 - : mneq_helper (nat_em_neq NEQ) (mneq_neq (methodName_neq_base NEQ)).
 mneq_excluded_middle : Pi M:methodName. Pi N:methodName. mneq_em M N -> type.
 - :
-   mneq_excluded_middle (methodName_nat M) (methodName_nat N) EQ
-      <- nat_excluded M N MNEQ
-      <- mneq_helper MNEQ EQ.
+   mneq_helper MNEQ EQ -> nat_excluded M N MNEQ
+      -> mneq_excluded_middle (methodName_nat M) (methodName_nat N) EQ.
 lookup_or_notInMT : methodTable -> methodName -> type.
-lom1 : lookup_or_notInMT MT M <- lookupMethod MT M MD.
-lom2 : lookup_or_notInMT MT M <- notInMT MT M.
+lom1 : lookupMethod MT M MD -> lookup_or_notInMT MT M.
+lom2 : notInMT MT M -> lookup_or_notInMT MT M.
 lm_helper2 :
-   Pi M:methodName. Pi N:methodName. Pi MT:methodTable. Pi PRED1:nat.
-      Pi CS1:cnlist PRED1. Pi C:className. Pi BE:bexp CS1. Pi MR:notInMT MT N.
-      methodName_neq M N -> lookup_or_notInMT MT M
-         -> lookup_or_notInMT (mrcons (method C N BE) MT MR) M -> type.
+   methodName_neq M N -> lookup_or_notInMT MT M
+      -> lookup_or_notInMT (mrcons (method C N BE) MT MR) M -> type.
 - : lm_helper2 NEQ (lom1 LM) (lom1 (lookupMethod_mrcons2 NEQ LM)).
 - : lm_helper2 NEQ (lom2 MU) (lom2 (notInMT_mrcons MU NEQ)).
 lm_helper1 :
-   Pi N:methodName. Pi M:methodName. Pi PRED1:nat. Pi CS1:cnlist PRED1.
-      Pi C:className. Pi BE:bexp CS1. Pi MT:methodTable. Pi MR:notInMT MT N.
+   Pi MT:methodTable. Pi MR:notInMT MT N.
       mneq_em M N -> lookup_or_notInMT (mrcons (method C N BE) MT MR) M -> type.
 lm_total : Pi MT:methodTable. Pi M:methodName. lookup_or_notInMT MT M -> type.
 - : lm_helper1 MT MR (mneq_eq EQ) (lom1 lookupMethod_mrcons1).
 - :
-   lm_helper1 MT MR (mneq_neq NEQ) LOM2
-      <- lm_total MT M LOM1
-      <- lm_helper2 NEQ LOM1 LOM2.
+   lm_helper2 NEQ LOM1 LOM2 -> lm_total MT M LOM1
+      -> lm_helper1 MT MR (mneq_neq NEQ) LOM2.
 - : lm_total mrnil M (lom2 notInMT_mrnil).
 - :
-   lm_total (mrcons (method C N BE) MT MR) M LOM
-      <- mneq_excluded_middle M N EX
-      <- lm_helper1 MT MR EX LOM.
+   lm_helper1 MT MR EX LOM -> mneq_excluded_middle M N EX
+      -> lm_total (mrcons (method C N BE) MT MR) M LOM.
 mn2nat :
-   Pi N1:nat. Pi N2:nat.
-      methodName_eq (methodName_nat N1) (methodName_nat N2) -> nat_eq N1 N2
-         -> type.
+   methodName_eq (methodName_nat N1) (methodName_nat N2) -> nat_eq N1 N2 -> type.
 - : mn2nat methodName_refl nat_refl.
-cn2nat :
-   Pi N1:nat. Pi N2:nat. className_eq (cn N1) (cn N2) -> nat_eq N1 N2 -> type.
+cn2nat : className_eq (cn N1) (cn N2) -> nat_eq N1 N2 -> type.
 - : cn2nat className_refl nat_refl.
 methodName_eq_exclusive :
-   Pi M:methodName. Pi N:methodName.
-      methodName_eq M N -> methodName_neq M N -> false -> type.
+   methodName_eq M N -> methodName_neq M N -> false -> type.
 - :
-   methodName_eq_exclusive MNEQ (methodName_neq_base NNEQ1) FALSE
-      <- mn2nat MNEQ NEQ
-      <- nat_eq_exclusive NEQ NNEQ1 FALSE.
-className_eq_exclusive :
-   Pi C:className. Pi D:className.
-      className_eq C D -> className_neq C D -> false -> type.
+   nat_eq_exclusive NEQ NNEQ1 FALSE -> mn2nat MNEQ NEQ
+      -> methodName_eq_exclusive MNEQ (methodName_neq_base NNEQ1) FALSE.
+className_eq_exclusive : className_eq C D -> className_neq C D -> false -> type.
 - :
-   className_eq_exclusive MNEQ (className_neq_natnat NNEQ1) FALSE
-      <- cn2nat MNEQ NEQ
-      <- nat_eq_exclusive NEQ NNEQ1 FALSE.
-lookupMethod_exclusive :
-   Pi MT:methodTable. Pi M:methodName. Pi MD:methodDef M.
-      lookupMethod MT M MD -> notInMT MT M -> false -> type.
+   nat_eq_exclusive NEQ NNEQ1 FALSE -> cn2nat MNEQ NEQ
+      -> className_eq_exclusive MNEQ (className_neq_natnat NNEQ1) FALSE.
+lookupMethod_exclusive : lookupMethod MT M MD -> notInMT MT M -> false -> type.
 - :
-   lookupMethod_exclusive lookupMethod_mrcons1 (notInMT_mrcons NI0 NEQ) FALSE
-      <- methodName_eq_exclusive methodName_refl NEQ FALSE.
+   methodName_eq_exclusive methodName_refl NEQ FALSE
+      -> lookupMethod_exclusive lookupMethod_mrcons1 (notInMT_mrcons NI0 NEQ)
+            FALSE.
 - :
-   lookupMethod_exclusive (lookupMethod_mrcons2 NEQ1 LM0)
-      (notInMT_mrcons NI0 NEQ2) FALSE
-      <- lookupMethod_exclusive LM0 NI0 FALSE.
-mtype2neq :
-   Pi PRED1:nat. Pi CT:classTable. Pi M:methodName. Pi C:className.
-      Pi CS:cnlist PRED1. Pi C0:className.
-      mtype CT M C CS C0 -> className_neq C object -> type.
+   lookupMethod_exclusive LM0 NI0 FALSE
+      -> lookupMethod_exclusive (lookupMethod_mrcons2 NEQ1 LM0)
+            (notInMT_mrcons NI0 NEQ2) FALSE.
+mtype2neq : mtype CT M C CS C0 -> className_neq C object -> type.
 - : mtype2neq (mt_class LM LC NEQ) NEQ.
 - : mtype2neq (mt_super MTY1 NI1 LC1 NEQ) NEQ.
-false_imp_eq :
-   Pi M1:methodName. Pi MD1:methodDef M1. Pi MD2:methodDef M1.
-      false -> methodDef_eq MD1 MD2 -> type.
-false_imp_eq_class :
-   Pi C1:className. Pi MD1:classDef C1. Pi MD2:classDef C1.
-      false -> classDef_eq MD1 MD2 -> type.
-false_imp_eq_className :
-   Pi MD1:className. Pi MD2:className. false -> className_eq MD1 MD2 -> type.
+false_imp_eq : false -> methodDef_eq MD1 MD2 -> type.
+false_imp_eq_class : false -> classDef_eq MD1 MD2 -> type.
+false_imp_eq_className : false -> className_eq MD1 MD2 -> type.
 false_imp_TBE :
-   Pi PRED1:nat. Pi CS1:cnlist PRED1. Pi CT:classTable. Pi BE:bexp CS1.
-      Pi C0:className. Pi R1:className. Pi PRED2:nat. Pi DS:cnlist PRED2.
-      false -> typing_bexp CT BE C0 object -> subtyping CT object R1
-         -> cnlist_eq CS1 DS -> type.
+   false -> typing_bexp CT BE C0 object -> subtyping CT object R1
+      -> cnlist_eq CS1 DS -> type.
 lookupMethod_unique :
-   Pi MT:methodTable. Pi M:methodName. Pi MD1:methodDef M. Pi MD2:methodDef M.
-      lookupMethod MT M MD1 -> lookupMethod MT M MD2 -> methodDef_eq MD1 MD2
-         -> type.
+   lookupMethod MT M MD1 -> lookupMethod MT M MD2 -> methodDef_eq MD1 MD2
+      -> type.
 - :
    lookupMethod_unique lookupMethod_mrcons1 lookupMethod_mrcons1 methodDef_refl.
 - :
-   lookupMethod_unique lookupMethod_mrcons1 (lookupMethod_mrcons2 NEQ LM0) MDEQ
-      <- methodName_eq_exclusive methodName_refl NEQ FALSE
-      <- false_imp_eq FALSE MDEQ.
+   false_imp_eq FALSE MDEQ -> methodName_eq_exclusive methodName_refl NEQ FALSE
+      -> lookupMethod_unique lookupMethod_mrcons1 (lookupMethod_mrcons2 NEQ LM0)
+            MDEQ.
 - :
-   lookupMethod_unique (lookupMethod_mrcons2 NEQ LM1) lookupMethod_mrcons1 MDEQ
-      <- methodName_eq_exclusive methodName_refl NEQ FALSE
-      <- false_imp_eq FALSE MDEQ.
+   false_imp_eq FALSE MDEQ -> methodName_eq_exclusive methodName_refl NEQ FALSE
+      -> lookupMethod_unique (lookupMethod_mrcons2 NEQ LM1) 
+lookupMethod_mrcons1
+            MDEQ.
 - :
-   lookupMethod_unique (lookupMethod_mrcons2 NEQ1 LM1)
-      (lookupMethod_mrcons2 NEQ2 LM2) MDEQ
-      <- lookupMethod_unique LM1 LM2 MDEQ.
+   lookupMethod_unique LM1 LM2 MDEQ
+      -> lookupMethod_unique (lookupMethod_mrcons2 NEQ1 LM1)
+            (lookupMethod_mrcons2 NEQ2 LM2) MDEQ.
 lookupClass_unique :
-   Pi CT:classTable. Pi C:className. Pi CD1:classDef C. Pi CD2:classDef C.
-      lookupClass CT C CD1 -> lookupClass CT C CD2 -> classDef_eq CD1 CD2
-         -> type.
+   lookupClass CT C CD1 -> lookupClass CT C CD2 -> classDef_eq CD1 CD2 -> type.
 - : lookupClass_unique lookupClass_crcons1 lookupClass_crcons1 classDef_refl.
 - :
-   lookupClass_unique lookupClass_crcons1 (lookupClass_crcons2 NEQ LC0) MDEQ
-      <- className_eq_exclusive className_refl NEQ FALSE
-      <- false_imp_eq_class FALSE MDEQ.
+   false_imp_eq_class FALSE MDEQ
+      -> className_eq_exclusive className_refl NEQ FALSE
+      -> lookupClass_unique lookupClass_crcons1 (lookupClass_crcons2 NEQ LC0)
+            MDEQ.
 - :
-   lookupClass_unique (lookupClass_crcons2 NEQ LC1) lookupClass_crcons1 MDEQ
-      <- className_eq_exclusive className_refl NEQ FALSE
-      <- false_imp_eq_class FALSE MDEQ.
+   false_imp_eq_class FALSE MDEQ
+      -> className_eq_exclusive className_refl NEQ FALSE
+      -> lookupClass_unique (lookupClass_crcons2 NEQ LC1) lookupClass_crcons1
+            MDEQ.
 - :
-   lookupClass_unique (lookupClass_crcons2 NEQ1 LC1)
-      (lookupClass_crcons2 NEQ2 LC2) MDEQ
-      <- lookupClass_unique LC1 LC2 MDEQ.
+   lookupClass_unique LC1 LC2 MDEQ
+      -> lookupClass_unique (lookupClass_crcons2 NEQ1 LC1)
+            (lookupClass_crcons2 NEQ2 LC2) MDEQ.
 mtype_exclusive :
-   Pi PRED1:nat. Pi CT:classTable. Pi M:methodName. Pi C:className.
-      Pi CS:cnlist PRED1. Pi C0:className.
-      mtype CT M C CS C0 -> method_undefined CT M C -> false -> type.
+   mtype CT M C CS C0 -> method_undefined CT M C -> false -> type.
 - :
-   mtype_exclusive GMD mu_object FALSE
-      <- mtype2neq GMD CNEQ
-      <- className_eq_exclusive className_refl CNEQ FALSE.
+   className_eq_exclusive className_refl CNEQ FALSE -> mtype2neq GMD CNEQ
+      -> mtype_exclusive GMD mu_object FALSE.
 - :
-   mtype_exclusive (mt_class LM1 LC1 CNEQ) (mu_super MU NI2 LC2 NEQ2) FALSE
-      <- lookupClass_unique LC1 LC2 CDEQ
-      <- classDef_eq_extract CDEQ CNEQ1 X1 MTEQ
-      <- refineMTEQ MTEQ LM1 LM3
-      <- lookupMethod_exclusive LM3 NI2 FALSE.
+   lookupMethod_exclusive LM3 NI2 FALSE -> refineMTEQ MTEQ LM1 LM3
+      -> classDef_eq_extract CDEQ CNEQ1 X1 MTEQ
+      -> lookupClass_unique LC1 LC2 CDEQ
+      -> mtype_exclusive (mt_class LM1 LC1 CNEQ) (mu_super MU NI2 LC2 NEQ2)
+            FALSE.
 - :
    Pi CLEQ:cnlist_eq CS1 CS2. Pi MTY1:mtype CT1 M D CS3 C0.
       Pi MU:method_undefined CT1 M D0.
-      mtype_exclusive (mt_super MTY1 NI1 LC1 CNEQ) (mu_super MU NI2 LC2 NEQ2)
-         FALSE
-         <- lookupClass_unique LC1 LC2 CDEQ
-         <- classDef_eq_extract CDEQ CEQ CLEQ MTEQ
-         <- refineCEQ CEQ MTY1 MTY2
-         <- mtype_exclusive MTY2 MU FALSE.
+      mtype_exclusive MTY2 MU FALSE -> refineCEQ CEQ MTY1 MTY2
+         -> classDef_eq_extract CDEQ CEQ CLEQ MTEQ
+         -> lookupClass_unique LC1 LC2 CDEQ
+         -> mtype_exclusive (mt_super MTY1 NI1 LC1 CNEQ)
+               (mu_super MU NI2 LC2 NEQ2) FALSE.
 false_imp_lookupMethod :
-   Pi MR1:methodTable. Pi M:methodName. Pi PRED1:nat. Pi DS:cnlist PRED1.
-      Pi D0:className. Pi BE2:bexp DS. Pi PRED2:nat. Pi CS:cnlist PRED2.
-      Pi C0:className. Pi BE3:bexp CS.
-      false -> lookupMethod MR1 M (method D0 M BE2)
-         -> lookupMethod MR1 M (method C0 M BE3) -> type.
+   false -> lookupMethod MR1 M (method D0 M BE2)
+      -> lookupMethod MR1 M (method C0 M BE3) -> type.
 mtype_unique :
-   Pi PRED1:nat. Pi CT:classTable. Pi M:methodName. Pi C:className.
-      Pi DS:cnlist PRED1. Pi D0:className. Pi PRED2:nat. Pi CS:cnlist PRED2.
-      Pi C0:className. Pi MR1:methodTable. Pi BE2:bexp DS. Pi BE3:bexp CS.
-      mtype CT M C DS D0 -> mtype CT M C CS C0
-         -> lookupMethod MR1 M (method D0 M BE2)
-         -> lookupMethod MR1 M (method C0 M BE3) -> type.
+   mtype CT M C DS D0 -> mtype CT M C CS C0
+      -> lookupMethod MR1 M (method D0 M BE2)
+      -> lookupMethod MR1 M (method C0 M BE3) -> type.
 - :
-   mtype_unique (mt_class LCM1 LC1 CNNEQ1) (mt_super GMD2 NI2 LC2 CNNEQ2) LM1
-      LM2
-      <- lookupClass_unique LC1 LC2 CDEQ
-      <- classDef_eq_extract CDEQ CNEQ1 X1 MTEQ
-      <- refineMTEQ MTEQ LCM1 LCM3
-      <- lookupMethod_exclusive LCM3 NI2 FALSE
-      <- false_imp_lookupMethod FALSE LM1 LM2.
+   false_imp_lookupMethod FALSE LM1 LM2 -> lookupMethod_exclusive LCM3 NI2 FALSE
+      -> refineMTEQ MTEQ LCM1 LCM3 -> classDef_eq_extract CDEQ CNEQ1 X1 MTEQ
+      -> lookupClass_unique LC1 LC2 CDEQ
+      -> mtype_unique (mt_class LCM1 LC1 CNNEQ1) (mt_super GMD2 NI2 LC2 CNNEQ2)
+            LM1 LM2.
 - :
-   mtype_unique (mt_super GMD1 NI1 LC1 CNNEQ1) (mt_class LCM2 LC2 CNNEQ2) LM1
-      LM2
-      <- lookupClass_unique LC2 LC1 CDEQ
-      <- classDef_eq_extract CDEQ CNEQ1 X1 MTEQ
-      <- refineMTEQ MTEQ LCM2 LCM3
-      <- lookupMethod_exclusive LCM3 NI1 FALSE
-      <- false_imp_lookupMethod FALSE LM1 LM2.
+   false_imp_lookupMethod FALSE LM1 LM2 -> lookupMethod_exclusive LCM3 NI1 FALSE
+      -> refineMTEQ MTEQ LCM2 LCM3 -> classDef_eq_extract CDEQ CNEQ1 X1 MTEQ
+      -> lookupClass_unique LC2 LC1 CDEQ
+      -> mtype_unique (mt_super GMD1 NI1 LC1 CNNEQ1) (mt_class LCM2 LC2 CNNEQ2)
+            LM1 LM2.
 - :
-   mtype_unique (mt_super GMD1 NI1 LC1 CNNEQ1) (mt_super GMD2 NI2 LC2 CNNEQ2)
-      LM1 LM2
-      <- lookupClass_unique LC2 LC1 CDEQ
-      <- classDef_eq_extract CDEQ CEQ X1 X2
-      <- refineCEQ CEQ GMD2 GMD3
-      <- mtype_unique GMD1 GMD3 LM1 LM2.
+   mtype_unique GMD1 GMD3 LM1 LM2 -> refineCEQ CEQ GMD2 GMD3
+      -> classDef_eq_extract CDEQ CEQ X1 X2 -> lookupClass_unique LC2 LC1 CDEQ
+      -> mtype_unique (mt_super GMD1 NI1 LC1 CNNEQ1)
+            (mt_super GMD2 NI2 LC2 CNNEQ2) LM1 LM2.
 - :
-   mtype_unique (mt_class LM1 LC1 NEQ1) (mt_class LM2 LC2 NEQ2) LM3 LM4
-      <- lookupClass_unique LC2 LC1 CDEQ
-      <- classDef_eq_extract CDEQ CNEQ1 X1 MTEQ
-      <- refineMTEQ MTEQ LM2 LM2A
-      <- lookupMethod_unique LM1 LM2A MDEQ
-      <- refineMDEQ MDEQ LM3 LM4.
+   refineMDEQ MDEQ LM3 LM4 -> lookupMethod_unique LM1 LM2A MDEQ
+      -> refineMTEQ MTEQ LM2 LM2A -> classDef_eq_extract CDEQ CNEQ1 X1 MTEQ
+      -> lookupClass_unique LC2 LC1 CDEQ
+      -> mtype_unique (mt_class LM1 LC1 NEQ1) (mt_class LM2 LC2 NEQ2) LM3 LM4.
 ctth_ct :
-   Pi CT0:classTable. Pi CT:classTable. Pi C:className. Pi CD:classDef C.
-      class_table_typing_help CT0 CT -> lookupClass CT C CD
-         -> className_neq C object -> class_typing CT0 C CD -> type.
+   class_table_typing_help CT0 CT -> lookupClass CT C CD
+      -> className_neq C object -> class_typing CT0 C CD -> type.
 - : ctth_ct (ctt_cons X2 CT NEQ) lookupClass_crcons1 NEQ CT.
 - :
-   ctth_ct (ctt_cons REST CT CNNEQ1) (lookupClass_crcons2 NEQ LC2) NEQ1 CT3
-      <- ctth_ct REST LC2 NEQ1 CT3.
+   ctth_ct REST LC2 NEQ1 CT3
+      -> ctth_ct (ctt_cons REST CT CNNEQ1) (lookupClass_crcons2 NEQ LC2) NEQ1
+            CT3.
 
 ctt_ct :
-   Pi CT:classTable. Pi C:className. Pi CD:classDef C.
-      class_table_typing CT -> lookupClass CT C CD -> className_neq C object
-         -> class_typing CT C CD -> type.
-- : ctt_ct (ctt CTH) LC NEQ CT <- ctth_ct CTH LC NEQ CT.
+   class_table_typing CT -> lookupClass CT C CD -> className_neq C object
+      -> class_typing CT C CD -> type.
+- : ctth_ct CTH LC NEQ CT -> ctt_ct (ctt CTH) LC NEQ CT.
 ct_mtt :
-   Pi CT:classTable. Pi C:className. Pi PRED1:nat. Pi D:className.
-      Pi FS:cnlist PRED1. Pi MT:methodTable.
-      class_typing CT C (class C D FS MT) -> method_table_typing CT MT C -> type.
+   class_typing CT C (class C D FS MT) -> method_table_typing CT MT C -> type.
 - : ct_mtt (t_class FS MTT SB1) MTT.
 mtt_mt :
-   Pi CT:classTable. Pi MT:methodTable. Pi C:className. Pi M:methodName.
-      Pi MD:methodDef M.
-      method_table_typing CT MT C -> lookupMethod MT M MD
-         -> method_typing CT M MD C -> type.
+   method_table_typing CT MT C -> lookupMethod MT M MD
+      -> method_typing CT M MD C -> type.
 - : mtt_mt (mtt_cons MT0 MTY) lookupMethod_mrcons1 MTY.
 - :
-   mtt_mt (mtt_cons MT0 MD) (lookupMethod_mrcons2 MNNEQ LCM2) MT
-      <- mtt_mt MT0 LCM2 MT.
+   mtt_mt MT0 LCM2 MT
+      -> mtt_mt (mtt_cons MT0 MD) (lookupMethod_mrcons2 MNNEQ LCM2) MT.
 override_check :
-   Pi PRED1:nat. Pi CT:classTable. Pi M:methodName. Pi D:className.
-      Pi DS:cnlist PRED1. Pi D0:className. Pi PRED2:nat. Pi CS:cnlist PRED2.
-      Pi C0:className. Pi MR1:methodTable. Pi BE2:bexp DS. Pi BE3:bexp CS.
-      override CT M D DS D0 -> mtype CT M D CS C0
-         -> lookupMethod MR1 M (method D0 M BE2)
-         -> lookupMethod MR1 M (method C0 M BE3) -> type.
+   override CT M D DS D0 -> mtype CT M D CS C0
+      -> lookupMethod MR1 M (method D0 M BE2)
+      -> lookupMethod MR1 M (method C0 M BE3) -> type.
 - :
    Pi MT1:mtype CT1 M1 C DS D0. Pi MT2:mtype CT1 M1 C CS C0.
       Pi LM1:lookupMethod MR1 M1 (method D0 M1 BE1).
       Pi LM2:lookupMethod MR1 M1 (method C0 M1 BE2).
-      override_check (ov1 MT1) MT2 LM1 LM2 <- mtype_unique MT1 MT2 LM1 LM2.
+      mtype_unique MT1 MT2 LM1 LM2 -> override_check (ov1 MT1) MT2 LM1 LM2.
 - :
-   override_check (ov2 UN) MT2 LM1 LM2
-      <- mtype_exclusive MT2 UN FALSE
-      <- false_imp_lookupMethod FALSE LM1 LM2.
+   false_imp_lookupMethod FALSE LM1 LM2 -> mtype_exclusive MT2 UN FALSE
+      -> override_check (ov2 UN) MT2 LM1 LM2.
 refine_override :
-   Pi D1:className. Pi D2:className. Pi PRED1:nat. Pi CT:classTable.
-      Pi M:methodName. Pi CS:cnlist PRED1. Pi C0:className.
-      className_eq D1 D2 -> override CT M D1 CS C0 -> override CT M D2 CS C0
-         -> type.
+   className_eq D1 D2 -> override CT M D1 CS C0 -> override CT M D2 CS C0
+      -> type.
 - : refine_override className_refl OV OV.
 sub_mtype_helper :
-   Pi CT:classTable. Pi PRED1:nat. Pi M:methodName. Pi D:className.
-      Pi CS:cnlist PRED1. Pi C0:className. Pi MT:methodTable. Pi C:className.
-      Pi PRED2:nat. Pi FS:cnlist PRED2.
-      class_table_typing CT -> mtype CT M D CS C0 -> lookup_or_notInMT MT M
-         -> lookupClass CT C (class C D FS MT) -> mtype CT M C CS C0 -> type.
+   class_table_typing CT -> mtype CT M D CS C0 -> lookup_or_notInMT MT M
+      -> lookupClass CT C (class C D FS MT) -> mtype CT M C CS C0 -> type.
 - :
    Pi CLEQ:cnlist_eq FS0 FS1. Pi SB:subtyping CT D1 object.
       Pi OV1:override CT M D0 CS1 C0. Pi OV2:override CT M D1 CS1 C0.
       Pi LC2:lookupClass CT C (class C D0 FS0 MT0).
       Pi LC1:lookupClass CT C (class C D1 FS1 MT1).
-      sub_mtype_helper (ctt X1) MTY1 (lom1 LM1) LC1 (mt_class LM2 LC1 NEQ)
-         <- ctt_ct (ctt X1) LC1 NEQ (t_class Z MTT SB)
-         <- mtt_mt MTT LM1 (t_method Y X OV1 LC2)
-         <- lookupClass_unique LC2 LC1 CDEQ
-         <- classDef_eq_extract CDEQ EQ1 CLEQ MTEQ
-         <- refine_override EQ1 OV1 OV2
-         <- override_check OV2 MTY1 LM1 LM2.
+      override_check OV2 MTY1 LM1 LM2 -> refine_override EQ1 OV1 OV2
+         -> classDef_eq_extract CDEQ EQ1 CLEQ MTEQ
+         -> lookupClass_unique LC2 LC1 CDEQ
+         -> mtt_mt MTT LM1 (t_method Y X OV1 LC2)
+         -> ctt_ct (ctt X1) LC1 NEQ (t_class Z MTT SB)
+         -> sub_mtype_helper (ctt X1) MTY1 (lom1 LM1) LC1 (mt_class LM2 LC1 NEQ).
 - :
-   sub_mtype_helper WCT1 MTY1 (lom2 MNDEF) LC (mt_super MTY1 MNDEF LC NEQ)
-      <- ctt_ct WCT1 LC NEQ (t_class X1 MTT SB1).
+   ctt_ct WCT1 LC NEQ (t_class X1 MTT SB1)
+      -> sub_mtype_helper WCT1 MTY1 (lom2 MNDEF) LC (mt_super MTY1 MNDEF LC NEQ).
 sub_mtype :
-   Pi CT:classTable. Pi PRED1:nat. Pi M:methodName. Pi C:className.
-      Pi CS:cnlist PRED1. Pi C0:className. Pi D:className.
-      class_table_typing CT -> mtype CT M C CS C0 -> subtyping CT D C
-         -> mtype CT M D CS C0 -> type.
+   class_table_typing CT -> mtype CT M C CS C0 -> subtyping CT D C
+      -> mtype CT M D CS C0 -> type.
 - : sub_mtype WCT QMT s_refl QMT.
 - :
    Pi SB:subtyping CT E C. Pi LC:lookupClass CT D (class D E ES MT).
       Pi QMT1:mtype CT M C CS C0. Pi QMT2:mtype CT M E CS C0.
       Pi QMT3:mtype CT M D CS C0.
-      sub_mtype WCT QMT1 (s_super SB LC NEQ) QMT3
-         <- sub_mtype WCT QMT1 SB QMT2
-         <- lm_total MT M LOM
-         <- sub_mtype_helper WCT QMT2 LOM LC QMT3.
+      sub_mtype_helper WCT QMT2 LOM LC QMT3 -> lm_total MT M LOM
+         -> sub_mtype WCT QMT1 SB QMT2
+         -> sub_mtype WCT QMT1 (s_super SB LC NEQ) QMT3.
 narrowing_bexp :
-   Pi CT:classTable. Pi PRED1:nat. Pi CS:cnlist PRED1. Pi C0:className.
-      Pi C:className. Pi D0:className. Pi C1:className. Pi D1:className.
-      class_table_typing CT
-         -> (Pi E:exp -> bexp CS.
-                (Pi X:exp. typing CT X C0 -> typing_bexp CT (E X) C D0)
-                   -> subtyping CT C1 C0
-                   -> (Pi X:exp. typing CT X C1 -> typing_bexp CT (E X) C D1)
-                   -> subtyping CT D1 D0 -> type).
+   class_table_typing CT
+      -> (Pi E:exp -> bexp CS.
+             (Pi X:exp. typing CT X C0 -> typing_bexp CT (E X) C D0)
+                -> subtyping CT C1 C0
+                -> (Pi X:exp. typing CT X C1 -> typing_bexp CT (E X) C D1)
+                -> subtyping CT D1 D0 -> type).
 narrowing_exp :
-   Pi CT:classTable. Pi C0:className. Pi E:exp -> exp. Pi D0:className.
-      Pi C1:className. Pi D1:className.
-      class_table_typing CT -> (Pi X:exp. typing CT X C0 -> typing CT (E X) D0)
-         -> subtyping CT C1 C0
-         -> (Pi X:exp. typing CT X C1 -> typing CT (E X) D1)
-         -> subtyping CT D1 D0 -> type.
+   class_table_typing CT -> (Pi X:exp. typing CT X C0 -> typing CT (E X) D0)
+      -> subtyping CT C1 C0 -> (Pi X:exp. typing CT X C1 -> typing CT (E X) D1)
+      -> subtyping CT D1 D0 -> type.
 narrowing_explist :
-   Pi CT:classTable. Pi C0:className. Pi PRED1:nat. Pi ES:exp -> elist PRED1.
-      Pi DS:cnlist PRED1. Pi C1:className.
-      class_table_typing CT
-         -> (Pi X:exp. typing CT X C0 -> typing_list CT (ES X) DS)
-         -> subtyping CT C1 C0
-         -> (Pi X:exp. typing CT X C1 -> typing_list CT (ES X) DS) -> type.
+   class_table_typing CT
+      -> (Pi X:exp. typing CT X C0 -> typing_list CT (ES X) DS)
+      -> subtyping CT C1 C0
+      -> (Pi X:exp. typing CT X C1 -> typing_list CT (ES X) DS) -> type.
 narrowing_this :
-   Pi CT:classTable. Pi PRED1:nat. Pi CS1:cnlist PRED1. Pi E:bexp CS1.
-      Pi D:className. Pi C0:className. Pi C:className. Pi C1:className.
-      class_table_typing CT -> typing_bexp CT E D C0 -> subtyping CT C D
-         -> typing_bexp CT E C C1 -> subtyping CT C1 C0 -> type.
+   class_table_typing CT -> typing_bexp CT E D C0 -> subtyping CT C D
+      -> typing_bexp CT E C C1 -> subtyping CT C1 C0 -> type.
 
 - :
-   narrowing_bexp WCT (\x:exp. base (\e:exp. E x e))
-      (\x:exp. \q:typing CT x C3.
-          t_base (\THIS:exp. \D:typing CT THIS C0. Q x q THIS D)) SB1
-      (\x:exp. \q:typing CT x C4.
-          t_base (\THIS:exp. \D:typing CT THIS C0. Q2 x q THIS D)) SB3
-      <- (Pi this:exp. Pi qthis:typing CT this C0.
+   sub_strengthen (\e:exp. SB2 e) SB3
+      -> (Pi this:exp. Pi qthis:typing CT this C0.
              (Pi WCT1:class_table_typing CT. Pi C5:className. Pi C6:className.
                  Pi SB0:subtyping CT C5 C6.
                  narrowing_exp WCT1 (\x:exp. \q:typing CT x C6. qthis) SB0
@@ -790,14 +617,14 @@ narrowing_this :
                 -> narrowing_exp WCT
                       (\x:exp. \q:typing CT x C3. Q x q this qthis) SB1
                       (\x:exp. \q:typing CT x C4. Q2 x q this qthis) (SB2 this))
-      <- sub_strengthen (\e:exp. SB2 e) SB3.
+      -> narrowing_bexp WCT (\x:exp. base (\e:exp. E x e))
+            (\x:exp. \q:typing CT x C3.
+                t_base (\THIS:exp. \D:typing CT THIS C0. Q x q THIS D)) SB1
+            (\x:exp. \q:typing CT x C4.
+                t_base (\THIS:exp. \D:typing CT THIS C0. Q2 x q THIS D)) SB3.
 - :
-   narrowing_bexp WCT (\x:exp. bind C0 (\e:exp. E x e))
-      (\x:exp. \q:typing CT x C3.
-          t_bind (\XI:exp. \D:typing CT XI C0. Q1 x q XI D)) SB1
-      (\x:exp. \q:typing CT x C5.
-          t_bind (\XI:exp. \D:typing CT XI C0. Q2 x q XI D)) SB3
-      <- (Pi y:exp. Pi qy:typing CT y C0.
+   sub_strengthen (\e:exp. SB2 e) SB3
+      -> (Pi y:exp. Pi qy:typing CT y C0.
              (Pi WCT1:class_table_typing CT. Pi C6:className. Pi C7:className.
                  Pi SB0:subtyping CT C6 C7.
                  narrowing_exp WCT1 (\x:exp. \q:typing CT x C7. qy) SB0
@@ -805,89 +632,84 @@ narrowing_this :
                 -> narrowing_bexp WCT (\x:exp. E x y)
                       (\x:exp. \q:typing CT x C3. Q1 x q y qy) SB1
                       (\x:exp. \q:typing CT x C5. Q2 x q y qy) (SB2 y))
-      <- sub_strengthen (\e:exp. SB2 e) SB3.
+      -> narrowing_bexp WCT (\x:exp. bind C0 (\e:exp. E x e))
+            (\x:exp. \q:typing CT x C3.
+                t_bind (\XI:exp. \D:typing CT XI C0. Q1 x q XI D)) SB1
+            (\x:exp. \q:typing CT x C5.
+                t_bind (\XI:exp. \D:typing CT XI C0. Q2 x q XI D)) SB3.
 - :
    narrowing_exp WCT (\x:exp. \q:typing CT1 x C1. q) SB1
       (\x:exp. \q:typing CT1 x C2. q) SB1.
 - :
-   narrowing_exp WCT
-      (\x:exp. \q:typing CT1 x C3. t_field CNTH1 (FE1 x) (TY1 x q)) SB1
-      (\x:exp. \q:typing CT1 x C4. t_field CNTH2 (FE2 x) (TY2 x q)) s_refl
-      <- narrowing_exp WCT (\X:exp. \x:typing CT1 X C3. TY1 X x) SB1
+   append_nth FI CNTH1 APP CNTH2
+      -> (Pi x:exp. sub_fields SB2 (FE1 x) APP (FE2 x))
+      -> narrowing_exp WCT (\X:exp. \x:typing CT1 X C3. TY1 X x) SB1
             (\X:exp. \x:typing CT1 X C4. TY2 X x) SB2
-      <- (Pi x:exp. sub_fields SB2 (FE1 x) APP (FE2 x))
-      <- append_nth FI CNTH1 APP CNTH2.
+      -> narrowing_exp WCT
+            (\x:exp. \q:typing CT1 x C3. t_field CNTH1 (FE1 x) (TY1 x q)) SB1
+            (\x:exp. \q:typing CT1 x C4. t_field CNTH2 (FE2 x) (TY2 x q)) 
+s_refl.
 - :
    Pi MTY1:exp -> mtype CT1 M1 C1 CS1 C2.
-      narrowing_exp WCT
-         (\x:exp. \q:typing CT1 x C4. t_invk (TL1 x q) (MTY1 x) (T1 x q)) SB1
-         (\x:exp. \q:typing CT1 x C5. t_invk (TL2 x q) (MTY2 x) (T2 x q)) 
-s_refl
-         <- narrowing_exp WCT (\X:exp. \x:typing CT1 X C4. T1 X x) SB1
-               (\X:exp. \x:typing CT1 X C5. T2 X x) SB2
-         <- narrowing_explist WCT (\X:exp. \x:typing CT1 X C4. TL1 X x) SB1
+      (Pi x:exp. sub_mtype WCT (MTY1 x) SB2 (MTY2 x))
+         -> narrowing_explist WCT (\X:exp. \x:typing CT1 X C4. TL1 X x) SB1
                (\X:exp. \x:typing CT1 X C5. TL2 X x)
-         <- (Pi x:exp. sub_mtype WCT (MTY1 x) SB2 (MTY2 x)).
+         -> narrowing_exp WCT (\X:exp. \x:typing CT1 X C4. T1 X x) SB1
+               (\X:exp. \x:typing CT1 X C5. T2 X x) SB2
+         -> narrowing_exp WCT
+               (\x:exp. \q:typing CT1 x C4. t_invk (TL1 x q) (MTY1 x) (T1 x q))
+               SB1
+               (\x:exp. \q:typing CT1 x C5. t_invk (TL2 x q) (MTY2 x) (T2 x q))
+               s_refl.
 - :
-   narrowing_exp WCT (\x:exp. \q:typing CT1 x C1. t_new (TL1 x q) (FE x)) SB1
-      (\x:exp. \q:typing CT1 x C2. t_new (TL2 x q) (FE x)) s_refl
-      <- narrowing_explist WCT (\X:exp. \x:typing CT1 X C1. TL1 X x) SB1
-            (\X:exp. \x:typing CT1 X C2. TL2 X x).
+   narrowing_explist WCT (\X:exp. \x:typing CT1 X C1. TL1 X x) SB1
+      (\X:exp. \x:typing CT1 X C2. TL2 X x)
+      -> narrowing_exp WCT (\x:exp. \q:typing CT1 x C1. t_new (TL1 x q) (FE x))
+            SB1 (\x:exp. \q:typing CT1 x C2. t_new (TL2 x q) (FE x)) s_refl.
 - :
-   narrowing_exp WCT (\x:exp. \q:typing CT1 x C1. t_cast (TY1 x q)) SB1
-      (\x:exp. \q:typing CT1 x C3. t_cast (TY2 x q)) s_refl
-      <- narrowing_exp WCT (\X:exp. \x:typing CT1 X C1. TY1 X x) SB1
-            (\X:exp. \x:typing CT1 X C3. TY2 X x) SB2.
+   narrowing_exp WCT (\X:exp. \x:typing CT1 X C1. TY1 X x) SB1
+      (\X:exp. \x:typing CT1 X C3. TY2 X x) SB2
+      -> narrowing_exp WCT (\x:exp. \q:typing CT1 x C1. t_cast (TY1 x q)) SB1
+            (\x:exp. \q:typing CT1 x C3. t_cast (TY2 x q)) s_refl.
 - :
    narrowing_explist WCT (\x:exp. \q:typing CT1 x C1. tl_nil) SB1
       (\x:exp. \q:typing CT1 x C2. tl_nil).
 - :
-   narrowing_explist WCT
-      (\x:exp. \q:typing CT1 x C1. tl_cons (SB1 x) (TL1 x q) (T1 x q)) SB
-      (\x:exp. \q:typing CT1 x C2. tl_cons SB4 (TL2 x q) (T2 x q))
-      <- narrowing_exp WCT (\X:exp. \x:typing CT1 X C1. T1 X x) SB
+   narrowing_explist WCT (\X:exp. \x:typing CT1 X C1. TL1 X x) SB
+      (\X:exp. \x:typing CT1 X C2. TL2 X x)
+      -> sub_trans SB2 SB3 SB4 -> sub_strengthen (\e:exp. SB1 e) SB3
+      -> narrowing_exp WCT (\X:exp. \x:typing CT1 X C1. T1 X x) SB
             (\X:exp. \x:typing CT1 X C2. T2 X x) SB2
-      <- sub_strengthen (\e:exp. SB1 e) SB3
-      <- sub_trans SB2 SB3 SB4
-      <- narrowing_explist WCT (\X:exp. \x:typing CT1 X C1. TL1 X x) SB
-            (\X:exp. \x:typing CT1 X C2. TL2 X x).
+      -> narrowing_explist WCT
+            (\x:exp. \q:typing CT1 x C1. tl_cons (SB1 x) (TL1 x q) (T1 x q)) SB
+            (\x:exp. \q:typing CT1 x C2. tl_cons SB4 (TL2 x q) (T2 x q)).
 - :
-   narrowing_this WCT (t_base (\THIS:exp. \D:typing CT1 THIS C1. Q THIS D)) SB1
-      (t_base (\THIS:exp. \D:typing CT1 THIS C3. Q2 THIS D)) SB2
-      <- narrowing_exp WCT (\X:exp. \x:typing CT1 X C1. Q X x) SB1
-            (\X:exp. \x:typing CT1 X C3. Q2 X x) SB2.
+   narrowing_exp WCT (\X:exp. \x:typing CT1 X C1. Q X x) SB1
+      (\X:exp. \x:typing CT1 X C3. Q2 X x) SB2
+      -> narrowing_this WCT
+            (t_base (\THIS:exp. \D:typing CT1 THIS C1. Q THIS D)) SB1
+            (t_base (\THIS:exp. \D:typing CT1 THIS C3. Q2 THIS D)) SB2.
 - :
-   narrowing_this WCT (t_bind (\XI:exp. \D:typing CT XI C0. Q1 XI D)) SB1
-      (t_bind (\XI:exp. \D:typing CT XI C0. Q2 XI D)) SB3
-      <- (Pi y:exp. Pi qy:typing CT y C0.
+   sub_strengthen (\e:exp. SB2 e) SB3
+      -> (Pi y:exp. Pi qy:typing CT y C0.
              (Pi WCT1:class_table_typing CT. Pi C5:className. Pi C6:className.
                  Pi SB0:subtyping CT C5 C6.
                  narrowing_exp WCT1 (\x:exp. \q:typing CT x C6. qy) SB0
                     (\x:exp. \q:typing CT x C5. qy) s_refl)
                 -> narrowing_this WCT (Q1 y qy) SB1 (Q2 y qy) (SB2 y))
-      <- sub_strengthen (\e:exp. SB2 e) SB3.
+      -> narrowing_this WCT (t_bind (\XI:exp. \D:typing CT XI C0. Q1 XI D)) SB1
+            (t_bind (\XI:exp. \D:typing CT XI C0. Q2 XI D)) SB3.
 eq_lemma1 :
-   Pi C:className. Pi PRED1:nat. Pi D1:className. Pi F1:cnlist PRED1.
-      Pi MT1:methodTable. Pi PRED2:nat. Pi D2:className. Pi F2:cnlist PRED2.
-      Pi MT2:methodTable. Pi M:methodName. Pi MD1:methodDef M.
-      classDef_eq (class C D1 F1 MT1) (class C D2 F2 MT2)
-         -> lookupMethod MT2 M MD1 -> lookupMethod MT1 M MD1 -> type.
+   classDef_eq (class C D1 F1 MT1) (class C D2 F2 MT2) -> lookupMethod MT2 M MD1
+      -> lookupMethod MT1 M MD1 -> type.
 - : eq_lemma1 classDef_refl X X.
 eq_lemma2 :
-   Pi M:methodName. Pi PRED1:nat. Pi CS1:cnlist PRED1. Pi R1:className.
-      Pi BE1:bexp CS1. Pi PRED2:nat. Pi CS2:cnlist PRED2. Pi R2:className.
-      Pi BE2:bexp CS2. Pi CT:classTable. Pi C:className. Pi C1:className.
-      methodDef_eq (method R1 M BE1) (method R2 M BE2)
-         -> typing_bexp CT BE1 C C1 -> typing_bexp CT BE2 C C1
-         -> cnlist_eq CS2 CS1 -> type.
+   methodDef_eq (method R1 M BE1) (method R2 M BE2) -> typing_bexp CT BE1 C C1
+      -> typing_bexp CT BE2 C C1 -> cnlist_eq CS2 CS1 -> type.
 - : eq_lemma2 methodDef_refl X X cnlist_eq_refl.
 mtype_mbody :
-   Pi CT:classTable. Pi PRED1:nat. Pi M:methodName. Pi C:className.
-      Pi DS:cnlist PRED1. Pi C0:className. Pi PRED2:nat. Pi CS:cnlist PRED2.
-      Pi BE:bexp CS. Pi C1:className.
-      class_table_typing CT -> mtype CT M C DS C0 -> mbody CT M C BE
-         -> typing_bexp CT BE C C1 -> subtyping CT C1 C0 -> cnlist_eq CS DS
-         -> type.
+   class_table_typing CT -> mtype CT M C DS C0 -> mbody CT M C BE
+      -> typing_bexp CT BE C C1 -> subtyping CT C1 C0 -> cnlist_eq CS DS -> type.
 - :
    Pi LC1:lookupClass CT C (class C D1 F1 MT1).
       Pi LC2:lookupClass CT C (class C D2 F2 MT2).
@@ -897,15 +719,12 @@ mtype_mbody :
       Pi LCM3:lookupMethod MT1 M (method R2 M BE2).
       Pi MDEQ:methodDef_eq (method R1 M BE1) (method R2 M BE2).
       Pi TBE:typing_bexp CT BE1 C C1. Pi TBE2:typing_bexp CT BE2 C C1.
-      mtype_mbody WCT (mt_class LCM1 LC1 NEQ1) (mb_class LCM2 LC2 NEQ2) TBE2 SB
-         EQ
-         <- lookupClass_unique LC1 LC2 CDEQ
-         <- eq_lemma1 CDEQ LCM2 LCM3
-         <- lookupMethod_unique LCM1 LCM3 MDEQ
-         <- ctt_ct WCT LC1 W CTT
-         <- ct_mtt CTT MTT
-         <- mtt_mt MTT LCM1 (t_method SB TBE OV Z)
-         <- eq_lemma2 MDEQ TBE TBE2 EQ.
+      eq_lemma2 MDEQ TBE TBE2 EQ -> mtt_mt MTT LCM1 (t_method SB TBE OV Z)
+         -> ct_mtt CTT MTT -> ctt_ct WCT LC1 W CTT
+         -> lookupMethod_unique LCM1 LCM3 MDEQ -> eq_lemma1 CDEQ LCM2 LCM3
+         -> lookupClass_unique LC1 LC2 CDEQ
+         -> mtype_mbody WCT (mt_class LCM1 LC1 NEQ1) (mb_class LCM2 LC2 NEQ2)
+               TBE2 SB EQ.
 - :
    Pi CLEQ:cnlist_eq FS1 FS2. Pi MTY1:mtype CT M D1 CS1 R1.
       Pi NI1:notInMT MT1 M. Pi LC1:lookupClass CT C (class C D1 FS1 MT1).
@@ -913,21 +732,18 @@ mtype_mbody :
       Pi NI2:notInMT MT2 M. Pi LC2:lookupClass CT C (class C D2 FS2 MT2).
       Pi NEQ2:className_neq C object. Pi MTY2:mtype CT M D2 CS1 R1.
       Pi TBE:typing_bexp CT BE1 D2 C1. Pi SB:subtyping CT C1 R1.
-      mtype_mbody WCT (mt_super MTY1 NI1 LC1 NEQ1) (mb_super NI2 MB2 LC2 NEQ2)
-         TBE2 SB3 EQ
-         <- lookupClass_unique LC1 LC2 CDEQ
-         <- classDef_eq_extract CDEQ CEQ CLEQ MTEQ
-         <- refineCEQ CEQ MTY1 MTY2
-         <- mtype_mbody WCT MTY2 MB2 TBE SB EQ
-         <- narrowing_this WCT TBE (s_super s_refl LC2 NEQ2) TBE2 SB2
-         <- sub_trans SB2 SB SB3.
+      sub_trans SB2 SB SB3
+         -> narrowing_this WCT TBE (s_super s_refl LC2 NEQ2) TBE2 SB2
+         -> mtype_mbody WCT MTY2 MB2 TBE SB EQ -> refineCEQ CEQ MTY1 MTY2
+         -> classDef_eq_extract CDEQ CEQ CLEQ MTEQ
+         -> lookupClass_unique LC1 LC2 CDEQ
+         -> mtype_mbody WCT (mt_super MTY1 NI1 LC1 NEQ1)
+               (mb_super NI2 MB2 LC2 NEQ2) TBE2 SB3 EQ.
 - :
-   mtype_mbody WCT (mt_class LM1 LC1 NEQ1) (mb_super NI2 GMD2 LC2 NEQ2) TBE SB
-      EQ
-      <- lookupClass_unique LC2 LC1 CDEQ
-      <- eq_lemma1 CDEQ LM1 LM3
-      <- lookupMethod_exclusive LM3 NI2 FALSE
-      <- false_imp_TBE FALSE TBE SB EQ.
+   false_imp_TBE FALSE TBE SB EQ -> lookupMethod_exclusive LM3 NI2 FALSE
+      -> eq_lemma1 CDEQ LM1 LM3 -> lookupClass_unique LC2 LC1 CDEQ
+      -> mtype_mbody WCT (mt_class LM1 LC1 NEQ1) (mb_super NI2 GMD2 LC2 NEQ2)
+            TBE SB EQ.
 - :
    Pi MTY1:mtype CT M D1 CS1 R1. Pi NI1:notInMT MT1 M.
       Pi LC1:lookupClass CT C (class C D1 FS1 MT1).
@@ -935,89 +751,57 @@ mtype_mbody :
       Pi LCM2:lookupMethod MT2 M (method R2 M CS3).
       Pi LC2:lookupClass CT C (class C D2 FS2 MT2).
       Pi NEQ2:className_neq C object.
-      mtype_mbody WCT (mt_super MTY1 NI1 LC1 NEQ1) (mb_class LCM2 LC2 NEQ2) TBE
-         SB EQ
-         <- lookupClass_unique LC1 LC2 CDEQ
-         <- eq_lemma1 CDEQ LCM2 LCM3
-         <- lookupMethod_exclusive LCM3 NI1 FALSE
-         <- false_imp_TBE FALSE TBE SB EQ.
+      false_imp_TBE FALSE TBE SB EQ -> lookupMethod_exclusive LCM3 NI1 FALSE
+         -> eq_lemma1 CDEQ LCM2 LCM3 -> lookupClass_unique LC1 LC2 CDEQ
+         -> mtype_mbody WCT (mt_super MTY1 NI1 LC1 NEQ1)
+               (mb_class LCM2 LC2 NEQ2) TBE SB EQ.
 invoc_lemma :
-   Pi CT:classTable. Pi PRED1:nat. Pi ES:elist PRED1. Pi CS1:cnlist PRED1.
-      Pi BE:bexp CS1. Pi C0:className. Pi C1:className. Pi PRED2:nat.
-      Pi E1:elist PRED2. Pi E:exp. Pi C2:className.
-      class_table_typing CT -> typing_list CT ES CS1 -> typing_bexp CT BE C0 C1
-         -> invoc BE ES (new C0 E1) E -> typing CT (new C0 E1) C0
-         -> typing CT E C2 -> subtyping CT C2 C1 -> type.
+   class_table_typing CT -> typing_list CT ES CS1 -> typing_bexp CT BE C0 C1
+      -> invoc BE ES (new C0 E1) E -> typing CT (new C0 E1) C0 -> typing CT E C2
+      -> subtyping CT C2 C1 -> type.
 - :
    invoc_lemma WCT tl_nil (t_base (\THIS:exp. \D:typing CT1 THIS C. Q THIS D))
       invoc_base R (Q (new C E2) R) s_refl.
 - :
    Pi WCT:class_table_typing CT.
       Pi Q:Pi XI:exp. typing CT XI CI -> typing_bexp CT (BE XI) C E0.
-      invoc_lemma WCT (tl_cons SB1 TL1 T1)
-         (t_bind (\XI:exp. \D:typing CT XI CI. Q XI D)) (invoc_bind I) R P SB3
-         <- narrowing_bexp WCT (\e:exp. BE e) (\X:exp. \x:typing CT X CI. Q X x)
+      sub_trans SB SB2 SB3 -> invoc_lemma WCT TL1 (Q2 E T1) I R P SB
+         -> narrowing_bexp WCT (\e:exp. BE e) (\X:exp. \x:typing CT X CI. Q X x)
                SB1 (\X:exp. \x:typing CT X C0. Q2 X x) SB2
-         <- invoc_lemma WCT TL1 (Q2 E T1) I R P SB
-         <- sub_trans SB SB2 SB3.
-inv_new :
-   Pi CT:classTable. Pi PRED1:nat. Pi C:className. Pi ES:elist PRED1.
-      Pi D:className. typing CT (new C ES) D -> typing CT (new C ES) C -> type.
+         -> invoc_lemma WCT (tl_cons SB1 TL1 T1)
+               (t_bind (\XI:exp. \D:typing CT XI CI. Q XI D)) (invoc_bind I) R P
+               SB3.
+inv_new : typing CT (new C ES) D -> typing CT (new C ES) C -> type.
 - : inv_new (t_new TL FS) (t_new TL FS).
-inv_new2 :
-   Pi CT:classTable. Pi PRED1:nat. Pi C:className. Pi ES:elist PRED1.
-      Pi D:className. typing CT (new C ES) D -> className_eq D C -> type.
+inv_new2 : typing CT (new C ES) D -> className_eq D C -> type.
 - : inv_new2 (t_new TL FS) className_refl.
 refine_really :
-   Pi PRED1:nat. Pi PRED2:nat. Pi CS1:cnlist PRED1. Pi CS2:cnlist PRED2.
-      Pi FI:nat. Pi CI:className.
-      cnlist_eq CS1 CS2 -> cnnth_opt FI CS1 CI -> cnnth_opt FI CS2 CI -> type.
+   cnlist_eq CS1 CS2 -> cnnth_opt FI CS1 CI -> cnnth_opt FI CS2 CI -> type.
 - : refine_really cnlist_eq_refl CN1 CN1.
 refine_typing_list :
-   Pi PRED1:nat. Pi CS2:cnlist PRED1. Pi CS1:cnlist PRED1. Pi CT:classTable.
-      Pi ES:elist PRED1.
-      cnlist_eq CS2 CS1 -> typing_list CT ES CS1 -> typing_list CT ES CS2
-         -> type.
+   cnlist_eq CS2 CS1 -> typing_list CT ES CS1 -> typing_list CT ES CS2 -> type.
 - : refine_typing_list cnlist_eq_refl CN1 CN1.
-false_imp_really :
-   Pi PRED1:nat. Pi PRED2:nat. Pi CS1:cnlist PRED1. Pi CS2:cnlist PRED2.
-      false -> cnlist_eq CS1 CS2 -> type.
+false_imp_really : false -> cnlist_eq CS1 CS2 -> type.
 cncons_eq :
-   Pi PRED1:nat. Pi PRED2:nat. Pi CS1:cnlist PRED1. Pi CS2:cnlist PRED2.
-      Pi C:className.
-      cnlist_eq CS1 CS2 -> cnlist_eq (cncons C CS1) (cncons C CS2) -> type.
+   cnlist_eq CS1 CS2 -> cnlist_eq (cncons C CS1) (cncons C CS2) -> type.
 - : cncons_eq cnlist_eq_refl cnlist_eq_refl.
 append_unique :
-   Pi PRED1:nat. Pi PRED2:nat. Pi PRED3:nat. Pi CS1:cnlist PRED1.
-      Pi CS2:cnlist PRED2. Pi ES1:cnlist PRED3. Pi Pl1:plus PRED1 PRED2 PRED3.
-      Pi PRED4:nat. Pi ES2:cnlist PRED4. Pi PL2:plus PRED1 PRED2 PRED4.
-      cnappend CS1 CS2 ES1 Pl1 -> cnappend CS1 CS2 ES2 PL2 -> cnlist_eq ES1 ES2
-         -> type.
+   cnappend CS1 CS2 ES1 Pl1 -> cnappend CS1 CS2 ES2 PL2 -> cnlist_eq ES1 ES2
+      -> type.
 - : append_unique cnappend_cnnil cnappend_cnnil cnlist_eq_refl.
 - :
-   append_unique (cnappend_cncons R1) (cnappend_cncons R2) EQ2
-      <- append_unique R1 R2 EQ
-      <- cncons_eq EQ EQ2.
+   cncons_eq EQ EQ2 -> append_unique R1 R2 EQ
+      -> append_unique (cnappend_cncons R1) (cnappend_cncons R2) EQ2.
 fields_append_refine :
-   Pi PRED1:nat. Pi PRED2:nat. Pi DG1:cnlist PRED1. Pi DG2:cnlist PRED2.
-      Pi C:className. Pi PRED3:nat. Pi D1:className. Pi FE1:cnlist PRED3.
-      Pi BE1:methodTable. Pi PRED4:nat. Pi D2:className. Pi FE2:cnlist PRED4.
-      Pi BE2:methodTable. Pi PRED5:nat. Pi CS:cnlist PRED5.
-      Pi PL1:plus PRED1 PRED3 PRED5. Pi PL2:plus PRED2 PRED4 PRED5.
-      cnlist_eq DG1 DG2 -> classDef_eq (class C D1 FE1 BE1) (class C D2 FE2 BE2)
-         -> cnappend DG1 FE1 CS PL1 -> cnappend DG2 FE2 CS PL2 -> type.
+   cnlist_eq DG1 DG2 -> classDef_eq (class C D1 FE1 BE1) (class C D2 FE2 BE2)
+      -> cnappend DG1 FE1 CS PL1 -> cnappend DG2 FE2 CS PL2 -> type.
 - : fields_append_refine cnlist_eq_refl classDef_refl X X.
 fields_refine :
-   Pi C:className. Pi PRED1:nat. Pi D1:className. Pi FE1:cnlist PRED1.
-      Pi BE1:methodTable. Pi PRED2:nat. Pi D2:className. Pi FE2:cnlist PRED2.
-      Pi BE2:methodTable. Pi CT:classTable. Pi N2:nat. Pi CS2:cnlist N2.
-      classDef_eq (class C D1 FE1 BE1) (class C D2 FE2 BE2)
-         -> fields CT D2 N2 CS2 -> fields CT D1 N2 CS2 -> type.
+   classDef_eq (class C D1 FE1 BE1) (class C D2 FE2 BE2) -> fields CT D2 N2 CS2
+      -> fields CT D1 N2 CS2 -> type.
 - : fields_refine classDef_refl X X.
 fields_unique :
-   Pi CT:classTable. Pi C:className. Pi N:nat. Pi CS:cnlist N. Pi N2:nat.
-      Pi CS2:cnlist N2.
-      fields CT C N CS -> fields CT C N2 CS2 -> cnlist_eq CS CS2 -> type.
+   fields CT C N CS -> fields CT C N2 CS2 -> cnlist_eq CS CS2 -> type.
 - : fields_unique f_obj f_obj cnlist_eq_refl.
 - :
    Pi LC1:lookupClass CT C (class C D1 FS1 MT1).
@@ -1026,63 +810,55 @@ fields_unique :
       Pi CDEQ:classDef_eq (class C D1 FS1 MT1) (class C D2 FS2 MT2).
       Pi APP1:cnappend DG1 FS1 CS1 PL1. Pi APP2:cnappend DG2 FS2 CS2 PL2.
       Pi APP3:cnappend DG2 FS2 CS1 PL3.
-      fields_unique (f_class APP1 F1 LC1 NEQ1) (f_class APP2 F2 LC2 NEQ2) CEQ
-         <- lookupClass_unique LC1 LC2 CDEQ
-         <- fields_refine CDEQ F2 F3
-         <- fields_unique F1 F3 EQ
-         <- fields_append_refine EQ CDEQ APP1 APP3
-         <- append_unique APP3 APP2 CEQ.
+      append_unique APP3 APP2 CEQ -> fields_append_refine EQ CDEQ APP1 APP3
+         -> fields_unique F1 F3 EQ -> fields_refine CDEQ F2 F3
+         -> lookupClass_unique LC1 LC2 CDEQ
+         -> fields_unique (f_class APP1 F1 LC1 NEQ1) (f_class APP2 F2 LC2 NEQ2)
+               CEQ.
 - :
-   fields_unique f_obj (f_class APP2 F2 LC2 NEQ) EQ
-      <- className_eq_exclusive className_refl NEQ FALSE
-      <- false_imp_really FALSE EQ.
+   false_imp_really FALSE EQ -> className_eq_exclusive className_refl NEQ FALSE
+      -> fields_unique f_obj (f_class APP2 F2 LC2 NEQ) EQ.
 - :
-   fields_unique (f_class APP1 F1 LC1 NEQ) f_obj EQ
-      <- className_eq_exclusive className_refl NEQ FALSE
-      <- false_imp_really FALSE EQ.
+   false_imp_really FALSE EQ -> className_eq_exclusive className_refl NEQ FALSE
+      -> fields_unique (f_class APP1 F1 LC1 NEQ) f_obj EQ.
 pres :
-   Pi CT:classTable. Pi E1:exp. Pi C1:className. Pi E2:exp. Pi C2:className.
-      class_table_typing CT -> typing CT E1 C1 -> reduction CT E1 E2
-         -> typing CT E2 C2 -> subtyping CT C2 C1 -> type.
+   class_table_typing CT -> typing CT E1 C1 -> reduction CT E1 E2
+      -> typing CT E2 C2 -> subtyping CT C2 C1 -> type.
 pres_elist :
-   Pi CT:classTable. Pi PRED1:nat. Pi EL1:elist PRED1. Pi CS1:cnlist PRED1.
-      Pi EL2:elist PRED1.
-      class_table_typing CT -> typing_list CT EL1 CS1
-         -> reduction_list CT EL1 EL2 -> typing_list CT EL2 CS1 -> type.
+   class_table_typing CT -> typing_list CT EL1 CS1 -> reduction_list CT EL1 EL2
+      -> typing_list CT EL2 CS1 -> type.
 pres_rl_hd :
-   pres_elist CT (tl_cons SB2 PL1 P1) (rl_hd D1) (tl_cons SB3 PL1 Q1)
-      <- pres CT P1 D1 Q1 SB1
-      <- sub_trans SB1 SB2 SB3.
+   sub_trans SB1 SB2 SB3 -> pres CT P1 D1 Q1 SB1
+      -> pres_elist CT (tl_cons SB2 PL1 P1) (rl_hd D1) (tl_cons SB3 PL1 Q1).
 pres_rl_tl :
-   pres_elist CT (tl_cons SB PL1 P1) (rl_tl VL DL1) (tl_cons SB QL1 P1)
-      <- pres_elist CT PL1 DL1 QL1.
+   pres_elist CT PL1 DL1 QL1
+      -> pres_elist CT (tl_cons SB PL1 P1) (rl_tl VL DL1) (tl_cons SB QL1 P1).
 pres_rc_field :
    Pi D1:reduction CT E1 E2. Pi P1:typing CT E1 D. Pi Q1:typing CT E2 C.
       Pi SB:subtyping CT C D. Pi FS1:fields CT D N1 DG.
       Pi FS2:fields CT C N3 CS. Pi APP:cnappend DG EF CS PL.
       Pi CNTH1:cnnth_opt FI DG CI. Pi CNTH2:cnnth_opt FI CS CI.
       Pi WCT:class_table_typing CT.
-      pres WCT (t_field CNTH1 FS1 P1) (rc_field D1) (t_field CNTH2 FS2 Q1)
-         s_refl
-         <- pres WCT P1 D1 Q1 SB
-         <- sub_fields SB FS1 APP FS2
-         <- append_nth CI CNTH1 APP CNTH2.
+      append_nth CI CNTH1 APP CNTH2 -> sub_fields SB FS1 APP FS2
+         -> pres WCT P1 D1 Q1 SB
+         -> pres WCT (t_field CNTH1 FS1 P1) (rc_field D1) (t_field CNTH2 FS2 Q1)
+               s_refl.
 pres_r_field :
    Pi ENTH:enth_opt FI ES EI. Pi CNTH1:cnnth_opt FI CS CI.
       Pi FS1:fields CT C N CS. Pi FS2:fields CT C N2 CS2.
       Pi PL1:typing_list CT ES CS2. Pi SB:subtyping CT C0 CI.
       Pi Q:typing CT EI C0. Pi CNTH2:cnnth_opt FI CS2 CI.
-      pres WCT (t_field CNTH1 FS1 (t_new PL1 FS2)) (r_field ENTH) Q SB
-         <- fields_unique FS1 FS2 EQ
-         <- refine_really EQ CNTH1 CNTH2
-         <- typing_list_proj_lemma PL1 ENTH CNTH2 SB Q.
+      typing_list_proj_lemma PL1 ENTH CNTH2 SB Q -> refine_really EQ CNTH1 CNTH2
+         -> fields_unique FS1 FS2 EQ
+         -> pres WCT (t_field CNTH1 FS1 (t_new PL1 FS2)) (r_field ENTH) Q SB.
 pres_rc_invk_arg :
-   pres WCT (t_invk PL1 MT1 P1) (rc_invk_arg VL DL1) (t_invk QL1 MT1 P1) s_refl
-      <- pres_elist WCT PL1 DL1 QL1.
+   pres_elist WCT PL1 DL1 QL1
+      -> pres WCT (t_invk PL1 MT1 P1) (rc_invk_arg VL DL1) (t_invk QL1 MT1 P1)
+            s_refl.
 pres_rc_invk_recv :
-   pres WCT (t_invk PL1 MT1 P1) (rc_invk_recv D1) (t_invk PL1 MT2 Q1) s_refl
-      <- pres WCT P1 D1 Q1 SB1
-      <- sub_mtype WCT MT1 SB1 MT2.
+   sub_mtype WCT MT1 SB1 MT2 -> pres WCT P1 D1 Q1 SB1
+      -> pres WCT (t_invk PL1 MT1 P1) (rc_invk_recv D1) (t_invk PL1 MT2 Q1)
+            s_refl.
 pres_r_invk :
    Pi PL1:typing_list CT ES DS. Pi P1:typing CT (new D0 EL1) C0.
       Pi MT1:mtype CT M C0 DS C. Pi MB:mbody CT M D0 BE.
@@ -1090,68 +866,53 @@ pres_r_invk :
       Pi TBE:typing_bexp CT BE D0 C1. Pi SB:subtyping CT C1 C.
       Pi PL2:typing_list CT ES CS. Pi P2:typing CT (new D0 EL1) D0.
       Pi X:typing CT E C2. Pi SB2:subtyping CT C2 C1.
-      pres WCT (t_invk PL1 MT1 P1) (r_invk VL MB INV) X SB3
-         <- inv_new2 P1 CEQ
-         <- inv_new P1 P2
-         <- refineCEQ CEQ MT1 MT2
-         <- mtype_mbody WCT MT2 MB TBE SB CSEQ
-         <- refine_typing_list CSEQ PL1 PL2
-         <- invoc_lemma WCT PL2 TBE INV P2 X SB2
-         <- sub_trans SB2 SB SB3.
+      sub_trans SB2 SB SB3 -> invoc_lemma WCT PL2 TBE INV P2 X SB2
+         -> refine_typing_list CSEQ PL1 PL2
+         -> mtype_mbody WCT MT2 MB TBE SB CSEQ -> refineCEQ CEQ MT1 MT2
+         -> inv_new P1 P2 -> inv_new2 P1 CEQ
+         -> pres WCT (t_invk PL1 MT1 P1) (r_invk VL MB INV) X SB3.
 pres_new :
-   pres WCT (t_new PL1 FS) (rc_new_arg DL1) (t_new QL1 FS) s_refl
-      <- pres_elist WCT PL1 DL1 QL1.
+   pres_elist WCT PL1 DL1 QL1
+      -> pres WCT (t_new PL1 FS) (rc_new_arg DL1) (t_new QL1 FS) s_refl.
 pres_cast1 :
-   pres WCT (t_cast P1) (rc_cast D1) (t_cast Q1) s_refl <- pres WCT P1 D1 Q1 SB2.
-pres_cast2 : pres WCT (t_cast P1) (r_cast SB) P2 SB <- inv_new P1 P2.
+   pres WCT P1 D1 Q1 SB2 -> pres WCT (t_cast P1) (rc_cast D1) (t_cast Q1) 
+s_refl.
+pres_cast2 : inv_new P1 P2 -> pres WCT (t_cast P1) (r_cast SB) P2 SB.
 notSubtype : classTable -> className -> className -> type.
-ns_undef : notSubtype CT C D <- className_neq C D <- notInCT CT C.
+ns_undef : notInCT CT C -> className_neq C D -> notSubtype CT C D.
 ns_super :
-   notSubtype CT C D
-      <- className_neq C D
-      <- lookupClass CT C (class C E CS1 MR1)
-      <- notSubtype CT E D.
-cnneq_sym :
-   Pi C:className. Pi D:className.
-      className_neq C D -> className_neq D C -> type.
+   notSubtype CT E D -> lookupClass CT C (class C E CS1 MR1)
+      -> className_neq C D -> notSubtype CT C D.
+cnneq_sym : className_neq C D -> className_neq D C -> type.
 - :
-   cnneq_sym (className_neq_natnat NNEQ1) (className_neq_natnat NNEQ2)
-      <- nat_neq_sym NNEQ1 NNEQ2.
+   nat_neq_sym NNEQ1 NNEQ2
+      -> cnneq_sym (className_neq_natnat NNEQ1) (className_neq_natnat NNEQ2).
 objectNotInCT_helper :
-   Pi CT1:classTable. Pi CT2:classTable.
-      class_table_typing_help CT1 CT2 -> notInCT CT2 object -> type.
+   class_table_typing_help CT1 CT2 -> notInCT CT2 object -> type.
 - : objectNotInCT_helper ctt_nil nnil.
 - :
-   objectNotInCT_helper (ctt_cons CTTH CTP CNEQ1) (ncons UNDEF CNEQ2)
-      <- cnneq_sym CNEQ1 CNEQ2
-      <- objectNotInCT_helper CTTH UNDEF.
-objectNotInCT :
-   Pi CT:classTable. class_table_typing CT -> notInCT CT object -> type.
-- : objectNotInCT (ctt CTTH) UNDEF <- objectNotInCT_helper CTTH UNDEF.
+   objectNotInCT_helper CTTH UNDEF -> cnneq_sym CNEQ1 CNEQ2
+      -> objectNotInCT_helper (ctt_cons CTTH CTP CNEQ1) (ncons UNDEF CNEQ2).
+objectNotInCT : class_table_typing CT -> notInCT CT object -> type.
+- : objectNotInCT_helper CTTH UNDEF -> objectNotInCT (ctt CTTH) UNDEF.
 cneq_em : className -> className -> type.
-cneq_eq : cneq_em M N <- className_eq M N.
-cneq_neq : cneq_em M N <- className_neq M N.
-cneq_helper : Pi M:nat. Pi N:nat. nat_em M N -> cneq_em (cn M) (cn N) -> type.
+cneq_eq : className_eq M N -> cneq_em M N.
+cneq_neq : className_neq M N -> cneq_em M N.
+cneq_helper : nat_em M N -> cneq_em (cn M) (cn N) -> type.
 - : cneq_helper (nat_em_eq EQ) (cneq_eq className_refl).
 - : cneq_helper (nat_em_neq NEQ) (cneq_neq (className_neq_natnat NEQ)).
 cneq_excluded_middle : Pi C:className. Pi D:className. cneq_em C D -> type.
 - :
-   cneq_excluded_middle (cn C) (cn D) EQ
-      <- nat_excluded C D CDEQ
-      <- cneq_helper CDEQ EQ.
+   cneq_helper CDEQ EQ -> nat_excluded C D CDEQ
+      -> cneq_excluded_middle (cn C) (cn D) EQ.
 lookup_or_notInCT : classTable -> className -> type.
-loc1 : lookup_or_notInCT CT C <- lookupClass CT C CD.
-loc2 : lookup_or_notInCT CT C <- notInCT CT C.
+loc1 : lookupClass CT C CD -> lookup_or_notInCT CT C.
+loc2 : notInCT CT C -> lookup_or_notInCT CT C.
 lc_helper2 :
-   Pi C:className. Pi D:className. Pi CT:classTable. Pi PRED1:nat.
-      Pi E:className. Pi CNL:cnlist PRED1. Pi MR:methodTable.
-      Pi CTU:notInCT CT D.
-      className_neq C D -> lookup_or_notInCT CT C
-         -> lookup_or_notInCT (crcons (class D E CNL MR) CT CTU) C -> type.
+   className_neq C D -> lookup_or_notInCT CT C
+      -> lookup_or_notInCT (crcons (class D E CNL MR) CT CTU) C -> type.
 lc_helper1 :
-   Pi D:className. Pi C:className. Pi PRED1:nat. Pi E:className.
-      Pi CNL:cnlist PRED1. Pi MR:methodTable. Pi CT:classTable.
-      Pi CTU:notInCT CT D.
+   Pi CT:classTable. Pi CTU:notInCT CT D.
       cneq_em C D -> lookup_or_notInCT (crcons (class D E CNL MR) CT CTU) C
          -> type.
 lc_total : Pi CT:classTable. Pi C:className. lookup_or_notInCT CT C -> type.
@@ -1159,48 +920,38 @@ lc_total : Pi CT:classTable. Pi C:className. lookup_or_notInCT CT C -> type.
 - : lc_helper2 NEQ (loc2 CU) (loc2 (ncons CU NEQ)).
 - : lc_helper1 CT CTU (cneq_eq EQ) (loc1 lookupClass_crcons1).
 - :
-   lc_helper1 CT CTU (cneq_neq CEQ) LOC2
-      <- lc_total CT C LOC1
-      <- lc_helper2 CEQ LOC1 LOC2.
+   lc_helper2 CEQ LOC1 LOC2 -> lc_total CT C LOC1
+      -> lc_helper1 CT CTU (cneq_neq CEQ) LOC2.
 - : lc_total crnil C (loc2 nnil).
 - :
-   lc_total (crcons (class D E CNL MR) CT CTU) C LOM
-      <- cneq_excluded_middle C D EX
-      <- lc_helper1 CT CTU EX LOM.
-cneq_subtyping :
-   Pi C:className. Pi D:className. Pi CT:classTable.
-      className_eq C D -> subtyping CT C D -> type.
+   lc_helper1 CT CTU EX LOM -> cneq_excluded_middle C D EX
+      -> lc_total (crcons (class D E CNL MR) CT CTU) C LOM.
+cneq_subtyping : Pi CT:classTable. className_eq C D -> subtyping CT C D -> type.
 - : cneq_subtyping CT CEQ s_refl.
 notInCT_or_ctyping : classTable -> className -> type.
-nctct_nct : notInCT_or_ctyping CT C <- notInCT CT C.
+nctct_nct : notInCT CT C -> notInCT_or_ctyping CT C.
 nctct_ct :
-   notInCT_or_ctyping CT C
-      <- class_typing CT C CDEF
-      <- lookupClass CT C CDEF
-      <- className_neq C object.
+   className_neq C object -> lookupClass CT C CDEF -> class_typing CT C CDEF
+      -> notInCT_or_ctyping CT C.
 ctyping_total_helper :
-   Pi CT:classTable. Pi C:className.
-      class_table_typing CT -> lookup_or_notInCT CT C -> notInCT_or_ctyping CT C
-         -> type.
+   class_table_typing CT -> lookup_or_notInCT CT C -> notInCT_or_ctyping CT C
+      -> type.
 - :
-   ctyping_total_helper CTT (loc1 LC) (nctct_ct CNNEQ LC CTP)
-      <- ctt_ct CTT LC CNNEQ CTP.
+   ctt_ct CTT LC CNNEQ CTP
+      -> ctyping_total_helper CTT (loc1 LC) (nctct_ct CNNEQ LC CTP).
 - : ctyping_total_helper CTT (loc2 UNDEF) (nctct_nct UNDEF).
 ctyping_total :
    Pi CT:classTable.
       class_table_typing CT -> (Pi C:className. notInCT_or_ctyping CT C -> type).
 - :
-   ctyping_total CT CTT C WO
-      <- lc_total CT C LOC
-      <- ctyping_total_helper CTT LOC WO.
+   ctyping_total_helper CTT LOC WO -> lc_total CT C LOC
+      -> ctyping_total CT CTT C WO.
 xm_subtype : classTable -> className -> className -> type.
-xms_sub : xm_subtype CT C1 C2 <- subtyping CT C1 C2.
-xms_notsub : xm_subtype CT C1 C2 <- notSubtype CT C1 C2.
+xms_sub : subtyping CT C1 C2 -> xm_subtype CT C1 C2.
+xms_notsub : notSubtype CT C1 C2 -> xm_subtype CT C1 C2.
 sb_total_helper3 :
-   Pi CT:classTable. Pi C:className. Pi PRED1:nat. Pi E:className.
-      Pi CNL:cnlist PRED1. Pi MR:methodTable. Pi D:className.
-      lookupClass CT C (class C E CNL MR) -> className_neq C object
-         -> className_neq C D -> xm_subtype CT E D -> xm_subtype CT C D -> type.
+   lookupClass CT C (class C E CNL MR) -> className_neq C object
+      -> className_neq C D -> xm_subtype CT E D -> xm_subtype CT C D -> type.
 - :
    sb_total_helper3 LC CNNEQ1 CNNEQ2 (xms_sub SB)
       (xms_sub (s_super SB LC CNNEQ1)).
@@ -1208,269 +959,222 @@ sb_total_helper3 :
    sb_total_helper3 LC CNNEQ1 CNNEQ2 (xms_notsub NSB)
       (xms_notsub (ns_super NSB LC CNNEQ2)).
 sb_total_helper2 :
-   Pi C:className. Pi D:className. Pi CT:classTable.
+   Pi CT:classTable.
       class_table_typing CT -> cneq_em C D -> subtyping CT C object
          -> xm_subtype CT C D -> type.
 - :
-   sb_total_helper2 CT CTT (cneq_eq CNEQ1) SB1 (xms_sub SB)
-      <- cneq_subtyping CT CNEQ1 SB.
+   cneq_subtyping CT CNEQ1 SB
+      -> sb_total_helper2 CT CTT (cneq_eq CNEQ1) SB1 (xms_sub SB).
 - :
-   sb_total_helper2 CT CTT (cneq_neq CNEQ1) s_refl
-      (xms_notsub (ns_undef UNDEF CNEQ1))
-      <- objectNotInCT CTT UNDEF.
+   objectNotInCT CTT UNDEF
+      -> sb_total_helper2 CT CTT (cneq_neq CNEQ1) s_refl
+            (xms_notsub (ns_undef UNDEF CNEQ1)).
 - :
-   sb_total_helper2 CT CTT (cneq_neq CNNEQ1) (s_super SB LC CNNEQ2) XMSB2
-      <- cneq_excluded_middle E C2 CNXM
-      <- sb_total_helper2 CT CTT CNXM SB XMSB1
-      <- sb_total_helper3 LC CNNEQ2 CNNEQ1 XMSB1 XMSB2.
+   sb_total_helper3 LC CNNEQ2 CNNEQ1 XMSB1 XMSB2
+      -> sb_total_helper2 CT CTT CNXM SB XMSB1 -> cneq_excluded_middle E C2 CNXM
+      -> sb_total_helper2 CT CTT (cneq_neq CNNEQ1) (s_super SB LC CNNEQ2) XMSB2.
 sb_total_helper1 :
-   Pi C:className. Pi D:className. Pi CT:classTable.
+   Pi CT:classTable.
       class_table_typing CT -> cneq_em C D -> notInCT_or_ctyping CT C
          -> notInCT_or_ctyping CT D -> xm_subtype CT C D -> type.
 - :
-   sb_total_helper1 CT CTT (cneq_eq CNEQ) WO1 WO2 (xms_sub SB)
-      <- cneq_subtyping CT CNEQ SB.
+   cneq_subtyping CT CNEQ SB
+      -> sb_total_helper1 CT CTT (cneq_eq CNEQ) WO1 WO2 (xms_sub SB).
 - :
    sb_total_helper1 CT CTT (cneq_neq CNNEQ) (nctct_nct UNDEF) WO2
       (xms_notsub (ns_undef UNDEF CNNEQ)).
 - :
-   sb_total_helper1 CT CTT CNXM (nctct_ct CNNEQ2 LC (t_class X1 X2 SB)) WO2 XMSB
-      <- sb_total_helper2 CT CTT CNXM (s_super SB LC CNNEQ2) XMSB.
+   sb_total_helper2 CT CTT CNXM (s_super SB LC CNNEQ2) XMSB
+      -> sb_total_helper1 CT CTT CNXM (nctct_ct CNNEQ2 LC (t_class X1 X2 SB))
+            WO2 XMSB.
 sb_total :
    Pi CT:classTable. Pi C:className. Pi D:className.
       class_table_typing CT -> xm_subtype CT C D -> type.
 - :
-   sb_total CT C D CTT XMSB
-      <- ctyping_total CT CTT C WO1
-      <- ctyping_total CT CTT D WO2
-      <- cneq_excluded_middle C D CNXM
-      <- sb_total_helper1 CT CTT CNXM WO1 WO2 XMSB.
+   sb_total_helper1 CT CTT CNXM WO1 WO2 XMSB -> cneq_excluded_middle C D CNXM
+      -> ctyping_total CT CTT D WO2 -> ctyping_total CT CTT C WO1
+      -> sb_total CT C D CTT XMSB.
 mtype_to_mbody :
-   Pi N:nat. Pi CT:classTable. Pi M:methodName. Pi C1:className.
-      Pi C0:className. Pi CS:cnlist N.
+   Pi CS:cnlist N.
       mtype CT M C1 CS C0 -> (Pi BE:bexp CS. mbody CT M C1 BE -> type).
 - : mtype_to_mbody CS (mt_class LM LC CNNEQ) BE1 (mb_class LM LC CNNEQ).
 - :
-   mtype_to_mbody CS (mt_super MTY UNDEF LC CNNEQ) BE
-      (mb_super UNDEF MBY LC CNNEQ)
-      <- mtype_to_mbody CS MTY BE MBY.
+   mtype_to_mbody CS MTY BE MBY
+      -> mtype_to_mbody CS (mt_super MTY UNDEF LC CNNEQ) BE
+            (mb_super UNDEF MBY LC CNNEQ).
 mtype_inv :
-   Pi CT:classTable. Pi PRED1:nat. Pi C1:className. Pi ES:elist PRED1.
-      Pi C2:className. Pi PRED2:nat. Pi M:methodName. Pi CS:cnlist PRED2.
-      Pi C0:className.
-      typing CT (new C1 ES) C2 -> mtype CT M C2 CS C0 -> mtype CT M C1 CS C0
-         -> type.
+   typing CT (new C1 ES) C2 -> mtype CT M C2 CS C0 -> mtype CT M C1 CS C0
+      -> type.
 - : mtype_inv (t_new TPS FS) MTY MTY.
 mbody_inv :
-   Pi CT:classTable. Pi PRED1:nat. Pi C1:className. Pi ES:elist PRED1.
-      Pi C2:className. Pi PRED2:nat. Pi M:methodName. Pi CS:cnlist PRED2.
-      Pi C0:className.
-      typing CT (new C1 ES) C2 -> mtype CT M C2 CS C0
-         -> (Pi BE:bexp CS. mbody CT M C1 BE -> type).
+   typing CT (new C1 ES) C2 -> mtype CT M C2 CS C0
+      -> (Pi BE:bexp CS. mbody CT M C1 BE -> type).
 - :
-   mbody_inv TP MTY1 BE MBY
-      <- mtype_inv TP MTY1 MTY2
-      <- mtype_to_mbody CS1 MTY2 BE MBY.
+   mtype_to_mbody CS1 MTY2 BE MBY -> mtype_inv TP MTY1 MTY2
+      -> mbody_inv TP MTY1 BE MBY.
 invoc_total :
-   Pi N:nat. Pi CT:classTable. Pi CS:cnlist N. Pi E2:exp. Pi ES:elist N.
+   Pi ES:elist N.
       typing_list CT ES CS
          -> (Pi BE:bexp CS. Pi E1:exp. invoc BE ES E1 E2 -> type).
 - : invoc_total enil tl_nil (base (\this:exp. E1 this)) E invoc_base.
 - :
-   invoc_total (econs E2 EL) (tl_cons SB1 TPS X1) (bind C1 (\x:exp. BE x)) E
-      (invoc_bind INV)
-      <- invoc_total EL TPS (BE E2) E INV.
-enth_opt_total :
-   Pi N1:nat. Pi N2:nat. Pi E:exp. Pi ES:elist N1.
-      nat_lt N2 N1 -> enth_opt N2 ES E -> type.
+   invoc_total EL TPS (BE E2) E INV
+      -> invoc_total (econs E2 EL) (tl_cons SB1 TPS X1) (bind C1 (\x:exp. BE x))
+            E (invoc_bind INV).
+enth_opt_total : Pi ES:elist N1. nat_lt N2 N1 -> enth_opt N2 ES E -> type.
 - : enth_opt_total (econs E ES1) nat_lt_z enth_sz.
 - :
-   enth_opt_total (econs E2 ES) (nat_lt_s NLT) (enth_sn ENTH)
-      <- enth_opt_total ES NLT ENTH.
-cnnth_lemma :
-   Pi N1:nat. Pi FI:nat. Pi CI:className. Pi CS:cnlist N1.
-      cnnth_opt FI CS CI -> nat_lt FI N1 -> type.
+   enth_opt_total ES NLT ENTH
+      -> enth_opt_total (econs E2 ES) (nat_lt_s NLT) (enth_sn ENTH).
+cnnth_lemma : Pi CS:cnlist N1. cnnth_opt FI CS CI -> nat_lt FI N1 -> type.
 - : cnnth_lemma (cncons C CS1) cnnth_sz nat_lt_z.
 - :
-   cnnth_lemma (cncons C2 CS) (cnnth_sn CNNTH) (nat_lt_s NLT)
-      <- cnnth_lemma CS CNNTH NLT.
+   cnnth_lemma CS CNNTH NLT
+      -> cnnth_lemma (cncons C2 CS) (cnnth_sn CNNTH) (nat_lt_s NLT).
 lookupClass_exclusive :
-   Pi CT:classTable. Pi C:className. Pi PRED1:nat. Pi D:className.
-      Pi CS1:cnlist PRED1. Pi MR1:methodTable. Pi PRED2:nat. Pi E:className.
-      Pi CS2:cnlist PRED2. Pi MR2:methodTable.
-      lookupClass CT C (class C D CS1 MR1)
-         -> lookupClass CT C (class C E CS2 MR2) -> className_neq D E -> false
-         -> type.
+   lookupClass CT C (class C D CS1 MR1) -> lookupClass CT C (class C E CS2 MR2)
+      -> className_neq D E -> false -> type.
 - :
-   lookupClass_exclusive LC1 LC2 CNNEQ FALSE
-      <- lookupClass_unique LC1 LC2 CDEFEQ
-      <- classDef_eq_extract CDEFEQ CNEQ X1 X2
-      <- className_eq_exclusive CNEQ CNNEQ FALSE.
+   className_eq_exclusive CNEQ CNNEQ FALSE
+      -> classDef_eq_extract CDEFEQ CNEQ X1 X2
+      -> lookupClass_unique LC1 LC2 CDEFEQ
+      -> lookupClass_exclusive LC1 LC2 CNNEQ FALSE.
 cnlist_eq_length :
-   Pi N1:nat. Pi N2:nat. Pi CS1:cnlist N1. Pi CS2:cnlist N2.
-      cnlist_eq CS1 CS2 -> nat_eq N1 N2 -> type.
+   Pi CS1:cnlist N1. Pi CS2:cnlist N2. cnlist_eq CS1 CS2 -> nat_eq N1 N2 -> type.
 - : cnlist_eq_length CS1 CS2 CLEQ nat_refl.
 lookup_absurd1 :
-   Pi N1:nat. Pi N2:nat. Pi CT:classTable. Pi C:className. Pi D:className.
-      Pi MR1:methodTable. Pi E:className. Pi MR2:methodTable. Pi CS1:cnlist N1.
-      Pi CS2:cnlist N2.
+   Pi CS1:cnlist N1. Pi CS2:cnlist N2.
       lookupClass CT C (class C D CS1 MR1)
          -> lookupClass CT C (class C E CS2 MR2) -> className_neq D E
          -> nat_eq N1 N2 -> type.
 - :
-   lookup_absurd1 CS1 CS2 LC1 LC2 CNNEQ NEQ
-      <- lookupClass_exclusive LC1 LC2 CNNEQ FALSE
-      <- false_imp_nat_eq PRED1 PRED2 FALSE NEQ.
+   false_imp_nat_eq PRED1 PRED2 FALSE NEQ
+      -> lookupClass_exclusive LC1 LC2 CNNEQ FALSE
+      -> lookup_absurd1 CS1 CS2 LC1 LC2 CNNEQ NEQ.
 lookup_absurd2 :
-   Pi CT:classTable. Pi C:className. Pi PRED1:nat. Pi D:className.
-      Pi CS1:cnlist PRED1. Pi MR1:methodTable. Pi PRED2:nat. Pi E:className.
-      Pi CS2:cnlist PRED2. Pi MR2:methodTable. Pi N3:nat. Pi CS3:cnlist N3.
-      Pi N4:nat. Pi CS4:cnlist N4.
-      lookupClass CT C (class C D CS1 MR1)
-         -> lookupClass CT C (class C E CS2 MR2) -> fields CT D N3 CS3
-         -> fields CT E N4 CS4 -> className_neq D E -> nat_eq N3 N4 -> type.
+   lookupClass CT C (class C D CS1 MR1) -> lookupClass CT C (class C E CS2 MR2)
+      -> fields CT D N3 CS3 -> fields CT E N4 CS4 -> className_neq D E
+      -> nat_eq N3 N4 -> type.
 - :
-   lookup_absurd2 LC1 LC2 FS1 FS2 CNNEQ NEQ
-      <- lookupClass_exclusive LC1 LC2 CNNEQ FALSE
-      <- false_imp_nat_eq PRED1 PRED2 FALSE NEQ.
+   false_imp_nat_eq PRED1 PRED2 FALSE NEQ
+      -> lookupClass_exclusive LC1 LC2 CNNEQ FALSE
+      -> lookup_absurd2 LC1 LC2 FS1 FS2 CNNEQ NEQ.
 fields_length_unique_helper :
-   Pi N1:nat. Pi N2:nat. Pi CT:classTable. Pi C:className. Pi D:className.
-      Pi MR1:methodTable. Pi E:className. Pi MR2:methodTable. Pi N3:nat.
-      Pi CS3:cnlist N3. Pi N4:nat. Pi CS4:cnlist N4. Pi CS1:cnlist N1.
-      Pi CS2:cnlist N2.
+   Pi CS1:cnlist N1. Pi CS2:cnlist N2.
       lookupClass CT C (class C D CS1 MR1)
          -> lookupClass CT C (class C E CS2 MR2) -> cneq_em D E
          -> fields CT D N3 CS3 -> fields CT E N4 CS4 -> nat_eq N1 N2
          -> nat_eq N3 N4 -> type.
 fields_length_unique :
-   Pi CT:classTable. Pi C:className. Pi N1:nat. Pi CS1:cnlist N1. Pi N2:nat.
-      Pi CS2:cnlist N2.
-      fields CT C N1 CS1 -> fields CT C N2 CS2 -> nat_eq N1 N2 -> type.
+   fields CT C N1 CS1 -> fields CT C N2 CS2 -> nat_eq N1 N2 -> type.
 - :
-   fields_length_unique_helper CS3 CS4 LC1 LC2 (cneq_eq CNEQ) FS1 FS2 NEQ1 NEQ2
-      <- lookupClass_unique LC1 LC2 CDEFEQ
-      <- classDef_eq_extract CDEFEQ CNEQ1 CLEQ X1
-      <- cnlist_eq_length CS3 CS4 CLEQ NEQ1
-      <- fields_length_unique FS1 FS2 NEQ2.
+   fields_length_unique FS1 FS2 NEQ2 -> cnlist_eq_length CS3 CS4 CLEQ NEQ1
+      -> classDef_eq_extract CDEFEQ CNEQ1 CLEQ X1
+      -> lookupClass_unique LC1 LC2 CDEFEQ
+      -> fields_length_unique_helper CS3 CS4 LC1 LC2 (cneq_eq CNEQ) FS1 FS2 NEQ1
+            NEQ2.
 - :
-   fields_length_unique_helper CS1 CS2 LC1 LC2 (cneq_neq CNNEQ) FS1 FS2 NEQ1
-      NEQ2
-      <- lookupClass_exclusive LC1 LC2 CNNEQ FALSE
-      <- lookup_absurd1 CS1 CS2 LC1 LC2 CNNEQ NEQ1
-      <- lookup_absurd2 LC1 LC2 FS1 FS2 CNNEQ NEQ2.
+   lookup_absurd2 LC1 LC2 FS1 FS2 CNNEQ NEQ2
+      -> lookup_absurd1 CS1 CS2 LC1 LC2 CNNEQ NEQ1
+      -> lookupClass_exclusive LC1 LC2 CNNEQ FALSE
+      -> fields_length_unique_helper CS1 CS2 LC1 LC2 (cneq_neq CNNEQ) FS1 FS2
+            NEQ1 NEQ2.
 - : fields_length_unique f_obj f_obj nat_refl.
 - :
-   fields_length_unique (f_class CNAP1 FS1 LC1 CNNEQ1)
-      (f_class CNAP2 FS2 LC2 CNNEQ2) NEQ3
-      <- cneq_excluded_middle C2 C3 CNXM
-      <- fields_length_unique_helper CS3 CS4 LC1 LC2 CNXM FS1 FS2 NEQ1 NEQ2
-      <- plus_eq_lemma NEQ2 NEQ1 PL1 PL2 NEQ3.
+   plus_eq_lemma NEQ2 NEQ1 PL1 PL2 NEQ3
+      -> fields_length_unique_helper CS3 CS4 LC1 LC2 CNXM FS1 FS2 NEQ1 NEQ2
+      -> cneq_excluded_middle C2 C3 CNXM
+      -> fields_length_unique (f_class CNAP1 FS1 LC1 CNNEQ1)
+            (f_class CNAP2 FS2 LC2 CNNEQ2) NEQ3.
 new_fields_lemma :
-   Pi N1:nat. Pi CT:classTable. Pi C2:className. Pi C1:className. Pi N2:nat.
-      Pi CS:cnlist N2. Pi ES:elist N1.
+   Pi ES:elist N1.
       typing CT (new C2 ES) C1 -> fields CT C1 N2 CS -> nat_eq N1 N2 -> type.
 - :
-   new_fields_lemma ES1 (t_new X1 FS1) FS2 NEQ
-      <- fields_length_unique FS1 FS2 NEQ.
+   fields_length_unique FS1 FS2 NEQ
+      -> new_fields_lemma ES1 (t_new X1 FS1) FS2 NEQ.
 proj_lemma_helper :
-   Pi N1:nat. Pi CT:classTable. Pi C2:className. Pi C1:className. Pi N2:nat.
-      Pi CS:cnlist N2. Pi FI:nat. Pi CI:className. Pi ES:elist N1.
+   Pi ES:elist N1.
       typing CT (new C2 ES) C1 -> fields CT C1 N2 CS -> nat_eq N1 N2
          -> cnnth_opt FI CS CI -> nat_lt FI N1 -> type.
 - :
-   proj_lemma_helper ES TP FS NEQ CNNTH NLT2
-      <- cnnth_lemma CS1 CNNTH NLT1
-      <- nat_lt_eq NLT1 NEQ NLT2.
+   nat_lt_eq NLT1 NEQ NLT2 -> cnnth_lemma CS1 CNNTH NLT1
+      -> proj_lemma_helper ES TP FS NEQ CNNTH NLT2.
 proj_lemma :
-   Pi CT:classTable. Pi PRED1:nat. Pi C2:className. Pi ES:elist PRED1.
-      Pi C1:className. Pi N2:nat. Pi CS:cnlist N2. Pi FI:nat. Pi CI:className.
-      Pi E:exp.
-      typing CT (new C2 ES) C1 -> fields CT C1 N2 CS -> cnnth_opt FI CS CI
-         -> enth_opt FI ES E -> type.
+   typing CT (new C2 ES) C1 -> fields CT C1 N2 CS -> cnnth_opt FI CS CI
+      -> enth_opt FI ES E -> type.
 - :
-   proj_lemma TP FS CNNTH ENTH
-      <- new_fields_lemma ES1 TP FS NEQ
-      <- proj_lemma_helper ES1 TP FS NEQ CNNTH NLT
-      <- enth_opt_total ES1 NLT ENTH.
+   enth_opt_total ES1 NLT ENTH -> proj_lemma_helper ES1 TP FS NEQ CNNTH NLT
+      -> new_fields_lemma ES1 TP FS NEQ -> proj_lemma TP FS CNNTH ENTH.
 failed_cast : classTable -> exp -> type.
-failed_cast_list : Pi N:nat. classTable -> elist N -> type.
-fc_field : failed_cast CT (fieldProj E N) <- failed_cast CT E.
-fc_invk_recv : failed_cast CT (methodInvk E MN ES) <- failed_cast CT E.
-fc_invk_arg : failed_cast CT (methodInvk E MN ES) <- failed_cast_list CT ES.
-fc_new : failed_cast CT (new CN ES) <- failed_cast_list CT ES.
+failed_cast_list : classTable -> elist N -> type.
+fc_field : failed_cast CT E -> failed_cast CT (fieldProj E N).
+fc_invk_recv : failed_cast CT E -> failed_cast CT (methodInvk E MN ES).
+fc_invk_arg : failed_cast_list CT ES -> failed_cast CT (methodInvk E MN ES).
+fc_new : failed_cast_list CT ES -> failed_cast CT (new CN ES).
 fc_cast :
-   failed_cast CT (cast CN1 (new CN2 ES))
-      <- value_list ES
-      <- notSubtype CT CN2 CN1.
-fc_cast_arg : failed_cast CT (cast CN E) <- failed_cast CT E.
-fc_hd : failed_cast_list CT (econs E ES) <- failed_cast CT E.
-fc_tl : failed_cast_list CT (econs E ES) <- failed_cast_list CT ES.
+   notSubtype CT CN2 CN1 -> value_list ES
+      -> failed_cast CT (cast CN1 (new CN2 ES)).
+fc_cast_arg : failed_cast CT E -> failed_cast CT (cast CN E).
+fc_hd : failed_cast CT E -> failed_cast_list CT (econs E ES).
+fc_tl : failed_cast_list CT ES -> failed_cast_list CT (econs E ES).
 progsum : classTable -> exp -> type.
-ps_value : progsum CT E <- value E.
-ps_step : progsum CT E1 <- reduction CT E1 E2.
-ps_failed : progsum CT E <- failed_cast CT E.
-progsum_list : Pi N:nat. classTable -> elist N -> type.
-psl_value : progsum_list CT ES <- value_list ES.
-psl_step : progsum_list CT ES1 <- reduction_list CT ES1 ES2.
-psl_failed : progsum_list CT ES <- failed_cast_list CT ES.
+ps_value : value E -> progsum CT E.
+ps_step : reduction CT E1 E2 -> progsum CT E1.
+ps_failed : failed_cast CT E -> progsum CT E.
+progsum_list : classTable -> elist N -> type.
+psl_value : value_list ES -> progsum_list CT ES.
+psl_step : reduction_list CT ES1 ES2 -> progsum_list CT ES1.
+psl_failed : failed_cast_list CT ES -> progsum_list CT ES.
 progress :
-   Pi E:exp. Pi C:className. Pi CT:classTable.
+   Pi CT:classTable.
       class_table_typing CT -> typing CT E C -> progsum CT E -> type.
 progress_list :
-   Pi PRED1:nat. Pi ES:elist PRED1. Pi C:cnlist PRED1. Pi CT:classTable.
+   Pi CT:classTable.
       class_table_typing CT -> typing_list CT ES C -> progsum_list CT ES -> type.
 progress_cast_helper2 :
-   Pi PRED1:nat. Pi C:className. Pi ES:elist PRED1. Pi CT:classTable.
-      Pi D:className.
-      value (new C ES) -> xm_subtype CT C D -> progsum CT (cast D (new C ES))
-         -> type.
+   value (new C ES) -> xm_subtype CT C D -> progsum CT (cast D (new C ES))
+      -> type.
 - : progress_cast_helper2 VL (xms_sub SB) (ps_step (r_cast SB)).
 - :
    progress_cast_helper2 (v_newv VLS) (xms_notsub NSB)
       (ps_failed (fc_cast NSB VLS)).
 progress_cast_helper1 :
-   Pi E:exp. Pi CT:classTable. Pi D:className.
+   Pi CT:classTable. Pi D:className.
       class_table_typing CT -> progsum CT E -> progsum CT (cast D E) -> type.
 - :
-   progress_cast_helper1 CT D CTT (ps_value VL) PS
-      <- sb_total CT C1 D CTT XMSB
-      <- progress_cast_helper2 VL XMSB PS.
+   progress_cast_helper2 VL XMSB PS -> sb_total CT C1 D CTT XMSB
+      -> progress_cast_helper1 CT D CTT (ps_value VL) PS.
 - : progress_cast_helper1 CT D CTT (ps_step RD) (ps_step (rc_cast RD)).
 - : progress_cast_helper1 CT D CTT (ps_failed FC) (ps_failed (fc_cast_arg FC)).
 - :
-   progress CT CTT (t_cast TP) PS2
-      <- progress CT CTT TP PS1
-      <- progress_cast_helper1 CT C1 CTT PS1 PS2.
+   progress_cast_helper1 CT C1 CTT PS1 PS2 -> progress CT CTT TP PS1
+      -> progress CT CTT (t_cast TP) PS2.
 progress_field_helper :
-   Pi N2:nat. Pi FI:nat. Pi CS:cnlist N2. Pi CI:className. Pi C1:className.
-      Pi E:exp. Pi CT:classTable.
+   Pi CT:classTable.
       class_table_typing CT -> cnnth_opt FI CS CI -> fields CT C1 N2 CS
          -> typing CT E C1 -> progsum CT E -> progsum CT (fieldProj E FI)
          -> type.
 - :
-   progress_field_helper CT CTT CNOPT FS TP (ps_value VL)
-      (ps_step (r_field ENTH))
-      <- proj_lemma TP FS CNOPT ENTH.
+   proj_lemma TP FS CNOPT ENTH
+      -> progress_field_helper CT CTT CNOPT FS TP (ps_value VL)
+            (ps_step (r_field ENTH)).
 - :
    progress_field_helper CT CTT CNOPT FS TP (ps_step RD) (ps_step (rc_field RD)).
 - :
    progress_field_helper CT CTT CNOPT FS TP (ps_failed FC)
       (ps_failed (fc_field FC)).
 - :
-   progress CT CTT (t_field CNOPT FS TP) PS2
-      <- progress CT CTT TP PS1
-      <- progress_field_helper CT CTT CNOPT FS TP PS1 PS2.
+   progress_field_helper CT CTT CNOPT FS TP PS1 PS2 -> progress CT CTT TP PS1
+      -> progress CT CTT (t_field CNOPT FS TP) PS2.
 progress_invk_helper :
-   Pi N:nat. Pi CT:classTable. Pi M:methodName. Pi C1:className.
-      Pi C0:className. Pi E:exp. Pi ES:elist N. Pi CS:cnlist N.
+   Pi ES:elist N. Pi CS:cnlist N.
       mtype CT M C1 CS C0 -> typing CT E C1 -> typing_list CT ES CS
          -> progsum CT E -> progsum_list CT ES -> progsum CT (methodInvk E M ES)
          -> type.
 - :
-   progress_invk_helper ES CS MTY TP TPS (ps_value VL) (psl_value VLS)
-      (ps_step (r_invk VLS MBY INV))
-      <- mbody_inv TP MTY BE MBY
-      <- invoc_total ES TPS BE (new C1 ES1) INV.
+   invoc_total ES TPS BE (new C1 ES1) INV -> mbody_inv TP MTY BE MBY
+      -> progress_invk_helper ES CS MTY TP TPS (ps_value VL) (psl_value VLS)
+            (ps_step (r_invk VLS MBY INV)).
 - :
    progress_invk_helper ES CS MTY TP TPS (ps_value VL) (psl_step RDS)
       (ps_step (rc_invk_arg VL RDS)).
@@ -1484,23 +1188,18 @@ progress_invk_helper :
    progress_invk_helper ES CS MTY TP TPS (ps_failed FC) PSL
       (ps_failed (fc_invk_recv FC)).
 - :
-   progress CT CTT (t_invk TPS MTY TP) PS2
-      <- progress_list CT CTT TPS PSL
-      <- progress CT CTT TP PS1
-      <- progress_invk_helper ES1 CS1 MTY TP TPS PS1 PSL PS2.
+   progress_invk_helper ES1 CS1 MTY TP TPS PS1 PSL PS2 -> progress CT CTT TP PS1
+      -> progress_list CT CTT TPS PSL -> progress CT CTT (t_invk TPS MTY TP) PS2.
 progress_new_helper :
-   Pi PRED1:nat. Pi CT:classTable. Pi ES:elist PRED1. Pi C:className.
-      progsum_list CT ES -> progsum CT (new C ES) -> type.
+   Pi C:className. progsum_list CT ES -> progsum CT (new C ES) -> type.
 - : progress_new_helper C (psl_value VLS) (ps_value (v_newv VLS)).
 - : progress_new_helper C (psl_step RDS) (ps_step (rc_new_arg RDS)).
 - : progress_new_helper C (psl_failed FC) (ps_failed (fc_new FC)).
 - :
-   progress CT CTT (t_new TPS FS) PS
-      <- progress_list CT CTT TPS PSL
-      <- progress_new_helper C1 PSL PS.
+   progress_new_helper C1 PSL PS -> progress_list CT CTT TPS PSL
+      -> progress CT CTT (t_new TPS FS) PS.
 progress_list_helper :
-   Pi CT:classTable. Pi E:exp. Pi PRED1:nat. Pi ES:elist PRED1.
-      progsum CT E -> progsum_list CT ES -> progsum_list CT (econs E ES) -> type.
+   progsum CT E -> progsum_list CT ES -> progsum_list CT (econs E ES) -> type.
 - :
    progress_list_helper (ps_value VL) (psl_value VLS)
       (psl_value (v_cons VLS VL)).
@@ -1510,7 +1209,6 @@ progress_list_helper :
 - : progress_list_helper (ps_failed FC) X1 (psl_failed (fc_hd FC)).
 - : progress_list CT CTT tl_nil (psl_value v_nil).
 - :
-   progress_list CT CTT (tl_cons SB TPS TP) PSL2
-      <- progress_list CT CTT TPS PSL1
-      <- progress CT CTT TP PS1
-      <- progress_list_helper PS1 PSL1 PSL2.
+   progress_list_helper PS1 PSL1 PSL2 -> progress CT CTT TP PS1
+      -> progress_list CT CTT TPS PSL1
+      -> progress_list CT CTT (tl_cons SB TPS TP) PSL2.

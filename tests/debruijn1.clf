@@ -1,0 +1,50 @@
+exp : type.
+lam : (exp -> exp) -> exp.
+app : exp -> exp -> exp.
+exp' : type.
+1' : exp'.
+^' : exp' -> exp'.
+lam' : exp' -> exp'.
+app' : exp' -> exp' -> exp'.
+env : type.
+val : type.
+empty : env.
+;' : env -> val -> env.
+clo : env -> exp' -> val.
+trans : env -> exp' -> exp -> type.
+vtrans : val -> exp -> type.
+tr_lam :
+   (Pi w:val. Pi x:exp. vtrans w x -> trans (;' K w) F (E x))
+      -> trans K (lam' F) (lam (\e:exp. E e)).
+tr_app : trans K F2 E2 -> trans K F1 E1 -> trans K (app' F1 F2) (app E1 E2).
+tr_1 : vtrans W E -> trans (;' K W) 1' E.
+tr_^ : trans K F E -> trans (;' K W) (^' F) E.
+vtr_lam :
+   trans K (lam' F) (lam (\e:exp. E e))
+      -> vtrans (clo K (lam' F)) (lam (\e:exp. E e)).
+feval : env -> exp' -> val -> type.
+fev_1 : feval (;' K W) 1' W.
+fev_^ : feval K F W -> feval (;' K W') (^' F) W.
+fev_lam : feval K (lam' F) (clo K (lam' F)).
+fev_app :
+   feval (;' K' W2) F1' W -> feval K F2 W2 -> feval K F1 (clo K' (lam' F1'))
+      -> feval K (app' F1 F2) W.
+eval : exp -> exp -> type.
+ev_lam : eval (lam (\e:exp. E e)) (lam (\e:exp. E e)).
+ev_app :
+   eval (E1' V2) V -> eval E2 V2 -> eval E1 (lam (\e:exp. E1' e))
+      -> eval (app E1 E2) V.
+map_eval : eval E V -> trans K F E -> feval K F W -> vtrans W V -> type.
+mp_1 :
+   map_eval ev_lam
+      (tr_1 (vtr_lam (tr_lam (\w:val. \x:exp. \u:vtrans w x. C2 w x u)))) fev_1
+      (vtr_lam (tr_lam (\w:val. \x:exp. \u:vtrans w x. C2 w x u))).
+mp_^ : map_eval D C1 D1' U1 -> map_eval D (tr_^ C1) (fev_^ D1') U1.
+mp_lam :
+   map_eval ev_lam (tr_lam (\w:val. \x:exp. \u:vtrans w x. C1 w x u)) fev_lam
+      (vtr_lam (tr_lam (\w:val. \x:exp. \u:vtrans w x. C1 w x u))).
+mp_app :
+   map_eval D3 (C3 W2 V2 U2) D3' U3 -> map_eval D2 C2 D2' U2
+      -> map_eval D1 C1 D1'
+            (vtr_lam (tr_lam (\w:val. \x:exp. \u:vtrans w x. C3 w x u)))
+      -> map_eval (ev_app D3 D2 D1) (tr_app C2 C1) (fev_app D3' D2' D1') U3.

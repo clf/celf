@@ -10,9 +10,9 @@ sym : == F F' -> == F' F.
 id_l : == (@' id F) F.
 id_r : == (@' F id) F.
 ass : == (@' H (@' G F)) (@' (@' H G) F).
-1' : obj.
+1 : obj.
 * : obj -> obj -> obj.
-drop : mor A 1'.
+drop : mor A 1.
 fst : mor (* A B) A.
 snd : mor (* A B) B.
 pair : mor A B -> mor A C -> mor A (* B C).
@@ -32,7 +32,7 @@ conv : term A -> term A -> type.
 lpair : term A -> term B -> term (* A B).
 lfst : term (* A B) -> term A.
 lsnd : term (* A B) -> term B.
-lunit : term 1'.
+lunit : term 1.
 llam : (term A -> term B) -> term (=> A B).
 lapp : term (=> A B) -> term A -> term B.
 c_refl : conv E E.
@@ -98,7 +98,7 @@ cong_app :
       -> cong (\x:term _A1. lapp (E1 x) (E2 x))
             (\c:conv _E1 _E2. c_app (CP1 c) (CP2 c)).
 env : obj -> type.
-empty : env 1'.
+empty : env 1.
 addv : env P -> term A -> env (* P A).
 absv : env A -> term B -> mor A B -> type.
 av_x : absv (addv G X) X snd.

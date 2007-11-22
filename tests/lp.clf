@@ -1,335 +1,317 @@
 i : type.
 o : type.
 p : type.
-atom : o <- p.
-and : o <- o <- o.
-imp : o <- o <- o.
+atom : p -> o.
+and : o -> o -> o.
+imp : o -> o -> o.
 true : o.
-forall : o <- (i -> o).
+forall : (i -> o) -> o.
 pf : o -> type.
-andi : pf (A and B) <- pf B <- pf A.
-andel : pf A <- pf (A and B).
-ander : pf B <- pf (A and B).
-impi : pf (A imp B) <- (pf A -> pf B).
-impe : pf B <- pf A <- pf (A imp B).
+andi : pf A -> pf B -> pf (and A B).
+andel : pf (and A B) -> pf A.
+ander : pf (and A B) -> pf B.
+impi : (pf A -> pf B) -> pf (imp A B).
+impe : pf (imp A B) -> pf A -> pf B.
 truei : pf true.
-foralli : pf (forall (\t:i. A t)) <- (Pi a:i. pf (A a)).
-foralle : (Pi T':i. pf (A T')) <- pf (forall (\t:i. A t)).
+foralli : (Pi a:i. pf (A a)) -> pf (forall (\t:i. A t)).
+foralle : pf (forall (\t:i. A t)) -> (Pi T':i. pf (A T')).
 can : Pi A:o. pf A -> type.
-atm : Pi A:o. pf A -> type.
-can_andi : can (A and B) (andi D E) <- can A D <- can B E.
+atm : pf A -> type.
+can_andi : can B E -> can A D -> can (and A B) (andi D E).
 can_impi :
-   can (A imp B) (impi (\d:pf A. D d)) <- (Pi u:pf A. atm u -> can B (D u)).
+   (Pi u:pf A. atm u -> can B (D u)) -> can (imp A B) (impi (\d:pf A. D d)).
 can_truei : can true truei.
 can_foralli :
-   can (forall (\t:i. A t)) (foralli (\a:i. D a)) <- (Pi a:i. can (A a) (D a)).
-can_atm : can (atom P) D <- atm D.
-atm_andel : atm (andel D) <- atm D.
-atm_ander : atm (ander D) <- atm D.
-atm_impe : atm (impe D E) <- atm D <- can B E.
-atm_foralle : atm (foralle D T') <- atm D.
+   (Pi a:i. can (A a) (D a)) -> can (forall (\t:i. A t)) (foralli (\a:i. D a)).
+can_atm : atm D -> can (atom P) D.
+atm_andel : atm D -> atm (andel D).
+atm_ander : atm D -> atm (ander D).
+atm_impe : can B E -> atm D -> atm (impe D E).
+atm_foralle : atm D -> atm (foralle D T').
 
 
-whr : Pi A:o. pf A -> pf A -> type.
+whr : pf A -> pf A -> type.
 whr_andl : whr (andel (andi D E)) D.
 whr_andr : whr (ander (andi D E)) E.
 whr_imp : whr (impe (impi (\d:pf A2. D d)) E) (D E).
 whr_forall : whr (foralle (foralli (\a:i. D a)) T') (D T').
-whr_andel : whr (andel D) (andel D') <- whr D D'.
-whr_ander : whr (ander D) (ander D') <- whr D D'.
-whr_impe : whr (impe D E) (impe D' E) <- whr D D'.
-whr_foralle : whr (foralle D T') (foralle D' T') <- whr D D'.
+whr_andel : whr D D' -> whr (andel D) (andel D').
+whr_ander : whr D D' -> whr (ander D) (ander D').
+whr_impe : whr D D' -> whr (impe D E) (impe D' E).
+whr_foralle : whr D D' -> whr (foralle D T') (foralle D' T').
 tocan : Pi A:o. pf A -> pf A -> type.
-toatm : Pi A:o. pf A -> pf A -> type.
+toatm : pf A -> pf A -> type.
 tc_and :
-   tocan (A and B) D (andi D1' D2')
-      <- tocan A (andel D) D1'
-      <- tocan B (ander D) D2'.
+   tocan B (ander D) D2' -> tocan A (andel D) D1'
+      -> tocan (and A B) D (andi D1' D2').
 tc_imp :
-   tocan (A imp B) D (impi (\d:pf A. D' d))
-      <- (Pi u:pf A. toatm u u -> tocan B (impe D u) (D' u)).
+   (Pi u:pf A. toatm u u -> tocan B (impe D u) (D' u))
+      -> tocan (imp A B) D (impi (\d:pf A. D' d)).
 tc_true : tocan true D truei.
 tc_forall :
-   tocan (forall (\t:i. A t)) D (foralli (\a:i. D' a))
-      <- (Pi a:i. tocan (A a) (foralle D a) (D' a)).
-tc_whr : tocan (atom P) D D' <- whr D D'' <- tocan (atom P) D'' D'.
-tc_atm : tocan (atom P) D D' <- toatm D D'.
-ta_impe : toatm (impe D E) (impe D' E') <- toatm D D' <- tocan A E E'.
-ta_andel : toatm (andel D) (andel D') <- toatm D D'.
-ta_ander : toatm (ander D) (ander D') <- toatm D D'.
-ta_foralle : toatm (foralle D T') (foralle D' T') <- toatm D D'.
-iscan : Pi A:o. Pi D:pf A. Pi D':pf A. tocan A D D' -> can A D' -> type.
-isatm : Pi A1:o. Pi D:pf A1. Pi D':pf A1. toatm D D' -> atm D' -> type.
+   (Pi a:i. tocan (A a) (foralle D a) (D' a))
+      -> tocan (forall (\t:i. A t)) D (foralli (\a:i. D' a)).
+tc_whr : tocan (atom P) D'' D' -> whr D D'' -> tocan (atom P) D D'.
+tc_atm : toatm D D' -> tocan (atom P) D D'.
+ta_impe : tocan A E E' -> toatm D D' -> toatm (impe D E) (impe D' E').
+ta_andel : toatm D D' -> toatm (andel D) (andel D').
+ta_ander : toatm D D' -> toatm (ander D) (ander D').
+ta_foralle : toatm D D' -> toatm (foralle D T') (foralle D' T').
+iscan : tocan A D D' -> can A D' -> type.
+isatm : toatm D D' -> atm D' -> type.
 isc_and :
-   iscan (tc_and TC2 TC1) (can_andi CN2 CN1) <- iscan TC1 CN1 <- iscan TC2 CN2.
+   iscan TC2 CN2 -> iscan TC1 CN1 -> iscan (tc_and TC2 TC1) (can_andi CN2 CN1).
 isc_imp :
-   iscan (tc_imp (\u:pf A. \ta:toatm u u. TC1 u ta))
-      (can_impi (\u:pf A. \at:atm u. CN1 u at))
-      <- (Pi u:pf A. Pi ta:toatm u u. Pi at:atm u.
-             isatm ta at -> iscan (TC1 u ta) (CN1 u at)).
+   (Pi u:pf A. Pi ta:toatm u u. Pi at:atm u.
+       isatm ta at -> iscan (TC1 u ta) (CN1 u at))
+      -> iscan (tc_imp (\u:pf A. \ta:toatm u u. TC1 u ta))
+            (can_impi (\u:pf A. \at:atm u. CN1 u at)).
 isc_true : iscan tc_true can_truei.
 isc_forall :
-   iscan (tc_forall (\a:i. TC1 a)) (can_foralli (\a:i. CN1 a))
-      <- (Pi a:i. iscan (TC1 a) (CN1 a)).
-isc_whr : iscan (tc_whr TC1 WHR) CN1 <- iscan TC1 CN1.
-isc_atm : iscan (tc_atm TA1) (can_atm AT1) <- isatm TA1 AT1.
+   (Pi a:i. iscan (TC1 a) (CN1 a))
+      -> iscan (tc_forall (\a:i. TC1 a)) (can_foralli (\a:i. CN1 a)).
+isc_whr : iscan TC1 CN1 -> iscan (tc_whr TC1 WHR) CN1.
+isc_atm : isatm TA1 AT1 -> iscan (tc_atm TA1) (can_atm AT1).
 isa_impe :
-   isatm (ta_impe TC2 TA1) (atm_impe CN2 AT1) <- isatm TA1 AT1 <- iscan TC2 CN2.
-isa_andel : isatm (ta_andel TA1) (atm_andel AT1) <- isatm TA1 AT1.
-isa_ander : isatm (ta_ander TA1) (atm_ander AT1) <- isatm TA1 AT1.
-isa_foralle : isatm (ta_foralle TA1) (atm_foralle AT1) <- isatm TA1 AT1.
+   iscan TC2 CN2 -> isatm TA1 AT1 -> isatm (ta_impe TC2 TA1) (atm_impe CN2 AT1).
+isa_andel : isatm TA1 AT1 -> isatm (ta_andel TA1) (atm_andel AT1).
+isa_ander : isatm TA1 AT1 -> isatm (ta_ander TA1) (atm_ander AT1).
+isa_foralle : isatm TA1 AT1 -> isatm (ta_foralle TA1) (atm_foralle AT1).
 
 
 solve : o -> type.
 assume : o -> type.
 >> : o -> p -> type.
-s_and : solve (A1 and A2) <- solve A1 <- solve A2.
-s_imp : solve (A2 imp A1) <- (assume A2 -> solve A1).
+s_and : solve A2 -> solve A1 -> solve (and A1 A2).
+s_imp : (assume A2 -> solve A1) -> solve (imp A2 A1).
 s_true : solve true.
-s_forall : solve (forall (\t:i. A1 t)) <- (Pi a:i. solve (A1 a)).
-s_atom : solve (atom P) <- assume A <- A >> P.
-i_andl : A1 and A2 >> P <- A1 >> P.
-i_andr : A1 and A2 >> P <- A2 >> P.
-i_imp : A2 imp A1 >> P <- A1 >> P <- solve A2.
-i_forall : Pi T':i. forall (\t:i. A1 t) >> P <- A1 T' >> P.
-i_atom : atom P >> P.
-s_sound : Pi A:o. solve A -> pf A -> type.
-h_sound : Pi A:o. assume A -> pf A -> type.
-i_sound : Pi A:o. Pi P:p. A >> P -> (pf A -> pf (atom P)) -> type.
-ss_and : s_sound (s_and S2 S1) (andi D1 D2) <- s_sound S1 D1 <- s_sound S2 D2.
+s_forall : (Pi a:i. solve (A1 a)) -> solve (forall (\t:i. A1 t)).
+s_atom : >> A P -> assume A -> solve (atom P).
+i_andl : >> A1 P -> >> (and A1 A2) P.
+i_andr : >> A2 P -> >> (and A1 A2) P.
+i_imp : solve A2 -> >> A1 P -> >> (imp A2 A1) P.
+i_forall : Pi T':i. >> (A1 T') P -> >> (forall (\t:i. A1 t)) P.
+i_atom : >> (atom P) P.
+s_sound : solve A -> pf A -> type.
+h_sound : assume A -> pf A -> type.
+i_sound : >> A P -> (pf A -> pf (atom P)) -> type.
+ss_and : s_sound S2 D2 -> s_sound S1 D1 -> s_sound (s_and S2 S1) (andi D1 D2).
 ss_imp :
-   s_sound (s_imp (\h:assume A. S1 h)) (impi (\d:pf A. D1 d))
-      <- (Pi d:assume A. Pi u:pf A. h_sound d u -> s_sound (S1 d) (D1 u)).
+   (Pi d:assume A. Pi u:pf A. h_sound d u -> s_sound (S1 d) (D1 u))
+      -> s_sound (s_imp (\h:assume A. S1 h)) (impi (\d:pf A. D1 d)).
 ss_true : s_sound s_true truei.
 ss_forall :
-   s_sound (s_forall (\a:i. S1 a)) (foralli (\a:i. D1 a))
-      <- (Pi a:i. s_sound (S1 a) (D1 a)).
+   (Pi a:i. s_sound (S1 a) (D1 a))
+      -> s_sound (s_forall (\a:i. S1 a)) (foralli (\a:i. D1 a)).
 ss_atom :
-   s_sound (s_atom I2 H1) (D2 D1)
-      <- h_sound H1 D1
-      <- i_sound I2 (\d:pf A1. D2 d).
+   i_sound I2 (\d:pf A1. D2 d) -> h_sound H1 D1
+      -> s_sound (s_atom I2 H1) (D2 D1).
 is_andl :
-   i_sound (i_andl I1) (\u:pf (A1 and A2). D1 (andel u))
-      <- i_sound I1 (\d:pf A1. D1 d).
+   i_sound I1 (\d:pf A1. D1 d)
+      -> i_sound (i_andl I1) (\u:pf (and A1 A2). D1 (andel u)).
 is_andr :
-   i_sound (i_andr I2) (\u:pf (A1 and A2). D2 (ander u))
-      <- i_sound I2 (\d:pf A2. D2 d).
+   i_sound I2 (\d:pf A2. D2 d)
+      -> i_sound (i_andr I2) (\u:pf (and A1 A2). D2 (ander u)).
 is_imp :
-   i_sound (i_imp S2 I1) (\u:pf (A2 imp A1). D1 (impe u D2))
-      <- i_sound I1 (\d:pf A1. D1 d)
-      <- s_sound S2 D2.
+   s_sound S2 D2 -> i_sound I1 (\d:pf A1. D1 d)
+      -> i_sound (i_imp S2 I1) (\u:pf (imp A2 A1). D1 (impe u D2)).
 is_forall :
-   i_sound (i_forall T' I1) (\u:pf (forall (\t:i. A1 t)). D1 (foralle u T'))
-      <- i_sound I1 (\d:pf (A1 T'). D1 d).
+   i_sound I1 (\d:pf (A1 T'). D1 d)
+      -> i_sound (i_forall T' I1)
+            (\u:pf (forall (\t:i. A1 t)). D1 (foralle u T')).
 is_atom : i_sound i_atom (\u:pf (atom P). u).
 
-ss_can : Pi A:o. Pi S:solve A. Pi D:pf A. s_sound S D -> can A D -> type.
-hs_atm : Pi A1:o. Pi H:assume A1. Pi D:pf A1. h_sound H D -> atm D -> type.
-is_atm :
-   Pi A:o. Pi P1:p. Pi I:A >> P1. Pi D:pf A -> pf (atom P1).
-      i_sound I (\d:pf A. D d) -> (Pi u:pf A. atm u -> atm (D u)) -> type.
+ss_can : s_sound S D -> can A D -> type.
+hs_atm : h_sound H D -> atm D -> type.
+is_atm : i_sound I (\d:pf A. D d) -> (Pi u:pf A. atm u -> atm (D u)) -> type.
 ssc_and :
-   ss_can (ss_and SS2 SS1) (can_andi CN2 CN1)
-      <- ss_can SS1 CN1
-      <- ss_can SS2 CN2.
+   ss_can SS2 CN2 -> ss_can SS1 CN1
+      -> ss_can (ss_and SS2 SS1) (can_andi CN2 CN1).
 ssc_imp :
-   ss_can (ss_imp (\d:assume A. \u:pf A. \hs:h_sound d u. SS1 d u hs))
-      (can_impi (\u:pf A. \at:atm u. CN1 u at))
-      <- (Pi d:assume A. Pi u:pf A. Pi hs:h_sound d u. Pi at:atm u.
-             hs_atm hs at -> ss_can (SS1 d u hs) (CN1 u at)).
+   (Pi d:assume A. Pi u:pf A. Pi hs:h_sound d u. Pi at:atm u.
+       hs_atm hs at -> ss_can (SS1 d u hs) (CN1 u at))
+      -> ss_can (ss_imp (\d:assume A. \u:pf A. \hs:h_sound d u. SS1 d u hs))
+            (can_impi (\u:pf A. \at:atm u. CN1 u at)).
 ssc_true : ss_can ss_true can_truei.
 ssc_forall :
-   ss_can (ss_forall (\a:i. SS1 a)) (can_foralli (\a:i. CN1 a))
-      <- (Pi a:i. ss_can (SS1 a) (CN1 a)).
+   (Pi a:i. ss_can (SS1 a) (CN1 a))
+      -> ss_can (ss_forall (\a:i. SS1 a)) (can_foralli (\a:i. CN1 a)).
 ssc_atom :
-   ss_can (ss_atom IS2 HS1) (can_atm (AT2 D2 AT1))
-      <- hs_atm HS1 AT1
-      <- is_atm IS2 (\u:pf A1. \at:atm u. AT2 u at).
+   is_atm IS2 (\u:pf A1. \at:atm u. AT2 u at) -> hs_atm HS1 AT1
+      -> ss_can (ss_atom IS2 HS1) (can_atm (AT2 D2 AT1)).
 isc_andl :
-   is_atm (is_andl IS1)
-      (\u:pf (A and B). \at:atm u. AT1 (andel u) (atm_andel at))
-      <- is_atm IS1 (\u:pf A. \at:atm u. AT1 u at).
+   is_atm IS1 (\u:pf A. \at:atm u. AT1 u at)
+      -> is_atm (is_andl IS1)
+            (\u:pf (and A B). \at:atm u. AT1 (andel u) (atm_andel at)).
 isc_andr :
-   is_atm (is_andr IS1)
-      (\u:pf (A and B). \at:atm u. AT1 (ander u) (atm_ander at))
-      <- is_atm IS1 (\u:pf B. \at:atm u. AT1 u at).
+   is_atm IS1 (\u:pf B. \at:atm u. AT1 u at)
+      -> is_atm (is_andr IS1)
+            (\u:pf (and A B). \at:atm u. AT1 (ander u) (atm_ander at)).
 isc_imp :
-   is_atm (is_imp SS2 IS1)
-      (\u:pf (A imp B). \at:atm u. AT1 (impe u D1) (atm_impe CN2 at))
-      <- is_atm IS1 (\u:pf B. \at:atm u. AT1 u at)
-      <- ss_can SS2 CN2.
+   ss_can SS2 CN2 -> is_atm IS1 (\u:pf B. \at:atm u. AT1 u at)
+      -> is_atm (is_imp SS2 IS1)
+            (\u:pf (imp A B). \at:atm u. AT1 (impe u D1) (atm_impe CN2 at)).
 isc_forall :
-   is_atm (is_forall IS1)
-      (\u:pf (forall (\t:i. A t)). \at:atm u.
-          AT1 (foralle u T1) (atm_foralle at))
-      <- is_atm IS1 (\u:pf (A T1). \at:atm u. AT1 u at).
+   is_atm IS1 (\u:pf (A T1). \at:atm u. AT1 u at)
+      -> is_atm (is_forall IS1)
+            (\u:pf (forall (\t:i. A t)). \at:atm u.
+                AT1 (foralle u T1) (atm_foralle at)).
 isc_atom : is_atm is_atom (\u:pf (atom P). \at:atm u. at).
 
-cmpcs : Pi A:o. Pi D:pf A. can A D -> solve A -> type.
-cmpai : Pi A:o. Pi D:pf A. atm D -> (Pi P:p. A >> P -> solve (atom P)) -> type.
+cmpcs : can A D -> solve A -> type.
+cmpai : Pi D:pf A. atm D -> (Pi P:p. >> A P -> solve (atom P)) -> type.
 cmpcs_andi :
-   cmpcs (can_andi CN2 CN1) (s_and S2 S1) <- cmpcs CN1 S1 <- cmpcs CN2 S2.
+   cmpcs CN2 S2 -> cmpcs CN1 S1 -> cmpcs (can_andi CN2 CN1) (s_and S2 S1).
 cmpcs_impi :
-   cmpcs (can_impi (\u:pf A2. \at:atm u. CN1 u at)) (s_imp (\h:assume A2. S1 h))
-      <- (Pi u:pf A2. Pi a:atm u. Pi d:assume A2.
-             cmpai u a (\P:p. \i1:A2 >> P. s_atom i1 d)
-                -> cmpcs (CN1 u a) (S1 d)).
+   (Pi u:pf A2. Pi a:atm u. Pi d:assume A2.
+       cmpai u a (\P:p. \i1:>> A2 P. s_atom i1 d) -> cmpcs (CN1 u a) (S1 d))
+      -> cmpcs (can_impi (\u:pf A2. \at:atm u. CN1 u at))
+            (s_imp (\h:assume A2. S1 h)).
 cmpcs_truei : cmpcs can_truei s_true.
 cmpcs_foralli :
-   cmpcs (can_foralli (\a:i. CN1 a)) (s_forall (\a:i. S1 a))
-      <- (Pi a:i. cmpcs (CN1 a) (S1 a)).
+   (Pi a:i. cmpcs (CN1 a) (S1 a))
+      -> cmpcs (can_foralli (\a:i. CN1 a)) (s_forall (\a:i. S1 a)).
 cmpcs_atm :
-   cmpcs (can_atm AT1) (I1 Q i_atom)
-      <- cmpai D AT1 (\P:p. \i1:atom Q >> P. I1 P i1).
+   cmpai D AT1 (\P:p. \i1:>> (atom Q) P. I1 P i1)
+      -> cmpcs (can_atm AT1) (I1 Q i_atom).
 cmpai_andel :
-   cmpai (andel D1) (atm_andel CN1) (\P:p. \i1:A >> P. I1 P (i_andl i1))
-      <- cmpai D1 CN1 (\P:p. \i1:A and A1 >> P. I1 P i1).
+   cmpai D1 CN1 (\P:p. \i1:>> (and A A1) P. I1 P i1)
+      -> cmpai (andel D1) (atm_andel CN1) (\P:p. \i1:>> A P. I1 P (i_andl i1)).
 cmpai_ander :
-   cmpai (ander D1) (atm_ander CN1) (\P:p. \i1:A >> P. I1 P (i_andr i1))
-      <- cmpai D1 CN1 (\P:p. \i1:A1 and A >> P. I1 P i1).
+   cmpai D1 CN1 (\P:p. \i1:>> (and A1 A) P. I1 P i1)
+      -> cmpai (ander D1) (atm_ander CN1) (\P:p. \i1:>> A P. I1 P (i_andr i1)).
 cmpai_impe :
-   cmpai (impe D1 D2) (atm_impe CN2 AT1) (\P:p. \i1:A >> P. I1 P (i_imp S2 i1))
-      <- cmpai D1 AT1 (\P:p. \i1:A1 imp A >> P. I1 P i1)
-      <- cmpcs CN2 S2.
+   cmpcs CN2 S2 -> cmpai D1 AT1 (\P:p. \i1:>> (imp A1 A) P. I1 P i1)
+      -> cmpai (impe D1 D2) (atm_impe CN2 AT1)
+            (\P:p. \i1:>> A P. I1 P (i_imp S2 i1)).
 cmpai_foralle :
-   cmpai (foralle D1 T') (atm_foralle AT1)
-      (\P:p. \i1:A1 T' >> P. I1 P (i_forall T' i1))
-      <- cmpai D1 AT1 (\P:p. \i1:forall (\t:i. A1 t) >> P. I1 P i1).
+   cmpai D1 AT1 (\P:p. \i1:>> (forall (\t:i. A1 t)) P. I1 P i1)
+      -> cmpai (foralle D1 T') (atm_foralle AT1)
+            (\P:p. \i1:>> (A1 T') P. I1 P (i_forall T' i1)).
 
 goal : type.
 prog : type.
-atom' : goal <- p.
-and' : goal <- goal <- goal.
-imp' : goal <- goal <- prog.
+atom' : p -> goal.
+and' : goal -> goal -> goal.
+imp' : prog -> goal -> goal.
 true' : goal.
-forall' : goal <- (i -> goal).
-or' : goal <- goal <- goal.
+forall' : (i -> goal) -> goal.
+or' : goal -> goal -> goal.
 false' : goal.
-exists' : goal <- (i -> goal).
-== : goal <- p <- p.
-atom^ : prog <- p.
-and^ : prog <- prog <- prog.
-imp^ : prog <- prog <- goal.
+exists' : (i -> goal) -> goal.
+== : p -> p -> goal.
+atom^ : p -> prog.
+and^ : prog -> prog -> prog.
+imp^ : goal -> prog -> prog.
 true^ : prog.
-forall^ : prog <- (i -> prog).
+forall^ : (i -> prog) -> prog.
 gl : o -> goal -> type.
 pg : o -> prog -> type.
 gl_atom : gl (atom P) (atom' P).
-gl_and : gl (A1 and A2) (G1 and' G2) <- gl A1 G1 <- gl A2 G2.
-gl_imp : gl (A2 imp A1) (D2 imp' G1) <- gl A1 G1 <- pg A2 D2.
+gl_and : gl A2 G2 -> gl A1 G1 -> gl (and A1 A2) (and' G1 G2).
+gl_imp : pg A2 D2 -> gl A1 G1 -> gl (imp A2 A1) (imp' D2 G1).
 gl_true : gl true true'.
 gl_forall :
-   gl (forall (\t:i. A1 t)) (forall' (\t:i. G1 t)) <- (Pi a:i. gl (A1 a) (G1 a)).
+   (Pi a:i. gl (A1 a) (G1 a)) -> gl (forall (\t:i. A1 t)) (forall' (\t:i. G1 t)).
 pg_atom : pg (atom P) (atom^ P).
-pg_and : pg (A1 and A2) (G1 and^ G2) <- pg A1 G1 <- pg A2 G2.
-pg_imp : pg (A2 imp A1) (G2 imp^ D1) <- pg A1 D1 <- gl A2 G2.
+pg_and : pg A2 G2 -> pg A1 G1 -> pg (and A1 A2) (and^ G1 G2).
+pg_imp : gl A2 G2 -> pg A1 D1 -> pg (imp A2 A1) (imp^ G2 D1).
 pg_true : pg true true^.
 pg_forall :
-   pg (forall (\t:i. A1 t)) (forall^ (\t:i. D1 t)) <- (Pi a:i. pg (A1 a) (D1 a)).
+   (Pi a:i. pg (A1 a) (D1 a)) -> pg (forall (\t:i. A1 t)) (forall^ (\t:i. D1 t)).
 solve' : goal -> type.
 assume' : prog -> type.
 resolve : prog -> p -> goal -> type.
-s'_and : solve' (G1 and' G2) <- solve' G1 <- solve' G2.
-s'_imp : solve' (D2 imp' G1) <- (assume' D2 -> solve' G1).
+s'_and : solve' G2 -> solve' G1 -> solve' (and' G1 G2).
+s'_imp : (assume' D2 -> solve' G1) -> solve' (imp' D2 G1).
 s'_true : solve' true'.
-s'_forall : solve' (forall' (\t:i. G1 t)) <- (Pi a:i. solve' (G1 a)).
-s'_eqp : solve' (P == P).
-s'_orl : solve' (G1 or' G2) <- solve' G1.
-s'_orr : solve' (G1 or' G2) <- solve' G2.
-s'_exists : Pi T':i. solve' (exists' (\t:i. G1 t)) <- solve' (G1 T').
-s'_atom : solve' (atom' P) <- assume' D <- resolve D P G <- solve' G.
+s'_forall : (Pi a:i. solve' (G1 a)) -> solve' (forall' (\t:i. G1 t)).
+s'_eqp : solve' (== P P).
+s'_orl : solve' G1 -> solve' (or' G1 G2).
+s'_orr : solve' G2 -> solve' (or' G1 G2).
+s'_exists : Pi T':i. solve' (G1 T') -> solve' (exists' (\t:i. G1 t)).
+s'_atom : solve' G -> resolve D P G -> assume' D -> solve' (atom' P).
 r_and :
-   resolve (D1 and^ D2) P (G1 or' G2) <- resolve D1 P G1 <- resolve D2 P G2.
-r_imp : resolve (G2 imp^ D1) P (G1 and' G2) <- resolve D1 P G1.
+   resolve D2 P G2 -> resolve D1 P G1 -> resolve (and^ D1 D2) P (or' G1 G2).
+r_imp : resolve D1 P G1 -> resolve (imp^ G2 D1) P (and' G1 G2).
 r_true : resolve true^ P false'.
 r_forall :
-   resolve (forall^ (\t:i. D1 t)) P (exists' (\t:i. G1 t))
-      <- (Pi a:i. resolve (D1 a) P (G1 a)).
-r_atom : resolve (atom^ Q) P (Q == P).
-s'_sound : Pi G:goal. Pi A:o. solve' G -> gl A G -> solve A -> type.
-h'_sound : Pi D:prog. Pi A:o. assume' D -> pg A D -> assume A -> type.
-r_sound :
-   Pi D:prog. Pi P:p. Pi G:goal. Pi A:o.
-      resolve D P G -> solve' G -> pg A D -> A >> P -> type.
+   (Pi a:i. resolve (D1 a) P (G1 a))
+      -> resolve (forall^ (\t:i. D1 t)) P (exists' (\t:i. G1 t)).
+r_atom : resolve (atom^ Q) P (== Q P).
+s'_sound : solve' G -> gl A G -> solve A -> type.
+h'_sound : assume' D -> pg A D -> assume A -> type.
+r_sound : resolve D P G -> solve' G -> pg A D -> >> A P -> type.
 s's_and :
-   s'_sound (s'_and S'2 S'1) (gl_and GL2 GL1) (s_and S2 S1)
-      <- s'_sound S'1 GL1 S1
-      <- s'_sound S'2 GL2 S2.
+   s'_sound S'2 GL2 S2 -> s'_sound S'1 GL1 S1
+      -> s'_sound (s'_and S'2 S'1) (gl_and GL2 GL1) (s_and S2 S1).
 s's_imp :
-   s'_sound (s'_imp (\h':assume' D2. S'1 h')) (gl_imp PG2 GL1)
-      (s_imp (\h:assume A2. S1 h))
-      <- (Pi h':assume' D2. Pi h:assume A2.
-             h'_sound h' PG2 h -> s'_sound (S'1 h') GL1 (S1 h)).
+   (Pi h':assume' D2. Pi h:assume A2.
+       h'_sound h' PG2 h -> s'_sound (S'1 h') GL1 (S1 h))
+      -> s'_sound (s'_imp (\h':assume' D2. S'1 h')) (gl_imp PG2 GL1)
+            (s_imp (\h:assume A2. S1 h)).
 s's_true : s'_sound s'_true gl_true s_true.
 s's_forall :
-   s'_sound (s'_forall (\a:i. S'1 a)) (gl_forall (\a:i. GL1 a))
-      (s_forall (\a:i. S1 a))
-      <- (Pi a:i. s'_sound (S'1 a) (GL1 a) (S1 a)).
+   (Pi a:i. s'_sound (S'1 a) (GL1 a) (S1 a))
+      -> s'_sound (s'_forall (\a:i. S'1 a)) (gl_forall (\a:i. GL1 a))
+            (s_forall (\a:i. S1 a)).
 s's_atom :
-   s'_sound (s'_atom S'3 R2 H'1) gl_atom (s_atom I2 PR1)
-      <- h'_sound H'1 PG1 PR1
-      <- r_sound R2 S'3 PG1 I2.
+   r_sound R2 S'3 PG1 I2 -> h'_sound H'1 PG1 PR1
+      -> s'_sound (s'_atom S'3 R2 H'1) gl_atom (s_atom I2 PR1).
 rs'_andl :
-   r_sound (r_and R2 R1) (s'_orl S'1) (pg_and PG2 PG1) (i_andl I1)
-      <- r_sound R1 S'1 PG1 I1.
+   r_sound R1 S'1 PG1 I1
+      -> r_sound (r_and R2 R1) (s'_orl S'1) (pg_and PG2 PG1) (i_andl I1).
 rs'_andr :
-   r_sound (r_and R2 R1) (s'_orr S'2) (pg_and PG2 PG1) (i_andr I2)
-      <- r_sound R2 S'2 PG2 I2.
+   r_sound R2 S'2 PG2 I2
+      -> r_sound (r_and R2 R1) (s'_orr S'2) (pg_and PG2 PG1) (i_andr I2).
 rs'_imp :
-   r_sound (r_imp R1) (s'_and S'2 S'1) (pg_imp GL2 PG1) (i_imp S2 I1)
-      <- r_sound R1 S'1 PG1 I1
-      <- s'_sound S'2 GL2 S2.
+   s'_sound S'2 GL2 S2 -> r_sound R1 S'1 PG1 I1
+      -> r_sound (r_imp R1) (s'_and S'2 S'1) (pg_imp GL2 PG1) (i_imp S2 I1).
 rs'_forall :
-   r_sound (r_forall (\a:i. R1 a)) (s'_exists T' S'1) (pg_forall (\a:i. PG1 a))
-      (i_forall T' I1)
-      <- r_sound (R1 T') S'1 (PG1 T') I1.
+   r_sound (R1 T') S'1 (PG1 T') I1
+      -> r_sound (r_forall (\a:i. R1 a)) (s'_exists T' S'1)
+            (pg_forall (\a:i. PG1 a)) (i_forall T' I1).
 rs'_atom : r_sound r_atom s'_eqp pg_atom i_atom.
 
-r_total : Pi P:p. Pi G:goal. Pi D:prog. resolve D P G -> type.
-rt_and : r_total (D1 and^ D2) (r_and R2 R1) <- r_total D1 R1 <- r_total D2 R2.
-rt_imp : r_total (G2 imp^ D1) (r_imp R1) <- r_total D1 R1.
+r_total : Pi D:prog. resolve D P G -> type.
+rt_and : r_total D2 R2 -> r_total D1 R1 -> r_total (and^ D1 D2) (r_and R2 R1).
+rt_imp : r_total D1 R1 -> r_total (imp^ G2 D1) (r_imp R1).
 rt_true : r_total true^ r_true.
 rt_forall :
-   r_total (forall^ (\t:i. D1 t)) (r_forall (\a:i. R1 a))
-      <- (Pi a:i. r_total (D1 a) (R1 a)).
+   (Pi a:i. r_total (D1 a) (R1 a))
+      -> r_total (forall^ (\t:i. D1 t)) (r_forall (\a:i. R1 a)).
 rt_atom : r_total (atom^ Q) r_atom.
-s'_comp : Pi A:o. Pi G:goal. solve A -> gl A G -> solve' G -> type.
-h'_comp : Pi A:o. Pi D:prog. assume A -> pg A D -> assume' D -> type.
-r_comp :
-   Pi A:o. Pi P:p. Pi D:prog. Pi G:goal.
-      A >> P -> pg A D -> resolve D P G -> solve' G -> type.
+s'_comp : solve A -> gl A G -> solve' G -> type.
+h'_comp : assume A -> pg A D -> assume' D -> type.
+r_comp : >> A P -> pg A D -> resolve D P G -> solve' G -> type.
 s's_and :
-   s'_comp (s_and S2 S1) (gl_and GL2 GL1) (s'_and S'2 S'1)
-      <- s'_comp S1 GL1 S'1
-      <- s'_comp S2 GL2 S'2.
+   s'_comp S2 GL2 S'2 -> s'_comp S1 GL1 S'1
+      -> s'_comp (s_and S2 S1) (gl_and GL2 GL1) (s'_and S'2 S'1).
 s's_imp :
-   s'_comp (s_imp (\h:assume A2. S1 h)) (gl_imp PG2 GL1)
-      (s'_imp (\h':assume' D2. S'1 h'))
-      <- (Pi h:assume A2. Pi h':assume' D2.
-             h'_comp h PG2 h' -> s'_comp (S1 h) GL1 (S'1 h')).
+   (Pi h:assume A2. Pi h':assume' D2.
+       h'_comp h PG2 h' -> s'_comp (S1 h) GL1 (S'1 h'))
+      -> s'_comp (s_imp (\h:assume A2. S1 h)) (gl_imp PG2 GL1)
+            (s'_imp (\h':assume' D2. S'1 h')).
 s's_true : s'_comp s_true gl_true s'_true.
 s's_forall :
-   s'_comp (s_forall (\a:i. S1 a)) (gl_forall (\a:i. GL1 a))
-      (s'_forall (\a:i. S'1 a))
-      <- (Pi a:i. s'_comp (S1 a) (GL1 a) (S'1 a)).
+   (Pi a:i. s'_comp (S1 a) (GL1 a) (S'1 a))
+      -> s'_comp (s_forall (\a:i. S1 a)) (gl_forall (\a:i. GL1 a))
+            (s'_forall (\a:i. S'1 a)).
 s's_atom :
-   s'_comp (s_atom I2 H1) gl_atom (s'_atom S'3 R2 H'1)
-      <- h'_comp H1 PG1 H'1
-      <- r_total D R2
-      <- r_comp I2 PG1 R2 S'3.
+   r_comp I2 PG1 R2 S'3 -> r_total D R2 -> h'_comp H1 PG1 H'1
+      -> s'_comp (s_atom I2 H1) gl_atom (s'_atom S'3 R2 H'1).
 rs'_andl :
-   r_comp (i_andl I1) (pg_and PG2 PG1) (r_and R2 R1) (s'_orl S'1)
-      <- r_comp I1 PG1 R1 S'1.
+   r_comp I1 PG1 R1 S'1
+      -> r_comp (i_andl I1) (pg_and PG2 PG1) (r_and R2 R1) (s'_orl S'1).
 rs'_andr :
-   r_comp (i_andr I2) (pg_and PG2 PG1) (r_and R2 R1) (s'_orr S'2)
-      <- r_comp I2 PG2 R2 S'2.
+   r_comp I2 PG2 R2 S'2
+      -> r_comp (i_andr I2) (pg_and PG2 PG1) (r_and R2 R1) (s'_orr S'2).
 rs'_imp :
-   r_comp (i_imp S2 I1) (pg_imp GL2 PG1) (r_imp R1) (s'_and S'2 S'1)
-      <- r_comp I1 PG1 R1 S'1
-      <- s'_comp S2 GL2 S'2.
+   s'_comp S2 GL2 S'2 -> r_comp I1 PG1 R1 S'1
+      -> r_comp (i_imp S2 I1) (pg_imp GL2 PG1) (r_imp R1) (s'_and S'2 S'1).
 rs'_forall :
-   r_comp (i_forall T' I1) (pg_forall (\a:i. PG1 a)) (r_forall (\a:i. R1 a))
-      (s'_exists T' S'1)
-      <- r_comp I1 (PG1 T') (R1 T') S'1.
+   r_comp I1 (PG1 T') (R1 T') S'1
+      -> r_comp (i_forall T' I1) (pg_forall (\a:i. PG1 a))
+            (r_forall (\a:i. R1 a)) (s'_exists T' S'1).
 rs'_atom : r_comp i_atom pg_atom r_atom s'_eqp.
 

@@ -1,0 +1,166 @@
+exp : type.
+val : type.
+z : exp.
+s : exp -> exp.
+case : exp -> exp -> (val -> exp) -> exp.
+pair : exp -> exp -> exp.
+fst : exp -> exp.
+snd : exp -> exp.
+lam : (val -> exp) -> exp.
+app : exp -> exp -> exp.
+letv : exp -> (val -> exp) -> exp.
+letn : exp -> (exp -> exp) -> exp.
+fix : (exp -> exp) -> exp.
+vl : val -> exp.
+z* : val.
+s* : val -> val.
+pair* : val -> val -> val.
+lam* : (val -> exp) -> val.
+eval : exp -> val -> type.
+ev_z : eval z z*.
+ev_s : eval E V -> eval (s E) (s* V).
+ev_case_z : eval E2 V -> eval E1 z* -> eval (case E1 E2 (\v:val. E3 v)) V.
+ev_case_s :
+   eval (E3 V1') V -> eval E1 (s* V1') -> eval (case E1 E2 (\v:val. E3 v)) V.
+ev_pair : eval E2 V2 -> eval E1 V1 -> eval (pair E1 E2) (pair* V1 V2).
+ev_fst : eval E (pair* V1 V2) -> eval (fst E) V1.
+ev_snd : eval E (pair* V1 V2) -> eval (snd E) V2.
+ev_lam : eval (lam (\v:val. E v)) (lam* (\v:val. E v)).
+ev_app :
+   eval (E1' V2) V -> eval E2 V2 -> eval E1 (lam* (\v:val. E1' v))
+      -> eval (app E1 E2) V.
+ev_letv : eval (E2 V1) V -> eval E1 V1 -> eval (letv E1 (\v:val. E2 v)) V.
+ev_letn : eval (E2 E1) V -> eval (letn E1 (\e:exp. E2 e)) V.
+ev_fix : eval (E (fix (\e:exp. E e))) V -> eval (fix (\e:exp. E e)) V.
+ev_vl : eval (vl V) V.
+inst : type.
+ev : exp -> inst.
+return : val -> inst.
+case1 : val -> exp -> (val -> exp) -> inst.
+pair1 : val -> exp -> inst.
+fst1 : val -> inst.
+snd1 : val -> inst.
+app1 : val -> exp -> inst.
+app2 : val -> val -> inst.
+cont : type.
+init : cont.
+;' : cont -> (val -> inst) -> cont.
+state : type.
+# : cont -> inst -> state.
+answer : val -> state.
+=> : state -> state -> type.
+st_z : => (# K (ev z)) (# K (return z*)).
+st_s : => (# K (ev (s E))) (# (;' K (\x:val. return (s* x))) (ev E)).
+st_case :
+   => (# K (ev (case E1 E2 (\v:val. E3 v))))
+      (# (;' K (\x1:val. case1 x1 E2 (\v:val. E3 v))) (ev E1)).
+st_case1_z : => (# K (case1 z* E2 (\v:val. E3 v))) (# K (ev E2)).
+st_case1_s : => (# K (case1 (s* V1') E2 (\v:val. E3 v))) (# K (ev (E3 V1'))).
+st_pair : => (# K (ev (pair E1 E2))) (# (;' K (\x1:val. pair1 x1 E2)) (ev E1)).
+st_pair1 :
+   => (# K (pair1 V1 E2)) (# (;' K (\x2:val. return (pair* V1 x2))) (ev E2)).
+st_fst : => (# K (ev (fst E))) (# (;' K (\x:val. fst1 x)) (ev E)).
+st_fst1 : => (# K (fst1 (pair* V1 V2))) (# K (return V1)).
+st_snd : => (# K (ev (snd E))) (# (;' K (\x:val. snd1 x)) (ev E)).
+st_snd1 : => (# K (snd1 (pair* V1 V2))) (# K (return V2)).
+st_lam : => (# K (ev (lam (\v:val. E v)))) (# K (return (lam* (\v:val. E v)))).
+st_app : => (# K (ev (app E1 E2))) (# (;' K (\x1:val. app1 x1 E2)) (ev E1)).
+st_app1 : => (# K (app1 V1 E2)) (# (;' K (\x2:val. app2 V1 x2)) (ev E2)).
+st_app2 : => (# K (app2 (lam* (\v:val. E1' v)) V2)) (# K (ev (E1' V2))).
+st_letv :
+   => (# K (ev (letv E1 (\v:val. E2 v))))
+      (# (;' K (\x1:val. ev (E2 x1))) (ev E1)).
+st_letn : => (# K (ev (letn E1 (\e:exp. E2 e)))) (# K (ev (E2 E1))).
+st_fix : => (# K (ev (fix (\e:exp. E e)))) (# K (ev (E (fix (\e:exp. E e))))).
+st_vl : => (# K (ev (vl V))) (# K (return V)).
+st_return : => (# (;' K (\v:val. C v)) (return V)) (# K (C V)).
+st_init : => (# init (return V)) (answer V).
+=>* : state -> state -> type.
+stop : =>* S S.
+<< : =>* S' S'' -> => S S' -> =>* S S''.
+ceval : exp -> val -> type.
+cev : =>* (# init (ev E)) (answer V) -> ceval E V.
+csd :
+   =>* (# K (ev E)) (answer W) -> eval E V -> =>* (# K (return V)) (answer W)
+      -> type.
+csd_z : csd (<< C' st_z) ev_z C'.
+csd_s : csd C1 D1 (<< C' st_return) -> csd (<< C1 st_s) (ev_s D1) C'.
+csd_case_z :
+   csd C2 D2 C' -> csd C1 D1 (<< (<< C2 st_case1_z) st_return)
+      -> csd (<< C1 st_case) (ev_case_z D2 D1) C'.
+csd_case_s :
+   csd C3 D3 C' -> csd C1 D1 (<< (<< C3 st_case1_s) st_return)
+      -> csd (<< C1 st_case) (ev_case_s D3 D1) C'.
+csd_pair :
+   csd C2 D2 (<< C' st_return) -> csd C1 D1 (<< (<< C2 st_pair1) st_return)
+      -> csd (<< C1 st_pair) (ev_pair D2 D1) C'.
+csd_fst :
+   csd C1 D1 (<< (<< C' st_fst1) st_return) -> csd (<< C1 st_fst) (ev_fst D1) C'.
+csd_snd :
+   csd C1 D1 (<< (<< C' st_snd1) st_return) -> csd (<< C1 st_snd) (ev_snd D1) C'.
+csd_lam : csd (<< C' st_lam) ev_lam C'.
+csd_app :
+   csd C3 D3 C' -> csd C2 D2 (<< (<< C3 st_app2) st_return)
+      -> csd C1 D1 (<< (<< C2 st_app1) st_return)
+      -> csd (<< C1 st_app) (ev_app D3 D2 D1) C'.
+csd_letv :
+   csd C2 D2 C' -> csd C1 D1 (<< C2 st_return)
+      -> csd (<< C1 st_letv) (ev_letv D2 D1) C'.
+csd_letn : csd C1 D1 C' -> csd (<< C1 st_letn) (ev_letn D1) C'.
+csd_fix : csd C1 D1 C' -> csd (<< C1 st_fix) (ev_fix D1) C'.
+csd_vl : csd (<< C' st_vl) ev_vl C'.
+ceval_sound : ceval E V -> eval E V -> type.
+cevsd : csd C D (<< stop st_init) -> ceval_sound (cev C) D.
+ccp :
+   eval E V -> =>* (# K (return V)) (answer W) -> =>* (# K (ev E)) (answer W)
+      -> type.
+ccp_z : ccp ev_z C' (<< C' st_z).
+ccp_s : ccp D1 (<< C' st_return) C1 -> ccp (ev_s D1) C' (<< C1 st_s).
+ccp_case_z :
+   ccp D1 (<< (<< C2 st_case1_z) st_return) C1 -> ccp D2 C' C2
+      -> ccp (ev_case_z D2 D1) C' (<< C1 st_case).
+ccp_case_s :
+   ccp D1 (<< (<< C3 st_case1_s) st_return) C1 -> ccp D3 C' C3
+      -> ccp (ev_case_s D3 D1) C' (<< C1 st_case).
+ccp_pair :
+   ccp D1 (<< (<< C2 st_pair1) st_return) C1 -> ccp D2 (<< C' st_return) C2
+      -> ccp (ev_pair D2 D1) C' (<< C1 st_pair).
+ccp_fst :
+   ccp D1 (<< (<< C' st_fst1) st_return) C1 -> ccp (ev_fst D1) C' (<< C1 st_fst).
+ccp_snd :
+   ccp D1 (<< (<< C' st_snd1) st_return) C1 -> ccp (ev_snd D1) C' (<< C1 st_snd).
+ccp_lam : ccp ev_lam C' (<< C' st_lam).
+ccp_app :
+   ccp D1 (<< (<< C2 st_app1) st_return) C1
+      -> ccp D2 (<< (<< C3 st_app2) st_return) C2 -> ccp D3 C' C3
+      -> ccp (ev_app D3 D2 D1) C' (<< C1 st_app).
+ccp_letv :
+   ccp D1 (<< C2 st_return) C1 -> ccp D2 C' C2
+      -> ccp (ev_letv D2 D1) C' (<< C1 st_letv).
+ccp_letn : ccp D1 C' C1 -> ccp (ev_letn D1) C' (<< C1 st_letn).
+ccp_fix : ccp D1 C' C1 -> ccp (ev_fix D1) C' (<< C1 st_fix).
+ccp_vl : ccp ev_vl C' (<< C' st_vl).
+ceval_complete : eval E V -> ceval E V -> type.
+cevcp : ccp D (<< stop st_init) C -> ceval_complete D (cev C).
+peq : csd C D C' -> ccp D C' C -> type.
+peq_z : peq csd_z ccp_z.
+peq_s : peq SD1 CP1 -> peq (csd_s SD1) (ccp_s CP1).
+peq_case_z :
+   peq SD2 CP2 -> peq SD1 CP1 -> peq (csd_case_z SD2 SD1) (ccp_case_z CP1 CP2).
+peq_case_s :
+   peq SD3 CP3 -> peq SD1 CP1 -> peq (csd_case_s SD3 SD1) (ccp_case_s CP1 CP3).
+peq_pair :
+   peq SD2 CP2 -> peq SD1 CP1 -> peq (csd_pair SD2 SD1) (ccp_pair CP1 CP2).
+peq_fst : peq SD1 CP1 -> peq (csd_fst SD1) (ccp_fst CP1).
+peq_snd : peq SD1 CP1 -> peq (csd_snd SD1) (ccp_snd CP1).
+peq_lam : peq csd_lam ccp_lam.
+peq_app :
+   peq SD3 CP3 -> peq SD2 CP2 -> peq SD1 CP1
+      -> peq (csd_app SD3 SD2 SD1) (ccp_app CP1 CP2 CP3).
+peq_letv :
+   peq SD2 CP2 -> peq SD1 CP1 -> peq (csd_letv SD2 SD1) (ccp_letv CP1 CP2).
+peq_letn : peq SD1 CP1 -> peq (csd_letn SD1) (ccp_letn CP1).
+peq_fix : peq SD1 CP1 -> peq (csd_fix SD1) (ccp_fix CP1).
+peq_vl : peq csd_vl ccp_vl.
+proof_equiv : ceval_sound CE D -> ceval_complete D CE -> type.
+pequiv : peq SD CP -> proof_equiv (cevsd SD) (cevcp CP).

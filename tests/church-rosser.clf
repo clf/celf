@@ -1,224 +1,191 @@
 term : type.
-lam : term <- (term -> term).
-app : term <- term <- term.
+lam : (term -> term) -> term.
+app : term -> term -> term.
 --> : term -> term -> type.
-beta1 : app (lam (\m:term. M1 m)) M2 --> M1 M2.
-lm1 : lam (\m:term. M m) --> lam (\m:term. M' m) <- (Pi x:term. M x --> M' x).
-apl1 : app M1 M2 --> app M1' M2 <- M1 --> M1'.
-apr1 : app M1 M2 --> app M1 M2' <- M2 --> M2'.
+beta1 : --> (app (lam (\m:term. M1 m)) M2) (M1 M2).
+lm1 :
+   (Pi x:term. --> (M x) (M' x))
+      -> --> (lam (\m:term. M m)) (lam (\m:term. M' m)).
+apl1 : --> M1 M1' -> --> (app M1 M2) (app M1' M2).
+apr1 : --> M2 M2' -> --> (app M1 M2) (app M1 M2').
 -->* : term -> term -> type.
-id1 : M -->* M.
-step1 : M -->* M'' <- M' -->* M'' <- M --> M'.
+id1 : -->* M M.
+step1 : --> M M' -> -->* M' M'' -> -->* M M''.
 <-> : term -> term -> type.
-refl : M <-> M.
-sym : M <-> M' <- M' <-> M.
-trans : M <-> M'' <- M <-> M' <- M' <-> M''.
-red : M <-> M' <- M -->* M'.
+refl : <-> M M.
+sym : <-> M' M -> <-> M M'.
+trans : <-> M' M'' -> <-> M M' -> <-> M M''.
+red : -->* M M' -> <-> M M'.
 => : term -> term -> type.
 beta :
-   app (lam (\m:term. M1 m)) M2 => M1' M2'
-      <- M2 => M2'
-      <- (Pi x:term. x => x -> M1 x => M1' x).
-ap : app M1 M2 => app M1' M2' <- M2 => M2' <- M1 => M1'.
+   (Pi x:term. => x x -> => (M1 x) (M1' x)) -> => M2 M2'
+      -> => (app (lam (\m:term. M1 m)) M2) (M1' M2').
+ap : => M1 M1' -> => M2 M2' -> => (app M1 M2) (app M1' M2').
 lm :
-   lam (\m:term. M m) => lam (\m:term. M' m)
-      <- (Pi x:term. x => x -> M x => M' x).
+   (Pi x:term. => x x -> => (M x) (M' x))
+      -> => (lam (\m:term. M m)) (lam (\m:term. M' m)).
 =>* : term -> term -> type.
-id : M =>* M.
-; : M =>* M'' <- M' =>* M'' <- M => M'.
+id : =>* M M.
+;' : => M M' -> =>* M' M'' -> =>* M M''.
 <=> : term -> term -> type.
-reduce : M <=> M' <- M =>* M'.
-expand : M' <=> M <- M =>* M'.
-;; : M <=> M'' <- M' <=> M'' <- M <=> M'.
-identity : Pi M:term. M => M -> type.
+reduce : =>* M M' -> <=> M M'.
+expand : =>* M M' -> <=> M' M.
+;; : <=> M M' -> <=> M' M'' -> <=> M M''.
+identity : Pi M:term. => M M -> type.
 id_lam :
-   identity (lam (\m:term. M1 m)) (lm (\x:term. \r:x => x. R1 x r))
-      <- (Pi x:term. Pi eqx:x => x. identity x eqx -> identity (M1 x) (R1 x eqx)).
-id_app : identity (app M1 M2) (ap R1 R2) <- identity M1 R1 <- identity M2 R2.
+   (Pi x:term. Pi eqx:=> x x. identity x eqx -> identity (M1 x) (R1 x eqx))
+      -> identity (lam (\m:term. M1 m)) (lm (\x:term. \r:=> x x. R1 x r)).
+id_app : identity M2 R2 -> identity M1 R1 -> identity (app M1 M2) (ap R1 R2).
 
-append :
-   Pi M:term. Pi M':term. Pi M'':term.
-      M =>* M' -> M' =>* M'' -> M =>* M'' -> type.
+append : =>* M M' -> =>* M' M'' -> =>* M M'' -> type.
 append_id : append id S* S*.
-append_step : append (R1 ; R2*) S* (R1 ; S2*') <- append R2* S* S2*'.
+append_step : append R2* S* S2*' -> append (;' R1 R2*) S* (;' R1 S2*').
 subst :
-   Pi M:term -> term. Pi M':term -> term. Pi N:term. Pi N':term.
-      (Pi x:term. x => x -> M x => M' x) -> N => N' -> M N => M' N' -> type.
-subst_idx : subst (\x:term. \idx:x => x. idx) S S.
+   (Pi x:term. => x x -> => (M x) (M' x)) -> => N N' -> => (M N) (M' N') -> type.
+subst_idx : subst (\x:term. \idx:=> x x. idx) S S.
 subst_beta :
-   subst
-      (\x:term. \idx:x => x.
-          beta (\x1:term. \r:x1 => x1. R1 x idx x1 r) (R2 x idx)) S
-      (beta (\x:term. \r:x => x. R1' x r) R2')
-      <- (Pi y:term. Pi idy:y => y.
-             (Pi N:term. Pi N':term. Pi S':N => N'.
-                 subst (\x:term. \idx:x => x. idy) S' idy)
-                -> subst (\x:term. \idx:x => x. R1 x idx y idy) S (R1' y idy))
-      <- subst (\x:term. \r:x => x. R2 x r) S R2'.
+   subst (\x:term. \r:=> x x. R2 x r) S R2'
+      -> (Pi y:term. Pi idy:=> y y.
+             (Pi N:term. Pi N':term. Pi S':=> N N'.
+                 subst (\x:term. \idx:=> x x. idy) S' idy)
+                -> subst (\x:term. \idx:=> x x. R1 x idx y idy) S (R1' y idy))
+      -> subst
+            (\x:term. \idx:=> x x.
+                beta (\x1:term. \r:=> x1 x1. R1 x idx x1 r) (R2 x idx)) S
+            (beta (\x:term. \r:=> x x. R1' x r) R2').
 subst_ap :
-   subst (\x:term. \idx:x => x. ap (R1 x idx) (R2 x idx)) S (ap R1' R2')
-      <- subst (\x:term. \r:x => x. R1 x r) S R1'
-      <- subst (\x:term. \r:x => x. R2 x r) S R2'.
+   subst (\x:term. \r:=> x x. R2 x r) S R2'
+      -> subst (\x:term. \r:=> x x. R1 x r) S R1'
+      -> subst (\x:term. \idx:=> x x. ap (R1 x idx) (R2 x idx)) S (ap R1' R2').
 subst_lm :
-   subst (\x:term. \idx:x => x. lm (\x1:term. \r:x1 => x1. R1 x idx x1 r)) S
-      (lm (\x:term. \r:x => x. R1' x r))
-      <- (Pi y:term. Pi idy:y => y.
-             (Pi N:term. Pi N':term. Pi S':N => N'.
-                 subst (\x:term. \idx:x => x. idy) S' idy)
-                -> subst (\x:term. \idx:x => x. R1 x idx y idy) S (R1' y idy)).
+   (Pi y:term. Pi idy:=> y y.
+       (Pi N:term. Pi N':term. Pi S':=> N N'.
+           subst (\x:term. \idx:=> x x. idy) S' idy)
+          -> subst (\x:term. \idx:=> x x. R1 x idx y idy) S (R1' y idy))
+      -> subst (\x:term. \idx:=> x x. lm (\x1:term. \r:=> x1 x1. R1 x idx x1 r))
+            S (lm (\x:term. \r:=> x x. R1' x r)).
 
-dia :
-   Pi M:term. Pi M':term. Pi M'':term. Pi N:term.
-      M => M' -> M => M'' -> M' => N -> M'' => N -> type.
+dia : => M M' -> => M M'' -> => M' N -> => M'' N -> type.
 dia_bb :
-   dia (beta (\x:term. \r:x => x. R1' x r) R2')
-      (beta (\x:term. \r:x => x. R1'' x r) R2'') S' S''
-      <- (Pi x:term. Pi idx:x => x.
-             (Pi N:term. Pi N':term. Pi S'1:N => N'.
-                 subst (\y:term. \idy:y => y. idx) S'1 idx)
+   subst (\x:term. \r:=> x x. S1'' x r) S2'' S''
+      -> subst (\x:term. \r:=> x x. S1' x r) S2' S' -> dia R2' R2'' S2' S2''
+      -> (Pi x:term. Pi idx:=> x x.
+             (Pi N:term. Pi N':term. Pi S'1:=> N N'.
+                 subst (\y:term. \idy:=> y y. idx) S'1 idx)
                 -> dia idx idx idx idx
                 -> dia (R1' x idx) (R1'' x idx) (S1' x idx) (S1'' x idx))
-      <- dia R2' R2'' S2' S2''
-      <- subst (\x:term. \r:x => x. S1' x r) S2' S'
-      <- subst (\x:term. \r:x => x. S1'' x r) S2'' S''.
+      -> dia (beta (\x:term. \r:=> x x. R1' x r) R2')
+            (beta (\x:term. \r:=> x x. R1'' x r) R2'') S' S''.
 dia_bal :
-   dia (beta (\x:term. \r:x => x. R1' x r) R2')
-      (ap (lm (\x:term. \r:x => x. R1'' x r)) R2'') S'
-      (beta (\x:term. \r:x => x. S1'' x r) S2'')
-      <- (Pi x:term. Pi idx:x => x.
-             (Pi N:term. Pi N':term. Pi S'1:N => N'.
-                 subst (\y:term. \idy:y => y. idx) S'1 idx)
+   subst (\x:term. \r:=> x x. S1' x r) S2' S' -> dia R2' R2'' S2' S2''
+      -> (Pi x:term. Pi idx:=> x x.
+             (Pi N:term. Pi N':term. Pi S'1:=> N N'.
+                 subst (\y:term. \idy:=> y y. idx) S'1 idx)
                 -> dia idx idx idx idx
                 -> dia (R1' x idx) (R1'' x idx) (S1' x idx) (S1'' x idx))
-      <- dia R2' R2'' S2' S2''
-      <- subst (\x:term. \r:x => x. S1' x r) S2' S'.
+      -> dia (beta (\x:term. \r:=> x x. R1' x r) R2')
+            (ap (lm (\x:term. \r:=> x x. R1'' x r)) R2'') S'
+            (beta (\x:term. \r:=> x x. S1'' x r) S2'').
 dia_alb :
-   dia (ap (lm (\x:term. \r:x => x. R1' x r)) R2')
-      (beta (\x:term. \r:x => x. R1'' x r) R2'')
-      (beta (\x:term. \r:x => x. S1' x r) S2') S''
-      <- (Pi x:term. Pi idx:x => x.
-             (Pi N:term. Pi N':term. Pi S':N => N'.
-                 subst (\y:term. \idy:y => y. idx) S' idx)
+   subst (\x:term. \r:=> x x. S1'' x r) S2'' S'' -> dia R2' R2'' S2' S2''
+      -> (Pi x:term. Pi idx:=> x x.
+             (Pi N:term. Pi N':term. Pi S':=> N N'.
+                 subst (\y:term. \idy:=> y y. idx) S' idx)
                 -> dia idx idx idx idx
                 -> dia (R1' x idx) (R1'' x idx) (S1' x idx) (S1'' x idx))
-      <- dia R2' R2'' S2' S2''
-      <- subst (\x:term. \r:x => x. S1'' x r) S2'' S''.
+      -> dia (ap (lm (\x:term. \r:=> x x. R1' x r)) R2')
+            (beta (\x:term. \r:=> x x. R1'' x r) R2'')
+            (beta (\x:term. \r:=> x x. S1' x r) S2') S''.
 dia_aa :
-   dia (ap R1' R2') (ap R1'' R2'') (ap S1' S2') (ap S1'' S2'')
-      <- dia R1' R1'' S1' S1''
-      <- dia R2' R2'' S2' S2''.
+   dia R2' R2'' S2' S2'' -> dia R1' R1'' S1' S1''
+      -> dia (ap R1' R2') (ap R1'' R2'') (ap S1' S2') (ap S1'' S2'').
 dia_ll :
-   dia (lm (\x:term. \r:x => x. R1' x r)) (lm (\x:term. \r:x => x. R1'' x r))
-      (lm (\x:term. \r:x => x. S1' x r)) (lm (\x:term. \r:x => x. S1'' x r))
-      <- (Pi x:term. Pi idx:x => x.
-             (Pi N:term. Pi N':term. Pi S':N => N'.
-                 subst (\y:term. \idy:y => y. idx) S' idx)
-                -> dia idx idx idx idx
-                -> dia (R1' x idx) (R1'' x idx) (S1' x idx) (S1'' x idx)).
+   (Pi x:term. Pi idx:=> x x.
+       (Pi N:term. Pi N':term. Pi S':=> N N'.
+           subst (\y:term. \idy:=> y y. idx) S' idx) -> dia idx idx idx idx
+          -> dia (R1' x idx) (R1'' x idx) (S1' x idx) (S1'' x idx))
+      -> dia (lm (\x:term. \r:=> x x. R1' x r))
+            (lm (\x:term. \r:=> x x. R1'' x r))
+            (lm (\x:term. \r:=> x x. S1' x r))
+            (lm (\x:term. \r:=> x x. S1'' x r)).
 
-strip :
-   Pi M:term. Pi M':term. Pi M'':term. Pi N:term.
-      M => M' -> M =>* M'' -> M' =>* N -> M'' => N -> type.
+strip : => M M' -> =>* M M'' -> =>* M' N -> => M'' N -> type.
 strip_id : strip R' id id R'.
 strip_step :
-   strip R' (R1'' ; R2*'') (S1' ; S2*') S''
-      <- dia R' R1'' S1' S1''
-      <- strip S1'' R2*'' S2*' S''.
-conf :
-   Pi M:term. Pi M':term. Pi M'':term. Pi N:term.
-      M =>* M' -> M =>* M'' -> M' =>* N -> M'' =>* N -> type.
+   strip S1'' R2*'' S2*' S'' -> dia R' R1'' S1' S1''
+      -> strip R' (;' R1'' R2*'') (;' S1' S2*') S''.
+conf : =>* M M' -> =>* M M'' -> =>* M' N -> =>* M'' N -> type.
 conf_id : conf id R*'' R*'' id.
 conf_step :
-   conf (R1' ; R2*') R*'' S*' (S1'' ; S2*'')
-      <- strip R1' R*'' S1*' S1''
-      <- conf R2*' S1*' S*' S2*''.
-cr : Pi M:term. Pi M':term. Pi N:term. M <=> M' -> M =>* N -> M' =>* N -> type.
+   conf R2*' S1*' S*' S2*'' -> strip R1' R*'' S1*' S1''
+      -> conf (;' R1' R2*') R*'' S*' (;' S1'' S2*'').
+cr : <=> M M' -> =>* M N -> =>* M' N -> type.
 cr_reduce : cr (reduce R*) R* id.
 cr_expand : cr (expand R*) id R*.
 cr_compose :
-   cr (C1 ;; C2) S* S*'
-      <- cr C1 S1* R1*
-      <- cr C2 R2* S2*
-      <- conf R1* R2* T1* T2*
-      <- append S1* T1* S*
-      <- append S2* T2* S*'.
+   append S2* T2* S*' -> append S1* T1* S* -> conf R1* R2* T1* T2*
+      -> cr C2 R2* S2* -> cr C1 S1* R1* -> cr (;; C1 C2) S* S*'.
 
-appd :
-   Pi M:term. Pi M':term. Pi M'':term.
-      M -->* M' -> M' -->* M'' -> M -->* M'' -> type.
+appd : -->* M M' -> -->* M' M'' -> -->* M M'' -> type.
 appd_id : appd id1 S* S*.
-appd_step : appd (step1 R1 R2*) S* (step1 R1 S2*') <- appd R2* S* S2*'.
+appd_step : appd R2* S* S2*' -> appd (step1 R1 R2*) S* (step1 R1 S2*').
 lm1* :
-   Pi M:term -> term. Pi M':term -> term.
-      (Pi x:term. M x -->* M' x) -> lam (\m:term. M m) -->* lam (\m:term. M' m)
-         -> type.
+   (Pi x:term. -->* (M x) (M' x))
+      -> -->* (lam (\m:term. M m)) (lam (\m:term. M' m)) -> type.
 lm1*_id : lm1* (\x:term. id1) id1.
 lm1*_step :
-   lm1* (\x:term. step1 (R1 x) (R2* x)) (step1 (lm1 (\x:term. R1 x)) S2*)
-      <- lm1* (\x:term. R2* x) S2*.
-apl1* :
-   Pi M1:term. Pi M1':term. Pi M2:term.
-      M1 -->* M1' -> app M1 M2 -->* app M1' M2 -> type.
+   lm1* (\x:term. R2* x) S2*
+      -> lm1* (\x:term. step1 (R1 x) (R2* x)) (step1 (lm1 (\x:term. R1 x)) S2*).
+apl1* : -->* M1 M1' -> -->* (app M1 M2) (app M1' M2) -> type.
 apl1*_id : apl1* id1 id1.
-apl1*_step : apl1* (step1 R1 R2*) (step1 (apl1 R1) S2*) <- apl1* R2* S2*.
-apr1* :
-   Pi M2:term. Pi M2':term. Pi M1:term.
-      M2 -->* M2' -> app M1 M2 -->* app M1 M2' -> type.
+apl1*_step : apl1* R2* S2* -> apl1* (step1 R1 R2*) (step1 (apl1 R1) S2*).
+apr1* : -->* M2 M2' -> -->* (app M1 M2) (app M1 M2') -> type.
 apr1*_id : apr1* id1 id1.
-apr1*_step : apr1* (step1 R1 R2*) (step1 (apr1 R1) S2*) <- apr1* R2* S2*.
-eq1 : Pi M:term. Pi N:term. M => N -> M -->* N -> type.
+apr1*_step : apr1* R2* S2* -> apr1* (step1 R1 R2*) (step1 (apr1 R1) S2*).
+eq1 : => M N -> -->* M N -> type.
 eq1_beta :
-   eq1 (beta (\x:term. \r:x => x. R1 x r) R2) S*
-      <- (Pi x:term. Pi eqx:x => x. eq1 eqx id1 -> eq1 (R1 x eqx) (S1* x))
-      <- lm1* (\x:term. S1* x) S1*'
-      <- apl1* S1*' S1*''
-      <- eq1 R2 S2*
-      <- apr1* S2* S2*'
-      <- appd S2*' (step1 beta1 id1) S*'
-      <- appd S1*'' S*' S*.
+   appd S1*'' S*' S* -> appd S2*' (step1 beta1 id1) S*' -> apr1* S2* S2*'
+      -> eq1 R2 S2* -> apl1* S1*' S1*'' -> lm1* (\x:term. S1* x) S1*'
+      -> (Pi x:term. Pi eqx:=> x x. eq1 eqx id1 -> eq1 (R1 x eqx) (S1* x))
+      -> eq1 (beta (\x:term. \r:=> x x. R1 x r) R2) S*.
 eq1_ap :
-   eq1 (ap R1 R2) S*
-      <- eq1 R1 S1*
-      <- apl1* S1* S*'
-      <- eq1 R2 S2*
-      <- apr1* S2* S*''
-      <- appd S*' S*'' S*.
+   appd S*' S*'' S* -> apr1* S2* S*'' -> eq1 R2 S2* -> apl1* S1* S*'
+      -> eq1 R1 S1* -> eq1 (ap R1 R2) S*.
 eq1_lm :
-   eq1 (lm (\x:term. \r:x => x. R1 x r)) S*
-      <- (Pi x:term. Pi eqx:x => x. eq1 eqx id1 -> eq1 (R1 x eqx) (S1* x))
-      <- lm1* (\x:term. S1* x) S*.
+   lm1* (\x:term. S1* x) S*
+      -> (Pi x:term. Pi eqx:=> x x. eq1 eqx id1 -> eq1 (R1 x eqx) (S1* x))
+      -> eq1 (lm (\x:term. \r:=> x x. R1 x r)) S*.
 
-eq2 : Pi M:term. Pi N:term. M --> N -> M => N -> type.
+eq2 : --> M N -> => M N -> type.
 eq2_beta1 :
-   eq2 beta1 (beta (\x:term. \r:x => x. I1 x r) I2)
-      <- (Pi x:term. Pi eqx:x => x. identity x eqx -> identity (M1 x) (I1 x eqx))
-      <- identity M2 I2.
+   identity M2 I2
+      -> (Pi x:term. Pi eqx:=> x x. identity x eqx -> identity (M1 x) (I1 x eqx))
+      -> eq2 beta1 (beta (\x:term. \r:=> x x. I1 x r) I2).
 eq2_lm1 :
-   eq2 (lm1 (\x:term. R1 x)) (lm (\x:term. \r:x => x. S1 x r))
-      <- (Pi x:term. Pi eqx:x => x. identity x eqx -> eq2 (R1 x) (S1 x eqx)).
-eq2_apl1 : eq2 (apl1 R1) (ap S1 I2) <- eq2 R1 S1 <- identity M2 I2.
-eq2_apr1 : eq2 (apr1 R2) (ap I1 S2) <- eq2 R2 S2 <- identity M1 I1.
-eq3 : Pi M:term. Pi N:term. M -->* N -> M =>* N -> type.
+   (Pi x:term. Pi eqx:=> x x. identity x eqx -> eq2 (R1 x) (S1 x eqx))
+      -> eq2 (lm1 (\x:term. R1 x)) (lm (\x:term. \r:=> x x. S1 x r)).
+eq2_apl1 : identity M2 I2 -> eq2 R1 S1 -> eq2 (apl1 R1) (ap S1 I2).
+eq2_apr1 : identity M1 I1 -> eq2 R2 S2 -> eq2 (apr1 R2) (ap I1 S2).
+eq3 : -->* M N -> =>* M N -> type.
 eq3_id : eq3 id1 id.
-eq3_step : eq3 (step1 R1 R2*) (S1 ; S2*) <- eq2 R1 S1 <- eq3 R2* S2*.
-eq4 : Pi M:term. Pi N:term. M =>* N -> M -->* N -> type.
+eq3_step : eq3 R2* S2* -> eq2 R1 S1 -> eq3 (step1 R1 R2*) (;' S1 S2*).
+eq4 : =>* M N -> -->* M N -> type.
 eq4_id : eq4 id id1.
-eq4_step : eq4 (R1 ; R2*) S* <- eq1 R1 S1* <- eq4 R2* S2* <- appd S1* S2* S*.
-eq5 : Pi M:term. Pi N:term. M <=> N -> M <-> N -> type.
-eq5_red : eq5 (reduce R*) (red S*) <- eq4 R* S*.
-eq5_exp : eq5 (expand R*) (sym (red S*)) <- eq4 R* S*.
-eq5_trans : eq5 (C1 ;; C2) (trans C2' C1') <- eq5 C1 C1' <- eq5 C2 C2'.
-sym_pconv : Pi M:term. Pi N:term. M <=> N -> N <=> M -> type.
+eq4_step : appd S1* S2* S* -> eq4 R2* S2* -> eq1 R1 S1* -> eq4 (;' R1 R2*) S*.
+eq5 : <=> M N -> <-> M N -> type.
+eq5_red : eq4 R* S* -> eq5 (reduce R*) (red S*).
+eq5_exp : eq4 R* S* -> eq5 (expand R*) (sym (red S*)).
+eq5_trans : eq5 C2 C2' -> eq5 C1 C1' -> eq5 (;; C1 C2) (trans C2' C1').
+sym_pconv : <=> M N -> <=> N M -> type.
 spc_red : sym_pconv (reduce R*) (expand R*).
 spc_exp : sym_pconv (expand R*) (reduce R*).
 spc_trans :
-   sym_pconv (C1 ;; C2) (C2' ;; C1') <- sym_pconv C1 C1' <- sym_pconv C2 C2'.
-eq6 : Pi M:term. Pi N:term. M <-> N -> M <=> N -> type.
+   sym_pconv C2 C2' -> sym_pconv C1 C1' -> sym_pconv (;; C1 C2) (;; C2' C1').
+eq6 : <-> M N -> <=> M N -> type.
 eq6_refl : eq6 refl (reduce id).
-eq6_sym : eq6 (sym C1) C' <- eq6 C1 C1' <- sym_pconv C1' C'.
-eq6_trans : eq6 (trans C2 C1) (C1' ;; C2') <- eq6 C1 C1' <- eq6 C2 C2'.
-eq6_red : eq6 (red R*) (reduce S*) <- eq3 R* S*.
-cr_ord :
-   Pi M:term. Pi M':term. Pi N:term. M <-> M' -> M -->* N -> M' -->* N -> type.
+eq6_sym : sym_pconv C1' C' -> eq6 C1 C1' -> eq6 (sym C1) C'.
+eq6_trans : eq6 C2 C2' -> eq6 C1 C1' -> eq6 (trans C2 C1) (;; C1' C2').
+eq6_red : eq3 R* S* -> eq6 (red R*) (reduce S*).
+cr_ord : <-> M M' -> -->* M N -> -->* M' N -> type.
 cr_all :
-   cr_ord C S* S*' <- eq6 C C' <- cr C' R* R*' <- eq4 R* S* <- eq4 R*' S*'.
+   eq4 R*' S*' -> eq4 R* S* -> cr C' R* R*' -> eq6 C C' -> cr_ord C S* S*'.
