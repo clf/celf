@@ -17,11 +17,16 @@ fun parseArgs args = case args of
 		( print "Enabling double checking\n"
 		; TypeCheck.enable ()
 		; parseArgs args )
+	| "-pi"::args =>
+		( print "printImpl := true\n"
+		; PrettyPrint.printImpl := true
+		; parseArgs args )
 	| "-h"::_ =>
-		( print ("Commandline: clf [-s seed] [-h] [-d] <filename>\n"
+		( print ("Commandline: clf [-s seed] [-h] [-d] [-pi] <filename>\n"
 				^" -s seed : set random seed\n"
 				^" -h      : show this\n"
-				^" -d      : enable double checking\n")
+				^" -d      : enable double checking\n"
+				^" -pi     : print implicit arguments\n")
 		; raise Fail "Commandline help" )
 	| f::_ => f
 

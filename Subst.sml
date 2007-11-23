@@ -86,6 +86,18 @@ struct
 
 	fun shiftHead (H, n) = leftOf (headSub (H, Shift n))
 
+	(* Invariant:
+	   Let G1, G2 contexts,
+	   n1 = |G1|, n2 = |G2|
+	   and G1' = k-prefix of G1
+	   G1, G2 |- switchSub' k : G2, G1'
+	   G1, G2 |- switchSub (n1,n2) : G2, G1
+	*)
+	fun switchSub (n1, n2) =
+		let fun switchSub' 0 = dotn n2 (Shift n1)
+			  | switchSub' k = Dot (Idx (n2+n1+1-k), switchSub' (k-1))
+		in switchSub' n1 end
+
 	fun intersection (Dot (Idx n, s1), Dot (Idx m, s2)) =
 			if n=m then dot1 (intersection (s1, s2)) else comp (intersection (s1, s2), Shift 1)
 	  | intersection (s1 as Dot _, Shift n) = intersection (s1, Dot (Idx (n+1), Shift (n+1)))

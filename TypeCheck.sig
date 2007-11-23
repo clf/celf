@@ -8,13 +8,13 @@ type context
 val enable : unit -> unit
 val isEnabled : unit -> bool
 
-val checkKind : context * Syntax.kind -> unit
-val checkType : context * Syntax.asyncType -> unit
-val checkTypeSpine : context * Syntax.typeSpine * Syntax.kind -> unit
-val checkSyncType : context * Syntax.syncType -> unit
-val checkObj : context * Syntax.obj * Syntax.asyncType -> context * bool
-val inferSpine : context * Syntax.spine * Syntax.asyncType -> context * bool * Syntax.asyncType
-val inferHead : context * Syntax.head -> context * bool * Syntax.asyncType
+val checkKind : context * Syntax.nfKind -> unit
+val checkType : context * Syntax.nfAsyncType -> unit
+val checkTypeSpine : context * Syntax.nfTypeSpine * Syntax.nfKind -> unit
+val checkSyncType : context * Syntax.nfSyncType -> unit
+val checkObj : context * Syntax.nfObj * Syntax.nfAsyncType -> context * bool
+val inferSpine : context * Syntax.nfSpine * Syntax.nfAsyncType -> context * bool * Syntax.nfAsyncType
+val inferHead : context * Syntax.nfHead -> context * bool * Syntax.nfAsyncType
 
 val checkKindEC : Syntax.kind -> unit
 val checkTypeEC : Syntax.asyncType -> unit

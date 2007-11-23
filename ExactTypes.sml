@@ -29,9 +29,7 @@ and checkType (ctx, ty) = case AsyncType.prj ty of
 	| AddProd (A, B) => (checkType (ctx, A); checkType (ctx, B))
 	| Top => ()
 	| TMonad S => checkSyncType (ctx, S)
-	| TAtomic (a, S) =>
-			let val K = Signatur.sigLookupKind a
-			in checkTypeSpine (ctx, S, K) end
+	| TAtomic (a, S) => checkTypeSpine (ctx, S, Signatur.sigLookupKind a)
 	| TAbbrev aA => ()
 
 (* checkTypeSpine : context * typeSpine * kind -> unit *)

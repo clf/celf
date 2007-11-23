@@ -6,9 +6,9 @@ sig
    properties
 *)
 
-val convAsyncType : Syntax.asyncType * Syntax.asyncType -> unit  
-val convObj : Syntax.obj * Syntax.obj -> unit
-val convSpine : Syntax.spine * Syntax.spine -> unit
-val convHead : Syntax.head * Syntax.head -> unit
+val convAsyncType : Syntax.nfAsyncType * Syntax.nfAsyncType -> unit  
+val convObj : Syntax.nfObj * Syntax.nfObj -> unit
+val convSpine : Syntax.nfSpine * Syntax.nfSpine -> unit
+val convHead : Syntax.nfHead * Syntax.nfHead -> unit
 
 end

@@ -342,8 +342,6 @@ and matchHeadInLet (hAS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, Whnf.whnf
 	  (Let (p, N, E'), Let (_, NsX, EsX')) =>
 			let val nbp = nbinds p
 				fun hAS' () = invAtomicP (Clos (Atomic' hAS, Subst.shift nbp))
-				fun switchSub 0 = Subst.dotn nbe (Subst.shift nbp)
-				  | switchSub q = Subst.dot (EtaTag (Unit', nbp+nbe+1-q), switchSub (q-1))
 				val e' = fn s => fn E =>
 							let val s' = Subst.dotn nbe s
 							in e s (Let' (PClos (p, s'), Clos (N, s'), E)) end
@@ -358,7 +356,7 @@ and matchHeadInLet (hAS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, Whnf.whnf
 						handle ExnUnify _ => NONE of
 				  SOME () =>
 					if !dryRun then
-						e (Subst.shift nbp) (EClos (E', switchSub nbp))
+						e (Subst.shift nbp) (EClos (E', Subst.switchSub (nbp, nbe)))
 					else
 						matchHeadInLet (hAS' (), e', nbe + nbp, E', EsX'' (), nMaybe + 1)
 				| NONE =>

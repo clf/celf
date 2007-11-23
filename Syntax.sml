@@ -146,6 +146,7 @@ type 'sTy apxSyncTypeF = (apxAsyncType, 'sTy) apxSyncTypeFF
 
 fun nbinds (FixPattern (_, n)) = n
   | nbinds (PClos (p, _)) = nbinds p
+val nfnbinds = nbinds
 
 infix with'ty with's
 fun {X, ty=_, s, ctx, cnstr, tag} with'ty ty' = {X=X, ty=ty', s=s, ctx=ctx, cnstr=cnstr, tag=tag}
@@ -244,8 +245,6 @@ struct
 	  | tryLVar a = a
 	type t = obj type a = asyncType type b = spine type c = expObj
 	type ('a, 'b, 'c, 't) F = ('a, 'b, 'c, 't) objFF
-	(*fun inj (Redex (N, _, FixSpine Nil)) = N
-	  | inj a = FixObj a*) (* optimization? *)
 	fun inj a = FixObj a
 	fun prj (FixObj a) = tryLVar a
 	  | prj (Clos (Clos (N, s'), s)) = prj (Clos (N, Subst.comp (s', s)))
@@ -425,6 +424,16 @@ end
 structure NfSpine = Spine
 structure NfMonadObj = MonadObj
 structure NfPattern = Pattern
+
+val NfKClos = KClos
+val NfTClos = TClos
+val NfTSClos = TSClos
+val NfSTClos = STClos
+val NfClos = Clos
+val NfSClos = SClos
+val NfEClos = EClos
+val NfMClos = MClos
+val NfPClos = PClos
 
 
 val lVarCnt = ref 0
@@ -661,5 +670,6 @@ fun unnormalizeKind x = x
 fun unnormalizeType x = x
 fun unnormalizeObj x = x
 fun unnormalizeExpObj x = x
+fun unnormalizePattern x = x
 
 end

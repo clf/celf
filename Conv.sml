@@ -17,7 +17,7 @@ open Syntax
    if  G |- ty1 == ty2 : kind
    otherwise Fail is raised 
 *)
-fun convAsyncType (ty1, ty2) = case (Util.typePrjAbbrev ty1, Util.typePrjAbbrev ty2) of
+fun convAsyncType (ty1, ty2) = case (Util.nfTypePrjAbbrev ty1, Util.nfTypePrjAbbrev ty2) of
        (TPi (_, A1, A2), TPi (_, B1, B2)) =>
          (convAsyncType (A1, B1); convAsyncType (A2, B2))
      | (Lolli (A1, A2), Lolli (B1, B2)) => 
@@ -35,7 +35,7 @@ fun convAsyncType (ty1, ty2) = case (Util.typePrjAbbrev ty1, Util.typePrjAbbrev 
    if  G |- TS1 == TS2 : K1 > K2
    otherwise Fail is raised 
 *)
-and convTypeSpine (ts1, ts2) = case (TypeSpine.prj ts1, TypeSpine.prj ts2) of
+and convTypeSpine (ts1, ts2) = case (NfTypeSpine.prj ts1, NfTypeSpine.prj ts2) of
        (TNil, TNil) => ()
      | (TApp (M1, TS1), TApp (M2, TS2)) => (convObj (M1, M2); convTypeSpine (TS1, TS2))
      | _ => raise Fail "Convertibility"
@@ -45,15 +45,16 @@ and convTypeSpine (ts1, ts2) = case (TypeSpine.prj ts1, TypeSpine.prj ts2) of
    if  G |- N1 == N2 : A
    otherwise Fail is raised 
 *)
-and convObj (ob1, ob2) = case (Obj.prj ob1, Obj.prj ob2) of
-       (Lam (x, N), Lam (y, M)) => convObj (N, M)
-     | (LinLam (x, N), LinLam (y, M)) => convObj (N, M)
-     | (AddPair (N1, N2), AddPair (M1, M2)) => (convObj (N1, M1); convObj (N2, M2))
-     | (Unit, Unit) => ()
-     | (Monad E1, Monad E2) => convExpObj (E1, E2)
-     | (Atomic (H1, _, S1), Atomic (H2, _, S2)) => 
+and convObj (ob1, ob2) = case (NfObj.prj ob1, NfObj.prj ob2) of
+       (NfLam (x, N), NfLam (y, M)) => convObj (N, M)
+     | (NfLinLam (x, N), NfLinLam (y, M)) => convObj (N, M)
+     | (NfAddPair (N1, N2), NfAddPair (M1, M2)) => (convObj (N1, M1); convObj (N2, M2))
+     | (NfUnit, NfUnit) => ()
+     | (NfMonad E1, NfMonad E2) => convExpObj (E1, E2)
+     | (NfAtomic (H1, _, S1), NfAtomic (H2, _, S2)) => 
 	 (convHead (H1, H2); convSpine (S1, S2))
-     | _ => raise Fail "Error in convertibilty"
+     | _ => raise Fail ("Error in convertibilty of "^PrettyPrint.printObj (unnormalizeObj ob1)
+	 			^" and "^PrettyPrint.printObj (unnormalizeObj ob2))
 
 
 (* Invariant:  convHead (H1, H2) => ()
@@ -74,7 +75,7 @@ and convHead (hd1, hd2) = case (hd1, hd2) of
    if  G |- S1 == S2 : A1 > A2 
    otherwise Fail is raised 
 *)
-and convSpine (sp1, sp2) = case (Spine.prj sp1, Spine.prj sp2) of
+and convSpine (sp1, sp2) = case (NfSpine.prj sp1, NfSpine.prj sp2) of
 	 (Nil, Nil) => ()
      | (App (N1, S1), App (N2, S2)) => (convObj (N1, N2); convSpine (S1, S2))
      | (LinApp (N1, S1), LinApp (N2, S2)) => (convObj (N1, N2); convSpine (S1, S2))
@@ -87,7 +88,7 @@ and convSpine (sp1, sp2) = case (Spine.prj sp1, Spine.prj sp2) of
    if  G |- M1 == M2 : S
    otherwise Fail is raised 
 *)
-and convMonadObj (M1, M2) = case (MonadObj.prj M1, MonadObj.prj M2) of 
+and convMonadObj (M1, M2) = case (NfMonadObj.prj M1, NfMonadObj.prj M2) of 
        (Tensor (M11, M12), Tensor (M21, M22)) => 
 	 (convMonadObj (M11, M21); convMonadObj (M12, M22))
      | (One, One) => ()
@@ -104,7 +105,7 @@ and convMonadObj (M1, M2) = case (MonadObj.prj M1, MonadObj.prj M2) of
    where n = |C1| = |C2| 
    and   Ci = ((Pi1, Ri1), ..., (Pin, Rin))
 *)
-and convExpObj (E1, E2) = case (ExpObj.prj E1, ExpObj.prj E2) of
+and convExpObj (E1, E2) = case (NfExpObj.prj E1, NfExpObj.prj E2) of
        (Mon M1, Mon M2) => convMonadObj (M1, M2)
      | (Let (P1, R1, E1'), Let (P2, R2, E2')) => 
 	 convExpObj (E1', convExpObj1 (E1, E2)) 
@@ -118,33 +119,16 @@ and convExpObj (E1, E2) = case (ExpObj.prj E1, ExpObj.prj E2) of
    and   G, P1 |- E = convExpObj1 (E1, E2) : S
    and   E2 == let P1=R1 in E: S
 *)
-and convExpObj1 (E1, E2) = case (ExpObj.prj E1, ExpObj.prj E2) of
-       (Let (P1, R1, _), Let (P2, R2, E2')) =>
-	  if ((convObj (R1, R2); true) handle Fail _ => false) then E2'
+and convExpObj1 (E1, E2) = case (NfExpObj.prj E1, NfExpObj.prj E2) of
+       (Let (P1, (H1, _, S1), _), Let (P2, (H2, A2, S2), E2')) =>
+	  if ((convHead (H1, H2); convSpine (S1, S2); true) handle Fail _ => false) then E2'
 	  else
-	    let val s1 = Subst.shift (nbinds P1)
-	    in (Let' (PClos (P2, s1), Clos (R2, s1), 
-		      EClos (convExpObj1 (EClos (E1, Subst.shift (nbinds P2)), E2'),
-			     switchSub (nbinds P1, nbinds P2))))
+	    let val s1 = Subst.shift (nfnbinds P1)
+	    in NfExpObj.inj (Let (NfPClos (P2, s1),
+			(Subst.shiftHead (H2, nfnbinds P1), A2, NfSClos (S2, s1)),
+		      NfEClos (convExpObj1 (NfEClos (E1, Subst.shift (nfnbinds P2)), E2'),
+			     Subst.switchSub (nfnbinds P1, nfnbinds P2))))
 	    end
 	| _ => raise Fail "Convertibility failed"
 
-(* please move below *)
-
-(* Invariant: 
-   Let G1, G2 contexts,
-   n1 = | G1 | , n2 = | G2 |
-   and G2' = k-prefix of G2
-   G1, G2 |- switchSub' (k,n1,n2) : G1, G2'
-*)
-
-and switchSub' (0, n1, n2) = Subst.dotn n2 (Subst.shift n1)     
-  | switchSub' (k, n1, n2) = Subst.dot (EtaTag (Unit', n2+n1+1-k), switchSub' (k-1, n1, n2))
-
-(* Invariant: 
-   Let G1, G2 contexts,
-   n1 = | G1 | , n2 = | G2 |
-   G1, G2 |- switchSub (n1,n2) : G1, G2
-*)
-and switchSub (n1, n2) = switchSub' (n1, n1, n2)
 end

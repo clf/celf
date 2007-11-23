@@ -149,6 +149,7 @@ structure Subst : sig
 	val dotn : int -> subst -> subst
 	val comp : subst * subst -> subst
 	val shiftHead : head * int -> head
+	val switchSub : int * int -> subst
 	val intersection : (*def pat*)subst * (*def pat*)subst -> subst
 	val invert : (*pat*)subst -> subst
 	val patSub : (exn -> obj -> int) -> subst -> (*pat*)subst option
@@ -214,7 +215,7 @@ type nfExpObj
 type nfMonadObj
 type nfPattern
 
-type nfHead
+type nfHead = head
 
 eqtype typeLogicVar
 
@@ -277,6 +278,18 @@ type 'sp nfSpineF = (nfObj, 'sp) spineFF
 type 'e nfExpObjF = (nfHead * apxAsyncType * nfSpine, nfMonadObj, nfPattern, 'e) expObjFF
 type 'm nfMonadObjF = (nfObj, 'm) monadObjFF
 type 'p nfPatternF = (nfAsyncType, 'p) patternFF
+
+val NfKClos : nfKind * subst -> nfKind
+val NfTClos : nfAsyncType * subst -> nfAsyncType
+val NfTSClos : nfTypeSpine * subst -> nfTypeSpine
+val NfSTClos : nfSyncType * subst -> nfSyncType
+val NfClos : nfObj * subst -> nfObj
+val NfSClos : nfSpine * subst -> nfSpine
+val NfEClos : nfExpObj * subst -> nfExpObj
+val NfMClos : nfMonadObj * subst -> nfMonadObj
+val NfPClos : nfPattern * subst -> nfPattern
+
+val nfnbinds : nfPattern -> int
 
 
 val EtaTag : obj * int -> obj
@@ -395,6 +408,7 @@ val unnormalizeKind : nfKind -> kind
 val unnormalizeType : nfAsyncType -> asyncType
 val unnormalizeObj : nfObj -> obj
 val unnormalizeExpObj : nfExpObj -> expObj
+val unnormalizePattern : nfPattern -> pattern
 
 val etaShortcut : obj -> int option
 

@@ -3,6 +3,8 @@ struct
 
 open Syntax infix with'ty
 
+val printImpl = ref false
+
 fun join' [] = []
   | join' [x] = x
   | join' (x::xs) = x @ ["] ["] @ join' xs
@@ -46,7 +48,9 @@ and pType ctx pa ty = if isUnknown ty then ["???"] else case AsyncType.prj ty of
 	| TAbbrev (a, ty) => [a]
 and pTypeSpineSkip ctx sp n = if n=0 then pTypeSpine ctx sp else case TypeSpine.prj sp of
 	  TNil => raise Fail "Internal error: pTypeSpineSkip\n"
-	| TApp (_, S) => pTypeSpineSkip ctx S (n-1)
+	| TApp (N, S) =>
+		(if !printImpl then [" <"] @ pObj ctx false N @ [">"] else [])
+		@ pTypeSpineSkip ctx S (n-1)
 and pTypeSpine ctx sp = case TypeSpine.prj sp of
 	  TNil => []
 	| TApp (N, S) => [" "] @ pObj ctx true N @ pTypeSpine ctx S
@@ -88,7 +92,9 @@ and pHead ctx h = case h of
 and pContext ctx NONE = ["--"]
   | pContext ctx (SOME G) = join (map (pType ctx false o #2) (Context.ctx2list G))
 and pSpineSkip ctx sp n = if n=0 then pSpine ctx sp else case Spine.prj sp of
-	  App (_, S) => pSpineSkip ctx S (n-1)
+	  App (N, S) =>
+		(if !printImpl then [" <"] @ pObj ctx false N @ [">"] else [])
+		@ pSpineSkip ctx S (n-1)
 	| _ => raise Fail "Internal error: pSpineSkip\n"
 and pSpine ctx sp = case Spine.prj sp of
 	  Nil => []
