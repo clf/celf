@@ -8,17 +8,29 @@ open Syntax
 open Context
 open PatternBind
 
+val enabled = ref false
+fun enable () = enabled := true
+fun isEnabled () = !enabled
+
 type context = asyncType Context.context
 
 exception Error
 
+
+fun checkKind (ctx, ki) = raise Fail "Unimplemented"
+
+and checkType (ctx, ty) = raise Fail "Unimplemented"
+
+and checkTypeSpine (ctx, tyS, ki) = raise Fail "Unimplemented"
+
+and checkSyncType (ctx, sty) = raise Fail "Unimplemented"
 
 (* Invariant:
    checkObj (G, N, A) => (G', T')
    if G |- N <= A -| G';T'
    otherwise Fail is raised 
 *)
-fun checkObj (ctx, ob, ty) = case (Obj.prj ob, Util.typePrjAbbrev ty) of
+and checkObj (ctx, ob, ty) = case (Obj.prj ob, Util.typePrjAbbrev ty) of
         (Lam (x, N), TPi (_, A, B)) => checkObj (ctxPushUN (x, A, ctx), N, B)
       | (LinLam (x, N), Lolli (A, B)) => checkObj (ctxPushLIN (x, A, ctx), N, B)
       | (AddPair (N, M), AddProd (A, B)) => 
@@ -154,5 +166,10 @@ and checkPattern (ctx, pat, S) = case (Pattern.prj pat, SyncType.prj S) of
      | _ => raise Fail "Type mismatch in checkPattern"
 
 
+fun checkKindEC ki = checkKind (emptyCtx, ki)
+fun checkTypeEC ty = checkType (emptyCtx, ty)
+fun checkObjEC (ob, ty) =
+	( checkTypeEC ty
+	; ignore (checkObj (emptyCtx, ob, ty)) )
 
 end
