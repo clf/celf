@@ -82,10 +82,18 @@ fun reconstructDecl dec =
 						in  ( print (id^": ")
 							; appKiTy (print o PrettyPrint.printKind)
 							          (print o PrettyPrint.printType) pkity
-							; print ".\n" ) end
-				| TypeAbbrev (id, ty) => print (id^": Type = "^(PrettyPrint.printType ty)^".\n")
-				| ObjAbbrev (id, ty, ob) => print (id^": "^(PrettyPrint.printType ty)
-													^" = "^(PrettyPrint.printObj ob)^".\n")
+							; print ".\n"
+							; if TypeCheck.isEnabled () then
+								appKiTy TypeCheck.checkKindEC
+								        TypeCheck.checkTypeEC pkity
+							  else () ) end
+				| TypeAbbrev (id, ty) =>
+						( print (id^": Type = "^(PrettyPrint.printType ty)^".\n")
+						; if TypeCheck.isEnabled () then TypeCheck.checkTypeEC ty else () )
+				| ObjAbbrev (id, ty, ob) =>
+						( print (id^": "^(PrettyPrint.printType ty)
+								^" = "^(PrettyPrint.printObj ob)^".\n")
+						; if TypeCheck.isEnabled () then TypeCheck.checkObjEC (ob, ty) else () )
 				| Query (e, l, a, ty) =>
 						let val () = print ("Query ("^Int.toString e^", "^Int.toString l^", "
 								^Int.toString a^") "^PrettyPrint.printType ty^".\n")

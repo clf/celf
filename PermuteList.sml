@@ -3,8 +3,16 @@ struct
 
 datatype 'a permuteList = Perm of 'a list | Append of 'a permuteList * 'a permuteList
 
-val rndState = Random.rand (42, 117)
-fun rndBool () = Random.randReal rndState < 0.5
+(* mlkit bug workaround : inline composePartial *)
+fun composePartial (f, g) x =
+	case g x of
+		  NONE => NONE
+		| SOME y => f y
+
+(* random generator *)
+val rndState = ref (Rnd.rndNew 117)
+fun setSeed seed = rndState := Rnd.rndNew seed
+fun rndBool () = Rnd.rndReal (!rndState) < 0.5
 
 (* fromList : a' list -> 'a permuteList *)
 fun fromList l = Perm l
@@ -26,7 +34,7 @@ fun prj (Append (Append (l1, l2), l3)) = prj (Append (l1, Append (l2, l3)))
   | prj (Perm l) = prj (part l)
 
 (* findSome : ('a -> 'b option) -> 'a permuteList -> 'b option *)
-fun findSome f = Option.composePartial (fn (x, xs) =>
+fun findSome f = composePartial (fn (x, xs) =>
 		let val fx = f x in if isSome fx then fx else findSome f xs end, prj)
 
 end

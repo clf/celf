@@ -5,8 +5,6 @@ sig
 
 type context
 
-exception Error 
-
 val enable : unit -> unit
 val isEnabled : unit -> bool
 

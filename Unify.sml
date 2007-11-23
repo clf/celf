@@ -20,14 +20,6 @@ fun resetConstrs () = (constraints ::= [])
 fun constrToStr Solved = "Solved"
   | constrToStr (Eqn (o1, o2)) = (PrettyPrint.printObj o1)^" == "^(PrettyPrint.printObj o2)
 
-(* noConstrs : unit -> unit *)
-fun noConstrs () =
-	let val leftOver = List.mapPartial (fn Solved => NONE | Eqn e => SOME e)
-						(map !! (!!constraints))
-	in case leftOver of [] => ()
-	| _::_ => (app (fn o1o2 => print ("Constr: "^(constrToStr (Eqn o1o2))^"\n")) leftOver
-		; raise Fail "Leftover constraints\n") end
-
 (* addConstraint : constr vref * constr vref list vref list -> unit *)
 fun addConstraint (c, css) =
 	( if outputUnify then print ("Adding constraint "^(constrToStr (!!c))^"\n") else ()
@@ -389,6 +381,16 @@ fun solveAwakened () = case !awakenedConstrs of [] => () | c::cs =>
 	( awakenedConstrs := cs
 	; solveConstr c
 	; solveAwakened () )
+
+(* noConstrs : unit -> unit *)
+fun noConstrs () =
+	let val () = awakenedConstrs := !!constraints
+		val () = solveAwakened ()
+		val leftOver = List.mapPartial (fn Solved => NONE | Eqn e => SOME e)
+						(map !! (!!constraints))
+	in case leftOver of [] => ()
+	| _::_ => (app (fn o1o2 => print ("Constr: "^(constrToStr (Eqn o1o2))^"\n")) leftOver
+		; raise Fail "Leftover constraints\n") end
 
 val unifyProblemCounter = ref 0
 fun unifyProblemCount () =

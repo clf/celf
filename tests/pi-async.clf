@@ -20,3 +20,6 @@ p_new  : proc (new P) -o {Exists u:chan. proc (P u)}.
 p_rep  : proc (rep P) -o {Exists u:proc P. 1}.
 p_out  : proc (out U V) -o {msg U V}.
 p_cin   : proc (cin U P) -o {Pi V:chan. msg U V -o {proc (P V)}}.
+
+
+#query 1 2 3 proc (new \u. par (out u X) (cin u \x. zero)) -o {1}.

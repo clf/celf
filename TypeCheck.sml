@@ -14,8 +14,6 @@ fun isEnabled () = !enabled
 
 type context = asyncType Context.context
 
-exception Error
-
 
 fun checkKind (ctx, ki) = raise Fail "Unimplemented"
 

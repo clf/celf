@@ -7,10 +7,27 @@ structure ClfParser =
 				structure Lex = ClfLex
 				structure LrParser = LrParser)
 
-val filename =
-	case CommandLine.arguments () of
-		  [] => raise Fail "No filename given\n"
-		| f::_ => (print ("Reading "^f^":\n\n"); f)
+fun parseArgs args = case args of
+	  [] => raise Fail "No filename given\n"
+	| "-s"::seed::args =>
+		( print ("Setting random seed "^seed^"\n")
+		; PermuteList.setSeed (valOf (Int.fromString seed))
+		; parseArgs args )
+	| "-d"::args =>
+		( print "Enabling double checking\n"
+		; TypeCheck.enable ()
+		; parseArgs args )
+	| "-h"::_ =>
+		( print ("Commandline: clf [-s seed] [-h] [-d] <filename>\n"
+				^" -s seed : set random seed\n"
+				^" -h      : show this\n"
+				^" -d      : enable double checking\n")
+		; raise Fail "Commandline help" )
+	| f::_ => f
+
+val filename = parseArgs (CommandLine.arguments ())
+
+val () = print ("Reading "^filename^":\n\n")
 
 val instream = TextIO.openIn filename
 

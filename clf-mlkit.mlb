@@ -39,9 +39,9 @@ Conv.sig
 Conv.sml
 TypeCheck.sig
 TypeCheck.sml
-$(SML_LIB)/smlnj-lib/Util/smlnj-lib.mlb
+(*$(SML_LIB)/smlnj-lib/Util/smlnj-lib.mlb*)
 Rnd.sig
-Rnd-mlton.sml
+Rnd-mlkit.sml
 PermuteList.sig
 PermuteList.sml
 SignaturTable.sig
