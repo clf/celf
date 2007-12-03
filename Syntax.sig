@@ -152,7 +152,7 @@ structure Subst : sig
 	val comp : subst * subst -> subst
 	val shiftHead : head * int -> head
 	val switchSub : int * int -> subst
-	val intersection : (*def pat*)subst * (*def pat*)subst -> subst
+	val intersection : ((int, obj) Either.either * obj -> bool) -> subst * subst -> subst
 	val invert : (*pat*)subst -> subst
 	val patSub : (exn -> obj -> int) -> subst -> (*pat*)subst option
 	val isId : subst -> bool

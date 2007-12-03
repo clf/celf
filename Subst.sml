@@ -101,11 +101,11 @@ struct
 			  | switchSub' k = Dot (Idx (n2+n1+1-k), switchSub' (k-1))
 		in switchSub' n1 end
 
-	fun intersection (*conv*) s1s2 =
+	fun intersection conv s1s2 =
 		let fun eq (Idx n, Idx m) = n=m
-(*			  | eq (Idx n, Ob N) = conv (Atomic' (Var n, (), Nil'), N)
-			  | eq (Ob N, Idx n) = conv (Atomic' (Var n, (), Nil'), N)
-			  | eq (Ob N1, Ob N2) = conv (N1, N2)*)
+			  | eq (Idx n, Ob N) = conv (LEFT n, N)
+			  | eq (Ob N, Idx n) = conv (LEFT n, N)
+			  | eq (Ob N1, Ob N2) = conv (RIGHT N1, N2)
 			  | eq (Undef, _) = raise Fail "Internal error intersection"
 			  | eq (_, Undef) = raise Fail "Internal error intersection"
 			fun intersect (Dot (n1, s1), Dot (n2, s2)) =
@@ -115,7 +115,6 @@ struct
 			  | intersect (Shift n, s2 as Dot _) = intersect (Dot (Idx (n+1), Shift (n+1)), s2)
 			  | intersect (Shift n1, Shift n2) =
 					if n1=n2 then id else raise Fail "Internal error: intersection\n"
-(*			  | intersect _ = raise Fail "Internal error: intersection called on non-pattern sub\n"*)
 		in intersect s1s2 end
 
 	fun invert s =

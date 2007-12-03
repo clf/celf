@@ -96,6 +96,15 @@ fun newMonA (A, ctx) = case AsyncType.prj A of
 
 (* splitExp : obj option vref * expObj
 		-> (head * monadObj, (expObj -> expObj) * monadObj * (context -> context) * int) Either *)
+(* if X doesn't occur in let-head-position in E then
+ *   splitExp (X, E) = RIGHT (E'[], M, G[], n) 
+ * where E=E'[M], n=nbinds(E') and G'|-E implies G[G']|-M
+ *
+ * if X does occur a single time and lvars can be instantiated such that
+ * E=let {p}=X[s] in M then
+ *   splitExp (X, E) = LEFT (X[s], M)
+ * otherwise ExnUnify is raised.
+ *)
 fun splitExp (rOccur, ex) =
 	let fun splitExp' ex = case Whnf.whnfExp ex of
 			  Let (p, N, E) =>
@@ -222,14 +231,32 @@ and unifyObj dryRun (ob1, ob2) =
 	(* In the case of two equal LVars, the lowering of ob1 affects the whnf of ob2 *)
 	let val ob1' = lowerObj (Whnf.whnfObj ob1)
 		val ob2' = lowerObj (Whnf.whnfObj ob2)
+		fun invLam ap hS =
+			redex (Clos (Atomic' hS, Subst.shift 1),
+					ap (Atomic' (Var 1, Nil'), Nil'))
+		fun invPair p hS = redex (Atomic' hS, p Nil')
 	in case (ob1', ob2') of
 		  (NfLinLam (_, N1), NfLinLam (_, N2)) => unifyObj dryRun (N1, N2)
+		| (NfLinLam (_, N1), NfAtomic hS2) => unifyObj dryRun (N1, invLam LinApp' hS2)
+		| (NfAtomic hS1, NfLinLam (_, N2)) => unifyObj dryRun (invLam LinApp' hS1, N2)
 		| (NfLam (_, N1), NfLam (_, N2)) => unifyObj dryRun (N1, N2)
+		| (NfLam (_, N1), NfAtomic hS2) => unifyObj dryRun (N1, invLam App' hS2)
+		| (NfAtomic hS1, NfLam (_, N2)) => unifyObj dryRun (invLam App' hS1, N2)
 		| (NfAddPair (L1, N1), NfAddPair (L2, N2)) =>
-				(unifyObj dryRun (L1, L2); unifyObj dryRun (N1, N2))
+				( unifyObj dryRun (L1, L2)
+				; unifyObj dryRun (N1, N2) )
+		| (NfAddPair (L1, N1), NfAtomic hS2) =>
+				( unifyObj dryRun (L1, invPair ProjLeft' hS2)
+				; unifyObj dryRun (N1, invPair ProjRight' hS2) )
+		| (NfAtomic hS1, NfAddPair (L2, N2)) =>
+				( unifyObj dryRun (invPair ProjLeft' hS1, L2)
+				; unifyObj dryRun (invPair ProjRight' hS1, N2) )
 		| (NfUnit, NfUnit) => ()
-		| (NfMonad E1, NfMonad E2) =>
-				unifyExp dryRun (E1, E2)
+		| (NfAtomic _, NfUnit) => ()
+		| (NfUnit, NfAtomic _) => ()
+		| (NfMonad E1, NfMonad E2) => unifyExp dryRun (E1, E2)
+		| (NfAtomic _, NfMonad E2) => raise Fail "stub !!!"
+		| (NfMonad E1, NfAtomic _) => raise Fail "stub !!!"
 		| (NfAtomic hS1, NfAtomic hS2) => unifyHead dryRun (hS1, hS2)
 		| (N1, N2) => raise Fail "Internal error: unifyObj\n"
 	end
@@ -245,8 +272,29 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 			else unifySpine dryRun (S1, S2)
 	| (LogicVar {X=r1, ty=A1, s=s1, ctx=ref G1, cnstr=cs1, tag=tag1},
 		LogicVar {X=r2, s=s2, cnstr=cs2, tag=tag2, ...}) =>
-			if isSome dryRun then (valOf dryRun) := false else
-			if eq (r1, r2) then case Subst.patSub Eta.etaContract s1 of
+			if eq (r1, r2) then
+				let val dryRunIntersect = ref true
+					exception ExnUnifyMaybe
+					fun conv ob1ob2 = case SOME (unifyObj (SOME dryRunIntersect) ob1ob2)
+							handle ExnUnify _ => NONE of
+						  SOME () => if !dryRunIntersect then true
+								else raise ExnUnifyMaybe
+						| NONE => false
+					fun conv' (LEFT n, ob2) = conv (Atomic' (Var n, Nil'), ob2)
+					  | conv' (RIGHT ob1, ob2) = conv (ob1, ob2)
+				in case SOME (Subst.intersection conv' (s1, s2)) handle ExnUnifyMaybe => NONE of
+					  NONE => if isSome dryRun then (valOf dryRun) := false else
+							addConstraint (vref (Eqn (Atomic' hS1, Atomic' hS2)), [cs1])
+					| SOME s' => if Subst.isId s' then () else 
+							if isSome dryRun then (valOf dryRun) := false else
+							let val si = Subst.invert s'
+								val G' = raise Fail "stub: reduce context (G1,si)"
+								(*val A' = case typeExists true (ref NONE) s' (TClos (A1, si)) of
+									SOME ty => ty | NONE => raise ExnUnify "Unification failed\n"*)
+								val A' = TClos (A1, si)
+							in instantiate (r1, Clos (newLVarCtx G' A', s'), cs1, tag1) end
+				end
+(*			case Subst.patSub Eta.etaContract s1 of
 				  NONE => addConstraint (vref (Eqn (Atomic' hS2, Atomic' hS1)), [cs1])
 				| SOME s1' => (case Subst.patSub Eta.etaContract s2 of
 					  NONE => addConstraint (vref (Eqn (Atomic' hS1, Atomic' hS2)), [cs1])
@@ -259,7 +307,8 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 									SOME ty => ty | NONE => raise ExnUnify "Unification failed\n"*)
 								val A' = TClos (A1, si)
 							in instantiate (r1, Clos (newLVarCtx G' A', s'), cs1, tag1) end
-						end)
+						end)*)
+			else if isSome dryRun then (valOf dryRun) := false
 			else (case Subst.patSub Eta.etaContract s1 of
 				  SOME s' => unifyLVar (r1, tag1, s', Atomic' hS2, cs1)
 				| NONE =>
@@ -366,11 +415,11 @@ and matchHeadInLet (hS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, Whnf.whnfE
 				case SOME (unifyHead (SOME dryRun) (hS, NsX))
 						handle ExnUnify _ => NONE of
 				  SOME () =>
-					if !dryRun then
+					if !dryRun then (* unify success *)
 						e (Subst.shift nbp) (EClos (E', Subst.switchSub (nbp, nbe)))
-					else
+					else (* unify maybe *)
 						matchHeadInLet (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe + 1)
-				| NONE =>
+				| NONE => (* unify failure *)
 						matchHeadInLet (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe)
 			end
 	| (Mon _, Mon _) =>
