@@ -7,7 +7,7 @@ open Either
 open Context
 open PatternBind
 
-val outputUnify = true
+val outputUnify = ref false
 
 exception ExnUnify of string
 
@@ -22,14 +22,14 @@ fun constrToStr Solved = "Solved"
 
 (* addConstraint : constr vref * constr vref list vref list -> unit *)
 fun addConstraint (c, css) =
-	( if outputUnify then print ("Adding constraint "^(constrToStr (!!c))^"\n") else ()
+	( if !outputUnify then print ("Adding constraint "^(constrToStr (!!c))^"\n") else ()
 	; app (fn cs => cs ::= c::(!!cs)) (constraints::css) )
 
 (* instantiate : obj option vref * obj * constr vref list vref * int -> unit *)
 fun instantiate (r, rInst, cs, l) =
 		if isSome (!! r) then raise Fail "Internal error: double instantiation\n" else
 		( r ::= SOME rInst
-		; if outputUnify then
+		; if !outputUnify then
 			print ("Instantiating $"^(Int.toString l)^" = "^(PrettyPrint.printObj rInst)^"\n")
 		  else ()
 		; awakenedConstrs := !!cs @ !awakenedConstrs)
@@ -430,7 +430,7 @@ and matchHeadInLet (hS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, Whnf.whnfE
 
 (* solveConstr : constr vref -> unit *)
 fun solveConstr c = case !!c of Solved => () | Eqn ob1ob2 =>
-	( if outputUnify then print ("Unifying leftover constraint: "^(constrToStr (!!c))^"\n") else ()
+	( if !outputUnify then print ("Unifying leftover constraint: "^(constrToStr (!!c))^"\n") else ()
 	; c ::= Solved
 	; unifyObj NONE ob1ob2 )
 
@@ -461,7 +461,7 @@ fun unifyOpt (ty1, ty2) =
 		val ty2 = Util.forceNormalizeType ty2
 	in
 	( awakenedConstrs := []
-	; if outputUnify then
+	; if !outputUnify then
 		( print "["
 		; print (Int.toString (unifyProblemCount ()))
 		; print "] Unifying "

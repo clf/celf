@@ -21,12 +21,17 @@ fun parseArgs args = case args of
 		( print "printImpl := true\n"
 		; PrettyPrint.printImpl := true
 		; parseArgs args )
+	| "-tu"::args =>
+		( print "outputUnify := true\n"
+		; Unify.outputUnify := true
+		; parseArgs args )
 	| "-h"::_ =>
 		( print ("Commandline: clf [-s seed] [-h] [-d] [-pi] <filename>\n"
 				^" -s seed : set random seed\n"
 				^" -h      : show this\n"
 				^" -d      : enable double checking\n"
-				^" -pi     : print implicit arguments\n")
+				^" -pi     : print implicit arguments\n"
+				^" -tu     : trace unifications\n")
 		; raise Fail "Commandline help" )
 	| f::_ => f
 

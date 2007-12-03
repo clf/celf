@@ -1,6 +1,8 @@
 signature UNIFY =
 sig
 
+val outputUnify : bool ref
+
 exception ExnUnify of string
 
 val resetConstrs : unit -> unit
