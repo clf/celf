@@ -36,9 +36,11 @@ struct
 	  | headSub (Var n, Dot (_, s)) = headSub (Var (n-1), s)
 
 	fun subKind (Type, _) = Type
-	  | subKind (KPi (x, A, K), s) = KPi (x, TClos (A, s), KClos(K, dot1 s))
+	  | subKind (KPi (NONE, A, K), s) = KPi (NONE, TClos (A, s), KClos(K, s))
+	  | subKind (KPi (SOME x, A, K), s) = KPi (SOME x, TClos (A, s), KClos(K, dot1 s))
 	fun subType (Lolli (A, B), s) = Lolli (TClos (A, s), TClos (B, s))
-	  | subType (TPi (x, A, B), s) = TPi (x, TClos (A, s), TClos (B, dot1 s))
+	  | subType (TPi (NONE, A, B), s) = TPi (NONE, TClos (A, s), TClos (B, s))
+	  | subType (TPi (SOME x, A, B), s) = TPi (SOME x, TClos (A, s), TClos (B, dot1 s))
 	  | subType (AddProd (A, B), s) = AddProd (TClos (A, s), TClos (B, s))
 	  | subType (Top, _) = Top
 	  | subType (TMonad S, s) = TMonad (STClos (S, s))
@@ -48,19 +50,20 @@ struct
 	  | subTypeSpine (TApp (N, S), s) = TApp (Clos (N, s), TSClos (S, s))
 	fun subSyncType (TTensor (S1, S2), s) = TTensor (STClos (S1, s), STClos (S2, s))
 	  | subSyncType (TOne, _) = TOne
-	  | subSyncType (Exists (x, A, S), s) = Exists (x, TClos (A, s), STClos (S, dot1 s))
+	  | subSyncType (Exists (NONE, A, S), s) = Exists (NONE, TClos (A, s), STClos (S, s))
+	  | subSyncType (Exists (SOME x, A, S), s) = Exists (SOME x, TClos (A, s), STClos (S, dot1 s))
 	  | subSyncType (Async A, s) = Async (TClos (A, s))
 	
-	fun subObj (LinLam (x, N), s) = LinLam (x, Clos (N, dot1 s))
-	  | subObj (Lam (x, N), s) = Lam (x, Clos (N, dot1 s))
-	  | subObj (AddPair (N1, N2), s) = AddPair (Clos (N1, s), Clos (N2, s))
-	  | subObj (Unit, _) = Unit
-	  | subObj (Monad E, s) = Monad (EClos (E, s))
-	  | subObj (Atomic (H, A, S), s) = (case headSub (H, s) of
-			  LEFT H' => Atomic (H', A, SClos (S, s))
-			| RIGHT N => Redex (N, A, SClos (S, s)))
-	  | subObj (Redex (N, A, S), s) = Redex (Clos (N, s), A, SClos (S, s))
-	  | subObj (Constraint (N, A), s) = Constraint (Clos (N, s), TClos (A, s))
+	fun subObj _ (LinLam (x, N), s) = LinLam (x, Clos (N, dot1 s))
+	  | subObj _ (Lam (x, N), s) = Lam (x, Clos (N, dot1 s))
+	  | subObj _ (AddPair (N1, N2), s) = AddPair (Clos (N1, s), Clos (N2, s))
+	  | subObj _ (Unit, _) = Unit
+	  | subObj _ (Monad E, s) = Monad (EClos (E, s))
+	  | subObj redex (Atomic (H, S), s) = (case headSub (H, s) of
+			  LEFT H' => Atomic (H', SClos (S, s))
+			| RIGHT N => redex (N, SClos (S, s)))
+	  | subObj _ (Redex (N, A, S), s) = Redex (Clos (N, s), A, SClos (S, s))
+	  | subObj _ (Constraint (N, A), s) = Constraint (Clos (N, s), TClos (A, s))
 	fun subSpine (Nil, _) = Nil
 	  | subSpine (App (N, S), s) = App (Clos (N, s), SClos (S, s))
 	  | subSpine (LinApp (N, S), s) = LinApp (Clos (N, s), SClos (S, s))
@@ -98,13 +101,22 @@ struct
 			  | switchSub' k = Dot (Idx (n2+n1+1-k), switchSub' (k-1))
 		in switchSub' n1 end
 
-	fun intersection (Dot (Idx n, s1), Dot (Idx m, s2)) =
-			if n=m then dot1 (intersection (s1, s2)) else comp (intersection (s1, s2), Shift 1)
-	  | intersection (s1 as Dot _, Shift n) = intersection (s1, Dot (Idx (n+1), Shift (n+1)))
-	  | intersection (Shift n, s2 as Dot _) = intersection (Dot (Idx (n+1), Shift (n+1)), s2)
-	  | intersection (Shift n1, Shift n2) =
-			if n1=n2 then id else raise Fail "Internal error: intersection\n"
-	  | intersection _ = raise Fail "Internal error: intersection called on non-pattern sub\n"
+	fun intersection (*conv*) s1s2 =
+		let fun eq (Idx n, Idx m) = n=m
+(*			  | eq (Idx n, Ob N) = conv (Atomic' (Var n, (), Nil'), N)
+			  | eq (Ob N, Idx n) = conv (Atomic' (Var n, (), Nil'), N)
+			  | eq (Ob N1, Ob N2) = conv (N1, N2)*)
+			  | eq (Undef, _) = raise Fail "Internal error intersection"
+			  | eq (_, Undef) = raise Fail "Internal error intersection"
+			fun intersect (Dot (n1, s1), Dot (n2, s2)) =
+					if eq (n1, n2) then dot1 (intersect (s1, s2))
+					else comp (intersect (s1, s2), Shift 1)
+			  | intersect (s1 as Dot _, Shift n) = intersect (s1, Dot (Idx (n+1), Shift (n+1)))
+			  | intersect (Shift n, s2 as Dot _) = intersect (Dot (Idx (n+1), Shift (n+1)), s2)
+			  | intersect (Shift n1, Shift n2) =
+					if n1=n2 then id else raise Fail "Internal error: intersection\n"
+(*			  | intersect _ = raise Fail "Internal error: intersection called on non-pattern sub\n"*)
+		in intersect s1s2 end
 
 	fun invert s =
 		let fun lookup (n, Shift _, p) = NONE

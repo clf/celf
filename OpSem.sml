@@ -15,8 +15,12 @@ fun solve (ctx, ty, sc) = case Util.typePrjAbbrev ty of
 				fn (N, (ctxo, t)) => case ctxPopLINopt (t, ctxo) of
 					  NONE => ()
 					| SOME ctxo' => sc (LinLam' ("", N), (ctxo', t)))
-	| TPi (x, A, B) => solve (ctxPushUN (x, (A, if x="no dep" then heads A else []), ctx), B,
-				fn (N, ctxo) => sc (Lam' (x, N), Util.map1 ctxPopUN ctxo))
+	| TPi (x, A, B) =>
+			let val x' = getOpt (x, "")
+				val hds = if isSome x then [] else heads A
+			in solve (ctxPushUN (x', (A, hds), ctx), B,
+				fn (N, ctxo) => sc (Lam' (x', N), Util.map1 ctxPopUN ctxo))
+			end
 	| AddProd (A, B) => solve (ctx, A,
 				fn (N1, (ctxo1, t1)) => solve (ctx, B,
 				fn (N2, (ctxo2, t2)) => case ctxAddJoinOpt (t1, t2) (ctxo1, ctxo2) of
@@ -34,7 +38,7 @@ and matchAtom (ctx, P, sc) =
 					| _ => raise Fail "Internal error: wrong argument to matchAtom!\n")
 		val P' = AsyncType.inj P
 		fun lFocus (ctx', lr, A, h) = fn () => leftFocus (lr, ctx', P', A, fn (S, ctxo) =>
-										sc (Atomic' (h, asyncTypeToApx A, S), ctxo))
+										sc (Atomic' (h, S), ctxo))
 		fun matchSig (c, lr, A) = BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
 		fun matchCtx ([], _) = ()
 		  | matchCtx ((_, _, NO)::G, k) = matchCtx (G, k+1)
@@ -53,7 +57,7 @@ and matchAtom (ctx, P, sc) =
 and forwardChain (ctx, S, sc) =
 	let fun mlFocus (ctx', lr, A, h) = fn commitExn =>
 					monLeftFocus (lr, ctx', A, fn (S, ctxo) =>
-						raise commitExn (Atomic' (h, asyncTypeToApx A, S), ctxo))
+						raise commitExn (Atomic' (h, S), ctxo))
 		fun matchSig (c, lr, A) = fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))
 		fun matchCtx ([], _) = []
 		  | matchCtx ((_, _, NO)::G, k) = matchCtx (G, k+1)
@@ -75,7 +79,9 @@ and forwardChain (ctx, S, sc) =
 				let fun syncType2pat sty = case SyncType.prj sty of
 						  TTensor (S1, S2) => PTensor' (syncType2pat S1, syncType2pat S2)
 						| TOne => POne'
-						| Exists (x, A, S) => PDepPair' (x, A, syncType2pat S)
+						| Exists (NONE, A, S) =>
+								PDepPair' ("", A, syncType2pat (STClos (S, Subst.shift 1)))
+						| Exists (SOME x, A, S) => PDepPair' (x, A, syncType2pat S)
 						| Async A => PVar' ("", A)
 					val p = syncType2pat sty
 				in forwardChain (patBind (fn A => (A, heads A)) p ctxm, S, fn (E, (ctxo', t2)) =>
@@ -93,10 +99,10 @@ and rightFocus (ctx, sty, sc) = case SyncType.prj sty of
 				fn (M1, (ctxm, t1)) => rightFocus (ctxm, S2,
 				fn (M2, (ctxo, t2)) => sc (Tensor' (M1, M2), (ctxo, t1 orelse t2))))
 	| TOne => sc (One', (ctx, false))
-	| Exists ("no dep", A, S) => solve (ctxDelLin ctx, A,
-				fn (N, _) => rightFocus (ctx, STClos (S, Subst.invert (Subst.shift 1)),
+	| Exists (NONE, A, S) => solve (ctxDelLin ctx, A,
+				fn (N, _) => rightFocus (ctx, S,
 				fn (M, ctxo) => sc (DepPair' (N, M), ctxo)))
-	| Exists (x, A, S) => let val N = newLVarCtx (SOME (ctxDelLin (ctxMap #1 ctx))) A
+	| Exists (SOME x, A, S) => let val N = newLVarCtx (SOME (ctxDelLin (ctxMap #1 ctx))) A
 				in rightFocus (ctx, STClos (S, Subst.sub N),
 				fn (M, ctxo) => sc (DepPair' (N, M), ctxo)) end
 	| Async A => solve (ctx, A, fn (N, ctxo) => sc (Norm' N, ctxo))
@@ -109,10 +115,10 @@ and leftFocus (lr, ctx, P, ty, sc) = case Util.typePrjAbbrev ty of
 	  Lolli (A, B) => leftFocus (lr, ctx, P, B,
 				fn (S, (ctxm, t1)) => solve (ctxm, A,
 				fn (N, (ctxo, t2)) => sc (LinApp' (N, S), (ctxo, t1 orelse t2))))
-	| TPi ("no dep", A, B) => leftFocus (lr, ctx, P, TClos (B, Subst.invert (Subst.shift 1)),
+	| TPi (NONE, A, B) => leftFocus (lr, ctx, P, B,
 				fn (S, ctxo) => solve (ctxDelLin (#1 ctxo), A,
 				fn (N, _) => sc (App' (N, S), ctxo)))
-	| TPi (x, A, B) => let val N = newLVarCtx (SOME (ctxDelLin (ctxMap #1 ctx))) A
+	| TPi (SOME x, A, B) => let val N = newLVarCtx (SOME (ctxDelLin (ctxMap #1 ctx))) A
 				in leftFocus (lr, ctx, P, TClos (B, Subst.sub N),
 				fn (S, ctxo) => sc (App' (N, S), ctxo)) end
 	| AddProd (A, B) => (case lr of
@@ -131,10 +137,10 @@ and monLeftFocus (lr, ctx, ty, sc) = case Util.typePrjAbbrev ty of
 	  Lolli (A, B) => solve (ctx, A,
 				fn (N, (ctxm, t1)) => monLeftFocus (lr, ctxm, B,
 				fn (S, (ctxo, t2)) => sc (LinApp' (N, S), (ctxo, t1 orelse t2))))
-	| TPi ("no dep", A, B) => solve (ctxDelLin ctx, A,
-				fn (N, _) => monLeftFocus (lr, ctx, TClos (B, Subst.invert (Subst.shift 1)),
+	| TPi (NONE, A, B) => solve (ctxDelLin ctx, A,
+				fn (N, _) => monLeftFocus (lr, ctx, B,
 				fn (S, ctxo) => sc (App' (N, S), ctxo)))
-	| TPi (x, A, B) => let val N = newLVarCtx (SOME (ctxDelLin (ctxMap #1 ctx))) A
+	| TPi (SOME x, A, B) => let val N = newLVarCtx (SOME (ctxDelLin (ctxMap #1 ctx))) A
 				in monLeftFocus (lr, ctx, TClos (B, Subst.sub N),
 				fn (S, ctxo) => sc (App' (N, S), ctxo)) end
 	| AddProd (A, B) => (case lr of

@@ -18,12 +18,14 @@ open Syntax
    otherwise Fail is raised 
 *)
 fun convAsyncType (ty1, ty2) = case (Util.nfTypePrjAbbrev ty1, Util.nfTypePrjAbbrev ty2) of
-       (TPi (_, A1, A2), TPi (_, B1, B2)) =>
-         (convAsyncType (A1, B1); convAsyncType (A2, B2))
-     | (Lolli (A1, A2), Lolli (B1, B2)) => 
-         (convAsyncType (A1, B1); convAsyncType (A2, B2))
-     | (AddProd (A1, A2), AddProd (B1, B2)) =>
-         (convAsyncType (A1, B1); convAsyncType (A2, B2))
+       (TPi (x1, A1, B1), TPi (x2, A2, B2)) =>
+			let val B1' = if isSome x1 then B1 else NfTClos (B1, Subst.shift 1)
+				val B2' = if isSome x2 then B2 else NfTClos (B2, Subst.shift 1)
+         in (convAsyncType (A1, A2); convAsyncType (B1', B2')) end
+     | (Lolli (A1, B1), Lolli (A2, B2)) => 
+         (convAsyncType (A1, A2); convAsyncType (B1, B2))
+     | (AddProd (A1, B1), AddProd (A2, B2)) =>
+         (convAsyncType (A1, A2); convAsyncType (B1, B2))
      | (Top, Top) => ()
      | (TAtomic (a1, TS1), TAtomic (a2, TS2)) =>
 	 if (a1 = a2) then convTypeSpine (TS1, TS2)
@@ -51,7 +53,7 @@ and convObj (ob1, ob2) = case (NfObj.prj ob1, NfObj.prj ob2) of
      | (NfAddPair (N1, N2), NfAddPair (M1, M2)) => (convObj (N1, M1); convObj (N2, M2))
      | (NfUnit, NfUnit) => ()
      | (NfMonad E1, NfMonad E2) => convExpObj (E1, E2)
-     | (NfAtomic (H1, _, S1), NfAtomic (H2, _, S2)) => 
+     | (NfAtomic (H1, S1), NfAtomic (H2, S2)) => 
 	 (convHead (H1, H2); convSpine (S1, S2))
      | _ => raise Fail ("Error in convertibilty of "^PrettyPrint.printObj (unnormalizeObj ob1)
 	 			^" and "^PrettyPrint.printObj (unnormalizeObj ob2))
@@ -120,12 +122,12 @@ and convExpObj (E1, E2) = case (NfExpObj.prj E1, NfExpObj.prj E2) of
    and   E2 == let P1=R1 in E: S
 *)
 and convExpObj1 (E1, E2) = case (NfExpObj.prj E1, NfExpObj.prj E2) of
-       (Let (P1, (H1, _, S1), _), Let (P2, (H2, A2, S2), E2')) =>
+       (Let (P1, (H1, S1), _), Let (P2, (H2, S2), E2')) =>
 	  if ((convHead (H1, H2); convSpine (S1, S2); true) handle Fail _ => false) then E2'
 	  else
 	    let val s1 = Subst.shift (nfnbinds P1)
 	    in NfExpObj.inj (Let (NfPClos (P2, s1),
-			(Subst.shiftHead (H2, nfnbinds P1), A2, NfSClos (S2, s1)),
+			(Subst.shiftHead (H2, nfnbinds P1), NfSClos (S2, s1)),
 		      NfEClos (convExpObj1 (NfEClos (E1, Subst.shift (nfnbinds P2)), E2'),
 			     Subst.switchSub (nfnbinds P1, nfnbinds P2))))
 	    end

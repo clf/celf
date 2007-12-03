@@ -43,6 +43,10 @@ fun ctxLookupName (ctx, y) =
 (* ctxPushUN : string * 'a * 'a context -> 'a context *)
 fun ctxPushUN (x, A, ctx) = (x, A, UN) :: ctx
 
+(* ctxCondPushUN : string option * 'a * 'a context -> 'a context *)
+fun ctxCondPushUN (NONE, _, ctx) = ctx
+  | ctxCondPushUN (SOME x, A, ctx) = ctxPushUN (x, A, ctx)
+
 (* ctxPushLIN : string * 'a * 'a context -> 'a context *)
 fun ctxPushLIN (x, A, ctx) = (x, A, LIN) :: ctx
 

@@ -63,17 +63,17 @@ Number :
 
 Kind :
 	  TYPE                           ( Syntax.Type' )
-	| PI ID COLON AsyncType DOT Kind ( Syntax.KPi'(ID,AsyncType,Kind) )
-	| AsyncType ARROW Kind           ( Syntax.KPi'("no dep",AsyncType,Kind) )
-	| PI ID DOT Kind                 ( Syntax.KPi'(ID,Syntax.newTVar(),Kind) )
+	| PI ID COLON AsyncType DOT Kind ( Syntax.KPi'(SOME ID,AsyncType,Kind) )
+	| AsyncType ARROW Kind           ( Syntax.KPi'(NONE,AsyncType,Kind) )
+	| PI ID DOT Kind                 ( Syntax.KPi'(SOME ID,Syntax.newTVar(),Kind) )
 
 AsyncType :
 	  AsyncType LOLLI AsyncType           ( Syntax.Lolli'(AsyncType1,AsyncType2) )
 	| AsyncType BACKLOLLI AsyncType       ( Syntax.Lolli'(AsyncType2,AsyncType1) )
-	| PI ID COLON AsyncType DOT AsyncType ( Syntax.TPi'(ID,AsyncType1,AsyncType2) )
-	| PI ID DOT AsyncType                 ( Syntax.TPi'(ID,Syntax.newTVar(),AsyncType) )
-	| AsyncType ARROW AsyncType           ( Syntax.TPi'("no dep",AsyncType1,AsyncType2) )
-	| AsyncType BACKARROW AsyncType       ( Syntax.TPi'("no dep",AsyncType2,AsyncType1) )
+	| PI ID COLON AsyncType DOT AsyncType ( Syntax.TPi'(SOME ID,AsyncType1,AsyncType2) )
+	| PI ID DOT AsyncType                 ( Syntax.TPi'(SOME ID,Syntax.newTVar(),AsyncType) )
+	| AsyncType ARROW AsyncType           ( Syntax.TPi'(NONE,AsyncType1,AsyncType2) )
+	| AsyncType BACKARROW AsyncType       ( Syntax.TPi'(NONE,AsyncType2,AsyncType1) )
 	| AsyncType AMPH AsyncType            ( Syntax.AddProd'(AsyncType1,AsyncType2) )
 	| TOP                                 ( Syntax.Top' )
 	| LCURLY SyncType RCURLY              ( Syntax.TMonad' SyncType )
@@ -93,8 +93,8 @@ AtomicType :
 SyncType :
 	  SyncType TENSOR SyncType               ( Syntax.TTensor'(SyncType1,SyncType2) )
 	| ONE                                    ( Syntax.TOne' )
-	| EXISTS ID COLON AsyncType DOT SyncType ( Syntax.Exists'(ID,AsyncType,SyncType) )
-	| EXISTS ID DOT SyncType                 ( Syntax.Exists'(ID,Syntax.newTVar(),SyncType) )
+	| EXISTS ID COLON AsyncType DOT SyncType ( Syntax.Exists'(SOME ID,AsyncType,SyncType) )
+	| EXISTS ID DOT SyncType                 ( Syntax.Exists'(SOME ID,Syntax.newTVar(),SyncType) )
 	| AsyncType %prec DOT                    ( Syntax.Async' AsyncType )
 	| LPAREN SyncType RPAREN                 ( SyncType )
 

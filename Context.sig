@@ -18,6 +18,7 @@ val ctxLookupNum : 'a context * int -> 'a context * 'a
 val ctxLookupName : 'a context * string -> (int * 'a * 'a context) option
 
 val ctxPushUN : string * 'a * 'a context -> 'a context
+val ctxCondPushUN : string option * 'a * 'a context -> 'a context
 val ctxPushLIN : string * 'a * 'a context -> 'a context
 val ctxPopUN : 'a context -> 'a context
 val ctxPopLIN : bool * 'a context -> 'a context

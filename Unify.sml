@@ -40,8 +40,9 @@ fun lowerLVar (ty, sp, s, ctx) = case (Util.typePrjAbbrev ty, Spine.prj sp) of
 			let val (rInst, Y) = lowerLVar (B, S, Subst.dot (N, s), ctxPushLIN ("", A, ctx))
 			in (LinLam' ("", rInst), Y) end
 	| (TPi (x, A, B), App (N, S)) =>
-			let val (rInst, Y) = lowerLVar (B, S, Subst.dot (N, s), ctxPushUN (x, A, ctx))
-			in (Lam' (x, rInst), Y) end
+			let val x' = getOpt (x, "")
+				val (rInst, Y) = lowerLVar (B, S, Subst.dot (N, s), ctxPushUN (x', A, ctx))
+			in (Lam' (x', rInst), Y) end
 	| (AddProd (A, B), ProjLeft S) =>
 			let val (rInst, Y) = lowerLVar (A, S, s, ctx)
 			in (AddPair' (rInst, newLVarCtx (SOME ctx) B), Y) end
@@ -61,13 +62,13 @@ fun invAtomic (Atomic a) = a
 val invAtomicP = invAtomic o Obj.prj
 
 (* lowerAtomic : head * apxAsyncType * spine -> head * apxAsyncType * spine *)
-fun lowerAtomic (N as (LogicVar {X, ty, s, ctx=ref ctx, cnstr=cs, tag}, _, S)) =
+fun lowerAtomic (N as (LogicVar {X, ty, s, ctx=ref ctx, cnstr=cs, tag}, S)) =
 		(case Spine.prj S of Nil => N | _ =>
 			let val (rInst, Y) = lowerLVar (ty, S, s, valOf ctx)
 			in instantiate (X, rInst, cs, tag); invAtomic Y end)
-  | lowerAtomic hAS = hAS
+  | lowerAtomic hS = hS
 
-fun lowerObj (NfAtomic hAS) = NfAtomic (lowerAtomic hAS)
+fun lowerObj (NfAtomic hS) = NfAtomic (lowerAtomic hS)
   | lowerObj N = N
 
 fun whnf2obj (NfLinLam N) = LinLam N
@@ -77,11 +78,15 @@ fun whnf2obj (NfLinLam N) = LinLam N
   | whnf2obj (NfMonad N) = Monad N
   | whnf2obj (NfAtomic N) = Atomic N
 
+(* newMon (S, G) = M  :  G |- M : S *)
 (* newMon : syncType * context -> monadObj *)
 fun newMon (sTy, ctx) = case SyncType.prj sTy of
 	  TTensor (S1, S2) => Tensor' (newMon (S1, ctx), newMon (S2, ctx))
 	| TOne => One'
-	| Exists (x, A, S) => DepPair' (newLVarCtx (SOME ctx) A, newMon (S, ctxPushUN (x, A, ctx)))
+	| Exists (x, A, S) =>
+		let val N = newLVarCtx (SOME ctx) A
+			val S' = if isSome x then STClos (S, Subst.sub N) else S
+		in DepPair' (N, newMon (S', ctx)) end (* bugfix 27/11-07 --asn *)
 	| Async A => Norm' (newLVarCtx (SOME ctx) A)
 
 (* newMonA : asyncType * context -> expObj *)
@@ -143,7 +148,7 @@ val (objExists, typeExists) =
 					pruneCtx f (Subst.comp (s, wi)) G
 				end
 		fun f prune rOccur s ob = case whnf2obj (lowerObj (Whnf.whnfObj ob)) of
-		  N as Atomic (LogicVar {X=rY, ty=A, s=sY, ctx=ref G, cnstr=cs, tag}, _, _ (* = Nil *)) =>
+		  N as Atomic (LogicVar {X=rY, ty=A, s=sY, ctx=ref G, cnstr=cs, tag}, _ (* = Nil *)) =>
 				if eq (rY, rOccur) then raise Subst.ExnUndef
 				else let fun subObjExists Undef = false
 				           | subObjExists (Idx _) = true
@@ -189,7 +194,10 @@ val (objExists, typeExists) =
 
 fun unifyType (ty1, ty2) = case (Util.typePrjAbbrev ty1, Util.typePrjAbbrev ty2) of
 	  (Lolli (A1, B1), Lolli (A2, B2)) => (unifyType (A1, A2); unifyType (B1, B2))
-	| (TPi (x1, A1, B1), TPi (x2, A2, B2)) => (unifyType (A1, A2); unifyType (B1, B2))
+	| (TPi (x1, A1, B1), TPi (x2, A2, B2)) =>
+			let val B1' = if isSome x1 then B1 else TClos (B1, Subst.shift 1)
+				val B2' = if isSome x2 then B2 else TClos (B2, Subst.shift 1)
+			in (unifyType (A1, A2); unifyType (B1', B2')) end
 	| (AddProd (A1, B1), AddProd (A2, B2)) => (unifyType (A1, A2); unifyType (B1, B2))
 	| (Top, Top) => ()
 	| (TMonad S1, TMonad S2) => unifySyncType (S1, S2)
@@ -200,7 +208,10 @@ fun unifyType (ty1, ty2) = case (Util.typePrjAbbrev ty1, Util.typePrjAbbrev ty2)
 and unifySyncType (ty1, ty2) = case (SyncType.prj ty1, SyncType.prj ty2) of
 	  (TTensor (S1, T1), TTensor (S2, T2)) => (unifySyncType (S1, S2); unifySyncType (T1, T2))
 	| (TOne, TOne) => ()
-	| (Exists (x1, A1, S1), Exists (x2, A2, S2)) => (unifyType (A1, A2); unifySyncType (S1, S2))
+	| (Exists (x1, A1, S1), Exists (x2, A2, S2)) =>
+			let val S1' = if isSome x1 then S1 else STClos (S1, Subst.shift 1)
+				val S2' = if isSome x2 then S2 else STClos (S2, Subst.shift 1)
+			in (unifyType (A1, A2); unifySyncType (S1', S2')) end
 	| (Async A1, Async A2) => unifyType (A1, A2)
 	| (S1, S2) => raise Fail "Error shouldn't happen: unifySyncType\n"
 and unifyTSpine (sp1, sp2) = case (TypeSpine.prj sp1, TypeSpine.prj sp2) of
@@ -219,10 +230,10 @@ and unifyObj dryRun (ob1, ob2) =
 		| (NfUnit, NfUnit) => ()
 		| (NfMonad E1, NfMonad E2) =>
 				unifyExp dryRun (E1, E2)
-		| (NfAtomic hAS1, NfAtomic hAS2) => unifyHead dryRun (hAS1, hAS2)
+		| (NfAtomic hS1, NfAtomic hS2) => unifyHead dryRun (hS1, hS2)
 		| (N1, N2) => raise Fail "Internal error: unifyObj\n"
 	end
-and unifyHead dryRun (hAS1 as (h1, _, S1), hAS2 as (h2, _, S2)) = case (h1, h2) of
+and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 	  (Const c1, Const c2) =>
 			if c1 <> c2 then raise ExnUnify ("Constants "^c1^" and "^c2^" differ\n")
 			else unifySpine dryRun (S1, S2)
@@ -236,9 +247,9 @@ and unifyHead dryRun (hAS1 as (h1, _, S1), hAS2 as (h2, _, S2)) = case (h1, h2) 
 		LogicVar {X=r2, s=s2, cnstr=cs2, tag=tag2, ...}) =>
 			if isSome dryRun then (valOf dryRun) := false else
 			if eq (r1, r2) then case Subst.patSub Eta.etaContract s1 of
-				  NONE => addConstraint (vref (Eqn (Atomic' hAS2, Atomic' hAS1)), [cs1])
+				  NONE => addConstraint (vref (Eqn (Atomic' hS2, Atomic' hS1)), [cs1])
 				| SOME s1' => (case Subst.patSub Eta.etaContract s2 of
-					  NONE => addConstraint (vref (Eqn (Atomic' hAS1, Atomic' hAS2)), [cs1])
+					  NONE => addConstraint (vref (Eqn (Atomic' hS1, Atomic' hS2)), [cs1])
 					| SOME s2' =>
 						let val s' = Subst.intersection (s1', s2')
 						in if Subst.isId s' then () else 
@@ -250,17 +261,17 @@ and unifyHead dryRun (hAS1 as (h1, _, S1), hAS2 as (h2, _, S2)) = case (h1, h2) 
 							in instantiate (r1, Clos (newLVarCtx G' A', s'), cs1, tag1) end
 						end)
 			else (case Subst.patSub Eta.etaContract s1 of
-				  SOME s' => unifyLVar (r1, tag1, s', Atomic' hAS2, cs1)
+				  SOME s' => unifyLVar (r1, tag1, s', Atomic' hS2, cs1)
 				| NONE =>
 					(case Subst.patSub Eta.etaContract s2 of
-					  SOME s' => unifyLVar (r2, tag2, s', Atomic' hAS1, cs2)
-					| NONE => addConstraint (vref (Eqn (Atomic' hAS1, Atomic' hAS2)), [cs1, cs2])))
+					  SOME s' => unifyLVar (r2, tag2, s', Atomic' hS1, cs2)
+					| NONE => addConstraint (vref (Eqn (Atomic' hS1, Atomic' hS2)), [cs1, cs2])))
 	| (LogicVar {X, s, cnstr=cs, tag, ...}, _) =>
 			if isSome dryRun then (valOf dryRun) := false else
 			(case Subst.patSub Eta.etaContract s of
-				  SOME s' => unifyLVar (X, tag, s', Atomic' hAS2, cs)
-				| NONE => addConstraint (vref (Eqn (Atomic' hAS1, Atomic' hAS2)), [cs]))
-	| (_, LogicVar _) => unifyHead dryRun (hAS2, hAS1)
+				  SOME s' => unifyLVar (X, tag, s', Atomic' hS2, cs)
+				| NONE => addConstraint (vref (Eqn (Atomic' hS1, Atomic' hS2)), [cs]))
+	| (_, LogicVar _) => unifyHead dryRun (hS2, hS1)
 	| _ => raise ExnUnify "h1 h2"
 and unifyLVar (r, l, s, ob, cs) = (* LogicVar (r, _, s, _, cs, l) =unify= ob *)
 	case objExists true r s (Clos (ob, Subst.invert s)) of
@@ -278,18 +289,18 @@ and unifyExp dryRun (e1, e2) = case (Whnf.whnfExp e1, Whnf.whnfExp e2) of
 	| (Let L1, Mon M2) => unifyLetMon dryRun (L1, M2)
 	| (Mon M1, Let L2) => unifyLetMon dryRun (L2, M1)
 	| (Let L1, Let L2) =>
-			let fun lVarCount (Let (_, (LogicVar _, _, _), E)) = 1 + lVarCount (Whnf.whnfExp E)
+			let fun lVarCount (Let (_, (LogicVar _, _), E)) = 1 + lVarCount (Whnf.whnfExp E)
 				  | lVarCount (Let (_, _, E)) = lVarCount (Whnf.whnfExp E)
 				  | lVarCount (Mon _) = 0
 			in if isSome dryRun andalso (lVarCount (Let L1) > 0 orelse lVarCount (Let L2) > 0)
 				then (valOf dryRun) := false
 				else unifyLetLet dryRun (L1, L2)
 			end
-and unifyLetMon dryRun ((p, hAS, E), M) = case lowerAtomic hAS of
-	  (LogicVar {X, ty, s, ctx=ref G, cnstr=cs, tag}, _, _ (*=Nil*)) =>
+and unifyLetMon dryRun ((p, hS, E), M) = case lowerAtomic hS of
+	  (LogicVar {X, ty, s, ctx=ref G, cnstr=cs, tag}, _ (*=Nil*)) =>
 			if isSome dryRun then (valOf dryRun) := false else (* stub? *)
 			( instantiate (X, Monad' (newMonA (ty, valOf G)), cs, tag)
-			; unifyExp NONE (Let' (p, Atomic' hAS, E), Mon' M) )
+			; unifyExp NONE (Let' (p, Atomic' hS, E), Mon' M) )
 	| _ => raise ExnUnify "let = mon\n"
 and unifyMon dryRun (m1, m2) = case (MonadObj.prj m1, MonadObj.prj m2) of
 	  (Tensor (M11, M12), Tensor (M21, M22)) =>
@@ -304,10 +315,10 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 		val ob2' = (invAtomic o whnf2obj o lowerObj o Whnf.whnfObj o Atomic') ob2
 		val expWhnfInj = ExpObj.inj o (ExpObj.Fmap ((Atomic', fn x=>x, fn x=>x), fn x=>x))
 	in case (ob1', Whnf.whnfExp E1, ob2', Whnf.whnfExp E2) of
-		  ((L1 as LogicVar {X, ty, s, ctx=ref G, cnstr=cs, tag}, A', S (*=Nil*)), Mon M1, _, E2') =>
+		  ((L1 as LogicVar {X, ty, s, ctx=ref G, cnstr=cs, tag}, S (*=Nil*)), Mon M1, _, E2') =>
 			(case splitExp (X, Let' (p2, Atomic' ob2', expWhnfInj E2')) of
 				  LEFT (L2, M2) =>
-					( unifyHead NONE ((L1, A', S), (L2, A', S))
+					( unifyHead NONE ((L1, S), (L2, S))
 					; unifyMon NONE (M1, M2) )
 				| RIGHT (e, M2, ectx, n) =>
 					(case Subst.patSub Eta.etaContract s of
@@ -321,46 +332,46 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 									Mon' M2)
 								; unifyLVar (X, tag, s', Monad' (e newM), cs) )
 							end))
-		| (_, E1', (LogicVar _, _, _), Mon M2) =>
+		| (_, E1', (LogicVar _, _), Mon M2) =>
 			unifyLetLet NONE ((p2, ob2', Mon' M2), (p1, ob1', expWhnfInj E1'))
-		| ((LogicVar L1, _, _), E1', (LogicVar L2, _, _), E2') =>
+		| ((LogicVar L1, _), E1', (LogicVar L2, _), E2') =>
 			raise Fail "stub: postpone as constraint"
-		| (hAS1, E1', (LogicVar L2, _, _), E2') =>
+		| (hS1, E1', (LogicVar L2, _), E2') =>
 			let val E = Util.whnfLetSpine (Let' (p2, Atomic' ob2', expWhnfInj E2'))
-				val E2rest = matchHeadInLet (hAS1, fn _ => fn e => e, 0, E, E, 0)
+				val E2rest = matchHeadInLet (hS1, fn _ => fn e => e, 0, E, E, 0)
 			in unifyExp NONE (expWhnfInj E1', E2rest) end
-		| ((LogicVar L1, _, _), E1', hAS2, E2') =>
+		| ((LogicVar L1, _), E1', hS2, E2') =>
 			let val E = Util.whnfLetSpine (Let' (p1, Atomic' ob1', expWhnfInj E1'))
-				val E1rest = matchHeadInLet (hAS2, fn _ => fn e => e, 0, E, E, 0)
+				val E1rest = matchHeadInLet (hS2, fn _ => fn e => e, 0, E, E, 0)
 			in unifyExp NONE (E1rest, expWhnfInj E2') end
-		| (hAS1, E1', hAS2, E2') =>
+		| (hS1, E1', hS2, E2') =>
 			let val E = Util.whnfLetSpine (Let' (p2, Atomic' ob2', expWhnfInj E2'))
-				val E2rest = matchHeadInLet (hAS1, fn _ => fn e => e, 0, E, E, 0)
+				val E2rest = matchHeadInLet (hS1, fn _ => fn e => e, 0, E, E, 0)
 			in unifyExp dryRun (expWhnfInj E1', E2rest) (*stub: on failure check reverse?*) end
 	end
-and matchHeadInLet (hAS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, Whnf.whnfExp EsX) of
+and matchHeadInLet (hS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, Whnf.whnfExp EsX) of
 	  (Let (p, N, E'), Let (_, NsX, EsX')) =>
 			let val nbp = nbinds p
-				fun hAS' () = invAtomicP (Clos (Atomic' hAS, Subst.shift nbp))
+				fun hS' () = invAtomicP (Clos (Atomic' hS, Subst.shift nbp))
 				val e' = fn s => fn E =>
 							let val s' = Subst.dotn nbe s
 							in e s (Let' (PClos (p, s'), Clos (N, s'), E)) end
 				fun lVarSub 0 = Subst.shift nbp
 				  | lVarSub n = Subst.dot (Util.blank (), lVarSub (n-1))
-				fun isLVar (LogicVar _, _, _) = true
+				fun isLVar (LogicVar _, _) = true
 				  | isLVar _ = false
 				fun EsX'' () = if isLVar NsX then EClos (EsX', lVarSub nbp) else EsX'
 				val dryRun = ref true
 			in
-				case SOME (unifyHead (SOME dryRun) (hAS, NsX))
+				case SOME (unifyHead (SOME dryRun) (hS, NsX))
 						handle ExnUnify _ => NONE of
 				  SOME () =>
 					if !dryRun then
 						e (Subst.shift nbp) (EClos (E', Subst.switchSub (nbp, nbe)))
 					else
-						matchHeadInLet (hAS' (), e', nbe + nbp, E', EsX'' (), nMaybe + 1)
+						matchHeadInLet (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe + 1)
 				| NONE =>
-						matchHeadInLet (hAS' (), e', nbe + nbp, E', EsX'' (), nMaybe)
+						matchHeadInLet (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe)
 			end
 	| (Mon _, Mon _) =>
 			if nMaybe = 0 then raise ExnUnify "Monadic objects not unifiable\n"

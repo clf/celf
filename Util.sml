@@ -78,7 +78,7 @@ type ('ki, 'aTy, 'tyS, 'sTy, 'o, 'sp, 'e, 'm, 'p) nfFoldFuns = {
 	fsTy : ('aTy, 'sTy) syncTypeFF -> 'sTy,
 	fo   : ('sp, 'e, 'o) nfObjFF -> 'o,
 	fsp  : ('o, 'sp) spineFF -> 'sp,
-	fe   : (nfHead * apxAsyncType * 'sp, 'm, 'p, 'e) expObjFF -> 'e,
+	fe   : (nfHead * 'sp, 'm, 'p, 'e) expObjFF -> 'e,
 	fm   : ('o, 'm) monadObjFF -> 'm,
 	fp   : ('aTy, 'p) patternFF -> 'p }
 
@@ -102,10 +102,10 @@ fun app (ob1, ob2) = Redex' (ob1, newApxTVar (), App' (ob2, Nil'))
 fun projLeft ob = Redex' (ob, newApxTVar (), ProjLeft' Nil')
 fun projRight ob = Redex' (ob, newApxTVar (), ProjRight' Nil')
 fun blank () = newLVar (newTVar ())
-fun headToObj h = Atomic' (h, newApxTVar (), Nil')
+fun headToObj h = Atomic' (h, Nil')
 
 fun linLamConstr (x, A, N) = Constraint' (LinLam' (x, N), Lolli' (A, newTVar ()))
-fun lamConstr (x, A, N) = Constraint' (Lam' (x, N), TPi' (x, A, newTVar ()))
+fun lamConstr (x, A, N) = Constraint' (Lam' (x, N), TPi' (SOME x, A, newTVar ()))
 
 (* typePrjAbbrev : asyncType -> asyncType asyncTypeF *)
 fun typePrjAbbrev ty = case AsyncType.prj ty of

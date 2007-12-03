@@ -32,9 +32,9 @@ datatype head = Const of string
 		tag   : int }
 
 datatype ('aTy, 'ki) kindFF = Type
-	| KPi of string * 'aTy * 'ki
+	| KPi of string option * 'aTy * 'ki
 datatype ('tyS, 'sTy, 'aTy) asyncTypeFF = Lolli of 'aTy * 'aTy
-	| TPi of string * 'aTy * 'aTy
+	| TPi of string option * 'aTy * 'aTy
 	| AddProd of 'aTy * 'aTy
 	| Top
 	| TMonad of 'sTy
@@ -44,14 +44,14 @@ datatype ('o, 'tyS) typeSpineFF = TNil
 	| TApp of 'o * 'tyS
 datatype ('aTy, 'sTy) syncTypeFF = TTensor of 'sTy * 'sTy
 	| TOne
-	| Exists of string * 'aTy * 'sTy
+	| Exists of string option * 'aTy * 'sTy
 	| Async of 'aTy
 datatype ('aTy, 'sp, 'e, 'o) objFF = LinLam of string * 'o
 	| Lam of string * 'o
 	| AddPair of 'o * 'o
 	| Unit
 	| Monad of 'e
-	| Atomic of head * apxAsyncType * 'sp
+	| Atomic of head * 'sp
 	| Redex of 'o * apxAsyncType * 'sp
 	| Constraint of 'o * 'aTy
 datatype ('sp, 'e, 'o) nfObjFF = NfLinLam of string * 'o
@@ -59,7 +59,7 @@ datatype ('sp, 'e, 'o) nfObjFF = NfLinLam of string * 'o
 	| NfAddPair of 'o * 'o
 	| NfUnit
 	| NfMonad of 'e
-	| NfAtomic of head * apxAsyncType * 'sp
+	| NfAtomic of head * 'sp
 datatype ('o, 'sp) spineFF = Nil
 	| App of 'o * 'sp
 	| LinApp of 'o * 'sp
@@ -111,6 +111,8 @@ val EClos : expObj * subst -> expObj
 val MClos : monadObj * subst -> monadObj
 val PClos : pattern * subst -> pattern
 
+val redex : obj * spine -> obj
+
 val nbinds : pattern -> int
 
 end
@@ -160,9 +162,9 @@ structure Subst : sig
 end
 
 val Type' : kind
-val KPi' : string * asyncType * kind -> kind
+val KPi' : string option * asyncType * kind -> kind
 val Lolli' : asyncType * asyncType -> asyncType
-val TPi' : string * asyncType * asyncType -> asyncType
+val TPi' : string option * asyncType * asyncType -> asyncType
 val AddProd' : asyncType * asyncType -> asyncType
 val Top' : asyncType
 val TMonad' : syncType -> asyncType
@@ -172,14 +174,14 @@ val TNil' : typeSpine
 val TApp' : obj * typeSpine -> typeSpine
 val TTensor' : syncType * syncType -> syncType
 val TOne' : syncType
-val Exists' : string * asyncType * syncType -> syncType
+val Exists' : string option * asyncType * syncType -> syncType
 val Async' : asyncType -> syncType
 val LinLam' : string * obj -> obj
 val Lam' : string * obj -> obj
 val AddPair' : obj * obj -> obj
 val Unit' : obj
 val Monad' : expObj -> obj
-val Atomic' : head * apxAsyncType * spine -> obj
+val Atomic' : head * spine -> obj
 val Redex' : obj * apxAsyncType * spine -> obj
 val Constraint' : obj * asyncType -> obj
 val Nil' : spine
@@ -197,6 +199,8 @@ val PTensor' : pattern * pattern -> pattern
 val POne' : pattern
 val PDepPair' : string * asyncType * pattern -> pattern
 val PVar' : string * asyncType -> pattern
+
+val appendSpine : spine * spine -> spine
 
 end
 
@@ -217,7 +221,7 @@ type nfPattern
 
 type nfHead = head
 
-eqtype typeLogicVar
+type typeLogicVar
 
 (*
 datatype 'ki apxKindF = ApxType
@@ -262,7 +266,7 @@ val ApxTop' : apxAsyncType
 val ApxTMonad' : apxSyncType -> apxAsyncType
 val ApxTAtomic' : string -> apxAsyncType
 val ApxTAbbrev' : string * asyncType -> apxAsyncType
-val ApxTLogicVar' : apxAsyncType option ref -> apxAsyncType
+val ApxTLogicVar' : typeLogicVar -> apxAsyncType
 val ApxTTensor' : apxSyncType * apxSyncType -> apxSyncType
 val ApxTOne' : apxSyncType
 val ApxExists' : apxAsyncType * apxSyncType -> apxSyncType
@@ -345,7 +349,7 @@ structure NfObj : TYP3 where type ('a, 'b, 't) F = ('a, 'b, 't) nfObjFF
 		and type t = nfObj and type a = nfSpine and type b = nfExpObj
 structure NfSpine : TYP2 where type ('a, 't) F = ('a, 't) spineFF
 		and type t = nfSpine and type a = nfObj
-structure NfExpObj : TYP4 where type ('a, 'b, 'c, 't) F = (nfHead * apxAsyncType * 'a, 'b, 'c, 't) expObjFF
+structure NfExpObj : TYP4 where type ('a, 'b, 'c, 't) F = (nfHead * 'a, 'b, 'c, 't) expObjFF
 		and type t = nfExpObj and type a = nfSpine and type b = nfMonadObj and type c = nfPattern
 structure NfMonadObj : TYP2 where type ('a, 't) F = ('a, 't) monadObjFF
 		and type t = nfMonadObj and type a = nfObj
@@ -388,6 +392,8 @@ val newApxTVar : unit -> apxAsyncType
 val newLVar : asyncType -> obj
 val newLVarCtx : asyncType Context.context option -> asyncType -> obj
 
+val copyLVar : typeLogicVar -> typeLogicVar
+val eqLVar : typeLogicVar * typeLogicVar -> bool
 val updLVar : typeLogicVar * apxAsyncType -> unit
 val isUnknown : asyncType -> bool
 
@@ -398,6 +404,7 @@ val syncTypeToApx : syncType -> apxSyncType
 val kindFromApx : apxKind -> kind
 val asyncTypeFromApx : apxAsyncType -> asyncType
 val syncTypeFromApx : apxSyncType -> syncType
+val unsafeCast : apxAsyncType -> asyncType
 
 val normalizeKind : kind -> nfKind
 val normalizeType : asyncType -> nfAsyncType
@@ -412,11 +419,9 @@ val unnormalizePattern : nfPattern -> pattern
 
 val etaShortcut : obj -> int option
 
-val appendSpine : spine * spine -> spine
-
 structure Whnf : sig
 	val whnfObj : obj -> (spine, expObj, obj) nfObjFF
-	val whnfExp : expObj -> (head * apxAsyncType * spine, monadObj, pattern, expObj) expObjFF
+	val whnfExp : expObj -> (head * spine, monadObj, pattern, expObj) expObjFF
 end
 
 structure Signatur : sig

@@ -18,11 +18,11 @@ val sub = Subst.sub o unnormalizeObj
 
 fun checkKind (ctx, ki) = case NfKind.prj ki of
 	  Type => ()
-	| KPi (x, A, K) => (checkType (ctx, A); checkKind (ctxPushUN (x, A, ctx), K))
+	| KPi (x, A, K) => (checkType (ctx, A); checkKind (ctxCondPushUN (x, A, ctx), K))
 
 and checkType (ctx, ty) = case Util.nfTypePrjAbbrev ty of
 	  Lolli (A, B) => (checkType (ctx, A); checkType (ctx, B))
-	| TPi (x, A, B) => (checkType (ctx, A); checkType (ctxPushUN (x, A, ctx), B))
+	| TPi (x, A, B) => (checkType (ctx, A); checkType (ctxCondPushUN (x, A, ctx), B))
 	| AddProd (A, B) => (checkType (ctx, A); checkType (ctx, B))
 	| Top => ()
 	| TMonad S => checkSyncType (ctx, S)
@@ -33,14 +33,15 @@ and checkTypeSpine (ctx, sp, ki) = case (NfTypeSpine.prj sp, NfKind.prj ki) of
 	  (TNil, Type) => ()
 	| (TNil, KPi _) => raise Fail "Wrong kind; expected Type\n"
 	| (TApp _, Type) => raise Fail "Wrong kind; cannot apply Type\n"
-	| (TApp (N, S), KPi (_, A, K)) =>
+	| (TApp (N, S), KPi (x, A, K)) =>
 			let val _ = checkObj (ctx, N, A)
-			in checkTypeSpine (ctx, S, NfKClos (K, sub N)) end
+				val K' = if isSome x then NfKClos (K, sub N) else K 
+			in checkTypeSpine (ctx, S, K') end
 
 and checkSyncType (ctx, ty) = case NfSyncType.prj ty of
 	  TTensor (S1, S2) => (checkSyncType (ctx, S1); checkSyncType (ctx, S2))
 	| TOne => ()
-	| Exists (x, A, S) => (checkType (ctx, A); checkSyncType (ctxPushUN (x, A, ctx), S))
+	| Exists (x, A, S) => (checkType (ctx, A); checkSyncType (ctxCondPushUN (x, A, ctx), S))
 	| Async A => checkType (ctx, A)
 
 (* Invariant:
@@ -49,8 +50,13 @@ and checkSyncType (ctx, ty) = case NfSyncType.prj ty of
    otherwise Fail is raised 
 *)
 and checkObj (ctx, ob, ty) = case (NfObj.prj ob, Util.nfTypePrjAbbrev ty) of
-        (NfLam (x, N), TPi (_, A, B)) => checkObj (ctxPushUN (x, A, ctx), N, B)
-      | (NfLinLam (x, N), Lolli (A, B)) => checkObj (ctxPushLIN (x, A, ctx), N, B)
+        (NfLam (x, N), TPi (x', A, B)) => (*checkObj (ctxPushUN (x, A, ctx), N, B)*)
+			let val B' = if isSome x' then B else NfTClos (B, Subst.shift 1)
+				val (ctxo, t) = checkObj (ctxPushUN (x, A, ctx), N, B')
+			in (ctxPopUN ctxo, t) end
+      | (NfLinLam (x, N), Lolli (A, B)) => (*checkObj (ctxPushLIN (x, A, ctx), N, B)*)
+			let val (ctxo, t) = checkObj (ctxPushLIN (x, A, ctx), N, NfTClos (B, Subst.shift 1))
+			in (ctxPopLIN (t, ctxo), t) end
       | (NfAddPair (N, M), AddProd (A, B)) => 
 	  let 
 	    val (ctx1, tf1) = checkObj (ctx, N, A)
@@ -60,9 +66,9 @@ and checkObj (ctx, ob, ty) = case (NfObj.prj ob, Util.nfTypePrjAbbrev ty) of
 	  end
       | (NfUnit, Top) => (ctx, true)
       | (NfMonad E, TMonad S) => checkExp (ctx, E, S)
-      | (NfAtomic hAS , TAtomic _) =>
+      | (NfAtomic hS , TAtomic _) =>
 	  let
-	    val (ctx2, tf2, ty2) = inferAtomic (ctx, hAS) 
+	    val (ctx2, tf2, ty2) = inferAtomic (ctx, hS) 
 	    val _ = Conv.convAsyncType (ty, ty2)
 	  in 
 	     (ctx2, tf2)
@@ -76,7 +82,7 @@ and checkObj (ctx, ob, ty) = case (NfObj.prj ob, Util.nfTypePrjAbbrev ty) of
    if G |- R => A' -| G';T'
    otherwise Fail is raised 
 *)
-and inferAtomic (ctx, (H, _, S)) =
+and inferAtomic (ctx, (H, S)) =
 	  let
 	    val (ctx1, tf1, ty1) = inferHead (ctx, H)
 	    val (ctx2, tf2, ty2) = inferSpine (ctx1, S, ty1) 
@@ -108,10 +114,11 @@ and inferHead (ctx, hd) = case hd of
 *)
 and inferSpine (ctx, sp, ty) = case (NfSpine.prj sp, NfAsyncType.prj ty) of
        (Nil, _) => (ctx, false, ty) 
-     | (App (N, S), TPi (_, A, B)) =>
+     | (App (N, S), TPi (x, A, B)) =>
 	 let
 	   val (_, _) = checkObj (ctxDelLin ctx, N, A)
-	   val (ctx1, tf1, ty) = inferSpine (ctx, S, NfTClos (B, sub N))
+	   val B' = if isSome x then NfTClos (B, sub N) else B
+	   val (ctx1, tf1, ty) = inferSpine (ctx, S, B')
 	 in
 	   (ctx1, tf1, ty)
 	 end
@@ -160,8 +167,10 @@ and checkMonad (ctx, mon, S) = case (NfMonadObj.prj mon, NfSyncType.prj S) of
 	   (ctx2, tf1 orelse tf2)
 	 end
      | (One, TOne) => (ctx, false) 
-     | (DepPair (N, M), Exists (_, A, S)) => 
-	 (checkObj (ctxDelLin ctx, N, A); checkMonad (ctx, M, NfSTClos (S, sub N)))
+     | (DepPair (N, M), Exists (x, A, S)) => 
+			let val _ = checkObj (ctxDelLin ctx, N, A)
+				val S' = if isSome x then NfSTClos (S, sub N) else S
+			in checkMonad (ctx, M, S') end
      | (Norm N, Async A) => checkObj (ctx, N, A) 
      | _ => raise Fail "Type mismatch in checkMonad"
 
@@ -175,10 +184,14 @@ and checkPattern (ctx, pat, S) = case (NfPattern.prj pat, NfSyncType.prj S) of
 	 (checkPattern (ctx, P1, S1);
 	 checkPattern (ctx, P2, S2))
      | (POne, TOne) => ()
-     | (PDepPair (s, A1, P), Exists (_, A2, S)) => 
-	 (Conv.convAsyncType (A1, A2); checkPattern (ctxPushUN (s, A2, ctx), P, S))
+     | (PDepPair (s, A1, P), Exists (x, A2, S)) => 
+		let val S' = if isSome x then S else NfSTClos (S, Subst.shift 1)
+		in checkType (ctx, A1)
+		 ; Conv.convAsyncType (A1, A2)
+		 ; checkPattern (ctxPushUN (s, A2, ctx), P, S')
+		end
      | (PVar (_, A1), Async A2) => 
-	 Conv.convAsyncType (A1, A2)
+	 (checkType (ctx, A1); Conv.convAsyncType (A1, A2))
      | _ => raise Fail "Type mismatch in checkPattern"
 
 

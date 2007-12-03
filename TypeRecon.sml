@@ -40,10 +40,10 @@ fun reconstructDecl dec =
 			val dec = mapDecl ApproxTypes.apxCheckKindEC
 			                  ApproxTypes.apxCheckTypeEC
 			                  (ApproxTypes.apxCheckObjEC o (Util.map2 asyncTypeToApx)) dec
-			val dec = mapDecl Eta.etaExpandKind
-			                  Eta.etaExpandType
-			                  (Eta.etaExpandObj o (Util.map2 asyncTypeToApx)) dec
-			val () = ImplicitVars.mapUCTable Eta.etaExpandType
+			val dec = mapDecl Eta.etaExpandKindEC
+			                  Eta.etaExpandTypeEC
+			                  (Eta.etaExpandObjEC o (Util.map2 asyncTypeToApx)) dec
+			val () = ImplicitVars.mapUCTable Eta.etaExpandTypeEC
 			val () = Unify.resetConstrs ()
 			val () = ImplicitVars.appUCTable ExactTypes.checkTypeEC
 			val () = appDecl ExactTypes.checkKindEC
@@ -55,7 +55,7 @@ fun reconstructDecl dec =
 					          ImplicitVars.logicVarsToUCVarsType
 					          (ImplicitVars.logicVarsToUCVarsObj o Constraint') dec
 					; ImplicitVars.appUCTable (Util.objAppType
-						(fn Atomic (LogicVar _, _, _) => raise Fail "stub: LogicVar here???\n"
+						(fn Atomic (LogicVar _, _) => raise Fail "stub: LogicVar here???\n"
 						  | _ => ())) )
 			val () = ImplicitVars.mapUCTable Util.forceNormalizeType
 			val dec = case dec of
@@ -77,7 +77,7 @@ fun reconstructDecl dec =
 			val () = case dec of
 				  ConstDecl (id, imps, kity) =>
 						let fun bindImps pi kity' =
-									foldr (fn ((x, A), im) => pi (x, A, im)) kity' imps
+									foldr (fn ((x, A), im) => pi (SOME x, A, im)) kity' imps
 							val pkity = mapKiTy (bindImps KPi') (bindImps TPi') kity
 						in  ( print (id^": ")
 							; appKiTy (print o PrettyPrint.printKind)

@@ -27,8 +27,8 @@ fun heads ty = case Util.typePrjAbbrev ty of
 	| _ => raise Fail "Internal error heads: TAbbrev\n"
 
 fun updDecl (ConstDecl (c, imps, Ty ty)) =
-		let val ty = foldr (fn ((x, A), im) => TPi' (x, A, im)) ty imps
-			val hds = heads ty
+		let val hds = heads ty
+			val ty = foldr (fn ((x, A), im) => TPi' (SOME x, A, im)) ty imps
 		in app (fn (lrs, HdMonad) => candMonad := (c, lrs, ty) :: !candMonad
 				 | (lrs, HdAtom a) => pushAtom a (c, lrs, ty)) hds
 		end

@@ -10,11 +10,11 @@ open VRef
 
 datatype kind = FixKind of kind kindF | KClos of kind * subst
 and asyncType = FixAsyncType of asyncType asyncTypeF | TClos of asyncType * subst
-	| TLogicVar of asyncType option ref
+	| TLogicVar of typeLogicVar
 and typeSpine = FixTypeSpine of typeSpine typeSpineF | TSClos of typeSpine * subst
 and syncType = FixSyncType of syncType syncTypeF | STClos of syncType * subst
 
-and obj = FixObj of obj objF | Clos of obj * subst | EtaTag of obj * int
+and obj = FixObj of obj objF | Clos of obj * subst | EtaTag of obj * int | IntRedex of obj * spine
 and spine = FixSpine of spine spineF | SClos of spine * subst
 and expObj = FixExpObj of expObj expObjF | EClos of expObj * subst
 and monadObj = FixMonadObj of monadObj monadObjF | MClos of monadObj * subst
@@ -37,9 +37,9 @@ and head = Const of string
 
 
 and ('aTy, 'ki) kindFF = Type
-	| KPi of string * 'aTy * 'ki
+	| KPi of string option * 'aTy * 'ki
 and ('tyS, 'sTy, 'aTy) asyncTypeFF = Lolli of 'aTy * 'aTy
-	| TPi of string * 'aTy * 'aTy
+	| TPi of string option * 'aTy * 'aTy
 	| AddProd of 'aTy * 'aTy
 	| Top
 	| TMonad of 'sTy
@@ -49,14 +49,14 @@ and ('o, 'tyS) typeSpineFF = TNil
 	| TApp of 'o * 'tyS
 and ('aTy, 'sTy) syncTypeFF = TTensor of 'sTy * 'sTy
 	| TOne
-	| Exists of string * 'aTy * 'sTy
+	| Exists of string option * 'aTy * 'sTy
 	| Async of 'aTy
 and ('aTy, 'sp, 'e, 'o) objFF = LinLam of string * 'o
 	| Lam of string * 'o
 	| AddPair of 'o * 'o
 	| Unit
 	| Monad of 'e
-	| Atomic of head * apxAsyncType * 'sp
+	| Atomic of head * 'sp
 	| Redex of 'o * apxAsyncType * 'sp
 	| Constraint of 'o * 'aTy
 and ('sp, 'e, 'o) nfObjFF = NfLinLam of string * 'o
@@ -64,7 +64,7 @@ and ('sp, 'e, 'o) nfObjFF = NfLinLam of string * 'o
 	| NfAddPair of 'o * 'o
 	| NfUnit
 	| NfMonad of 'e
-	| NfAtomic of head * apxAsyncType * 'sp
+	| NfAtomic of head * 'sp
 and ('o, 'sp) spineFF = Nil
 	| App of 'o * 'sp
 	| LinApp of 'o * 'sp
@@ -81,6 +81,8 @@ and ('aTy, 'p) patternFF = PTensor of 'p * 'p
 	| PDepPair of string * 'aTy * 'p
 	| PVar of string * 'aTy
 
+and tVarCell = SOM of asyncType | NON of typeLogicVar list ref
+
 withtype 'ki kindF = (asyncType, 'ki) kindFF
 and 'aTy asyncTypeF = (typeSpine, syncType, 'aTy) asyncTypeFF
 and 'tyS typeSpineF = (obj, 'tyS) typeSpineFF
@@ -94,6 +96,9 @@ and 'p patternF = (asyncType, 'p) patternFF
 and apxKind = kind
 and apxAsyncType = asyncType
 and apxSyncType = syncType
+
+(* An uninstantiated typeLogicVar t is t=ref (NON L) where L is a list of t and its copies *)
+and typeLogicVar = tVarCell ref
 
 type implicits = (string * asyncType) list
 datatype typeOrKind = Ty of asyncType | Ki of kind
@@ -123,8 +128,6 @@ type 'e nfExpObjF = (nfHead * apxAsyncType * nfSpine, nfMonadObj, nfPattern, 'e)
 type 'm nfMonadObjF = (nfObj, 'm) monadObjFF
 type 'p nfPatternF = (nfAsyncType, 'p) patternFF
 
-type typeLogicVar = asyncType option ref
-
 datatype ('aTy, 'ki) apxKindFF = ApxType
 	| ApxKPi of 'aTy * 'ki
 datatype ('sTy, 'aTy) apxAsyncTypeFF = ApxLolli of 'aTy * 'aTy
@@ -143,6 +146,7 @@ type 'ki apxKindF = (apxAsyncType, 'ki) apxKindFF
 type 'aTy apxAsyncTypeF = (apxSyncType, 'aTy) apxAsyncTypeFF
 type 'sTy apxSyncTypeF = (apxAsyncType, 'sTy) apxSyncTypeFF
 
+val redex = IntRedex
 
 fun nbinds (FixPattern (_, n)) = n
   | nbinds (PClos (p, _)) = nbinds p
@@ -195,10 +199,10 @@ struct
 	fun prj (FixAsyncType a) = a
 	  | prj (TClos (TClos (a, s'), s)) = prj (TClos (a, Subst.comp (s', s)))
 	  | prj (TClos (FixAsyncType a, s)) = Subst.subType (a, s)
-	  | prj (TClos (TLogicVar (ref NONE), _)) = raise Fail "Ambiguous typing\n"
-	  | prj (TClos (TLogicVar (ref (SOME a)), s)) = prj (TClos (a, s))
-	  | prj (TLogicVar (ref NONE)) = raise Fail "Ambiguous typing\n"
-	  | prj (TLogicVar (ref (SOME a))) = prj a
+	  | prj (TClos (TLogicVar (ref (NON _)), _)) = raise Fail "Ambiguous typing\n"
+	  | prj (TClos (TLogicVar (ref (SOM a)), s)) = prj (TClos (a, s))
+	  | prj (TLogicVar (ref (NON _))) = raise Fail "Ambiguous typing\n"
+	  | prj (TLogicVar (ref (SOM a))) = prj a
 	fun Fmap (g, f) (Lolli (A, B)) = Lolli (f A, f B)
 	  | Fmap (g, f) (TPi (x, A, B)) = TPi (x, f A, f B)
 	  | Fmap (g, f) (AddProd (A, B)) = AddProd (f A, f B)
@@ -236,30 +240,6 @@ struct
 	  | Fmap (g, f) (Async A) = Async (g A)
 end
 
-(* structure Obj : TYP4 where type ('a, 'b, 'c, 't) F = ('a, 'b, 'c, 't) objFF
-		and type t = obj and type a = asyncType and type b = spine and type c = expObj *)
-structure Obj =
-struct
-	fun tryLVar (a as Atomic (LogicVar {X, s, ...}, A, S)) =
-			(case !!X of NONE => a | SOME N => Redex (Clos (N, s), A, S))
-	  | tryLVar a = a
-	type t = obj type a = asyncType type b = spine type c = expObj
-	type ('a, 'b, 'c, 't) F = ('a, 'b, 'c, 't) objFF
-	fun inj a = FixObj a
-	fun prj (FixObj a) = tryLVar a
-	  | prj (Clos (Clos (N, s'), s)) = prj (Clos (N, Subst.comp (s', s)))
-	  | prj (Clos (FixObj N, s)) = Subst.subObj (tryLVar N, s)
-	  | prj (Clos (EtaTag (N, _), s)) = prj (Clos (N, s))
-	  | prj (EtaTag (N, _)) = prj N
-	fun Fmap (g, f) (LinLam (x, N)) = (LinLam (x, f N))
-	  | Fmap (g, f) (Lam (x, N)) = (Lam (x, f N))
-	  | Fmap (g, f) (AddPair (N1, N2)) = (AddPair (f N1, f N2))
-	  | Fmap (g, f) Unit = Unit
-	  | Fmap ((g1, g2, g3), f) (Monad E) = Monad (g3 E)
-	  | Fmap ((g1, g2, g3), f) (Atomic (h, A, S)) = Atomic (h, A, g2 S)
-	  | Fmap ((g1, g2, g3), f) (Redex (N, A, S)) = Redex (f N, A, g2 S)
-	  | Fmap ((g1, g2, g3), f) (Constraint (N, A)) = Constraint (f N, g1 A)
-end
 (* structure Spine : TYP2 where type ('a, 't) F = ('a, 't) spineFF
 		and type t = spine and type a = obj *)
 structure Spine =
@@ -275,6 +255,51 @@ struct
 	  | Fmap (g, f) (LinApp (N, S)) = LinApp (g N, f S)
 	  | Fmap (g, f) (ProjLeft S) = ProjLeft (f S)
 	  | Fmap (g, f) (ProjRight S) = ProjRight (f S)
+	fun appendSpine (S1', S2) = case prj S1' of
+		  Nil => S2
+		| LinApp (N, S1) => inj (LinApp (N, appendSpine (S1, S2)))
+		| App (N, S1) => inj (App (N, appendSpine (S1, S2)))
+		| ProjLeft S1 => inj (ProjLeft (appendSpine (S1, S2)))
+		| ProjRight S1 => inj (ProjRight (appendSpine (S1, S2)))
+end
+(* structure Obj : TYP4 where type ('a, 'b, 'c, 't) F = ('a, 'b, 'c, 't) objFF
+		and type t = obj and type a = asyncType and type b = spine and type c = expObj *)
+structure Obj =
+struct
+	fun tryLVar (a as Atomic (LogicVar {X, s, ...}, S)) =
+			Option.map (fn N => (Clos (N, s), S)) (!!X)
+	  | tryLVar a = NONE
+	type t = obj type a = asyncType type b = spine type c = expObj
+	type ('a, 'b, 'c, 't) F = ('a, 'b, 'c, 't) objFF
+	fun inj a = FixObj a
+	fun prj (FixObj N) = (case tryLVar N of NONE => N | SOME obS => intRedex obS)
+	  | prj (Clos (Clos (N, s'), s)) = prj (Clos (N, Subst.comp (s', s)))
+	  | prj (Clos (FixObj N, s)) =
+	  		(case tryLVar N of
+				  NONE => Subst.subObj intRedex (N, s)
+				| SOME (ob, S) => intRedex (Clos (ob, s), SClos (S, s)))
+	  | prj (Clos (EtaTag (N, _), s)) = prj (Clos (N, s))
+	  | prj (Clos (IntRedex (N, S), s)) = intRedex (Clos (N, s), SClos (S, s))
+	  | prj (EtaTag (N, _)) = prj N
+	  | prj (IntRedex (N, S)) = intRedex (N, S)
+	and intRedex (ob, sp) = case (prj ob, Spine.prj sp) of
+		  (N, Nil) => N
+		| (LinLam (_, N1), LinApp (N2, S)) => intRedex (Clos (N1, Subst.sub N2), S)
+		| (Lam (_, N1), App (N2, S)) => intRedex (Clos (N1, Subst.sub N2), S)
+		| (AddPair (N, _), ProjLeft S) => intRedex (N, S)
+		| (AddPair (_, N), ProjRight S) => intRedex (N, S)
+		| (Atomic (H, S1), S2) => Atomic (H, Spine.appendSpine (S1, Spine.inj S2))
+		| (Redex (N, A, S1), S2) => Redex (N, A, Spine.appendSpine (S1, Spine.inj S2))
+		| (Constraint (N, A), S) => intRedex (N, Spine.inj S)
+		| _ => raise Fail "Internal error: intRedex\n"
+	fun Fmap (g, f) (LinLam (x, N)) = (LinLam (x, f N))
+	  | Fmap (g, f) (Lam (x, N)) = (Lam (x, f N))
+	  | Fmap (g, f) (AddPair (N1, N2)) = (AddPair (f N1, f N2))
+	  | Fmap (g, f) Unit = Unit
+	  | Fmap ((g1, g2, g3), f) (Monad E) = Monad (g3 E)
+	  | Fmap ((g1, g2, g3), f) (Atomic (h, S)) = Atomic (h, g2 S)
+	  | Fmap ((g1, g2, g3), f) (Redex (N, A, S)) = Redex (f N, A, g2 S)
+	  | Fmap ((g1, g2, g3), f) (Constraint (N, A)) = Constraint (f N, g1 A)
 end
 (* structure ExpObj : TYP4 where type ('a, 'b, 'c, 't) F = ('a, 'b, 'c, 't) expObjFF
 		and type t = expObj and type a = obj and type b = monadObj and type c = pattern *)
@@ -324,6 +349,25 @@ struct
 	  | Fmap (g, f) (PVar (x, A)) = PVar (x, g A)
 end
 
+(*
+val consistencyTable = ref (Binarymap.mkDict Int.compare)
+fun consistencyCheck (LogicVar {X, tag, cnstr, ...}) =
+		(case Binarymap.peek (!consistencyTable, tag) of
+			  NONE =>
+				( Binarymap.app
+					(fn (_, (r, cs)) => if eq (r, X) orelse eq (cs, cnstr) then
+						( print ("Consistency check failed on new $"^Int.toString tag)
+						; raise Fail "Consistency new" ) else ())
+				; consistencyTable := Binarymap.insert (!consistencyTable, tag, (X, cnstr)) )
+			| SOME (r, cs) =>
+				if eq (r, X) andalso eq (cs, cnstr) then ()
+				else
+					( print ("Consistency check failed on $"^Int.toString tag)
+					; raise Fail "Consistency" ))
+  | consistencyCheck _ = ()
+fun Atomic' hAS = (consistencyCheck (#1 hAS); Obj.inj (Atomic hAS))
+*)
+
 val Type' = Kind.inj Type
 val KPi' = Kind.inj o KPi
 val Lolli' = AsyncType.inj o Lolli
@@ -363,12 +407,13 @@ val POne' = Pattern.inj POne
 val PDepPair' = Pattern.inj o PDepPair
 val PVar' = Pattern.inj o PVar
 
+val appendSpine = Spine.appendSpine
+
 end (* structure Syn2 *)
 open Syn2
 
 
 structure Whnf = WhnfFun (Syn2)
-val appendSpine = Whnf.appendSpine
 
 (* structure NfKind : TYP2 where type ('a, 't) F = ('a, 't) kindFF
 		and type t = nfKind and type a = nfAsyncType *)
@@ -401,18 +446,18 @@ struct
 	  | Fmap (g, f) (NfAddPair (N1, N2)) = NfAddPair (f N1, f N2)
 	  | Fmap (g, f) NfUnit = NfUnit
 	  | Fmap ((g1, g2), f) (NfMonad E) = NfMonad (g2 E)
-	  | Fmap ((g1, g2), f) (NfAtomic (h, A, S)) = NfAtomic (h, A, g1 S)
+	  | Fmap ((g1, g2), f) (NfAtomic (h, S)) = NfAtomic (h, g1 S)
 end
 (* structure NfExpObj : TYP4 where type ('a, 'b, 'c, 't) F = (nfHead * apxAsyncType * 'a, 'b, 'c, 't) expObjFF
 		and type t = nfExpObj and type a = nfSpine and type b = nfMonadObj and type c = nfPattern *)
 structure NfExpObj =
 struct
 	type t = nfExpObj type a = nfSpine type b = nfMonadObj type c = nfPattern
-	type ('a, 'b, 'c, 't) F = (nfHead * apxAsyncType * 'a, 'b, 'c, 't) expObjFF
-	fun inj (Let (p, hAS, E)) = FixExpObj (Let (p, FixObj (Atomic hAS), E))
+	type ('a, 'b, 'c, 't) F = (nfHead * 'a, 'b, 'c, 't) expObjFF
+	fun inj (Let (p, hS, E)) = FixExpObj (Let (p, FixObj (Atomic hS), E))
 	  | inj (Mon M) = FixExpObj (Mon M)
 	val prj = Whnf.whnfExp
-	fun Fmap ((g1, g2, g3), f) (Let (p, (h, A, S), E)) = Let (g3 p, (h, A, g1 S), f E)
+	fun Fmap ((g1, g2, g3), f) (Let (p, (h, S), E)) = Let (g3 p, (h, g1 S), f E)
 	  | Fmap ((g1, g2, g3), f) (Mon M) = Mon (g2 M)
 end
 (* structure NfSpine : TYP2 where type ('a, 't) F = ('a, 't) spineFF
@@ -439,10 +484,14 @@ val NfPClos = PClos
 val lVarCnt = ref 0
 fun nextLVarCnt () = (lVarCnt := (!lVarCnt) + 1 ; !lVarCnt)
 
-fun newTVar () = TLogicVar (ref NONE)
-fun newApxTVar () = TLogicVar (ref NONE)
+fun newTVar () =
+	let val l = ref []
+		val t = ref (NON l)
+		val () = l := [t]
+	in TLogicVar t end
+fun newApxTVar () = newTVar ()
 fun newLVarCtx ctx ty = Atomic' (LogicVar {X=vref NONE, ty=ty, s=Subst.id, ctx=ref ctx,
-											cnstr=vref [], tag=nextLVarCnt ()}, ty, Nil')
+											cnstr=vref [], tag=nextLVarCnt ()}, Nil')
 val newLVar = newLVarCtx NONE
 
 
@@ -453,11 +502,15 @@ struct
 	val sigTable = ref (empty()) : decl Table ref
 	val sigDelta = ref [] : decl list ref
 
-	fun getKiTy c =
+	fun getKiTyOpt c =
 		case peek (!sigTable, c) of
-			NONE => raise Fail ("Undeclared identifier: "^c^"\n")
-		  | SOME (ConstDecl (_, imps, kity)) => (imps, kity)
+			NONE => NONE
+		  | SOME (ConstDecl (_, imps, kity)) => SOME (imps, kity)
 		  | SOME _ => raise Fail "Internal error: getKiTy called on abbrev\n"
+
+	fun getKiTy c = case getKiTyOpt c of
+		  NONE => raise Fail ("Undeclared identifier: "^c^"\n")
+		| SOME x => x
 
 	fun getType c = case getKiTy c of
 		  (imps, Ty ty) => (imps, ty)
@@ -491,19 +544,19 @@ struct
 		; sigDelta := dec :: !sigDelta )
 
 	(* getImplLength : string -> int *)
-	val getImplLength = length o #1 o getKiTy
+	fun getImplLength c = case getKiTyOpt c of NONE => 0 | SOME (imps, _) => length imps
 
 	(* sigLookupKind : string -> kind *)
 	fun sigLookupKind a =
 		let val (imps, ki) = getKind a
 			(*fun im2ki [] = ki
 			  | im2ki ((x, A)::im) = KPi' (x, A, im2ki im)*)
-		in foldr (fn ((x, A), im) => KPi' (x, A, im)) ki imps end
+		in foldr (fn ((x, A), im) => KPi' (SOME x, A, im)) ki imps end
 
 	(* sigLookupType : string -> asyncType *)
 	fun sigLookupType a =
 		let val (imps, ty) = getType a
-		in foldr (fn ((x, A), im) => TPi' (x, A, im)) ty imps end
+		in foldr (fn ((x, A), im) => TPi' (SOME x, A, im)) ty imps end
 
 	(* sigLookupApxKind : string -> apxKind *)
 	fun sigLookupApxKind a = #2 (getKind a)
@@ -548,7 +601,7 @@ struct
 	type t = apxKind type a = apxAsyncType
 	type ('a, 't) F = ('a, 't) apxKindFF
 	fun inj ApxType = Kind.inj Type
-	  | inj (ApxKPi (A, K)) = Kind.inj (KPi ("", A, K))
+	  | inj (ApxKPi (A, K)) = Kind.inj (KPi (SOME "", A, K))
 	fun prj (KClos (K, _)) = prj K
 	  | prj k = case Kind.prj k of
 		  Type => ApxType
@@ -563,15 +616,15 @@ struct
 	type t = apxAsyncType type a = syncType
 	type ('a, 't) F = ('a, 't) apxAsyncTypeFF
 	fun inj (ApxLolli (A, B)) = AsyncType.inj (Lolli (A, B))
-	  | inj (ApxTPi (A, B)) = AsyncType.inj (TPi ("", A, B))
+	  | inj (ApxTPi (A, B)) = AsyncType.inj (TPi (SOME "", A, B))
 	  | inj (ApxAddProd (A, B)) = AsyncType.inj (AddProd (A, B))
 	  | inj ApxTop = AsyncType.inj Top
 	  | inj (ApxTMonad S) = AsyncType.inj (TMonad S)
 	  | inj (ApxTAtomic a) = Signatur.sigNewTAtomic a
 	  | inj (ApxTAbbrev aA) = AsyncType.inj (TAbbrev aA)
 	  | inj (ApxTLogicVar X) = TLogicVar X
-	fun prj (TLogicVar (ref (SOME A))) = prj A
-	  | prj (TLogicVar (X as ref NONE)) = ApxTLogicVar X
+	fun prj (TLogicVar (ref (SOM A))) = prj A
+	  | prj (TLogicVar (X as ref (NON _))) = ApxTLogicVar X
 	  | prj (TClos (A, _)) = prj A
 	  | prj a = case AsyncType.prj a of
 		  Lolli (A, B) => ApxLolli (A, B)
@@ -598,7 +651,7 @@ struct
 	type ('a, 't) F = ('a, 't) apxSyncTypeFF
 	fun inj (ApxTTensor (S1, S2)) = SyncType.inj (TTensor (S1, S2))
 	  | inj ApxTOne = SyncType.inj TOne
-	  | inj (ApxExists (A, S)) = SyncType.inj (Exists ("", A, S))
+	  | inj (ApxExists (A, S)) = SyncType.inj (Exists (SOME "", A, S))
 	  | inj (ApxAsync A) = SyncType.inj (Async A)
 	fun prj (STClos (S, _)) = prj S
 	  | prj s = case SyncType.prj s of
@@ -631,6 +684,14 @@ structure ApxKindRec = Rec2 (structure T = ApxKind)
 structure ApxAsyncTypeRec = Rec2 (structure T = ApxAsyncType)
 structure ApxSyncTypeRec = Rec2 (structure T = ApxSyncType)
 
+fun copyLVar (ref (NON L)) =
+		let val t = ref (NON L)
+			val () = L := t :: !L
+		in t end
+  | copyLVar _ = raise Fail "Internal error: copyLVar called on instantiated LVars"
+fun eqLVar (ref (NON L1), ref (NON L2)) = L1 = L2
+  | eqLVar _ = raise Fail "Internal error: eqLVar called on instantiated LVars"
+
 type ('ki, 'aTy, 'sTy) apxFoldFuns = {
 	fki  : ('aTy, 'ki) apxKindFF -> 'ki,
 	faTy : ('sTy, 'aTy) apxAsyncTypeFF -> 'aTy,
@@ -641,17 +702,20 @@ fun foldApxKind (fs : ('ki, 'aTy, 'sTy) apxFoldFuns) x =
 and foldApxType fs x = ApxAsyncTypeRec.fold (foldApxSyncType fs) (#faTy fs) x
 and foldApxSyncType fs x = ApxSyncTypeRec.fold (foldApxType fs) (#fsTy fs) x
 
-val apxCopyFfs = {fki = ApxKind.inj, faTy = ApxAsyncType.inj, fsTy = ApxSyncType.inj}
+fun cpLVar (ApxTLogicVar X) = ApxTLogicVar (copyLVar X)
+  | cpLVar A = A
+val apxCopyFfs = {fki = ApxKind.inj, faTy = ApxAsyncType.inj o cpLVar, fsTy = ApxSyncType.inj}
 
 (* updLVar : typeLogicVar * apxAsyncType -> unit *)
-fun updLVar (ref (SOME _), _) = raise Fail "typeLogicVar already updated\n"
-  | updLVar (X as ref NONE, A) = X := SOME (foldApxType apxCopyFfs A)
+fun updLVar (ref (SOM _), _) = raise Fail "typeLogicVar already updated\n"
+  | updLVar (ref (NON L), A) = app (fn X => X := SOM (foldApxType apxCopyFfs A)) (!L)
+  (*| updLVar (X as ref NONE, A) = X := SOME (foldApxType apxCopyFfs A)*)
 
 (* isUnknown : asyncType -> bool *)
 fun isUnknown (TClos (A, _)) = isUnknown A
   | isUnknown (FixAsyncType _) = false
-  | isUnknown (TLogicVar (ref (SOME A))) = isUnknown A
-  | isUnknown (TLogicVar (ref NONE)) = true
+  | isUnknown (TLogicVar (ref (SOM A))) = isUnknown A
+  | isUnknown (TLogicVar (ref (NON _))) = true
 
 fun kindToApx x = x
 fun asyncTypeToApx x = x
@@ -660,6 +724,7 @@ fun syncTypeToApx x = x
 val asyncTypeFromApx = foldApxType apxCopyFfs
 val syncTypeFromApx = foldApxSyncType apxCopyFfs
 val kindFromApx = foldApxKind apxCopyFfs
+fun unsafeCast x = x
 
 fun normalizeKind x = x
 fun normalizeType x = x

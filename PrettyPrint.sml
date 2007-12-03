@@ -23,20 +23,21 @@ fun add x ctx =
 		fun add1 n x =
 			let val tryname = x ^ Int.toString n
 			in if List.exists (eq tryname) ctx then add1 (n+1) x else (tryname, tryname::ctx) end
-	in if x="" orelse x="no dep" then add1 1 "X" else add' x end
+	in if x="" then add1 1 "X" else add' x end
 
-val e = "! Error !"
+val noSkip = ref false
+fun getImplLength c = if !noSkip then 0 else Signatur.getImplLength c
 
 fun pKind ctx ki = case Kind.prj ki of
 	  Type => ["type"]
-	| KPi ("no dep", A, K) => pType ctx true A @ [" -> "] @ pKind (e::ctx) K
-	| KPi (x, A, K) =>
+	| KPi (NONE, A, K) => pType ctx true A @ [" -> "] @ pKind ctx K
+	| KPi (SOME x, A, K) =>
 			let val (x', ctx') = add x ctx
 			in ["Pi "^x'^": "] @ pType ctx false A @ [". "] @ pKind ctx' K end
 and pType ctx pa ty = if isUnknown ty then ["???"] else case AsyncType.prj ty of
 	  Lolli (A, B) => paren pa (pType ctx true A @ [" -o "] @ pType ctx false B)
-	| TPi ("no dep", A, B) => paren pa (pType ctx true A @ [" -> "] @ pType (e::ctx) false B)
-	| TPi (x, A, B) =>
+	| TPi (NONE, A, B) => paren pa (pType ctx true A @ [" -> "] @ pType ctx false B)
+	| TPi (SOME x, A, B) =>
 			let val (x', ctx') = add x ctx
 			in paren pa (["Pi "^x'^": "] @ pType ctx false A @ [". "]
 					@ pType ctx' false B) end
@@ -44,7 +45,7 @@ and pType ctx pa ty = if isUnknown ty then ["???"] else case AsyncType.prj ty of
 	| Top => ["T"]
 	| TMonad S => ["{"] @ pSyncType ctx false S @ ["}"]
 	| TAtomic (a, S) => (*(fn (a', []) => a' | (a', ts) => paren pa (a' @ ts)) ([a] @ join (map (pObj ctx true) impl), pTypeSpine ctx S)*)
-			[a] @ (*join (map (pObj ctx false) impl) @*) pTypeSpineSkip ctx S (Signatur.getImplLength a)
+			[a] @ (*join (map (pObj ctx false) impl) @*) pTypeSpineSkip ctx S (getImplLength a)
 	| TAbbrev (a, ty) => [a]
 and pTypeSpineSkip ctx sp n = if n=0 then pTypeSpine ctx sp else case TypeSpine.prj sp of
 	  TNil => raise Fail "Internal error: pTypeSpineSkip\n"
@@ -58,7 +59,7 @@ and pSyncType ctx pa sty = case SyncType.prj sty of
 	  TTensor (S1, S2) => paren pa (pSyncType ctx true S1 @ [" @ "] @ pSyncType ctx true S2)
 	| TOne => ["1"]
 	| Exists (x, A, S) =>
-			let val (x', ctx') = if x = "no dep" then ("!", e::ctx) else add x ctx
+			let val (x', ctx') = case x of NONE => ("!", ctx) | SOME x => add x ctx
 			in paren pa (["Exists "^x'^": "] @ pType ctx false A @ [". "]
 					@ pSyncType ctx' false S) end
 	| Async A => pType ctx pa A
@@ -72,8 +73,8 @@ and pObj ctx pa ob = case Obj.prj ob of
 	| AddPair (N1, N2) => ["<"] @ pObj ctx false N1 @ [", "] @ pObj ctx false N2 @ [">"]
 	| Unit => ["<>"]
 	| Monad E => ["{"] @ pExp ctx E @ ["}"]
-	| Atomic (H, _, S) =>
-			let val skip = case H of Const c => Signatur.getImplLength c | _ => 0
+	| Atomic (H, S) =>
+			let val skip = case H of Const c => getImplLength c | _ => 0
 			in case (pHead ctx H, pSpineSkip ctx S skip) of
 				  (h, []) => h
 				| (h, s) => paren pa (h @ s)
@@ -132,6 +133,9 @@ val printKind = String.concat o (pKind [])
 val printType = String.concat o (pType [] false)
 val printObj = String.concat o (pObj [] false)
 
+fun printPreType ty = ( noSkip := true; printType ty before noSkip := false )
+fun printPreObj ob = ( noSkip := true; printObj ob before noSkip := false )
+
 type intset = int list
 val empty = []
 fun occur n = [n]
@@ -140,17 +144,19 @@ fun decr is = decrn 1 is
 fun depend is = List.exists (fn x => x=1) is
 fun union (is1, is2) = is1 @ is2
 fun occurFromTo a b = if a <= b then a::occurFromTo (a+1) b else []
-fun depName x is = if depend is then x else "no dep"
 
 fun join2 f (a1, occ1) (a2, occ2) = (f (a1, a2), union (occ1, occ2))
-fun joinDep f x (a1, occ1) (a2, occ2) = (f (depName x occ2, a1, a2), union (occ1, decr occ2))
+fun joinDep clo f NONE (a1, occ1) (a2, occ2) = (f (NONE, a1, a2), union (occ1, occ2))
+  | joinDep clo f (SOME x) (a1, occ1) (a2, occ2) =
+		if depend occ2 then (f (SOME x, a1, a2), union (occ1, decr occ2))
+		else (f (NONE, a1, clo (a2, Subst.invert (Subst.shift 1))), union (occ1, decr occ2))
 
 fun rdKind ki = case Kind.prj ki of
 	  Type => (Type', empty)
-	| KPi (x, A, K) => joinDep KPi' x (rdType A) (rdKind K)
+	| KPi (x, A, K) => joinDep KClos KPi' x (rdType A) (rdKind K)
 and rdType ty = case AsyncType.prj ty of
 	  Lolli (A, B) => join2 Lolli' (rdType A) (rdType B)
-	| TPi (x, A, B) => joinDep TPi' x (rdType A) (rdType B)
+	| TPi (x, A, B) => joinDep TClos TPi' x (rdType A) (rdType B)
 	| AddProd (A, B) => join2 AddProd' (rdType A) (rdType B)
 	| Top => (Top', empty)
 	| TMonad S => Util.map1 TMonad' (rdSyncType S)
@@ -166,7 +172,7 @@ and rdSyncType sty = case SyncType.prj sty of
 	  TTensor (S1, S2) => join2 TTensor' (rdSyncType S1) (rdSyncType S2)
 	| TOne => (TOne', empty)
 	| Exists (x, A, S) =>
-			joinDep Exists' x (rdType A) (rdSyncType S)
+			joinDep STClos Exists' x (rdType A) (rdSyncType S)
 		(*join2 (fn (A', S') => Exists' (x, A', S')) (rdType A) (Util.map2 decr (rdSyncType S))*)
 	| Async A => Util.map1 Async' (rdType A)
 and rdObj ob = case Obj.prj ob of
@@ -175,7 +181,7 @@ and rdObj ob = case Obj.prj ob of
 	| AddPair (N1, N2) => join2 AddPair' (rdObj N1) (rdObj N2)
 	| Unit => (Unit', empty)
 	| Monad E => Util.map1 Monad' (rdExp E)
-	| Atomic (H, A, S) => join2 (fn (H', S') => Atomic' (H', A, S')) (rdHead H) (rdSpine S)
+	| Atomic (H, S) => join2 (fn (H', S') => Atomic' (H', S')) (rdHead H) (rdSpine S)
 	| Redex (N, A, S) => join2 (fn (N', S') => Redex' (N', A, S')) (rdObj N) (rdSpine S)
 	| Constraint (N, A) => join2 Constraint' (rdObj N) (rdType A)
 and rdHead h = case h of

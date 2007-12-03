@@ -4,7 +4,7 @@ sig
 structure Syn : SYNTAX_CORE2
 val whnfObj : Syn.obj -> (Syn.spine, Syn.expObj, Syn.obj) Syn.nfObjFF
 val whnfExp : Syn.expObj ->
-	(Syn.head * Syn.apxAsyncType * Syn.spine, Syn.monadObj, Syn.pattern, Syn.expObj) Syn.expObjFF
+	(Syn.head * Syn.spine, Syn.monadObj, Syn.pattern, Syn.expObj) Syn.expObjFF
 
 val appendSpine : Syn.spine * Syn.spine -> Syn.spine
 

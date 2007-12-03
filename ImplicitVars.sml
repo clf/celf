@@ -42,8 +42,8 @@ fun sort () =
 	let fun getUCvars ty =
 			let val ucs = ref []
 				fun collect t = Util.objAppType
-							(fn Atomic (UCVar x, _, ()) => ucs := x::(!ucs)
-							  | Atomic (LogicVar {ty, s, ...}, _, ()) => collect (TClos (ty, s))
+							(fn Atomic (UCVar x, ()) => ucs := x::(!ucs)
+							  | Atomic (LogicVar {ty, s, ...}, ()) => collect (TClos (ty, s))
 							  | _ => ()) t
 				val () = collect ty
 			in !ucs end
@@ -83,16 +83,16 @@ fun sort () =
 (* ctx |- B : Type
    ctx |- X : B *)
 fun raiseLVar' (ctx, B, S, n) =
-	let fun Idx A n = Atomic' (Var n, asyncTypeToApx A, Nil') (* stub: Eta expand *)
+	let fun Idx A n = Atomic' (Var n, Nil') (* stub: Eta expand *)
 		fun sh ty = TClos (ty, Subst.shift 1)
 	in case ctx of
-		  [] => Atomic' (newUCVar B, asyncTypeToApx B, S)
-		| (x, A, UN)::ctx => raiseLVar' (ctx, TPi' (x, A, B), App' (Idx A n, S), n+1)
+		  [] => Atomic' (newUCVar B, S)
+		| (x, A, UN)::ctx => raiseLVar' (ctx, TPi' (SOME x, A, B), App' (Idx A n, S), n+1)
 		| (x, A, LIN)::ctx => raiseLVar' (ctx, Lolli' (A, sh B), LinApp' (Idx A n, S), n+1)
 		| (x, A, NO)::ctx => raiseLVar' (ctx, sh B, S, n+1)
 	end
 
-fun raiseLVar (Atomic (LogicVar {X, ty, ctx, tag, ...}, _, ())) = (case (!!X, !ctx) of
+fun raiseLVar (Atomic (LogicVar {X, ty, ctx, tag, ...}, ())) = (case (!!X, !ctx) of
 	  (SOME _, _) => () (* this can never occur?? --asn *)
 	| (NONE, NONE) => raise Fail ("Internal error: no context on $"^(Int.toString tag)^"\n")
 	| (NONE, SOME ctx) => X ::= SOME (raiseLVar' (ctx2list ctx, ty, Nil', 1)) )
@@ -110,12 +110,15 @@ fun logicVarsToUCVarsType ty = Util.objAppType raiseLVar ty
 fun logicVarsToUCVarsKind ki = Util.objAppKind raiseLVar ki
 
 
+fun depInc NONE n = n
+  | depInc (SOME _) n = n+1
+
 fun uc2xKind lookup n ki = case Kind.prj ki of
 	  Type => Type'
-	| KPi (x, A, K) => KPi' (x, uc2xType lookup n A, uc2xKind lookup (n+1) K)
+	| KPi (x, A, K) => KPi' (x, uc2xType lookup n A, uc2xKind lookup (depInc x n) K)
 and uc2xType lookup n ty = case AsyncType.prj ty of
 	  Lolli (A, B) => Lolli' (uc2xType lookup n A, uc2xType lookup n B)
-	| TPi (x, A, B) => TPi' (x, uc2xType lookup n A, uc2xType lookup (n+1) B)
+	| TPi (x, A, B) => TPi' (x, uc2xType lookup n A, uc2xType lookup (depInc x n) B)
 	| AddProd (A, B) => AddProd' (uc2xType lookup n A, uc2xType lookup n B)
 	| Top => Top'
 	| TMonad S => TMonad' (uc2xSyncType lookup n S)
@@ -125,7 +128,7 @@ and uc2xTypeSpine lookup n sp = Util.TypeSpineRec.unfold (uc2xObj lookup n) Type
 and uc2xSyncType lookup n sty = case SyncType.prj sty of
 	  TTensor (S1, S2) => TTensor' (uc2xSyncType lookup n S1, uc2xSyncType lookup n S2)
 	| TOne => TOne'
-	| Exists (x, A, S) => Exists' (x, uc2xType lookup n A, uc2xSyncType lookup (n+1) S)
+	| Exists (x, A, S) => Exists' (x, uc2xType lookup n A, uc2xSyncType lookup (depInc x n) S)
 	| Async A => Async' (uc2xType lookup n A)
 and uc2xObj lookup n ob = case Obj.prj ob of
 	  LinLam (x, N) => LinLam' (x, uc2xObj lookup (n+1) N)
@@ -133,7 +136,7 @@ and uc2xObj lookup n ob = case Obj.prj ob of
 	| AddPair (N1, N2) => AddPair' (uc2xObj lookup n N1, uc2xObj lookup n N2)
 	| Unit => Unit'
 	| Monad E => Monad' (uc2xExp lookup n E)
-	| Atomic (H, A, S) => Atomic' (uc2xHead lookup n H, A, uc2xSpine lookup n S)
+	| Atomic (H, S) => Atomic' (uc2xHead lookup n H, uc2xSpine lookup n S)
 	| Redex (N, A, S) => Redex' (uc2xObj lookup n N, A, uc2xSpine lookup n S)
 	| Constraint (N, A) => Constraint' (uc2xObj lookup n N, uc2xType lookup n A)
 and uc2xHead lookup n h = case h of
@@ -174,7 +177,7 @@ fun convUCVars2VarsImps imp =
 fun convUCVars2LogicVarsType ty =
 	let val table = mapTable (fn A => newLVarCtx (SOME emptyCtx) A) (!ucTable)
 		fun uc2lvar n x = case Obj.prj (Clos (valOf (peek (table, x)), Subst.shift n)) of
-			  Atomic (X as LogicVar _, _, _) => X
+			  Atomic (X as LogicVar _, _) => X
 			| _ => raise Fail "Internal error: uc2lvar\n"
 	in (uc2xType uc2lvar 0 ty, toList table) end
 
