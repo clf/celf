@@ -1,6 +1,8 @@
 signature ETA =
 sig
 
+val traceEta : bool ref
+
 type context
 
 val etaContract : exn -> Syntax.obj -> int

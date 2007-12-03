@@ -6,6 +6,8 @@ open Signatur
 open Context
 open PatternBind
 
+val traceEta = ref false
+
 type context = apxAsyncType context
 
 (* etaContract : exn -> Syntax.obj -> int *)
@@ -94,6 +96,8 @@ fun etaExpand (A, H, S) =
 		| _ => etaResult
 	end
 
+val etaCount = ref 0
+
 (* etaExpandKind : context * kind -> kind *)
 fun etaExpandKind (ctx, ki) = case Kind.prj ki of
 	  Type => Type'
@@ -102,7 +106,22 @@ fun etaExpandKind (ctx, ki) = case Kind.prj ki of
 			in KPi' (x, A', etaExpandKind (ctxCondPushUN (x, asyncTypeToApx A', ctx), K)) end
 
 (* etaExpandType : context * asyncType -> asyncType *)
-and etaExpandType (ctx, ty) = case AsyncType.prj ty of
+and etaExpandType (ctx, ty) =
+	if !traceEta then
+		let fun join [] = ""
+			  | join [s] = s
+			  | join (s::ss) = s^", "^join ss
+			val t = join (map (fn (x, A, _) =>
+							(x^":"^PrettyPrint.printType (unsafeCast A))) (ctx2list ctx))
+			val t = t^"|- "^PrettyPrint.printType ty
+			val () = etaCount := !etaCount + 1
+			val a = Int.toString (!etaCount)
+			val () = print ("Eta["^a^"]: "^t^" : Type\n")
+			val ty' = etaExpandType' (ctx, ty)
+			val () = print ("EtaDone["^a^"]: "^t^" ==> "^PrettyPrint.printType ty'^"\n")
+		in ty' end
+	else etaExpandType' (ctx, ty)
+and etaExpandType' (ctx, ty) = case AsyncType.prj ty of
 	  Lolli (A, B) => Lolli' (etaExpandType (ctx, A), etaExpandType (ctx, B))
 	| TPi (x, A, B) =>
 			let val A' = etaExpandType (ctx, A)
@@ -130,7 +149,15 @@ and etaExpandSyncType (ctx, ty) = case SyncType.prj ty of
 	| Async A => Async' (etaExpandType (ctx, A))
 
 (* etaExpandObj : context * obj * apxAsyncType -> obj *)
-and etaExpandObj (ctx, ob, ty) = case (Obj.prj ob, Util.apxTypePrjAbbrev ty) of
+and etaExpandObj (ctx, ob, ty) =
+	( if !traceEta then
+		( print "Eta: "
+		; app (fn (x, A, _) => print (x^":"^PrettyPrint.printType (unsafeCast A)^", "))
+			(ctx2list ctx)
+		; print ("|- "^PrettyPrint.printObj ob^" : "^PrettyPrint.printType (unsafeCast ty)^"\n"))
+	  else ()
+	; etaExpandObj' (ctx, ob, ty) )
+and etaExpandObj' (ctx, ob, ty) = case (Obj.prj ob, Util.apxTypePrjAbbrev ty) of
 	  (_, ApxTLogicVar _) => raise Fail "Ambiguous typing\n"
 	| (LinLam (x, N), ApxLolli (A, B)) =>
 			LinLam' (x, etaExpandObj (ctxPushUN (x, A, ctx), N, B))

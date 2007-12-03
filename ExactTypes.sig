@@ -1,6 +1,8 @@
 signature EXACTTYPES =
 sig
 
+val traceExact : bool ref
+
 type context
 val emptyCtx : context
 

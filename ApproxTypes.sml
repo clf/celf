@@ -6,12 +6,17 @@ open Context
 open Either
 open PatternBind
 
+val traceApx = ref false
+
 type context = apxAsyncType Context.context
 
 exception ExnApxUnifyType of string
 
 (* ucase : string -> bool *)
-fun ucase x = x<>"" andalso Char.isUpper (String.sub (x, 0))
+fun ucase x = (*x<>"" andalso Char.isUpper (String.sub (x, 0))*)
+	let fun ucase' [] = false
+		  | ucase' (c::cs) = Char.isUpper c orelse (c = #"_" andalso ucase' cs)
+	in ucase' (String.explode x) end
 
 (* occur : typeLogicVar -> apxAsyncType -> unit *)
 fun occur X = foldApxType {fki = ignore, fsTy = ignore, faTy =
@@ -58,14 +63,8 @@ fun pat2apxSyncType p = case Pattern.prj p of
 	| POne => ApxTOne'
 	| PDepPair (x, A, p) => ApxExists' (asyncTypeToApx A, pat2apxSyncType p)
 	| PVar (x, A) => ApxAsync' (asyncTypeToApx A)
-(*
-fun pat2syncType (PTensor (p1, p2))   = TTensor (pat2syncType p1, pat2syncType p2)
-  | pat2syncType (POne)               = TOne
-  | pat2syncType (PDepPair (x, A, p)) = Exists (x, A, pat2syncType p)
-  | pat2syncType (PVar (x, A))        = Async A
-  *)
 
-(*val apxCount = ref 0*)
+val apxCount = ref 0
 
 (* apxCheckKind : context * kind -> kind *)
 fun apxCheckKind (ctx, ki) = case Kind.prj ki of
@@ -75,20 +74,22 @@ fun apxCheckKind (ctx, ki) = case Kind.prj ki of
 			in KPi' (x, A', apxCheckKind (ctxCondPushUN (x, asyncTypeToApx A', ctx), K)) end
 
 (* apxCheckType : context * asyncType -> asyncType *)
-(*and apxCheckType (ctx, ty) =
-	let fun join [] = ""
-		  | join [s] = s
-		  | join (s::ss) = s^", "^join ss
-		val t = join (map (fn (x, A, _) =>
-						(x^":"^PrettyPrint.printType (unsafeCast A))) (ctx2list ctx))
-		val t = t^"|- "^PrettyPrint.printPreType ty
-		val () = apxCount := !apxCount + 1
-		val a = Int.toString (!apxCount)
-		val () = print ("ApxChecking["^a^"]: "^t^" : Type\n")
-		val ty' = apxCheckType' (ctx, ty)
-		val () = print ("ApxDone["^a^"]: "^t^" ==> "^PrettyPrint.printType ty'^"\n")
-	in ty' end*)
-and apxCheckType (ctx, ty) = if isUnknown ty then ty else case AsyncType.prj ty of
+and apxCheckType (ctx, ty) =
+	if !traceApx then
+		let fun join [] = ""
+			  | join [s] = s
+			  | join (s::ss) = s^", "^join ss
+			val t = join (map (fn (x, A, _) =>
+							(x^":"^PrettyPrint.printType (unsafeCast A))) (ctx2list ctx))
+			val t = t^"|- "^PrettyPrint.printPreType ty
+			val () = apxCount := !apxCount + 1
+			val a = Int.toString (!apxCount)
+			val () = print ("ApxChecking["^a^"]: "^t^" : Type\n")
+			val ty' = apxCheckType' (ctx, ty)
+			val () = print ("ApxDone["^a^"]: "^t^" ==> "^PrettyPrint.printType ty'^"\n")
+		in ty' end
+	else apxCheckType' (ctx, ty)
+and apxCheckType' (ctx, ty) = if isUnknown ty then ty else case AsyncType.prj ty of
 	  Lolli (A, B) => Lolli' (apxCheckType (ctx, A), apxCheckType (ctx, B))
 	| TPi (x, A, B) =>
 			let val A' = apxCheckType (ctx, A)
@@ -127,12 +128,15 @@ and apxCheckSyncType (ctx, ty) = case SyncType.prj ty of
 	| Async A => Async' (apxCheckType (ctx, A))
 
 (* apxCheckObj : context * obj * apxAsyncType -> context * bool * obj *)
-(*and apxCheckObj (ctx, ob, ty) =
-	( print "ApxChecking: "
-	; app (fn (x, A, _) => print (x^":"^PrettyPrint.printType (unsafeCast A)^", ")) (ctx2list ctx)
-	; print ("|- "^PrettyPrint.printPreObj ob^" : "^PrettyPrint.printType (unsafeCast ty)^"\n")
-	; apxCheckObj' (ctx, ob, ty) )*)
-and apxCheckObj (ctx, ob, A) =
+and apxCheckObj (ctx, ob, ty) =
+	( if !traceApx then
+		( print "ApxChecking: "
+		; app (fn (x, A, _) => print (x^":"^PrettyPrint.printType (unsafeCast A)^", "))
+			(ctx2list ctx)
+		; print ("|- "^PrettyPrint.printPreObj ob^" : "^PrettyPrint.printType (unsafeCast ty)^"\n"))
+	  else ()
+	; apxCheckObj' (ctx, ob, ty) )
+and apxCheckObj' (ctx, ob, A) =
 	let val (ctxo, t, N, A') = apxInferObj (ctx, ob)
 	in apxUnify (A, A'); (ctxo, t, N) end
 

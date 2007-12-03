@@ -25,12 +25,27 @@ fun parseArgs args = case args of
 		( print "outputUnify := true\n"
 		; Unify.outputUnify := true
 		; parseArgs args )
+	| "-ta"::args =>
+		( print "traceApx := true\n"
+		; ApproxTypes.traceApx := true
+		; parseArgs args )
+	| "-te"::args =>
+		( print "traceEta := true\n"
+		; Eta.traceEta := true
+		; parseArgs args )
+	| "-tt"::args =>
+		( print "traceExact := true\n"
+		; ExactTypes.traceExact := true
+		; parseArgs args )
 	| "-h"::_ =>
 		( print ("Commandline: clf [-s seed] [-h] [-d] [-pi] <filename>\n"
 				^" -s seed : set random seed\n"
 				^" -h      : show this\n"
 				^" -d      : enable double checking\n"
 				^" -pi     : print implicit arguments\n"
+				^" -ta     : trace approximate type reconstruction\n"
+				^" -te     : trace eta expansion\n"
+				^" -tt     : trace exact type reconstruction\n"
 				^" -tu     : trace unifications\n")
 		; raise Fail "Commandline help" )
 	| f::_ => f

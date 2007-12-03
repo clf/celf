@@ -1,6 +1,8 @@
 signature APPROXTYPES =
 sig
 
+val traceApx : bool ref
+
 type context
 val emptyCtx : context
 

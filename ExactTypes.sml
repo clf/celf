@@ -6,16 +6,9 @@ open Context
 open PatternBind
 open Unify
 
+val traceExact = ref false
+
 type context = asyncType Context.context
-
-(* pat2syncType : pattern -> syncType *)
-(*
-fun pat2syncType (PTensor (p1, p2))  = TTensor (pat2syncType p1, pat2syncType p2)
-  | pat2syncType (POne)             = TOne
-  | pat2syncType (PDepPair (x, A, p)) = Exists (x, A, pat2syncType p)
-  | pat2syncType (PVar (x, A))       = Async A
-*)
-
 
 (* checkKind : context * kind -> unit *)
 fun checkKind (ctx, ki) = case Kind.prj ki of
@@ -23,12 +16,14 @@ fun checkKind (ctx, ki) = case Kind.prj ki of
 	| KPi (x, A, K) => (checkType (ctx, A); checkKind (ctxCondPushUN (x, A, ctx), K))
 
 (* checkType : context * asyncType -> unit *)
-(*and checkType (ctx, ty) =
-	( print "Checking: "
-	; app (fn (x, A, _) => print (x^":"^PrettyPrint.printType A^", ")) (ctx2list ctx)
-	; print ("|- "^PrettyPrint.printType ty^" : Type\n")
-	; checkType' (ctx, ty) )*)
-and checkType (ctx, ty) = case AsyncType.prj ty of
+and checkType (ctx, ty) =
+	( if !traceExact then
+		( print "Checking: "
+		; app (fn (x, A, _) => print (x^":"^PrettyPrint.printType A^", ")) (ctx2list ctx)
+		; print ("|- "^PrettyPrint.printType ty^" : Type\n") )
+	  else ()
+	; checkType' (ctx, ty) )
+and checkType' (ctx, ty) = case AsyncType.prj ty of
 	  Lolli (A, B) => (checkType (ctx, A); checkType (ctx, B))
 	| TPi (x, A, B) => (checkType (ctx, A); checkType (ctxCondPushUN (x, A, ctx), B))
 	| AddProd (A, B) => (checkType (ctx, A); checkType (ctx, B))
@@ -56,12 +51,14 @@ and checkSyncType (ctx, ty) = case SyncType.prj ty of
 	| Async A => checkType (ctx, A)
 
 (* checkObj : context * obj * asyncType -> context * bool *)
-(*and checkObj (ctx, ob, ty) =
-	( print "Checking: "
-	; app (fn (x, A, _) => print (x^":"^PrettyPrint.printType A^", ")) (ctx2list ctx)
-	; print ("|- "^PrettyPrint.printObj ob^" : "^PrettyPrint.printType ty^"\n")
-	; checkObj' (ctx, ob, ty) )*)
-and checkObj (ctx, ob, ty) = case (Obj.prj ob, Util.typePrjAbbrev ty) of
+and checkObj (ctx, ob, ty) =
+	( if !traceExact then
+		( print "Checking: "
+		; app (fn (x, A, _) => print (x^":"^PrettyPrint.printType A^", ")) (ctx2list ctx)
+		; print ("|- "^PrettyPrint.printObj ob^" : "^PrettyPrint.printType ty^"\n") )
+	  else ()
+	; checkObj' (ctx, ob, ty) )
+and checkObj' (ctx, ob, ty) = case (Obj.prj ob, Util.typePrjAbbrev ty) of
 	  (LinLam (x, N), Lolli (A, B)) =>
 			let val (ctxo, t) = checkObj (ctxPushLIN (x, A, ctx), N, TClos (B, Subst.shift 1))
 			in (ctxPopLIN (t, ctxo), t) end
