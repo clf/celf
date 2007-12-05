@@ -44,6 +44,9 @@ fun reconstructDecl dec =
 			                  Eta.etaExpandTypeEC
 			                  (Eta.etaExpandObjEC o (Util.map2 asyncTypeToApx)) dec
 			val () = ImplicitVars.mapUCTable Eta.etaExpandTypeEC
+			val dec = mapDecl Util.removeApxKind
+			                  Util.removeApxType
+			                  (Util.removeApxObj o #1) dec
 			val () = Unify.resetConstrs ()
 			val () = ImplicitVars.appUCTable ExactTypes.checkTypeEC
 			val () = appDecl ExactTypes.checkKindEC
@@ -64,7 +67,10 @@ fun reconstructDecl dec =
 							val imps = map (Util.map2 PrettyPrint.remDepType) imps
 							val kity = mapKiTy (ImplicitVars.convUCVars2VarsKind imps)
 							                   (ImplicitVars.convUCVars2VarsType imps) kity
-						in ConstDecl (id, imps, kity) end
+							fun bindImps pi kity' =
+									foldr (fn ((x, A), im) => pi (SOME x, A, im)) kity' imps
+							val kity = mapKiTy (bindImps KPi') (bindImps TPi') kity
+						in ConstDecl (id, length imps, kity) end
 				| TypeAbbrev _ => (ImplicitVars.noUCVars () ; dec)
 				| ObjAbbrev _ => (ImplicitVars.noUCVars () ; dec)
 				| Query q => Query q
@@ -76,17 +82,18 @@ fun reconstructDecl dec =
 			                  (PrettyPrint.remDepObj o #1) dec
 			val () = case dec of
 				  ConstDecl (id, imps, kity) =>
-						let fun bindImps pi kity' =
+						(*let fun bindImps pi kity' =
 									foldr (fn ((x, A), im) => pi (SOME x, A, im)) kity' imps
 							val pkity = mapKiTy (bindImps KPi') (bindImps TPi') kity
-						in  ( print (id^": ")
+						in*)
+							( print (id^": ")
 							; appKiTy (print o PrettyPrint.printKind)
-							          (print o PrettyPrint.printType) pkity
+							          (print o PrettyPrint.printType) kity
 							; print ".\n"
 							; if TypeCheck.isEnabled () then
 								appKiTy TypeCheck.checkKindEC
-								        TypeCheck.checkTypeEC pkity
-							  else () ) end
+								        TypeCheck.checkTypeEC kity
+							  else () ) (*end*)
 				| TypeAbbrev (id, ty) =>
 						( print (id^": Type = "^(PrettyPrint.printType ty)^".\n")
 						; if TypeCheck.isEnabled () then TypeCheck.checkTypeEC ty else () )
