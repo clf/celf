@@ -61,7 +61,7 @@ ws = [\ \t];
 "->" => (Tokens.ARROW(getpos yypos,getpos yypos));
 "<-" => (Tokens.BACKARROW(getpos yypos,getpos yypos));
 [0-9]+ => (number (yytext,getpos yypos));
-[-a-zA-Z0-9<>=/_'*#+@;]+ => (keyword (yytext,getpos yypos));
+[-a-zA-Z0-9<>=/_'*#+@;$]+ => (keyword (yytext,getpos yypos));
 . => (let val (l,c) = getpos(yypos) in
 		print ("Lexer Warning: Ignoring illegal symbol ``"^yytext^"'' in line "^
 					(Int.toString l)^" pos "^(Int.toString c)^"\n")

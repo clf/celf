@@ -1,0 +1,6208 @@
+int : type.
+inc : int -> int -> type.
+dec : int -> int -> type.
+add : int -> int -> int -> type.
+sub : int -> int -> int -> type.
+sub0 : int -> int -> int -> type.
+iszero : int -> type.
+isnzero : int -> type.
+eq : int -> int -> type.
+int_rel : type.
+rel_less : int_rel.
+rel_eq : int_rel.
+rel_greater : int_rel.
+compare : int -> int -> int_rel -> type.
+r_eq : int_rel -> int_rel -> type.
+leq : int -> int -> type.
+leq_less : compare X Y rel_less -> leq X Y.
+leq_eq : compare X Y rel_eq -> leq X Y.
+geq : int -> int -> type.
+geq_greater : compare X Y rel_greater -> geq X Y.
+geq_eq : compare X Y rel_eq -> geq X Y.
+neq : int -> int -> type.
+neq_less : compare X Y rel_less -> neq X Y.
+neq_greater : compare X Y rel_greater -> neq X Y.
+max : int -> int -> int -> type.
+max_l : compare X Y rel_less -> max X Y Y.
+max_e : compare X Y rel_eq -> max X Y X.
+max_g : compare X Y rel_greater -> max X Y X.
+z : int.
+s : int -> int.
+inc_X : inc X (s X).
+dec_s : dec (s X) X.
+add_z : add X z X.
+add_s : add X Y Z -> add X (s Y) (s Z).
+sub_z : sub X z X.
+sub_s : sub X Y Z -> sub (s X) (s Y) Z.
+sub0_z : sub0 X z X.
+sub0_zs : sub0 z (s Y) z.
+sub0_s : sub0 X Y Z -> sub0 (s X) (s Y) Z.
+iszero_ : iszero z.
+isnzero_ : isnzero (s X).
+eq_ : eq X X.
+compare_zz : compare z z rel_eq.
+compare_sz : compare (s X) z rel_greater.
+compare_zs : compare z (s Y) rel_less.
+compare_ss : compare X Y R -> compare (s X) (s Y) R.
+r_eq_r : r_eq R R.
+list : type.
+memory : type.
+lookup : memory -> int -> int -> type.
+update : memory -> int -> int -> memory -> type.
+mem_size : memory -> int -> type.
+m_eq : memory -> memory -> type.
+# : memory.
+/ : int -> memory -> memory.
+lookup_z : lookup (/ X M) z X.
+lookup_s : lookup M A X' -> lookup (/ X M) (s A) X'.
+update_z : update (/ X M) z V (/ V M).
+update_s : update M A V M' -> update (/ X M) (s A) V (/ X M').
+mem_size_# : mem_size # z.
+mem_size_/ : mem_size M S -> mem_size (/ X M) (s S).
+m_eq_r : m_eq M M.
+world : type.
+input : world -> int -> world -> type.
+output : world -> int -> world -> type.
+input_empty : world -> type.
+w_eq : world -> world -> type.
+instr : type.
+opr : type.
+syscall : type.
+i_push : instr.
+i_pop : instr.
+i_ensure : instr.
+i_opr : opr -> instr.
+i_load : instr.
+i_store : instr.
+i_loadst : instr.
+i_storest : instr.
+i_brz : instr.
+i_trap : instr.
+i_stop : instr.
+o_add : opr.
+o_sub : opr.
+o_less : opr.
+o_eq : opr.
+s_in : syscall.
+s_out : syscall.
+decode : int -> instr -> type.
+decode_syscall : int -> syscall -> type.
+state : type.
+state_ : int -> int -> memory -> world -> state.
+exn : type.
+operator_error : exn.
+state_stop : world -> state.
+state_exn : exn -> world -> state.
+step : state -> state -> type.
+step' : instr -> state -> state -> type.
+exec_opr : opr -> int -> int -> int -> type.
+branch : int -> int -> int -> int -> type.
+trap : syscall -> int -> memory -> world -> int -> memory -> world -> type.
+ensure : int -> int -> int -> int -> memory -> world -> state -> type.
+stepn : state -> state -> type.
+stopped : state -> type.
+waiting : state -> type.
+code : type.
+pgm : type.
+c_size : code -> int -> type.
+pgm_size : pgm -> int -> type.
+create_mem : int -> memory -> type.
+load_pgm : memory -> code -> int -> memory -> int -> type.
+initial : pgm -> int -> int -> memory -> type.
+s_eq : state -> state -> type.
+s_eq_r : s_eq S S.
+sys_eq : syscall -> syscall -> type.
+sys_eq_r : sys_eq S S.
+instr_eq : instr -> instr -> type.
+instr_eq_r : instr_eq I I.
+decode_push : decode (s (s z)) i_push.
+decode_pop : decode (s (s (s z))) i_pop.
+decode_load : decode (s (s (s (s z)))) i_load.
+decode_store : decode (s (s (s (s (s z))))) i_store.
+decode_loadst : decode (s (s (s (s (s (s z)))))) i_loadst.
+decode_storest : decode (s (s (s (s (s (s (s z))))))) i_storest.
+decode_add : decode (s (s (s (s (s (s (s (s z)))))))) (i_opr o_add).
+decode_sub : decode (s (s (s (s (s (s (s (s (s z))))))))) (i_opr o_sub).
+decode_less : decode (s (s (s (s (s (s (s (s (s (s z)))))))))) (i_opr o_less).
+decode_eq :
+   decode (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))) (i_opr o_eq).
+decode_brz :
+   decode (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))
+      i_brz.
+decode_trap :
+   decode (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))
+      i_trap.
+decode_ensure :
+   decode
+      (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+      i_ensure.
+decode_stop : decode (s z) i_stop.
+decode_syscall_in : decode_syscall (s (s z)) s_in.
+decode_syscall_out : decode_syscall (s (s (s z))) s_out.
+$ : code.
+;' : int -> code -> code.
+pgm_ : int -> code -> pgm.
+c_size_$ : c_size $ z.
+c_size_; : inc X X' -> c_size C X -> c_size (;' I C) X'.
+pgm_size_ : add X Ds Y -> c_size C X -> pgm_size (pgm_ Ds C) Y.
+create_mem_z : create_mem z #.
+create_mem_s : create_mem X M -> create_mem (s X) (/ z M).
+load_pgm_$ : load_pgm M $ X M X.
+load_pgm_; :
+   load_pgm M' C X' M'' X'' -> inc X X' -> update M X I M'
+      -> load_pgm M (;' I C) X M'' X''.
+initial_ :
+   leq Sp Ts -> add Ps Ds Sp -> load_pgm M C z M' Ps -> create_mem Ts M
+      -> initial (pgm_ Ds C) Ts Sp M'.
+notstuck : state -> type.
+notstuck_step : step S S' -> notstuck S.
+notstuck_stop : stopped S -> notstuck S.
+good : state -> type.
+good_ns : notstuck S -> good S.
+good_wait : waiting S -> good S.
+c_loaded : code -> int -> memory -> int -> type.
+c_loaded_$ : c_loaded $ X M X.
+c_loaded_; :
+   c_loaded C X' M X'' -> inc X X' -> lookup M X I -> c_loaded (;' I C) X M X''.
+initial_state : pgm -> state -> type.
+initial_state_ :
+   leq (s (s Sp)) Sz -> mem_size M Sz -> add Cs Ds Sp -> c_loaded C z M Cs
+      -> initial_state (pgm_ Ds C) (state_ z Sp M W).
+ds : int = s (s (s (s (s (s (s (s (s (s (s (s z))))))))))).
+c : code
+   = ;'
+        (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+        (;' (s (s (s z)))
+            (;' (s (s z))
+                (;'
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                    (;' (s (s z))
+                        (;'
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                            (;' (s (s z))
+                                (;'
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                    (;' (s (s (s (s (s z)))))
+                                        
+(;' (s (s z))
+    (;' z
+        (;' (s (s z))
+            (;'
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                (;'
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))
+                    (;'
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                        (;' (s (s (s (s (s z)))))
+                            (;' (s (s (s z)))
+                                (;' z
+                                    (;' (s (s z))
+                                        
+(;' z
+    (;' (s (s z))
+        (;' (s z)
+            (;' (s (s (s (s (s (s z))))))
+                (;' (s (s z))
+                    (;' (s z)
+                        (;' (s (s (s (s (s (s z))))))
+                            (;' (s (s z))
+                                (;' (s (s z))
+                                    (;' (s (s (s (s (s (s (s z)))))))
+                                        
+(;' (s (s z))
+    (;' z
+        (;' (s (s (s (s (s (s (s z)))))))
+            (;'
+                (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))
+                (;'
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                    (;' (s (s (s (s (s z)))))
+                        (;' (s (s (s z)))
+                            (;' z
+                                (;' (s (s z))
+                                    (;' z
+                                        
+(;' (s (s z))
+    (;' (s z)
+        (;' (s (s (s (s (s (s z))))))
+            (;' (s (s z))
+                (;' (s z)
+                    (;' (s (s (s (s (s (s z))))))
+                        (;' (s (s z))
+                            (;' (s (s z))
+                                (;' (s (s (s (s (s (s (s z)))))))
+                                    (;' (s (s z))
+                                        
+(;' z
+    (;' (s (s (s (s (s (s (s z)))))))
+        (;' (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))
+            (;'
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                (;' (s (s (s (s (s z)))))
+                    (;' (s (s (s z)))
+                        (;' z
+                            (;' (s (s z))
+                                (;' z
+                                    (;' (s (s z))
+                                        
+(;' (s z)
+    (;' (s (s (s (s (s (s z))))))
+        (;' (s (s z))
+            (;' (s z)
+                (;' (s (s (s (s (s (s z))))))
+                    (;' (s (s z))
+                        (;' (s (s z))
+                            (;' (s (s (s (s (s (s (s z)))))))
+                                (;' (s (s z))
+                                    (;' z
+                                        
+(;' (s (s (s (s (s (s (s z)))))))
+    (;' (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))
+        (;'
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+            (;' (s (s (s (s (s z)))))
+                (;' (s (s (s z)))
+                    (;' z
+                        (;' (s (s z))
+                            (;' z
+                                (;' (s (s z))
+                                    (;' (s z)
+                                        
+(;' (s (s (s (s (s (s z))))))
+    (;' (s (s z))
+        (;' (s z)
+            (;' (s (s (s (s (s (s z))))))
+                (;' (s (s z))
+                    (;' (s (s z))
+                        (;' (s (s (s (s (s (s (s z)))))))
+                            (;' (s (s z))
+                                (;' z
+                                    (;' (s (s (s (s (s (s (s z)))))))
+                                        
+(;' (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))
+    (;'
+        (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+        (;' (s (s (s (s (s z)))))
+            (;' (s (s (s z)))
+                (;' z
+                    (;' (s (s z))
+                        (;' z
+                            (;' (s (s z))
+                                (;' (s z)
+                                    (;' (s (s (s (s (s (s z))))))
+                                        
+(;' (s (s z))
+    (;' (s z)
+        (;' (s (s (s (s (s (s z))))))
+            (;' (s (s z))
+                (;' (s (s z))
+                    (;' (s (s (s (s (s (s (s z)))))))
+                        (;' (s (s z))
+                            (;' z
+                                (;' (s (s (s (s (s (s (s z)))))))
+                                    (;'
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))
+                                        
+(;' (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+    (;' (s (s (s (s (s z)))))
+        (;' (s (s (s z)))
+            (;' z
+                (;' (s (s z))
+                    (;' z
+                        (;' (s (s z))
+                            (;' (s z)
+                                (;' (s (s (s (s (s (s z))))))
+                                    (;' (s (s z))
+                                        
+(;' (s z)
+    (;' (s (s (s (s (s (s z))))))
+        (;' (s (s z))
+            (;' (s (s z))
+                (;' (s (s (s (s (s (s (s z)))))))
+                    (;' (s (s z))
+                        (;' z
+                            (;' (s (s (s (s (s (s (s z)))))))
+                                (;'
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))
+                                    (;'
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                                        
+(;' (s (s (s (s (s z)))))
+    (;' (s (s (s z)))
+        (;' z
+            (;' (s (s z))
+                (;' z
+                    (;' (s (s z))
+                        (;' (s z)
+                            (;' (s (s (s (s (s (s z))))))
+                                (;' (s (s z))
+                                    (;' (s z)
+                                        
+(;' (s (s (s (s (s (s z))))))
+    (;' (s (s z))
+        (;' (s (s z))
+            (;' (s (s (s (s (s (s (s z)))))))
+                (;' (s (s z))
+                    (;' z
+                        (;' (s (s (s (s (s (s (s z)))))))
+                            (;'
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))
+                                (;'
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                                    (;' (s (s (s (s (s z)))))
+                                        
+(;' (s (s (s z)))
+    (;' z
+        (;' (s (s z))
+            (;' z
+                (;' (s (s z))
+                    (;' (s z)
+                        (;' (s (s (s (s (s (s z))))))
+                            (;' (s (s z))
+                                (;' (s z)
+                                    (;' (s (s (s (s (s (s z))))))
+                                        
+(;' (s (s z))
+    (;' (s (s z))
+        (;' (s (s (s (s (s (s (s z)))))))
+            (;' (s (s z))
+                (;' z
+                    (;' (s (s (s (s (s (s (s z)))))))
+                        (;'
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))
+                            (;'
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                                (;' (s (s (s (s (s z)))))
+                                    (;' (s (s (s z)))
+                                        
+(;' z
+    (;' (s (s z))
+        (;' z
+            (;' (s (s z))
+                (;' (s z)
+                    (;' (s (s (s (s (s (s z))))))
+                        (;' (s (s z))
+                            (;' (s z)
+                                (;' (s (s (s (s (s (s z))))))
+                                    (;' (s (s z))
+                                        
+(;' (s (s z))
+    (;' (s (s (s (s (s (s (s z)))))))
+        (;' (s (s z))
+            (;' z
+                (;' (s (s (s (s (s (s (s z)))))))
+                    (;'
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))
+                        (;' (s z) $))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))).
+p : pgm = pgm_ ds c.
+simple : type.
+s_num : int -> simple.
+s_int : simple.
+s_optr : simple.
+simple_list : type.
+sl_nil : simple_list.
+sl_cons : simple -> simple_list -> simple_list.
+tp : type.
+stp : type.
+tp_list : type.
+tp_nil : tp_list.
+tp_cons : tp -> tp_list -> tp_list.
+tp_list_list : type.
+tp_list_nil : tp_list_list.
+tp_list_cons : tp_list -> int -> tp_list_list -> tp_list_list.
+tp_simple : simple -> tp.
+tp_label : stp -> tp.
+stp_ : int -> tp_list -> stp.
+le_option : type.
+le_udef : le_option.
+le_stp : stp -> le_option.
+lab_env : type.
+le_nil : lab_env.
+le_cons : le_option -> lab_env -> lab_env.
+tp_eq : tp -> tp -> type.
+tp_eq_r : tp_eq T' T'.
+tl_eq : tp_list -> tp_list -> type.
+tl_eq_r : tl_eq T' T'.
+t_nth : tp_list -> int -> tp -> type.
+t_nth_z : t_nth (tp_cons T' T1) z T'.
+t_nth_s : t_nth T1 X T' -> t_nth (tp_cons T' T1) (s X) T'.
+t_replace : tp_list -> int -> tp -> tp_list -> type.
+t_replace_z : t_replace (tp_cons T' T1) z T' (tp_cons T' T1).
+t_replace_s :
+   t_replace T1 X T' T2 -> t_replace (tp_cons T' T1) (s X) T' (tp_cons T' T2).
+t_drop : tp_list -> int -> tp_list -> type.
+t_drop_z : t_drop T' z T'.
+t_drop_s : t_drop T1 X T2 -> t_drop (tp_cons T' T1) (s X) T2.
+le_lookup : lab_env -> int -> stp -> type.
+le_lookup_z : le_lookup (le_cons (le_stp S) L) z S.
+le_lookup_s : le_lookup L X S' -> le_lookup (le_cons S L) (s X) S'.
+s_size : simple_list -> int -> type.
+s_size_z : s_size sl_nil z.
+s_size_s : s_size SL X -> s_size (sl_cons S SL) (s X).
+t_size : tp_list -> int -> type.
+t_size_z : t_size tp_nil z.
+t_size_s : t_size T' X -> t_size (tp_cons T' T') (s X).
+tp_sum : tp_list_list -> int -> type.
+tp_sum_nil : tp_sum tp_list_nil z.
+tp_sum_cons : add X Y Z -> tp_sum TS Y -> tp_sum (tp_list_cons T' X TS) Z.
+c_lookup : code -> int -> code -> type.
+c_lookup_z : c_lookup C z C.
+c_lookup_s : c_lookup C X C' -> c_lookup (;' I C) (s X) C'.
+t_ev : tp -> tp_list -> int -> tp -> type.
+t_extend : tp_list -> tp_list -> int -> tp_list -> type.
+t_ev_simple : t_ev (tp_simple S) T' X (tp_simple S).
+t_ev_label :
+   t_extend T1 T' X T2 -> add N1 X N2
+      -> t_ev (tp_label (stp_ N1 T1)) T' X (tp_label (stp_ N2 T2)).
+t_extend_nil : t_extend tp_nil T' X T'.
+t_extend_cons :
+   t_extend T1 T' X T2 -> t_ev Tp T' X Tp'
+      -> t_extend (tp_cons Tp T1) T' X (tp_cons Tp' T2).
+in_heap : int -> pgm -> type.
+in_heap_ :
+   compare A PSz rel_less -> leq CSz A -> add CSz Ds PSz -> c_size C CSz
+      -> in_heap A (pgm_ Ds C).
+typeV : lab_env -> pgm -> int -> tp -> type.
+t_num : typeV L P N (tp_simple (s_num N)).
+t_int : typeV L P N (tp_simple s_int).
+t_optr : in_heap A P -> typeV L P A (tp_simple s_optr).
+t_label : le_lookup L X STP -> typeV L P X (tp_label STP).
+t_ex :
+   add N Y N' -> t_extend T1 T' Y T2 -> typeV L P X (tp_label (stp_ N T1))
+      -> typeV L P X (tp_label (stp_ N' T2)).
+tp_split : tp_list -> simple_list -> tp_list -> type.
+tp_split_cons :
+   tp_split T' D T' -> tp_split (tp_cons (tp_simple S) T') (sl_cons S D) T'.
+tp_split_nil : tp_split T' sl_nil T'.
+stack_space : simple_list -> simple_list -> int -> type.
+stack_space_ :
+   sub X1 Y Z -> add X (s (s (s z))) X1 -> s_size D2 Y -> s_size D1 X
+      -> stack_space D1 D2 Z.
+fun_split :
+   tp_list -> simple_list -> simple_list -> tp_list -> int -> int -> type.
+fun_split_ :
+   add Z N' N -> stack_space D1 D2 Z -> tp_split T' D2 T''
+      -> tp_split T' D1 (tp_cons (tp_label (stp_ N T')) T'')
+      -> fun_split T' D1 D2 T'' N' N.
+typeI : lab_env -> pgm -> code -> stp -> type.
+t_push :
+   typeI L G I (stp_ F (tp_cons Tp T')) -> typeV L G X Tp -> decode Instr 
+i_push
+      -> typeI L G (;' Instr (;' X I)) (stp_ (s F) T').
+t_pop :
+   typeI L G I (stp_ N'' T') -> add N N' N'' -> t_drop T' N' T'
+      -> decode Instr i_pop -> typeI L G (;' Instr (;' N' I)) (stp_ N T').
+t_ensure :
+   typeI L G I (stp_ N' T1') -> t_extend T1 tp_nil N'' T1' -> sub N' N1 N''
+      -> max N N1 N' -> decode Instr i_ensure
+      -> typeI L G (;' Instr (;' N I)) (stp_ N1 T1).
+t_opr :
+   typeI L G I (stp_ (s N) (tp_cons (tp_simple s_int) T'))
+      -> decode Instr (i_opr Op)
+      -> typeI L G (;' Instr I)
+            (stp_ N (tp_cons (tp_simple s_int) (tp_cons (tp_simple s_int) T'))).
+t_loadst :
+   typeI L G I (stp_ N' (tp_cons Tp T')) -> t_nth T' N Tp
+      -> decode Instr i_loadst
+      -> typeI L G (;' Instr I) (stp_ N' (tp_cons (tp_simple (s_num N)) T')).
+t_storest :
+   typeI L G I (stp_ (s (s N')) T') -> t_replace T' N Tp T'
+      -> decode Instr i_storest
+      -> typeI L G (;' Instr I)
+            (stp_ N' (tp_cons (tp_simple (s_num N)) (tp_cons Tp T'))).
+t_brz_z :
+   add N' (s (s z)) N -> decode Instr i_brz
+      -> typeI L G (;' Instr I)
+            (stp_ N'
+                (tp_cons (tp_label (stp_ N T'))
+                    (tp_cons (tp_simple (s_num z)) T'))).
+t_brz :
+   typeI L G I (stp_ N T') -> add N' (s (s z)) N -> decode Instr i_brz
+      -> typeI L G (;' Instr I)
+            (stp_ N'
+                (tp_cons (tp_label (stp_ N T')) (tp_cons (tp_simple s_int) T'))).
+t_input :
+   typeI L G I (stp_ N (tp_cons (tp_simple s_int) T')) -> decode_syscall S s_in
+      -> decode Instr i_trap
+      -> typeI L G (;' Instr I) (stp_ N (tp_cons (tp_simple (s_num S)) T')).
+t_output :
+   typeI L G I (stp_ (s (s N)) T') -> decode_syscall S s_out
+      -> decode Instr i_trap
+      -> typeI L G (;' Instr I)
+            (stp_ N
+                (tp_cons (tp_simple (s_num S)) (tp_cons (tp_simple s_int) T'))).
+t_stop : decode Instr i_stop -> typeI L G (;' Instr I) T'.
+t_store :
+   typeI L G I (stp_ (s (s N)) T') -> in_heap A G -> decode Instr i_store
+      -> typeI L G (;' Instr I)
+            (stp_ N
+                (tp_cons (tp_simple (s_num A)) (tp_cons (tp_simple s_int) T'))).
+free_stack : int -> int -> memory -> type.
+free_stack_z : leq Sp S -> mem_size M S -> free_stack z Sp M.
+free_stack_s : free_stack X Sp' M -> inc Sp Sp' -> free_stack (s X) Sp M.
+typeS : lab_env -> pgm -> int -> int -> memory -> stp -> type.
+typeTL : lab_env -> pgm -> int -> int -> memory -> tp_list -> type.
+t_stp :
+   free_stack F Sp M -> typeTL L P Sp Ps M T' -> typeS L P Sp Ps M (stp_ F T').
+t_nil : leq Ps Sp -> typeTL L P Sp Ps M tp_nil.
+t_cons :
+   typeTL L P Sp-1 Ps M T' -> typeV L P X Tp -> lookup M Sp-1 X -> dec Sp Sp-1
+      -> typeTL L P Sp Ps M (tp_cons Tp T').
+typeELab : lab_env -> pgm -> code -> lab_env -> type.
+t_env_lab_nil : typeELab le_nil G C L.
+t_env_lab_udef :
+   typeELab L' G C L -> typeELab (le_cons le_udef L') G (;' I C) L.
+t_env_lab_stp :
+   typeELab L' G C L -> typeI L G (;' I C) T'
+      -> typeELab (le_cons (le_stp T') L') G (;' I C) L.
+typeFun : simple_list -> tp_list -> tp_list -> type.
+typeFun_nil : typeFun sl_nil T' T'.
+typeFun_cons :
+   typeFun D T' T' -> typeFun (sl_cons S D) T' (tp_cons (tp_simple S) T').
+typeable : pgm -> state -> type.
+t_state :
+   typeI L (pgm_ Ds C) I T' -> typeS L (pgm_ Ds C) Sp Sz' M T' -> add Sz Ds Sz'
+      -> c_lookup C Ip I -> typeELab L (pgm_ Ds C) C L -> c_loaded C z M Sz
+      -> typeable (pgm_ Ds C) (state_ Ip Sp M W).
+t_stopped : stopped S -> typeable G S.
+hint : type.
+hint_num : hint.
+hint_int : hint.
+hint_lab : hint.
+hint_ex : tp_list -> int -> hint.
+hint_list : type.
+hl_nil : hint_list.
+hl_cons : int -> hint -> hint_list -> hint_list.
+hl_lookup : hint_list -> int -> hint -> type.
+hl_lookup_eq : eq X Y -> hl_lookup (hl_cons X H HL) Y H.
+hl_lookup_neq : hl_lookup HL Y H' -> neq X Y -> hl_lookup (hl_cons X H HL) Y H'.
+inv : type.
+lab_inv : stp -> inv.
+inv_list : type.
+il_nil : inv_list.
+il_cons : int -> inv -> inv_list -> inv_list.
+hl : hint_list
+   = hl_cons (s (s z)) hint_lab
+        (hl_cons (s (s (s (s z)))) hint_int
+            (hl_cons (s (s (s (s (s (s z)))))) hint_num
+                (hl_cons (s (s (s (s (s (s (s (s (s z))))))))) hint_num
+                    (hl_cons (s (s (s (s (s (s (s (s (s (s (s z)))))))))))
+                        hint_lab
+                        (hl_cons
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                            hint_num
+                            (hl_cons
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))
+                                hint_num
+                                (hl_cons
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))
+                                    hint_num
+                                    (hl_cons
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))
+                                        hint_num
+                                        
+(hl_cons
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))
+    hint_num
+    (hl_cons
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))
+        hint_num
+        (hl_cons
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))
+            hint_num
+            (hl_cons
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))
+                hint_num
+                (hl_cons
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))
+                    hint_num
+                    (hl_cons
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))
+                        hint_num
+                        (hl_cons
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                            hint_num
+                            (hl_cons
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                hint_num
+                                (hl_cons
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                    hint_num
+                                    (hl_cons
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                        hint_num
+                                        
+(hl_cons
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+    hint_num
+    (hl_cons
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+        hint_num
+        (hl_cons
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+            hint_num
+            (hl_cons
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                hint_num
+                (hl_cons
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                    hint_num
+                    (hl_cons
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                        hint_num
+                        (hl_cons
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                            hint_num
+                            (hl_cons
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                hint_num
+                                (hl_cons
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                    hint_num
+                                    (hl_cons
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                        hint_num
+                                        
+(hl_cons
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+    hint_num
+    (hl_cons
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+        hint_num
+        (hl_cons
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+            hint_num
+            (hl_cons
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                hint_num
+                (hl_cons
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                    hint_num
+                    (hl_cons
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                        hint_num
+                        (hl_cons
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                            hint_num
+                            (hl_cons
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                hint_num
+                                (hl_cons
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                    hint_num
+                                    (hl_cons
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                        hint_num
+                                        
+(hl_cons
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+    hint_num
+    (hl_cons
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+        hint_num
+        (hl_cons
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+            hint_num
+            (hl_cons
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                hint_num
+                (hl_cons
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                    hint_num
+                    (hl_cons
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                        hint_num
+                        (hl_cons
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                            hint_num
+                            (hl_cons
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                hint_num
+                                (hl_cons
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                    hint_num
+                                    (hl_cons
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+                                        hint_num
+                                        
+(hl_cons
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s
+    (s
+        (s
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))
+    hint_num hl_nil))))))))))))))))))))))))))))))))))))))))))))))))).
+il : inv_list
+   = il_cons (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))
+        (lab_inv
+            (stp_ (s (s z))
+                (tp_cons (tp_label (stp_ (s (s (s z))) tp_nil)) tp_nil)))
+        (il_cons
+            (s
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+            (lab_inv
+                (stp_ (s (s z))
+                    (tp_cons (tp_label (stp_ (s (s (s z))) tp_nil)) tp_nil)))
+            (il_cons
+                (s
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                (lab_inv
+                    (stp_ (s (s z))
+                        (tp_cons (tp_label (stp_ (s (s (s z))) tp_nil)) tp_nil)))
+                (il_cons
+                    (s
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                    (lab_inv
+                        (stp_ (s (s z))
+                            (tp_cons (tp_label (stp_ (s (s (s z))) tp_nil))
+                                tp_nil)))
+                    (il_cons
+                        (s
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                        (lab_inv
+                            (stp_ (s (s z))
+                                (tp_cons (tp_label (stp_ (s (s (s z))) tp_nil))
+                                    tp_nil)))
+                        (il_cons
+                            (s
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                            (lab_inv
+                                (stp_ (s (s z))
+                                    (tp_cons
+                                        (tp_label (stp_ (s (s (s z))) tp_nil))
+                                        tp_nil)))
+                            (il_cons
+                                (s
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                                (lab_inv
+                                    (stp_ (s (s z))
+                                        (tp_cons
+                                            (tp_label
+                                                (stp_ (s (s (s z))) tp_nil))
+                                            tp_nil)))
+                                (il_cons
+                                    (s
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                                    (lab_inv
+                                        (stp_ (s (s z))
+                                            (tp_cons
+                                                (tp_label
+                                                    (stp_ (s (s (s z))) tp_nil))
+                                                tp_nil)))
+                                    (il_cons
+                                        
+(s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+                                        (lab_inv
+                                            (stp_ (s (s z))
+                                                (tp_cons
+                                                    (tp_label
+                                                        (stp_ (s (s (s z)))
+                                                            tp_nil))
+                                                    tp_nil)))
+                                        
+(il_cons
+    (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+    (lab_inv (stp_ (s (s (s z))) tp_nil)) il_nil))))))))).
+compare_ : Pi X:int. Pi Y:int. Pi R:int_rel. compare X Y R -> type.
+compare_zz_ : compare_ z z rel_eq compare_zz.
+compare_sz_ : compare_ (s X) z rel_greater compare_sz.
+compare_zs_ : compare_ z (s Y) rel_less compare_zs.
+compare_ss_ : compare_ X Y R CP -> compare_ (s X) (s Y) R (compare_ss CP).
+max_ : Pi X:int. Pi Y:int. Pi Z:int. max X Y Z -> type.
+max_l_ : compare_ X Y rel_less CP -> max_ X Y Y (max_l CP).
+max_e_ : compare_ X Y rel_eq CP -> max_ X Y X (max_e CP).
+max_g_ : compare_ X Y rel_greater CP -> max_ X Y X (max_g CP).
+leq_ : Pi X:int. Pi Y:int. leq X Y -> type.
+leq_less_ : compare_ X Y rel_less CP -> leq_ X Y (leq_less CP).
+leq_eq_ : compare_ X Y rel_eq CP -> leq_ X Y (leq_eq CP).
+c_lookup_ : Pi C:code. Pi X:int. Pi C':code. c_lookup C X C' -> type.
+c_lookup_z_ : c_lookup_ C z C c_lookup_z.
+c_lookup_s_ :
+   c_lookup_ C X C' LP -> c_lookup_ (;' I C) (s X) C' (c_lookup_s LP).
+add_ : Pi X:int. Pi Y:int. Pi Z:int. add X Y Z -> type.
+add_z_ : add_ X z X add_z.
+add_s_ : add_ X Y Z AP -> add_ X (s Y) (s Z) (add_s AP).
+sub_ : Pi X:int. Pi Y:int. Pi Z:int. sub X Y Z -> type.
+sub_z_ : sub_ X z X sub_z.
+sub_s_ : sub_ X Y Z SP -> sub_ (s X) (s Y) Z (sub_s SP).
+neq_ : Pi X:int. Pi Y:int. neq X Y -> type.
+neq_less_ : compare_ X Y rel_less CP -> neq_ X Y (neq_less CP).
+neq_greater_ : compare_ X Y rel_greater CP -> neq_ X Y (neq_greater CP).
+c_size_ : Pi C:code. Pi Sz:int. c_size C Sz -> type.
+c_size_$_ : c_size_ $ z c_size_$.
+c_size_$_ : c_size_ C X CS -> c_size_ (;' I C) (s X) (c_size_; inc_X CS).
+t_nth_ : Pi T':tp_list. Pi X:int. Pi Tp:tp. t_nth T' X Tp -> type.
+t_nth_z_ : t_nth_ (tp_cons T' T1) z T' t_nth_z.
+t_nth_z_ : t_nth_ T1 X Tp NP -> t_nth_ (tp_cons T' T1) (s X) Tp (t_nth_s NP).
+t_replace_ :
+   Pi T':tp_list. Pi X:int. Pi Tp:tp. Pi T':tp_list.
+      t_replace T' X Tp T' -> type.
+t_replace_z_ : t_replace_ (tp_cons T' T1) z T' (tp_cons T' T1) t_replace_z.
+t_replace_s_ :
+   t_replace_ T1 X T' T2 RP
+      -> t_replace_ (tp_cons T' T1) (s X) T' (tp_cons T' T2) (t_replace_s RP).
+t_drop_ : Pi T':tp_list. Pi N:int. Pi T':tp_list. t_drop T' N T' -> type.
+t_drop_z_ : t_drop_ T' z T' t_drop_z.
+t_drop_s_ :
+   t_drop_ T1 X T2 DP -> t_drop_ (tp_cons T' T1) (s X) T2 (t_drop_s DP).
+le_lookup_ : Pi LE:lab_env. Pi X:int. Pi S:stp. le_lookup LE X S -> type.
+le_lookup_z_ : le_lookup_ (le_cons (le_stp S) L) z S le_lookup_z.
+le_lookup_s_ :
+   le_lookup_ L X S' LP -> le_lookup_ (le_cons S L) (s X) S' (le_lookup_s LP).
+s_size_ : Pi D:simple_list. Pi X:int. s_size D X -> type.
+s_size_z_ : s_size_ sl_nil z s_size_z.
+s_size_s_ : s_size_ SL X SZP -> s_size_ (sl_cons S SL) (s X) (s_size_s SZP).
+stack_space__ :
+   Pi D1:simple_list. Pi D2:simple_list. Pi N:int. stack_space D1 D2 N -> type.
+stack_space___ :
+   sub_ X1 Y N SP -> add_ X (s (s (s z))) X1 AP -> s_size_ D2 Y SZ2
+      -> s_size_ D1 X SZ1 -> stack_space__ D1 D2 N (stack_space_ SP AP SZ2 SZ1).
+t_ev_ :
+   Pi Tp1:tp. Pi T':tp_list. Pi X:int. Pi Tp2:tp. t_ev Tp1 T' X Tp2 -> type.
+t_extend_ :
+   Pi T1:tp_list. Pi T':tp_list. Pi X:int. Pi T2:tp_list.
+      t_extend T1 T' X T2 -> type.
+t_ev_simple_ : t_ev_ (tp_simple S) T' X (tp_simple S) t_ev_simple.
+t_ev_label_ :
+   t_extend_ T1 T' X T2 TE -> add_ N1 X N2 AP
+      -> t_ev_ (tp_label (stp_ N1 T1)) T' X (tp_label (stp_ N2 T2))
+            (t_ev_label TE AP).
+t_extend_nil_ : t_extend_ tp_nil T' X T' t_extend_nil.
+t_extend_cons_ :
+   t_extend_ T1 T' X T2 TE -> t_ev_ Tp1 T' X Tp2 TV
+      -> t_extend_ (tp_cons Tp1 T1) T' X (tp_cons Tp2 T2) (t_extend_cons TE TV).
+decode_ : Pi X:int. Pi I:instr. decode X I -> type.
+decode_stop_ : decode_ (s z) i_stop decode_stop.
+decode_push_ : decode_ (s (s z)) i_push decode_push.
+decode_pop_ : decode_ (s (s (s z))) i_pop decode_pop.
+decode_load_ : decode_ (s (s (s (s z)))) i_load decode_load.
+decode_store_ : decode_ (s (s (s (s (s z))))) i_store decode_store.
+decode_loadst_ : decode_ (s (s (s (s (s (s z)))))) i_loadst decode_loadst.
+decode_storest_ :
+   decode_ (s (s (s (s (s (s (s z))))))) i_storest decode_storest.
+decode_add_ :
+   decode_ (s (s (s (s (s (s (s (s z)))))))) (i_opr o_add) decode_add.
+decode_sub_ :
+   decode_ (s (s (s (s (s (s (s (s (s z))))))))) (i_opr o_sub) decode_sub.
+decode_less_ :
+   decode_ (s (s (s (s (s (s (s (s (s (s z)))))))))) (i_opr o_less) decode_less.
+decode_eq_ :
+   decode_ (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))
+      (i_opr o_eq) decode_eq.
+decode_brz_ :
+   decode_ (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))
+      i_brz decode_brz.
+decode_trap_ :
+   decode_ (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z)))))))))))))))))
+      i_trap decode_trap.
+decode_ensure_ :
+   decode_
+      (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))
+      i_ensure decode_ensure.
+decode_syscall_ : Pi X:int. Pi I:syscall. decode_syscall X I -> type.
+decode_syscall_in_ : decode_syscall_ (s (s z)) s_in decode_syscall_in.
+decode_syscall_out_ : decode_syscall_ (s (s (s z))) s_out decode_syscall_out.
+tp_split_ :
+   Pi T':tp_list. Pi D:simple_list. Pi T':tp_list. tp_split T' D T' -> type.
+tp_split_nil_ : tp_split_ T' sl_nil T' tp_split_nil.
+tp_split_cons_ :
+   tp_split_ T' D T' SP
+      -> tp_split_ (tp_cons (tp_simple S) T') (sl_cons S D) T'
+            (tp_split_cons SP).
+fun_split__ :
+   Pi T':tp_list. Pi D1:simple_list. Pi D2:simple_list. Pi T'':tp_list.
+      Pi N':int. Pi N:int. fun_split T' D1 D2 T'' N' N -> type.
+fun_split___ :
+   add_ Z N' N AP -> stack_space__ D1 D2 Z SS -> tp_split_ T' D2 T'' SPL2
+      -> tp_split_ T' D1 (tp_cons (tp_label (stp_ N T')) T'') SPL1
+      -> fun_split__ T' D1 D2 T'' N' N (fun_split_ AP SS SPL2 SPL1).
+create_env : inv_list -> lab_env -> type.
+create_env_nil : create_env il_nil le_nil.
+create_env_lab_z :
+   create_env IL LE
+      -> create_env (il_cons z (lab_inv S) IL) (le_cons (le_stp S) LE).
+create_env_lab_s :
+   create_env (il_cons X (lab_inv S) IL) LE
+      -> create_env (il_cons (s X) (lab_inv S) IL) (le_cons le_udef LE).
+hint_type :
+   Pi X:int. Pi L:lab_env. Pi P:pgm. hint -> Pi T':tp. typeV L P X T' -> type.
+hint_type_num : hint_type X L P hint_num (tp_simple (s_num X)) t_num.
+hint_type_int : hint_type X L P hint_int (tp_simple s_int) t_int.
+hint_type_lab :
+   le_lookup_ L X S LP -> hint_type X L P hint_lab (tp_label S) (t_label LP).
+hint_type_ex :
+   add_ N1 N N2 AP -> t_extend_ T1 T' N T2 TE -> le_lookup_ L X (stp_ N1 T1) LP
+      -> hint_type X L P (hint_ex T' N) (tp_label (stp_ N2 T2))
+            (t_ex AP TE (t_label LP)).
+extract :
+   Pi C:code.
+      int -> hint_list
+         -> Pi L:lab_env. Pi G:pgm. Pi S:stp. typeI L G C S -> type.
+extract_push :
+   extract I (s (s Ip)) HL L G (stp_ F (tp_cons Tp T')) TP
+      -> hint_type X L G H Tp TV -> hl_lookup HL Ip H
+      -> decode_ Instr i_push DEC
+      -> extract (;' Instr (;' X I)) Ip HL L G (stp_ (s F) T')
+            (t_push TP TV DEC).
+extract_pop :
+   extract I (s (s Ip)) HL L G (stp_ N'' T') TP -> add_ N N' N'' AP
+      -> t_drop_ T' N' T' DP -> decode_ Instr i_pop DEC
+      -> extract (;' Instr (;' N' I)) Ip HL L G (stp_ N T') (t_pop TP AP DP DEC).
+extract_ensure :
+   extract I (s (s Ip)) HL L G (stp_ N' T1') TP
+      -> t_extend_ T1 tp_nil N'' T1' TE -> sub_ N' N1 N'' SP -> max_ N N1 N' MP
+      -> decode_ Instr i_ensure DEC
+      -> extract (;' Instr (;' N I)) Ip HL L G (stp_ N1 T1)
+            (t_ensure TP TE SP MP DEC).
+extract_opr :
+   extract I (s Ip) HL L G (stp_ (s N) (tp_cons (tp_simple s_int) T')) TP
+      -> decode_ Instr (i_opr Op) DEC
+      -> extract (;' Instr I) Ip HL L G
+            (stp_ N (tp_cons (tp_simple s_int) (tp_cons (tp_simple s_int) T')))
+            (t_opr TP DEC).
+extract_loadst :
+   extract I (s Ip) HL L G (stp_ N' (tp_cons Tp T')) TP -> t_nth_ T' N Tp NP
+      -> decode_ Instr i_loadst DEC
+      -> extract (;' Instr I) Ip HL L G
+            (stp_ N' (tp_cons (tp_simple (s_num N)) T')) (t_loadst TP NP DEC).
+extract_storest :
+   extract I (s Ip) HL L G (stp_ (s (s N')) T') TP -> t_replace_ T' N Tp T' RP
+      -> decode_ Instr i_storest DEC
+      -> extract (;' Instr I) Ip HL L G
+            (stp_ N' (tp_cons (tp_simple (s_num N)) (tp_cons Tp T')))
+            (t_storest TP RP DEC).
+extract_brz_z :
+   add_ N' (s (s z)) N AP -> decode_ Instr i_brz DEC
+      -> extract (;' Instr I) Ip HL L G
+            (stp_ N'
+                (tp_cons (tp_label (stp_ N T'))
+                    (tp_cons (tp_simple (s_num z)) T'))) (t_brz_z AP DEC).
+extract_brz :
+   extract I (s Ip) HL L G (stp_ N T') TP -> add_ N' (s (s z)) N AP
+      -> decode_ Instr i_brz DEC
+      -> extract (;' Instr I) Ip HL L G
+            (stp_ N'
+                (tp_cons (tp_label (stp_ N T')) (tp_cons (tp_simple s_int) T')))
+            (t_brz TP AP DEC).
+extract_input :
+   extract I (s Ip) HL L G (stp_ N (tp_cons (tp_simple s_int) T')) TP
+      -> decode_syscall_ S s_in DEC2 -> decode_ Instr i_trap DEC1
+      -> extract (;' Instr I) Ip HL L G
+            (stp_ N (tp_cons (tp_simple (s_num S)) T')) (t_input TP DEC2 DEC1).
+extract_output :
+   extract I (s Ip) HL L G (stp_ (s (s N)) T') TP
+      -> decode_syscall_ S s_out DEC2 -> decode_ Instr i_trap DEC1
+      -> extract (;' Instr I) Ip HL L G
+            (stp_ N
+                (tp_cons (tp_simple (s_num S)) (tp_cons (tp_simple s_int) T')))
+            (t_output TP DEC2 DEC1).
+extract_stop :
+   decode_ Instr i_stop DEC -> extract (;' Instr I) Ip HL L G S (t_stop DEC).
+extract_store :
+   extract I (s Ip) HL L (pgm_ Ds C) (stp_ (s (s N)) T') TP
+      -> compare_ A PSz rel_less CP -> leq_ Csz A LEQ -> add_ Csz Ds PSz AP
+      -> c_size_ C Csz CS -> decode_ Instr i_store DEC1
+      -> extract (;' Instr I) Ip HL L (pgm_ Ds C)
+            (stp_ N
+                (tp_cons (tp_simple (s_num A)) (tp_cons (tp_simple s_int) T')))
+            (t_store TP (in_heap_ CP LEQ AP CS) DEC1).
+extract_label :
+   Pi L:lab_env. Pi G:pgm. Pi C:code. Pi L':lab_env.
+      hint_list -> int -> typeELab L G C L' -> type.
+extract_label_nil : extract_label le_nil G C L' HL X t_env_lab_nil.
+extract_label_udef :
+   extract_label L' G C L HL (s X) TEP
+      -> extract_label (le_cons le_udef L') G (;' I C) L HL X
+            (t_env_lab_udef TEP).
+extract_label_stp :
+   extract_label L' G C L HL (s X) TEP -> extract (;' I C) X HL L G T' TP
+      -> extract_label (le_cons (le_stp T') L') G (;' I C) L HL X
+            (t_env_lab_stp TEP TP).
+le : lab_env
+   = le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons
+                        (le_stp
+                            (stp_ (s (s z))
+                                (tp_cons (tp_label (stp_ (s (s (s z))) tp_nil))
+                                    tp_nil)))
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons
+                    (le_stp
+                        (stp_ (s (s z))
+                            (tp_cons (tp_label (stp_ (s (s (s z))) tp_nil))
+                                tp_nil)))
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons
+                (le_stp
+                    (stp_ (s (s z))
+                        (tp_cons (tp_label (stp_ (s (s (s z))) tp_nil)) tp_nil)))
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons
+            (le_stp
+                (stp_ (s (s z))
+                    (tp_cons (tp_label (stp_ (s (s (s z))) tp_nil)) tp_nil)))
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons
+        (le_stp
+            (stp_ (s (s z))
+                (tp_cons (tp_label (stp_ (s (s (s z))) tp_nil)) tp_nil)))
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons
+    (le_stp
+        (stp_ (s (s z)) (tp_cons (tp_label (stp_ (s (s (s z))) tp_nil)) tp_nil)))
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons
+                                        (le_stp
+                                            (stp_ (s (s z))
+                                                (tp_cons
+                                                    (tp_label
+                                                        (stp_ (s (s (s z)))
+                                                            tp_nil))
+                                                    tp_nil)))
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons
+                                    (le_stp
+                                        (stp_ (s (s z))
+                                            (tp_cons
+                                                (tp_label
+                                                    (stp_ (s (s (s z))) tp_nil))
+                                                tp_nil)))
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons
+                                (le_stp
+                                    (stp_ (s (s z))
+                                        (tp_cons
+                                            (tp_label
+                                                (stp_ (s (s (s z))) tp_nil))
+                                            tp_nil)))
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons le_udef
+                            (le_cons le_udef
+                                (le_cons le_udef
+                                    (le_cons le_udef
+                                        
+(le_cons le_udef
+    (le_cons le_udef
+        (le_cons le_udef
+            (le_cons le_udef
+                (le_cons le_udef
+                    (le_cons le_udef
+                        (le_cons (le_stp (stp_ (s (s (s z))) tp_nil)) le_nil))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))).
