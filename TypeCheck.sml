@@ -74,6 +74,7 @@ and checkObj (ctx, ob, ty) = case (NfObj.prj ob, Util.nfTypePrjAbbrev ty) of
 	     (ctx2, tf2)
 	  end
 (*      (Redex, Constraint cannot occur in a normal form -- cs *)
+      | (NfAtomic _, _) => raise Fail "Type mismatch in checkObj: Eta"
       | _ => raise Fail "Type mismatch in checkObj"
 
 
@@ -112,7 +113,7 @@ and inferHead (ctx, hd) = case hd of
    if G |- S => A >> A' -| G';T'
    otherwise Fail is raised 
 *)
-and inferSpine (ctx, sp, ty) = case (NfSpine.prj sp, NfAsyncType.prj ty) of
+and inferSpine (ctx, sp, ty) = case (NfSpine.prj sp, Util.nfTypePrjAbbrev ty) of
        (Nil, _) => (ctx, false, ty) 
      | (App (N, S), TPi (x, A, B)) =>
 	 let

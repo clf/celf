@@ -69,8 +69,8 @@ fun etaExpand (A, H, S) =
 			| ApxTOne => (POne', One')
 			| ApxExists (A, S) =>
 				let val (p, M) = etaSyncType (S, n)
-				in (PDepPair' ("", asyncTypeFromApx A, p), DepPair' (Idx A (n + nbinds p), M)) end
-			| ApxAsync A => (PVar' ("", asyncTypeFromApx A), Norm' (Idx A n))
+				in (PDepPair' ("", injectApxType A, p), DepPair' (Idx A (n + nbinds p), M)) end
+			| ApxAsync A => (PVar' ("", injectApxType A), Norm' (Idx A n))
 		fun addEtaSpine (n, Sf) =
 				(*Atomic' (Either.leftOf (Subst.headSub (H, Shift n)), 
 						Whnf.appendSpine (S, Shift n, (Sf (1, Nil), id)))*)

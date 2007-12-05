@@ -10,9 +10,10 @@ open VRef
 
 datatype kind = FixKind of kind kindF | KClos of kind * subst
 and asyncType = FixAsyncType of asyncType asyncTypeF | TClos of asyncType * subst
-	| TLogicVar of typeLogicVar
+	| TLogicVar of typeLogicVar | Apx of apxAsyncType
 and typeSpine = FixTypeSpine of typeSpine typeSpineF | TSClos of typeSpine * subst
 and syncType = FixSyncType of syncType syncTypeF | STClos of syncType * subst
+	| ApxS of apxSyncType
 
 and obj = FixObj of obj objF | Clos of obj * subst | EtaTag of obj * int | IntRedex of obj * spine
 and spine = FixSpine of spine spineF | SClos of spine * subst
@@ -81,7 +82,7 @@ and ('aTy, 'p) patternFF = PTensor of 'p * 'p
 	| PDepPair of string * 'aTy * 'p
 	| PVar of string * 'aTy
 
-and tVarCell = SOM of asyncType | NON of typeLogicVar list ref
+(*and tVarCell = SOM of asyncType | NON of typeLogicVar list ref*)
 
 withtype 'ki kindF = (asyncType, 'ki) kindFF
 and 'aTy asyncTypeF = (typeSpine, syncType, 'aTy) asyncTypeFF
@@ -98,11 +99,12 @@ and apxAsyncType = asyncType
 and apxSyncType = syncType
 
 (* An uninstantiated typeLogicVar t is t=ref (NON L) where L is a list of t and its copies *)
-and typeLogicVar = tVarCell ref
+(*and typeLogicVar = tVarCell ref*)
+and typeLogicVar = (*apx*)asyncType option ref
 
-type implicits = (string * asyncType) list
+(*type implicits = (string * asyncType) list*)
 datatype typeOrKind = Ty of asyncType | Ki of kind
-datatype decl = ConstDecl of string * implicits * typeOrKind
+datatype decl = ConstDecl of string * int * typeOrKind
 	| TypeAbbrev of string * asyncType
 	| ObjAbbrev of string * asyncType * obj
 	| Query of int * int * int * asyncType
@@ -174,6 +176,22 @@ end
 
 fun etaShortcut ob = case Subst.sub ob of Dot (Idx n, _) => SOME n | _ => NONE
 
+structure Signatur = SignaturFun (Syn1)
+
+val lVarCnt = ref 0
+fun nextLVarCnt () = (lVarCnt := (!lVarCnt) + 1 ; !lVarCnt)
+
+(*fun newTVar () =
+	let val l = ref []
+		val t = ref (NON l)
+		val () = l := [t]
+	in TLogicVar t end
+fun newApxTVar () = newTVar ()*)
+fun newTVar () = TLogicVar (ref NONE)
+fun newApxTVar () = TLogicVar (ref NONE)
+fun newLVarCtx ctx ty = FixObj (Atomic (LogicVar {X=vref NONE, ty=ty, s=Subst.id, ctx=ref ctx,
+											cnstr=vref [], tag=nextLVarCnt ()}, FixSpine Nil))
+val newLVar = newLVarCtx NONE
 
 
 (* structure Kind : TYP2 where type ('a, 't) F = ('a, 't) kindFF
@@ -189,28 +207,6 @@ struct
 	fun Fmap (g, f) Type = Type
 	  | Fmap (g, f) (KPi (x, A, K)) = KPi (x, g A, f K)
 end
-(* structure AsyncType : TYP4 where type ('a, 'b, 't) F = ('a, 'b, 't) asyncTypeFF
-		and type t = asyncType and type a = typeSpine and type b = syncType *)
-structure AsyncType =
-struct
-	type t = asyncType type a = typeSpine type b = syncType
-	type ('a, 'b, 't) F = ('a, 'b, 't) asyncTypeFF
-	fun inj a = FixAsyncType a
-	fun prj (FixAsyncType a) = a
-	  | prj (TClos (TClos (a, s'), s)) = prj (TClos (a, Subst.comp (s', s)))
-	  | prj (TClos (FixAsyncType a, s)) = Subst.subType (a, s)
-	  | prj (TClos (TLogicVar (ref (NON _)), _)) = raise Fail "Ambiguous typing\n"
-	  | prj (TClos (TLogicVar (ref (SOM a)), s)) = prj (TClos (a, s))
-	  | prj (TLogicVar (ref (NON _))) = raise Fail "Ambiguous typing\n"
-	  | prj (TLogicVar (ref (SOM a))) = prj a
-	fun Fmap (g, f) (Lolli (A, B)) = Lolli (f A, f B)
-	  | Fmap (g, f) (TPi (x, A, B)) = TPi (x, f A, f B)
-	  | Fmap (g, f) (AddProd (A, B)) = AddProd (f A, f B)
-	  | Fmap (g, f) Top = Top
-	  | Fmap ((g1, g2), f) (TMonad S) = TMonad (g2 S)
-	  | Fmap ((g1, g2), f) (TAtomic (a, ts)) = TAtomic (a, g1 ts)
-	  | Fmap (g, f) (TAbbrev (a, A)) = TAbbrev (a, f A)
-end
 (* structure TypeSpine : TYP2 where type ('a, 't) F = ('a, 't) typeSpineFF
 		and type t = typeSpine and type a = obj *)
 structure TypeSpine =
@@ -223,6 +219,43 @@ struct
 	  | prj (TSClos (FixTypeSpine S, s)) = Subst.subTypeSpine (S, s)
 	fun Fmap (g, f) TNil = TNil
 	  | Fmap (g, f) (TApp (N, S)) = TApp (g N, f S)
+	fun newTSpine' ki = case Kind.prj ki of
+		  Type => inj TNil
+		| KPi (_, A, K) => inj (TApp (newLVar (Apx A), newTSpine' K))
+(*		| KPi (_, A, K) => let val N = newLVar A
+			in inj (TApp (N, newTSpine' (KClos (K, Subst.sub N)))) end*)
+	val newTSpine = newTSpine' o Signatur.sigLookupKind
+end
+(* structure AsyncType : TYP4 where type ('a, 'b, 't) F = ('a, 'b, 't) asyncTypeFF
+		and type t = asyncType and type a = typeSpine and type b = syncType *)
+structure AsyncType =
+struct
+	type t = asyncType type a = typeSpine type b = syncType
+	type ('a, 'b, 't) F = ('a, 'b, 't) asyncTypeFF
+	fun inj a = FixAsyncType a
+	fun Fmap' _ (g, f) (Lolli (A, B)) = Lolli (f A, f B)
+	  | Fmap' h (g, f) (TPi (x, A, B)) = TPi (h x, f A, f B)
+	  | Fmap' _ (g, f) (AddProd (A, B)) = AddProd (f A, f B)
+	  | Fmap' _ (g, f) Top = Top
+	  | Fmap' _ ((g1, g2), f) (TMonad S) = TMonad (g2 S)
+	  | Fmap' _ ((g1, g2), f) (TAtomic (a, ts)) = TAtomic (a, g1 a ts)
+	  | Fmap' _ (g, f) (TAbbrev (a, A)) = TAbbrev (a, f A)
+	fun Fmap ((g1, g2), f) a = Fmap' (fn x => x) ((fn _ => g1, g2), f) a 
+	fun prjApx (TLogicVar (ref NONE)) = raise Fail "Ambiguous typing\n"
+	  | prjApx (TLogicVar (ref (SOME a))) = prjApx a
+	  | prjApx (TClos (a, _)) = prjApx a
+	  | prjApx (Apx a) = prjApx a
+	  | prjApx (FixAsyncType A) = Fmap' (fn _ => SOME "")
+				((fn a => fn _ => TypeSpine.newTSpine a, ApxS), Apx) A
+	fun prj (FixAsyncType a) = a
+	  | prj (TClos (TClos (a, s'), s)) = prj (TClos (a, Subst.comp (s', s)))
+	  | prj (TClos (FixAsyncType a, s)) = Subst.subType (a, s)
+	  | prj (TClos (TLogicVar (ref NONE), _)) = raise Fail "Ambiguous typing\n"
+	  | prj (TClos (TLogicVar (ref (SOME a)), s)) = Subst.subType (prjApx a, s)
+	  | prj (TClos (Apx a, s)) = Subst.subType (prjApx a, s)
+	  | prj (TLogicVar (ref NONE)) = raise Fail "Ambiguous typing\n"
+	  | prj (TLogicVar (ref (SOME a))) = prjApx a
+	  | prj (Apx a) = prjApx a
 end
 (* structure SyncType : TYP2 where type ('a, 't) F = ('a, 't) syncTypeFF
 		and type t = syncType and type a = asyncType *)
@@ -230,14 +263,20 @@ structure SyncType =
 struct
 	type t = syncType type a = asyncType
 	type ('a, 't) F = ('a, 't) syncTypeFF
+	fun Fmap' _ (g, f) (TTensor (S1, S2)) = TTensor (f S1, f S2)
+	  | Fmap' _ (g, f) TOne = TOne
+	  | Fmap' h (g, f) (Exists (x, A, S)) = Exists (h x, g A, f S)
+	  | Fmap' _ (g, f) (Async A) = Async (g A)
+	fun Fmap gf a = Fmap' (fn x => x) gf a
 	fun inj a = FixSyncType a
+	fun prjApx (FixSyncType S) = Fmap' (fn _ => SOME "") (Apx, ApxS) S
+	  | prjApx (STClos (S, _)) = prjApx S
+	  | prjApx (ApxS S) = prjApx S
 	fun prj (FixSyncType a) = a
 	  | prj (STClos (STClos (S, s'), s)) = prj (STClos (S, Subst.comp (s', s)))
 	  | prj (STClos (FixSyncType S, s)) = Subst.subSyncType (S, s)
-	fun Fmap (g, f) (TTensor (S1, S2)) = TTensor (f S1, f S2)
-	  | Fmap (g, f) TOne = TOne
-	  | Fmap (g, f) (Exists (x, A, S)) = Exists (x, g A, f S)
-	  | Fmap (g, f) (Async A) = Async (g A)
+	  | prj (STClos (ApxS S, s)) = Subst.subSyncType (prjApx S, s)
+	  | prj (ApxS S) = prjApx S
 end
 
 (* structure Spine : TYP2 where type ('a, 't) F = ('a, 't) spineFF
@@ -481,118 +520,6 @@ val NfMClos = MClos
 val NfPClos = PClos
 
 
-val lVarCnt = ref 0
-fun nextLVarCnt () = (lVarCnt := (!lVarCnt) + 1 ; !lVarCnt)
-
-fun newTVar () =
-	let val l = ref []
-		val t = ref (NON l)
-		val () = l := [t]
-	in TLogicVar t end
-fun newApxTVar () = newTVar ()
-fun newLVarCtx ctx ty = Atomic' (LogicVar {X=vref NONE, ty=ty, s=Subst.id, ctx=ref ctx,
-											cnstr=vref [], tag=nextLVarCnt ()}, Nil')
-val newLVar = newLVarCtx NONE
-
-
-structure Signatur =
-struct
-	open SymbTable
-
-	val sigTable = ref (empty()) : decl Table ref
-	val sigDelta = ref [] : decl list ref
-
-	fun getKiTyOpt c =
-		case peek (!sigTable, c) of
-			NONE => NONE
-		  | SOME (ConstDecl (_, imps, kity)) => SOME (imps, kity)
-		  | SOME _ => raise Fail "Internal error: getKiTy called on abbrev\n"
-
-	fun getKiTy c = case getKiTyOpt c of
-		  NONE => raise Fail ("Undeclared identifier: "^c^"\n")
-		| SOME x => x
-
-	fun getType c = case getKiTy c of
-		  (imps, Ty ty) => (imps, ty)
-		| (_, Ki _) => raise Fail ("Type "^c^" is used as a object\n")
-
-	fun getKind a = case getKiTy a of
-		  (_, Ty _) => raise Fail ("Object "^a^" is used as a type\n")
-		| (imps, Ki ki) => (imps, ki)
-
-	(* newImplicits implicits -> obj list *)
-	fun newImplicits imps = map (fn (_, A) => newLVar A) imps
-
-	(* newTSpine : kind -> typeSpine *)
-	fun newTSpine ki = case Kind.prj ki of
-		  Type => TNil'
-		| KPi (_, A, K) => TApp' (newLVar A, newTSpine K)
-
-	fun idFromDecl (ConstDecl (s, _, _)) = s
-	  | idFromDecl (TypeAbbrev (s, _)) = s
-	  | idFromDecl (ObjAbbrev (s, _, _)) = s
-	  | idFromDecl (Query _) = raise Fail "Internal error: Adding query to sig table\n"
-
-	(******************)
-
-	(* getSigDelta : unit -> decl list *)
-	fun getSigDelta () = rev (!sigDelta) before sigDelta := []
-
-	(* sigAddDecl : decl -> unit *)
-	fun sigAddDecl dec =
-		( sigTable := insert (!sigTable, idFromDecl dec, dec)
-		; sigDelta := dec :: !sigDelta )
-
-	(* getImplLength : string -> int *)
-	fun getImplLength c = case getKiTyOpt c of NONE => 0 | SOME (imps, _) => length imps
-
-	(* sigLookupKind : string -> kind *)
-	fun sigLookupKind a =
-		let val (imps, ki) = getKind a
-			(*fun im2ki [] = ki
-			  | im2ki ((x, A)::im) = KPi' (x, A, im2ki im)*)
-		in foldr (fn ((x, A), im) => KPi' (SOME x, A, im)) ki imps end
-
-	(* sigLookupType : string -> asyncType *)
-	fun sigLookupType a =
-		let val (imps, ty) = getType a
-		in foldr (fn ((x, A), im) => TPi' (SOME x, A, im)) ty imps end
-
-	(* sigLookupApxKind : string -> apxKind *)
-	fun sigLookupApxKind a = #2 (getKind a)
-
-	(* sigLookupApxType : string -> apxAsyncType *)
-	fun sigLookupApxType c = #2 (getType c)
-
-	(* sigNewImplicitsType : string -> obj list *)
-	fun sigNewImplicitsType a = newImplicits (#1 (getKind a))
-
-	(* sigNewImplicitsObj : string -> obj list *)
-	fun sigNewImplicitsObj a = newImplicits (#1 (getType a))
-
-	(* sigNewTAtomic : string -> asyncType *)
-	fun sigNewTAtomic a =
-		let val (imps, ki) = getKind a
-		in TAtomic' (a, foldr TApp' (newTSpine ki) (newImplicits imps)) end
-
-	(* sigGetTypeAbbrev : string -> asyncType option *)
-	fun sigGetTypeAbbrev a =
-		case peek (!sigTable, a) of
-			NONE => raise Fail ("Undeclared identifier: "^a^"\n")
-		  | SOME (TypeAbbrev (_, ty)) => SOME ty
-		  | SOME (ObjAbbrev _) => raise Fail ("Object "^a^" is used as a type\n")
-		  | SOME (ConstDecl _) => NONE
-		  | SOME (Query _) => raise Fail "Internal error: sigGetTypeAbbrev"
-
-	(* sigGetObjAbbrev : string -> (obj * asyncType) option *)
-	fun sigGetObjAbbrev c =
-		case peek (!sigTable, c) of
-			NONE => raise Fail ("Undeclared identifier: "^c^"\n")
-		  | SOME (ObjAbbrev (_, ty, ob)) => SOME (ob, ty)
-		  | SOME (TypeAbbrev _) => raise Fail ("Type "^c^" is used as an object\n")
-		  | SOME (ConstDecl _) => NONE
-		  | SOME (Query _) => raise Fail "Internal error: sigGetObjAbbrev"
-end
 
 (* structure ApxKind : TYP2 where type ('a, 't) F = ('a, 't) apxKindFF
 		and type t = apxKind and type a = apxAsyncType *)
@@ -620,12 +547,13 @@ struct
 	  | inj (ApxAddProd (A, B)) = AsyncType.inj (AddProd (A, B))
 	  | inj ApxTop = AsyncType.inj Top
 	  | inj (ApxTMonad S) = AsyncType.inj (TMonad S)
-	  | inj (ApxTAtomic a) = Signatur.sigNewTAtomic a
+	  | inj (ApxTAtomic a) = AsyncType.inj (TAtomic (a, TypeSpine.inj TNil)) (*Signatur.sigNewTAtomic a*)
 	  | inj (ApxTAbbrev aA) = AsyncType.inj (TAbbrev aA)
 	  | inj (ApxTLogicVar X) = TLogicVar X
-	fun prj (TLogicVar (ref (SOM A))) = prj A
-	  | prj (TLogicVar (X as ref (NON _))) = ApxTLogicVar X
+	fun prj (TLogicVar (ref (SOME A))) = prj A
+	  | prj (TLogicVar (X as ref NONE)) = ApxTLogicVar X
 	  | prj (TClos (A, _)) = prj A
+	  | prj (Apx A) = prj A
 	  | prj a = case AsyncType.prj a of
 		  Lolli (A, B) => ApxLolli (A, B)
 		| TPi (_, A, B) => ApxTPi (A, B)
@@ -654,6 +582,7 @@ struct
 	  | inj (ApxExists (A, S)) = SyncType.inj (Exists (SOME "", A, S))
 	  | inj (ApxAsync A) = SyncType.inj (Async A)
 	fun prj (STClos (S, _)) = prj S
+	  | prj (ApxS S) = prj S
 	  | prj s = case SyncType.prj s of
 		  TTensor (S1, S2) => ApxTTensor (S1, S2)
 		| TOne => ApxTOne
@@ -684,12 +613,13 @@ structure ApxKindRec = Rec2 (structure T = ApxKind)
 structure ApxAsyncTypeRec = Rec2 (structure T = ApxAsyncType)
 structure ApxSyncTypeRec = Rec2 (structure T = ApxSyncType)
 
-fun copyLVar (ref (NON L)) =
+(*fun copyLVar (ref (NON L)) =
 		let val t = ref (NON L)
 			val () = L := t :: !L
 		in t end
-  | copyLVar _ = raise Fail "Internal error: copyLVar called on instantiated LVars"
-fun eqLVar (ref (NON L1), ref (NON L2)) = L1 = L2
+  | copyLVar _ = raise Fail "Internal error: copyLVar called on instantiated LVars"*)
+(*fun eqLVar (ref (NON L1), ref (NON L2)) = L1 = L2*)
+fun eqLVar (X1 as ref NONE, X2 as ref NONE) = X1 = X2
   | eqLVar _ = raise Fail "Internal error: eqLVar called on instantiated LVars"
 
 type ('ki, 'aTy, 'sTy) apxFoldFuns = {
@@ -702,28 +632,34 @@ fun foldApxKind (fs : ('ki, 'aTy, 'sTy) apxFoldFuns) x =
 and foldApxType fs x = ApxAsyncTypeRec.fold (foldApxSyncType fs) (#faTy fs) x
 and foldApxSyncType fs x = ApxSyncTypeRec.fold (foldApxType fs) (#fsTy fs) x
 
-fun cpLVar (ApxTLogicVar X) = ApxTLogicVar (copyLVar X)
+(*fun cpLVar (ApxTLogicVar X) = ApxTLogicVar (copyLVar X)
   | cpLVar A = A
-val apxCopyFfs = {fki = ApxKind.inj, faTy = ApxAsyncType.inj o cpLVar, fsTy = ApxSyncType.inj}
+val apxCopyFfs = {fki = ApxKind.inj, faTy = ApxAsyncType.inj o cpLVar, fsTy = ApxSyncType.inj}*)
 
 (* updLVar : typeLogicVar * apxAsyncType -> unit *)
-fun updLVar (ref (SOM _), _) = raise Fail "typeLogicVar already updated\n"
-  | updLVar (ref (NON L), A) = app (fn X => X := SOM (foldApxType apxCopyFfs A)) (!L)
-  (*| updLVar (X as ref NONE, A) = X := SOME (foldApxType apxCopyFfs A)*)
+fun updLVar (ref (SOME _), _) = raise Fail "typeLogicVar already updated\n"
+  | updLVar (X as ref NONE, A) = X := SOME A (*(foldApxType apxCopyFfs A)*)
+  (*| updLVar (ref (NON L), A) = app (fn X => X := SOM (foldApxType apxCopyFfs A)) (!L)*)
 
 (* isUnknown : asyncType -> bool *)
 fun isUnknown (TClos (A, _)) = isUnknown A
   | isUnknown (FixAsyncType _) = false
-  | isUnknown (TLogicVar (ref (SOM A))) = isUnknown A
-  | isUnknown (TLogicVar (ref (NON _))) = true
+  | isUnknown (TLogicVar (ref (SOME A))) = isUnknown A
+  | isUnknown (TLogicVar (ref NONE)) = true
+  | isUnknown (Apx A) = isUnknown A
 
 fun kindToApx x = x
 fun asyncTypeToApx x = x
 fun syncTypeToApx x = x
 
-val asyncTypeFromApx = foldApxType apxCopyFfs
+(*val asyncTypeFromApx = foldApxType apxCopyFfs
 val syncTypeFromApx = foldApxSyncType apxCopyFfs
-val kindFromApx = foldApxKind apxCopyFfs
+val kindFromApx = foldApxKind apxCopyFfs*)
+fun injectApxType x = Apx x
+fun injectApxSyncType x = ApxS x
+(*fun asyncTypeFromApx x = Apx x
+fun syncTypeFromApx x = ApxS x*)
+(*fun kindFromApx x = ApxK x*)
 fun unsafeCast x = x
 
 fun normalizeKind x = x

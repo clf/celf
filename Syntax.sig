@@ -101,6 +101,13 @@ val with's :
 		ctx : asyncType Context.context option ref,
 		cnstr : constr VRef.vref list VRef.vref, tag : int }
 
+(*type implicits = (string * asyncType) list*)
+datatype typeOrKind = Ty of asyncType | Ki of kind
+datatype decl = ConstDecl of string * int * typeOrKind
+	| TypeAbbrev of string * asyncType
+	| ObjAbbrev of string * asyncType * obj
+	| Query of int * int * int * asyncType
+
 val KClos : kind * subst -> kind
 val TClos : asyncType * subst -> asyncType
 val TSClos : typeSpine * subst -> typeSpine
@@ -299,13 +306,6 @@ val nfnbinds : nfPattern -> int
 val EtaTag : obj * int -> obj
 
 
-type implicits = (string * asyncType) list
-datatype typeOrKind = Ty of asyncType | Ki of kind
-datatype decl = ConstDecl of string * implicits * typeOrKind
-	| TypeAbbrev of string * asyncType
-	| ObjAbbrev of string * asyncType * obj
-	| Query of int * int * int * asyncType
-
 
 structure ApxKind : TYP2 where type ('a, 't) F = ('a, 't) apxKindFF
 		and type t = apxKind and type a = apxAsyncType
@@ -392,7 +392,6 @@ val newApxTVar : unit -> apxAsyncType
 val newLVar : asyncType -> obj
 val newLVarCtx : asyncType Context.context option -> asyncType -> obj
 
-val copyLVar : typeLogicVar -> typeLogicVar
 val eqLVar : typeLogicVar * typeLogicVar -> bool
 val updLVar : typeLogicVar * apxAsyncType -> unit
 val isUnknown : asyncType -> bool
@@ -401,9 +400,11 @@ val kindToApx : kind -> apxKind
 val asyncTypeToApx : asyncType -> apxAsyncType
 val syncTypeToApx : syncType -> apxSyncType
 
-val kindFromApx : apxKind -> kind
-val asyncTypeFromApx : apxAsyncType -> asyncType
-val syncTypeFromApx : apxSyncType -> syncType
+(*val kindFromApx : apxKind -> kind*)
+(*val asyncTypeFromApx : apxAsyncType -> asyncType
+val syncTypeFromApx : apxSyncType -> syncType*)
+val injectApxType : apxAsyncType -> asyncType
+val injectApxSyncType : apxSyncType -> syncType
 val unsafeCast : apxAsyncType -> asyncType
 
 val normalizeKind : kind -> nfKind
@@ -430,11 +431,11 @@ structure Signatur : sig
 	val getImplLength : string -> int
 	val sigLookupKind : string -> kind
 	val sigLookupType : string -> asyncType
-	val sigLookupApxKind : string -> apxKind
+(*	val sigLookupApxKind : string -> apxKind
 	val sigLookupApxType : string -> apxAsyncType
 	val sigNewImplicitsType : string -> obj list
 	val sigNewImplicitsObj : string -> obj list
-	val sigNewTAtomic : string -> asyncType
+	val sigNewTAtomic : string -> asyncType*)
 	val sigGetTypeAbbrev : string -> asyncType option
 	val sigGetObjAbbrev : string -> (obj * asyncType) option
 end

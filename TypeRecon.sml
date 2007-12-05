@@ -47,6 +47,7 @@ fun reconstructDecl dec =
 			val dec = mapDecl Util.removeApxKind
 			                  Util.removeApxType
 			                  (Util.removeApxObj o #1) dec
+			val () = ImplicitVars.mapUCTable Util.removeApxType
 			val () = Unify.resetConstrs ()
 			val () = ImplicitVars.appUCTable ExactTypes.checkTypeEC
 			val () = appDecl ExactTypes.checkKindEC

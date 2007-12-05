@@ -81,7 +81,8 @@ and checkObj' (ctx, ob, ty) = case (Obj.prj ob, Util.typePrjAbbrev ty) of
 				val () = unify (AsyncType.inj A, A', errmsg)
 			in (ctxo, t) end
 	| (Redex (N, B, S), A) =>
-			let val B' = asyncTypeFromApx B
+			let val B' = Util.asyncTypeFromApx B
+				val () = checkType (ctx, B')
 				val (ctxm, t1) = checkObj (ctx, N, B')
 				val (ctxo, t2, A') = inferSpine (ctxm, S, B')
 				fun errmsg () = "Object "^(PrettyPrint.printObj ob)
@@ -119,10 +120,12 @@ and inferHead (ctx, h) = case h of
 				val lvarCtx = (calcCtx (Subst.invert s) o ctx2list o ctxDelLin) ctx
 				val () = case !rctx of
 						  NONE => rctx := SOME lvarCtx
-						| SOME prevCtx => (print "Checking context\n";
+						| SOME prevCtx => raise Fail "Internal error: double ctx instantiation"
+							(*print "Checking context\n";
 							ListPair.appEq ApproxTypes.apxUnifyType
 								(map (asyncTypeToApx o #2) (ctx2list prevCtx),
-								 map (asyncTypeToApx o #2) (ctx2list lvarCtx)) )
+								 map (asyncTypeToApx o #2) (ctx2list lvarCtx)) *)
+				val () = checkType (lvarCtx, ty)
 			in (ctx, TClos (ty, s)) end
 
 (* inferSpine : context * spine * asyncType -> context * bool * asyncType *)

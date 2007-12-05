@@ -51,8 +51,8 @@ DeclList :
 	| Decl          ( [Decl] )
 
 Decl :
-	  ID COLON Kind DOT                        ( Syntax.ConstDecl(ID,[],Syntax.Ki Kind) )
-	| ID COLON AsyncType DOT                   ( Syntax.ConstDecl(ID,[],Syntax.Ty AsyncType) )
+	  ID COLON Kind DOT                        ( Syntax.ConstDecl(ID,0,Syntax.Ki Kind) )
+	| ID COLON AsyncType DOT                   ( Syntax.ConstDecl(ID,0,Syntax.Ty AsyncType) )
 	| ID COLON TYPE EQUAL AsyncType DOT        ( Syntax.TypeAbbrev(ID,AsyncType) )
 	| ID COLON AsyncType EQUAL Obj DOT         ( Syntax.ObjAbbrev(ID,AsyncType,Obj) )
 	| QUERY Number Number Number AsyncType DOT ( Syntax.Query(Number1,Number2,Number3,AsyncType) )

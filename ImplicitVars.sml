@@ -6,6 +6,8 @@ open Syntax
 open SymbTable
 open Context
 
+type implicits = (string * asyncType) list
+
 val ucTable = ref (empty ()) : asyncType Table ref
 
 val newint = ref 0

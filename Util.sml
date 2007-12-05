@@ -1,7 +1,7 @@
 structure Util :> UTIL =
 struct
 
-open Syntax
+open Syntax infix with'ty
 
 structure ObjAuxDefs = AuxDefs (structure T = Typ1From4 (structure T = Obj))
 (*structure ExpObjAuxDefs = AuxDefs (structure T = Typ1From4 (structure T = ExpObj))*)
@@ -136,11 +136,13 @@ fun objAppObj f = foldObj (ffsApp f)
 
 (* objMapKind : (obj -> obj objF) -> kind -> kind *)
 (* objMapType : (obj -> obj objF) -> asyncType -> asyncType *)
+(* objMapSyncType : (obj -> obj objF) -> syncType -> syncType *)
 (* objMapObj : (obj -> obj objF) -> obj -> obj *)
 fun uffsMap f = {fki=Kind.prj, faTy=AsyncType.prj, ftyS=TypeSpine.prj, fsTy=SyncType.prj,
 		fo=f, fsp=Spine.prj, fe=ExpObj.prj, fm=MonadObj.prj, fp=Pattern.prj}
 fun objMapKind f = unfoldKind (uffsMap f)
 fun objMapType f = unfoldType (uffsMap f)
+fun objMapSyncType f = unfoldSyncType (uffsMap f)
 fun objMapObj f = unfoldObj (uffsMap f)
 
 val ffsCopy = {fki=NfKind.inj, faTy=NfAsyncType.inj, ftyS=NfTypeSpine.inj, fsTy=NfSyncType.inj,
@@ -152,95 +154,14 @@ val forceNormalizeObj = unnormalizeObj o (foldNfObj ffsCopy) o normalizeObj
 structure NfExpObjAuxDefs = AuxDefs (structure T = Typ1From4 (structure T = NfExpObj))
 val whnfLetSpine = unnormalizeExpObj o (NfExpObjAuxDefs.fold NfExpObj.inj) o normalizeExpObj
 
-(* objAppKind : (unit objF -> unit) -> kind -> unit *)
-(* objAppType : (unit objF -> unit) -> asyncType -> unit *)
-(* objAppObj  : (unit objF -> unit) -> obj -> unit *)
-(*
-fun objAppKind f ki = KindAuxDefs.fold
-	(fn Type => () | KPi (_, A, ()) => objAppType f A) ki
-and objAppType f ty = AsyncTypeAuxDefs.fold
-	(fn TMonad S => objAppSyncType f S
-	  | TAtomic (_, os, S) => (List.app (objAppObj f) os; objAppTSpine f S)
-	  | _ => ()) ty
-and objAppTSpine f sp = TypeSpineAuxDefs.fold
-	(fn TNil => () | TApp (ob, ()) => objAppObj f ob) sp
-and objAppSyncType f ty = SyncTypeAuxDefs.fold
-	(fn Exists (_, A, ()) => objAppType f A | Async A => objAppType f A | _ => ()) ty
-and objAppObj f obj = ObjAuxDefs.fold
-	(fn ob =>
-		((case ob of
-			  Monad E => objAppExp f E
-			| Atomic (H, A, S) => (objAppHead f H; objAppSpine f S)
-			| Redex ((), A, S) => objAppSpine f S
-			| Constraint ((), A) => objAppType f A
-			| _ => ())
-		; f ob)) obj
-and objAppHead f h = case h of
-	  Const (_, os) => List.app (objAppObj f) os
-	| Var _ => ()
-	| UCVar _ => ()
-	| LogicVar {ty, s, ctx, ...} => objAppType f (TClos (ty, s))
-and objAppSpine f sp = SpineAuxDefs.fold
-	(fn App (ob, ()) => objAppObj f ob | LinApp (ob, ()) => objAppObj f ob | _ => ()) sp
-and objAppExp f e = ExpObjAuxDefs.fold
-	(fn Let (p, ob, ()) => (objAppPattern f p; objAppObj f ob) | Mon M => objAppMonad f M) e
-and objAppMonad f m = MonadObjAuxDefs.fold
-	(fn DepPair (ob, ()) => objAppObj f ob | Norm ob => objAppObj f ob | _ => ()) m
-and objAppPattern f p = PatternAuxDefs.fold
-	(fn PDepPair (_, A, ()) => objAppType f A | PVar (_, A) => objAppType f A | _ => ()) p
-*)
+fun lvarTypeMap f (Atomic (LogicVar X, S)) = Atomic (LogicVar (X with'ty (f (#ty X))), S)
+  | lvarTypeMap _ N = N
+fun removeApxKind a = objMapKind (lvarTypeMap removeApxType o Obj.prj) a
+and removeApxType a = objMapType (lvarTypeMap removeApxType o Obj.prj) a
+fun removeApxSyncType a = objMapSyncType (lvarTypeMap removeApxType o Obj.prj) a
+fun removeApxObj a = objMapObj (lvarTypeMap removeApxType o Obj.prj) a
+val asyncTypeFromApx = removeApxType o injectApxType
+val syncTypeFromApx = removeApxSyncType o injectApxSyncType
 
-(* objExpMapKind : (nfExpObj -> nfExpObj nfExpObjF) -> (nfObj -> nfObj nfObjF) -> nfKind -> nfKind *)
-(* objExpMapType : (nfExpObj -> nfExpObj nfExpObjF) -> (nfObj -> nfObj nfObjF) -> nfAsyncType -> nfAsyncType *)
-(* objExpMapObj :  (nfExpObj -> nfExpObj nfExpObjF) -> (nfObj -> nfObj nfObjF) -> nfObj -> nfObj *)
-(*
-fun objExpMapKind g f ki = NfKindAuxDefs.unfold
-	((fn Type => Type | KPi (x, A, k) => KPi (x, objExpMapType g f A, k)) o NfKind.prj) ki
-and objExpMapType g f ty = NfAsyncTypeAuxDefs.unfold
-	((fn TMonad S => TMonad (objExpMapSyncType g f S)
-	  | TAtomic (a, os, S) => TAtomic (a, map (objExpMapObj g f) os, objExpMapTSpine g f S)
-	  | A => A) o NfAsyncType.prj) ty
-and objExpMapTSpine g f sp = NfTypeSpineAuxDefs.unfold
-	((fn TNil => TNil | TApp (ob, S) => TApp (objExpMapObj g f ob, S)) o NfTypeSpine.prj) sp
-and objExpMapSyncType g f ty = NfSyncTypeAuxDefs.unfold
-	((fn Exists (x, A, S) => Exists (x, objExpMapType g f A, S)
-	   | Async A => Async (objExpMapType g f A)
-	   | S => S) o NfSyncType.prj) ty
-and objExpMapObj g f obj = NfObjAuxDefs.unfold
-	((fn NfMonad E => NfMonad (objExpMapExp g f E)
-	   | NfAtomic (H, A, S) => NfAtomic (objExpMapHead g f H, A, objExpMapSpine g f S)
-(*	   | Redex (N, A, S) => Redex (N, A, objExpMapSpine g f S)
-	   | Constraint (N, A) => Constraint (N, objExpMapType g f A)*)
-	   | N => N) o f) obj
-and objExpMapHead g f h = case h of
-	  Const (c, os) => Const (c, raise Fail "stub: map (objExpMapObj g f) os")
-	| LogicVar X => LogicVar X
-	| _ => h
-and objExpMapSpine g f sp = NfSpineAuxDefs.unfold
-	((fn App (ob, S) => App (objExpMapObj g f ob, S)
-	   | LinApp (ob, S) => LinApp (objExpMapObj g f ob, S)
-	   | S => S) o NfSpine.prj) sp
-and objExpMapExp g f e = NfExpObjAuxDefs.unfold
-	((fn Let (p, (H, A, S), E) =>
-				Let (objExpMapPattern g f p, (objExpMapHead g f H, A, objExpMapSpine g f S), E)
-	   | Mon M => Mon (objExpMapMonad g f M)) o g) e
-and objExpMapMonad g f m = NfMonadObjAuxDefs.unfold
-	((fn DepPair (ob, M) => DepPair (objExpMapObj g f ob, M)
-	   | Norm ob => Norm (objExpMapObj g f ob)
-	   | M => M) o NfMonadObj.prj) m
-and objExpMapPattern g f p = NfPatternAuxDefs.unfold
-	((fn PDepPair (x, A, P) => PDepPair (x, objExpMapType g f A, P)
-	   | PVar (x, A) => PVar (x, objExpMapType g f A)
-	   | P => P) o NfPattern.prj) p
-*)
-
-(* objMapKind : (nfObj -> nfObj nfObjF) -> nfKind -> nfKind *)
-(* objMapType : (nfObj -> nfObj nfObjF) -> nfAsyncType -> nfAsyncType *)
-(* objMapObj : (nfObj -> nfObj nfObjF) -> nfObj -> nfObj *)
-(*
-val objMapKind = objExpMapKind NfExpObj.prj
-val objMapType = objExpMapType NfExpObj.prj
-val objMapObj = objExpMapObj NfExpObj.prj
-*)
 
 end

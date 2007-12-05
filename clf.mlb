@@ -15,6 +15,7 @@ Syntax.sig
 Subst.sml
 Whnf.sig
 Whnf.sml
+Signatur.sml
 Syntax.sml
 Util.sig
 Util.sml

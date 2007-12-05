@@ -60,26 +60,11 @@ val forceNormalizeObj : Syntax.obj -> Syntax.obj
 
 val whnfLetSpine : Syntax.expObj -> Syntax.expObj
 
-(*
-val objAppKind : (unit Syntax.objF -> unit) -> Syntax.kind -> unit
-val objAppType : (unit Syntax.objF -> unit) -> Syntax.asyncType -> unit
-val objAppObj  : (unit Syntax.objF -> unit) -> Syntax.obj -> unit
-
-val objExpMapKind : (Syntax.nfExpObj -> Syntax.nfExpObj Syntax.nfExpObjF) ->
-	(Syntax.nfObj -> Syntax.nfObj Syntax.nfObjF) -> Syntax.nfKind -> Syntax.nfKind
-val objExpMapType : (Syntax.nfExpObj -> Syntax.nfExpObj Syntax.nfExpObjF) ->
-	(Syntax.nfObj -> Syntax.nfObj Syntax.nfObjF) -> Syntax.nfAsyncType -> Syntax.nfAsyncType
-val objExpMapObj : (Syntax.nfExpObj -> Syntax.nfExpObj Syntax.nfExpObjF) ->
-	(Syntax.nfObj -> Syntax.nfObj Syntax.nfObjF) -> Syntax.nfObj -> Syntax.nfObj
-
-val objMapKind : (Syntax.nfObj -> Syntax.nfObj Syntax.nfObjF) -> Syntax.nfKind -> Syntax.nfKind
-val objMapType : (Syntax.nfObj -> Syntax.nfObj Syntax.nfObjF) -> Syntax.nfAsyncType -> Syntax.nfAsyncType
-val objMapObj : (Syntax.nfObj -> Syntax.nfObj Syntax.nfObjF) -> Syntax.nfObj -> Syntax.nfObj
-*)
-(*
-val objMapKind = objExpMapKind ExpObj.prj
-val objMapType = objExpMapType ExpObj.prj
-val objMapObj = objExpMapObj ExpObj.prj
-*)
+val removeApxKind : Syntax.kind -> Syntax.kind
+val removeApxType : Syntax.asyncType -> Syntax.asyncType
+val removeApxSyncType : Syntax.syncType -> Syntax.syncType
+val removeApxObj : Syntax.obj -> Syntax.obj
+val asyncTypeFromApx : Syntax.apxAsyncType -> Syntax.asyncType
+val syncTypeFromApx : Syntax.apxSyncType -> Syntax.syncType
 
 end
