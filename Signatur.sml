@@ -47,7 +47,10 @@ fun getSigDelta () = rev (!sigDelta) before sigDelta := []
 
 (* sigAddDecl : decl -> unit *)
 fun sigAddDecl dec =
-	( sigTable := insert (!sigTable, idFromDecl dec, dec)
+	( if isSome (peek (!sigTable, idFromDecl dec))
+		then raise Fail ("Error name clash: "^idFromDecl dec)
+		else ()
+	; sigTable := insert (!sigTable, idFromDecl dec, dec)
 	; sigDelta := dec :: !sigDelta )
 
 (* getImplLength : string -> int *)

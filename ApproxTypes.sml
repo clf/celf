@@ -3,7 +3,6 @@ struct
 
 open Syntax
 open Context
-open Either
 open PatternBind
 
 val traceApx = ref false
@@ -41,15 +40,17 @@ fun apxUnifyType (ty1, ty2) = case (Util.apxTypePrjAbbrev ty1, Util.apxTypePrjAb
 	| (ApxTLogicVar X, _) => (occur X ty2; updLVar (X, ty2))
 	| (_, ApxTLogicVar X) => (occur X ty1; updLVar (X, ty1))
 	| (A1, A2) => raise ExnApxUnifyType
-			((PrettyPrint.printType (unsafeCast ty1))^"\nand: "
-						^(PrettyPrint.printType (unsafeCast ty2)))
+			(PrettyPrint.printType (unsafeCast ty1)^"\nand: "
+						^PrettyPrint.printType (unsafeCast ty2))
 and apxUnifySyncType (ty1, ty2) = case (ApxSyncType.prj ty1, ApxSyncType.prj ty2) of
 	  (ApxTTensor (S1, T1), ApxTTensor (S2, T2)) =>
 			(apxUnifySyncType (S1, S2); apxUnifySyncType (T1, T2))
 	| (ApxTOne, ApxTOne) => ()
 	| (ApxExists (A1, S1), ApxExists (A2, S2)) => (apxUnifyType (A1, A2); apxUnifySyncType (S1, S2))
 	| (ApxAsync A1, ApxAsync A2) => apxUnifyType (A1, A2)
-	| (S1, S2) => raise ExnApxUnifyType "stub: (S1, S2)"
+	| (S1, S2) => raise ExnApxUnifyType
+			(PrettyPrint.printType (unsafeCast (ApxTMonad' ty1))^"\nand: "
+						^PrettyPrint.printType (unsafeCast (ApxTMonad' ty2)))
 
 fun apxUnify (ty1ty2 as (ty1, ty2)) = (apxUnifyType ty1ty2)
 		(*handle (e as ExnApxUnifyType s) => (print ("ExnApxUnify: "^s^"\n") ; raise e)*)
@@ -165,8 +166,8 @@ and apxInferObj (ctx, ob) = case Util.ObjAuxDefs.prj2 ob of
 			let val (ctxm, t1, H', nImpl, A) = apxInferHead (ctx, H)
 				val S' = foldr App' S (List.tabulate (nImpl, fn _ => Util.blank ()))
 				val (ctxo, t2, S'', B) = apxInferSpine (ctxm, S', A)
-				fun atomRedex (LEFT h, sp) = Atomic' (h, sp)
-				  | atomRedex (RIGHT h, sp) = Redex' (h, A, sp)
+				fun atomRedex (INL h, sp) = Atomic' (h, sp)
+				  | atomRedex (INR h, sp) = Redex' (h, A, sp)
 			in (ctxo, t1 orelse t2, atomRedex (H', S''), B) end
 	| Redex (N, A, S) =>
 			let val (ctxm, t1, N') = apxCheckObj (ctx, N, A)
@@ -178,21 +179,21 @@ and apxInferObj (ctx, ob) = case Util.ObjAuxDefs.prj2 ob of
 				val (ctxo, t, N') = apxCheckObj (ctx, N, apxA')
 			in (ctxo, t, Constraint' (N', A'), apxA') end
 
-(* apxInferHead : context * head -> context * bool * (head, obj) either * int * apxAsyncType *)
+(* apxInferHead : context * head -> context * bool * (head, obj) sum * int * apxAsyncType *)
 and apxInferHead (ctx, h) = case h of
 	  Const c => (* set Top flag to true in case of Top type *)
 			(case ctxLookupName (ctx, c) of
-				  SOME (n, A, ctxo) => (ctxo, true, LEFT (Var n), 0, A)
+				  SOME (n, A, ctxo) => (ctxo, true, INL (Var n), 0, A)
 				| NONE =>
 					if ucase c then
-						(ctx, true, LEFT (UCVar c), 0, ImplicitVars.apxUCLookup c)
+						(ctx, true, INL (UCVar c), 0, ImplicitVars.apxUCLookup c)
 					else (case Signatur.sigGetObjAbbrev c of
-						  SOME (ob, ty) => (ctx, true, RIGHT ob, 0, asyncTypeToApx ty)
-						| NONE => (ctx, true, LEFT (Const c), Signatur.getImplLength c,
+						  SOME (ob, ty) => (ctx, true, INR ob, 0, asyncTypeToApx ty)
+						| NONE => (ctx, true, INL (Const c), Signatur.getImplLength c,
 							asyncTypeToApx (Signatur.sigLookupType c))))
 	| Var _ => raise Fail "de Bruijn indices shouldn't occur yet\n"
 	| UCVar _ => raise Fail "Upper case variables shouldn't occur yet\n"
-	| X as LogicVar {ty, ...} => (ctx, true, LEFT X, 0, asyncTypeToApx ty)
+	| X as LogicVar {ty, ...} => (ctx, true, INL X, 0, asyncTypeToApx ty)
 
 (* apxInferSpine : context * spine * apxAsyncType -> context * bool * spine * apxAsyncType *)
 and apxInferSpine (ctx, sp, ty) = case Spine.prj sp of

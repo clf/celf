@@ -104,7 +104,7 @@ and inferHead (ctx, h) = case h of
 	  Const c => (ctx, Signatur.sigLookupType c)
 	| Var n => let val (ctxo, A) = ctxLookupNum (ctx, n) in (ctxo, TClos (A, Subst.shift n)) end
 	| UCVar x =>
-			(ctx, TClos (ImplicitVars.ucLookup x, (Subst.shift o length o ctx2list) ctx))
+			(ctx, TClos (ImplicitVars.ucLookup x, Subst.shift $ length $ ctx2list ctx))
 	| LogicVar {ty, s, ctx=rctx, ...} =>
 			let fun calcCtx ss [] = emptyCtx
 				  | calcCtx ss ((x, ty, mode)::G) =
@@ -117,7 +117,7 @@ and inferHead (ctx, h) = case h of
 							calcCtx ss' G
 						end
 (*				val () = rctx := (SOME o calcCtx (Subst.invert s) o ctx2list o ctxDelLin) ctx*)
-				val lvarCtx = (calcCtx (Subst.invert s) o ctx2list o ctxDelLin) ctx
+				val lvarCtx = calcCtx (Subst.invert s) $ ctx2list $ ctxDelLin ctx
 				val () = case !rctx of
 						  NONE => rctx := SOME lvarCtx
 						| SOME prevCtx => raise Fail "Internal error: double ctx instantiation"

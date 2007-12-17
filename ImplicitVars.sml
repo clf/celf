@@ -96,7 +96,7 @@ fun raiseLVar' (ctx, B, S, n) =
 
 fun raiseLVar (Atomic (LogicVar {X, ty, ctx, tag, ...}, ())) = (case (!!X, !ctx) of
 	  (SOME _, _) => () (* this can never occur?? --asn *)
-	| (NONE, NONE) => raise Fail ("Internal error: no context on $"^(Int.toString tag)^"\n")
+	| (NONE, NONE) => raise Fail ("Internal error: no context on $"^(Word.toString tag)^"\n")
 	| (NONE, SOME ctx) => X ::= SOME (raiseLVar' (ctx2list ctx, ty, Nil', 1)) )
 	(*| (NONE, SOME ctx) => X ::= SOME (raiseLVar' (ctx2list ctx, TClos (ty, s), Nil', 1))*)
 						(* stub: bug??? ctx |- A : Type or ctx |- A[s] : Type ??? --asn *)

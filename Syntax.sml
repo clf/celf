@@ -8,6 +8,8 @@ struct
 
 open VRef
 
+(*type 'a h = 'a HashCons.hash_consed*)
+
 datatype kind = FixKind of kind kindF | KClos of kind * subst
 and asyncType = FixAsyncType of asyncType asyncTypeF | TClos of asyncType * subst
 	| TLogicVar of typeLogicVar | Apx of apxAsyncType
@@ -34,7 +36,7 @@ and head = Const of string
 		s     : subst,
 		ctx   : asyncType Context.context option ref,
 		cnstr : constr vref list vref,
-		tag   : int }
+		tag   : word }
 
 
 and ('aTy, 'ki) kindFF = Type
@@ -100,7 +102,7 @@ and apxSyncType = syncType
 
 (* An uninstantiated typeLogicVar t is t=ref (NON L) where L is a list of t and its copies *)
 (*and typeLogicVar = tVarCell ref*)
-and typeLogicVar = (*apx*)asyncType option ref
+and typeLogicVar = (*apx*)asyncType option ref * word
 
 (*type implicits = (string * asyncType) list*)
 datatype typeOrKind = Ty of asyncType | Ki of kind
@@ -161,6 +163,126 @@ fun {X, ty, s=_, ctx, cnstr, tag} with's s' = {X=X, ty=ty, s=s', ctx=ctx, cnstr=
 end (* structure Syn1 *)
 open Syn1
 
+(*
+structure SS =
+struct
+datatype 'a simpleStream = Nil | Cons of 'a * (unit -> 'a simpleStream)
+fun ThCons (a, s) = fn () => Cons (a, s)
+fun ThNil () = Nil
+fun eq (Nil, Nil) = true
+  | eq (Cons (a1, s1), Cons (a2, s2)) = a1=a2 andalso eq (s1 (), s2 ())
+  | eq _ = false
+fun foldl f e Nil = e
+  | foldl f e (Cons (x, s)) = foldl f (f (x, e)) (s ())
+end
+
+fun convKi (FixKind K) a         () = SS.Cons (INL 0w1, SS.ThCons (INL $ HashCons.tag K, a))
+  | convKi (KClos (K, s)) a      () = SS.Cons (INL 0w2, convKi K (convSub s a))
+and convTy (FixAsyncType A) a    () = SS.Cons (INL 0w3, SS.ThCons (INL $ HashCons.tag A, a))
+  | convTy (TClos (A, s)) a      () = SS.Cons (INL 0w4, convTy A (convSub s a))
+  | convTy (TLogicVar (_, t)) a  () = SS.Cons (INL 0w5, SS.ThCons (INL t, a))
+  | convTy (Apx A) a             () = SS.Cons (INL 0w6, convTy A a)
+and convTyS (FixTypeSpine S) a   () = SS.Cons (INL 0w7, SS.ThCons (INL $ HashCons.tag S, a))
+  | convTyS (TSClos (S, s)) a    () = SS.Cons (INL 0w8, convTyS S (convSub s a))
+and convSTy (FixSyncType S) a    () = SS.Cons (INL 0w9, SS.ThCons (INL $ HashCons.tag S, a))
+  | convSTy (STClos (S, s)) a    () = SS.Cons (INL 0w10, convSTy S (convSub s a))
+  | convSTy (ApxS S) a           () = SS.Cons (INL 0w11, convSTy S a)
+and convObj (FixObj N) a         () = SS.Cons (INL 0w12, SS.ThCons (INL $ HashCons.tag N, a))
+  | convObj (Clos (N, s)) a      () = SS.Cons (INL 0w13, convObj N (convSub s a))
+  | convObj (EtaTag (N, _)) a    () = SS.Cons (INL 0w14, convObj N a)
+  | convObj (IntRedex (N, S)) a  () = SS.Cons (INL 0w15, convObj N (convSp S a))
+and convSp (FixSpine S) a        () = SS.Cons (INL 0w16, SS.ThCons (INL $ HashCons.tag S, a))
+  | convSp (SClos (S, s)) a      () = SS.Cons (INL 0w17, convSp S (convSub s a))
+and convExp (FixExpObj E) a      () = SS.Cons (INL 0w18, SS.ThCons (INL $ HashCons.tag E, a))
+  | convExp (EClos (E, s)) a     () = SS.Cons (INL 0w19, convExp E (convSub s a))
+and convMon (FixMonadObj M) a    () = SS.Cons (INL 0w20, SS.ThCons (INL $ HashCons.tag M, a))
+  | convMon (MClos (M, s)) a     () = SS.Cons (INL 0w21, convMon M (convSub s a))
+and convPa (FixPattern (P, _)) a () = SS.Cons (INL 0w22, SS.ThCons (INL $ HashCons.tag P, a))
+  | convPa (PClos (P, s)) a      () = SS.Cons (INL 0w23, convPa P (convSub s a))
+
+and convSub (Dot (x, s)) a () = SS.Cons (INL 0w24, convSubObj x (convSub s a))
+  | convSub (Shift n) a    () = SS.Cons (INL 0w25, SS.ThCons (INL $ Word.fromInt n, a))
+and convSubObj (Ob N) a    () = SS.Cons (INL 0w26, convObj N a)
+  | convSubObj (Idx n) a   () = SS.Cons (INL 0w27, SS.ThCons (INL $ Word.fromInt n, a))
+  | convSubObj Undef a     () = SS.Cons (INL 0w28, a)
+
+fun convHead (Const c) a () = SS.Cons (INL 0w29, SS.ThCons (INR c, a))
+  | convHead (Var n) a   () = SS.Cons (INL 0w30, SS.ThCons (INL $ Word.fromInt n, a))
+  | convHead (UCVar x) a () = SS.Cons (INL 0w31, SS.ThCons (INR x, a))
+  | convHead (LogicVar {tag, s, ty, ...}) a () =
+			SS.Cons (INL 0w32, SS.ThCons (INL tag, convSub s (convTy ty a)))
+
+fun convKiF Type                 = SS.Cons (INL 0w33, SS.ThNil)
+  | convKiF (KPi (x, A, K))      = SS.Cons (INL 0w34, SS.ThCons (INR $ getOpt (x, " "),
+									convTy A (convKi K SS.ThNil)))
+fun convTyF (Lolli (A, B))       = SS.Cons (INL 0w35, convTy A (convTy B SS.ThNil))
+  | convTyF (TPi (x, A, B))      = SS.Cons (INL 0w36, SS.ThCons (INR $ getOpt (x, " "),
+									convTy A (convTy B SS.ThNil)))
+  | convTyF (AddProd (A, B))     = SS.Cons (INL 0w37, convTy A (convTy B SS.ThNil))
+  | convTyF Top                  = SS.Cons (INL 0w38, SS.ThNil)
+  | convTyF (TMonad S)           = SS.Cons (INL 0w39, convSTy S SS.ThNil)
+  | convTyF (TAtomic (x, S))     = SS.Cons (INL 0w40, SS.ThCons (INR x, convTyS S SS.ThNil))
+  | convTyF (TAbbrev (x, A))     = SS.Cons (INL 0w41, SS.ThCons (INR x, SS.ThNil))
+fun convTySF TNil                = SS.Cons (INL 0w42, SS.ThNil)
+  | convTySF (TApp (N, S))       = SS.Cons (INL 0w43, convObj N (convTyS S SS.ThNil))
+fun convSTyF (TTensor (S1, S2))  = SS.Cons (INL 0w44, convSTy S1 (convSTy S2 SS.ThNil))
+  | convSTyF TOne                = SS.Cons (INL 0w45, SS.ThNil)
+  | convSTyF (Exists (x, A, S))  = SS.Cons (INL 0w46, SS.ThCons (INR $ getOpt (x, " "),
+									convTy A (convSTy S SS.ThNil)))
+  | convSTyF (Async A)           = SS.Cons (INL 0w47, convTy A SS.ThNil)
+fun convObjF (LinLam (x, N))     = SS.Cons (INL 0w48, SS.ThCons (INR x, convObj N SS.ThNil))
+  | convObjF (Lam (x, N))        = SS.Cons (INL 0w49, SS.ThCons (INR x, convObj N SS.ThNil))
+  | convObjF (AddPair (N1, N2))  = SS.Cons (INL 0w50, convObj N1 (convObj N2 SS.ThNil))
+  | convObjF Unit                = SS.Cons (INL 0w51, SS.ThNil)
+  | convObjF (Monad E)           = SS.Cons (INL 0w52, convExp E SS.ThNil)
+  | convObjF (Atomic (h, S))     = SS.Cons (INL 0w53, convHead h (convSp S SS.ThNil))
+  | convObjF (Redex (N, A, S))   = SS.Cons (INL 0w54, convObj N (convTy A (convSp S SS.ThNil)))
+  | convObjF (Constraint (N, A)) = SS.Cons (INL 0w55, convObj N (convTy A SS.ThNil))
+fun convSpF Nil                  = SS.Cons (INL 0w56, SS.ThNil)
+  | convSpF (App (N, S))         = SS.Cons (INL 0w57, convObj N (convSp S SS.ThNil))
+  | convSpF (LinApp (N, S))      = SS.Cons (INL 0w58, convObj N (convSp S SS.ThNil))
+  | convSpF (ProjLeft S)         = SS.Cons (INL 0w59, convSp S SS.ThNil)
+  | convSpF (ProjRight S)        = SS.Cons (INL 0w60, convSp S SS.ThNil)
+fun convExpF (Let (p, N, E))     = SS.Cons (INL 0w61, convPa p (convObj N (convExp E SS.ThNil)))
+  | convExpF (Mon M)             = SS.Cons (INL 0w62, convMon M SS.ThNil)
+fun convMonF (Tensor (M1, M2))   = SS.Cons (INL 0w63, convMon M1 (convMon M2 SS.ThNil))
+  | convMonF One                 = SS.Cons (INL 0w64, SS.ThNil)
+  | convMonF (DepPair (N, M))    = SS.Cons (INL 0w65, convObj N (convMon M SS.ThNil))
+  | convMonF (Norm N)            = SS.Cons (INL 0w66, convObj N SS.ThNil)
+fun convPaF (PTensor (p1, p2))   = SS.Cons (INL 0w67, convPa p1 (convPa p2 SS.ThNil))
+  | convPaF POne                 = SS.Cons (INL 0w68, SS.ThNil)
+  | convPaF (PDepPair (x, A, p)) = SS.Cons (INL 0w69, SS.ThCons (INR x, convTy A (convPa p SS.ThNil)))
+  | convPaF (PVar (x, A))        = SS.Cons (INL 0w70, SS.ThCons (INR x, convTy A SS.ThNil))
+
+
+fun mkEq conv (x, y) = SS.eq (conv x, conv y)
+fun hashF (INL w, h) = Hash.hashWord (w, h)
+  | hashF (INR s, h) = Hash.hashStr (s, h)
+fun mkHash conv x = Hash.hashFinal (SS.foldl hashF 0w0 (conv x))
+fun mkEqAndHash conv = (mkEq conv, mkHash conv)
+
+val hashTables = {
+	ki  = HashCons.newTbl (mkEqAndHash convKiF),
+	aTy = HashCons.newTbl (mkEqAndHash convTyF),
+	tyS = HashCons.newTbl (mkEqAndHash convTySF),
+	sTy = HashCons.newTbl (mkEqAndHash convSTyF),
+	o   = HashCons.newTbl (mkEqAndHash convObjF),
+	sp  = HashCons.newTbl (mkEqAndHash convSpF),
+	e   = HashCons.newTbl (mkEqAndHash convExpF),
+	m   = HashCons.newTbl (mkEqAndHash convMonF),
+	p   = HashCons.newTbl (mkEqAndHash convPaF) }
+
+val FixKind' = FixKind o HashCons.hashcons (#ki hashTables)
+val FixAsyncType' = FixAsyncType o HashCons.hashcons (#aTy hashTables)
+val FixTypeSpine' = FixTypeSpine o HashCons.hashcons (#tyS hashTables)
+val FixSyncType' = FixSyncType o HashCons.hashcons (#sTy hashTables)
+val FixObj' = FixObj o HashCons.hashcons (#o hashTables)
+val FixSpine' = FixSpine o HashCons.hashcons (#sp hashTables)
+val FixExpObj' = FixExpObj o HashCons.hashcons (#e hashTables)
+val FixMonadObj' = FixMonadObj o HashCons.hashcons (#m hashTables)
+fun FixPattern' (p, n) = FixPattern (HashCons.hashcons (#p hashTables) p, n)
+*)
+
 structure Subst =
 struct
 	structure Subst' = SubstFun (structure Syn = Syn1 datatype subst = datatype subst)
@@ -178,8 +300,11 @@ fun etaShortcut ob = case Subst.sub ob of Dot (Idx n, _) => SOME n | _ => NONE
 
 structure Signatur = SignaturFun (Syn1)
 
-val lVarCnt = ref 0
-fun nextLVarCnt () = (lVarCnt := (!lVarCnt) + 1 ; !lVarCnt)
+val lVarCnt = ref 0w0
+fun nextLVarCnt () = (lVarCnt := (!lVarCnt) + 0w1 ; !lVarCnt)
+
+val tyLVarCnt = ref 0w0
+fun nextTyLVarCnt () = (tyLVarCnt := (!tyLVarCnt) + 0w1 ; !tyLVarCnt)
 
 (*fun newTVar () =
 	let val l = ref []
@@ -187,8 +312,8 @@ fun nextLVarCnt () = (lVarCnt := (!lVarCnt) + 1 ; !lVarCnt)
 		val () = l := [t]
 	in TLogicVar t end
 fun newApxTVar () = newTVar ()*)
-fun newTVar () = TLogicVar (ref NONE)
-fun newApxTVar () = TLogicVar (ref NONE)
+fun newTVar () = TLogicVar (ref NONE, nextTyLVarCnt ())
+fun newApxTVar () = TLogicVar (ref NONE, nextTyLVarCnt ())
 fun newLVarCtx ctx ty = FixObj (Atomic (LogicVar {X=vref NONE, ty=ty, s=Subst.id, ctx=ref ctx,
 											cnstr=vref [], tag=nextLVarCnt ()}, FixSpine Nil))
 val newLVar = newLVarCtx NONE
@@ -201,9 +326,9 @@ struct
 	type t = kind type a = asyncType
 	type ('a, 't) F = ('a, 't) kindFF
 	fun inj k = FixKind k
-	fun prj (FixKind k) = k
+	fun prj (FixKind k) = (*HashCons.nd*) k
 	  | prj (KClos (KClos (k, s'), s)) = prj (KClos (k, Subst.comp (s', s)))
-	  | prj (KClos (FixKind k, s)) = Subst.subKind (k, s)
+	  | prj (KClos (FixKind k, s)) = Subst.subKind ((*HashCons.nd*) k, s)
 	fun Fmap (g, f) Type = Type
 	  | Fmap (g, f) (KPi (x, A, K)) = KPi (x, g A, f K)
 end
@@ -214,9 +339,9 @@ struct
 	type t = typeSpine type a = obj
 	type ('a, 't) F = ('a, 't) typeSpineFF
 	fun inj a = FixTypeSpine a
-	fun prj (FixTypeSpine a) = a
+	fun prj (FixTypeSpine a) = (*HashCons.nd*) a
 	  | prj (TSClos (TSClos (S, s'), s)) = prj (TSClos (S, Subst.comp (s', s)))
-	  | prj (TSClos (FixTypeSpine S, s)) = Subst.subTypeSpine (S, s)
+	  | prj (TSClos (FixTypeSpine S, s)) = Subst.subTypeSpine ((*HashCons.nd*) S, s)
 	fun Fmap (g, f) TNil = TNil
 	  | Fmap (g, f) (TApp (N, S)) = TApp (g N, f S)
 	fun newTSpine' ki = case Kind.prj ki of
@@ -241,20 +366,20 @@ struct
 	  | Fmap' _ ((g1, g2), f) (TAtomic (a, ts)) = TAtomic (a, g1 a ts)
 	  | Fmap' _ (g, f) (TAbbrev (a, A)) = TAbbrev (a, f A)
 	fun Fmap ((g1, g2), f) a = Fmap' (fn x => x) ((fn _ => g1, g2), f) a 
-	fun prjApx (TLogicVar (ref NONE)) = raise Fail "Ambiguous typing\n"
-	  | prjApx (TLogicVar (ref (SOME a))) = prjApx a
+	fun prjApx (TLogicVar (ref NONE, _)) = raise Fail "Ambiguous typing\n"
+	  | prjApx (TLogicVar (ref (SOME a), _)) = prjApx a
 	  | prjApx (TClos (a, _)) = prjApx a
 	  | prjApx (Apx a) = prjApx a
 	  | prjApx (FixAsyncType A) = Fmap' (fn _ => SOME "")
-				((fn a => fn _ => TypeSpine.newTSpine a, ApxS), Apx) A
-	fun prj (FixAsyncType a) = a
+				((fn a => fn _ => TypeSpine.newTSpine a, ApxS), Apx) ((*HashCons.nd*) A)
+	fun prj (FixAsyncType a) = (*HashCons.nd*) a
 	  | prj (TClos (TClos (a, s'), s)) = prj (TClos (a, Subst.comp (s', s)))
-	  | prj (TClos (FixAsyncType a, s)) = Subst.subType (a, s)
-	  | prj (TClos (TLogicVar (ref NONE), _)) = raise Fail "Ambiguous typing\n"
-	  | prj (TClos (TLogicVar (ref (SOME a)), s)) = Subst.subType (prjApx a, s)
+	  | prj (TClos (FixAsyncType a, s)) = Subst.subType ((*HashCons.nd*) a, s)
+	  | prj (TClos (TLogicVar (ref NONE, _), _)) = raise Fail "Ambiguous typing\n"
+	  | prj (TClos (TLogicVar (ref (SOME a), _), s)) = Subst.subType (prjApx a, s)
 	  | prj (TClos (Apx a, s)) = Subst.subType (prjApx a, s)
-	  | prj (TLogicVar (ref NONE)) = raise Fail "Ambiguous typing\n"
-	  | prj (TLogicVar (ref (SOME a))) = prjApx a
+	  | prj (TLogicVar (ref NONE, _)) = raise Fail "Ambiguous typing\n"
+	  | prj (TLogicVar (ref (SOME a), _)) = prjApx a
 	  | prj (Apx a) = prjApx a
 end
 (* structure SyncType : TYP2 where type ('a, 't) F = ('a, 't) syncTypeFF
@@ -269,12 +394,12 @@ struct
 	  | Fmap' _ (g, f) (Async A) = Async (g A)
 	fun Fmap gf a = Fmap' (fn x => x) gf a
 	fun inj a = FixSyncType a
-	fun prjApx (FixSyncType S) = Fmap' (fn _ => SOME "") (Apx, ApxS) S
+	fun prjApx (FixSyncType S) = Fmap' (fn _ => SOME "") (Apx, ApxS) ((*HashCons.nd*) S)
 	  | prjApx (STClos (S, _)) = prjApx S
 	  | prjApx (ApxS S) = prjApx S
-	fun prj (FixSyncType a) = a
+	fun prj (FixSyncType a) = (*HashCons.nd*) a
 	  | prj (STClos (STClos (S, s'), s)) = prj (STClos (S, Subst.comp (s', s)))
-	  | prj (STClos (FixSyncType S, s)) = Subst.subSyncType (S, s)
+	  | prj (STClos (FixSyncType S, s)) = Subst.subSyncType ((*HashCons.nd*) S, s)
 	  | prj (STClos (ApxS S, s)) = Subst.subSyncType (prjApx S, s)
 	  | prj (ApxS S) = prjApx S
 end
@@ -286,9 +411,9 @@ struct
 	type t = spine type a = obj
 	type ('a, 't) F = ('a, 't) spineFF
 	fun inj a = FixSpine a
-	fun prj (FixSpine a) = a
+	fun prj (FixSpine a) = (*HashCons.nd*) a
 	  | prj (SClos (SClos (S, s'), s)) = prj (SClos (S, Subst.comp (s', s)))
-	  | prj (SClos (FixSpine S, s)) = Subst.subSpine (S, s)
+	  | prj (SClos (FixSpine S, s)) = Subst.subSpine ((*HashCons.nd*) S, s)
 	fun Fmap (g, f) Nil = Nil
 	  | Fmap (g, f) (App (N, S)) = App (g N, f S)
 	  | Fmap (g, f) (LinApp (N, S)) = LinApp (g N, f S)
@@ -311,12 +436,13 @@ struct
 	type t = obj type a = asyncType type b = spine type c = expObj
 	type ('a, 'b, 'c, 't) F = ('a, 'b, 'c, 't) objFF
 	fun inj a = FixObj a
-	fun prj (FixObj N) = (case tryLVar N of NONE => N | SOME obS => intRedex obS)
+	fun prj (FixObj N) = let val N = (*HashCons.nd*) N
+			in case tryLVar N of NONE => N | SOME obS => intRedex obS end
 	  | prj (Clos (Clos (N, s'), s)) = prj (Clos (N, Subst.comp (s', s)))
-	  | prj (Clos (FixObj N, s)) =
-	  		(case tryLVar N of
+	  | prj (Clos (FixObj N, s)) = let val N = (*HashCons.nd*) N
+	  		in case tryLVar N of
 				  NONE => Subst.subObj intRedex (N, s)
-				| SOME (ob, S) => intRedex (Clos (ob, s), SClos (S, s)))
+				| SOME (ob, S) => intRedex (Clos (ob, s), SClos (S, s)) end
 	  | prj (Clos (EtaTag (N, _), s)) = prj (Clos (N, s))
 	  | prj (Clos (IntRedex (N, S), s)) = intRedex (Clos (N, s), SClos (S, s))
 	  | prj (EtaTag (N, _)) = prj N
@@ -347,9 +473,9 @@ struct
 	type t = expObj type a = obj type b = monadObj type c = pattern
 	type ('a, 'b, 'c, 't) F = ('a, 'b, 'c, 't) expObjFF
 	fun inj a = FixExpObj a
-	fun prj (FixExpObj a) = a
+	fun prj (FixExpObj a) = (*HashCons.nd*) a
 	  | prj (EClos (EClos (E, s'), s)) = prj (EClos (E, Subst.comp (s', s)))
-	  | prj (EClos (FixExpObj E, s)) = Subst.subExpObj (E, s)
+	  | prj (EClos (FixExpObj E, s)) = Subst.subExpObj ((*HashCons.nd*) E, s)
 	fun Fmap ((g1, g2, g3), f) (Let (p, N, E)) = Let (g3 p, g1 N, f E)
 	  | Fmap ((g1, g2, g3), f) (Mon M) = Mon (g2 M)
 end
@@ -360,9 +486,9 @@ struct
 	type t = monadObj type a = obj
 	type ('a, 't) F = ('a, 't) monadObjFF
 	fun inj a = FixMonadObj a
-	fun prj (FixMonadObj a) = a
+	fun prj (FixMonadObj a) = (*HashCons.nd*) a
 	  | prj (MClos (MClos (M, s'), s)) = prj (MClos (M, Subst.comp (s', s)))
-	  | prj (MClos (FixMonadObj M, s)) = Subst.subMonadObj (M, s)
+	  | prj (MClos (FixMonadObj M, s)) = Subst.subMonadObj ((*HashCons.nd*) M, s)
 	fun Fmap (g, f) (Tensor (M1, M2)) = Tensor (f M1, f M2)
 	  | Fmap (g, f) One = One
 	  | Fmap (g, f) (DepPair (N, M)) = DepPair (g N, f M)
@@ -379,9 +505,9 @@ struct
 	  | pbinds (PDepPair (_, _, p)) = 1 + nbinds p
 	  | pbinds (PVar _) = 1
 	fun inj a = FixPattern (a, pbinds a)
-	fun prj (FixPattern (a, _)) = a
+	fun prj (FixPattern (a, _)) = (*HashCons.nd*) a
 	  | prj (PClos (PClos (p, s'), s)) = prj (PClos (p, Subst.comp (s', s)))
-	  | prj (PClos (FixPattern (p, _), s)) = Subst.subPattern (p, s)
+	  | prj (PClos (FixPattern (p, _), s)) = Subst.subPattern ((*HashCons.nd*) p, s)
 	fun Fmap (g, f) (PTensor (p1, p2)) = PTensor (f p1, f p2)
 	  | Fmap (g, f) POne = POne
 	  | Fmap (g, f) (PDepPair (x, A, p)) = PDepPair (x, g A, f p)
@@ -550,8 +676,8 @@ struct
 	  | inj (ApxTAtomic a) = AsyncType.inj (TAtomic (a, TypeSpine.inj TNil)) (*Signatur.sigNewTAtomic a*)
 	  | inj (ApxTAbbrev aA) = AsyncType.inj (TAbbrev aA)
 	  | inj (ApxTLogicVar X) = TLogicVar X
-	fun prj (TLogicVar (ref (SOME A))) = prj A
-	  | prj (TLogicVar (X as ref NONE)) = ApxTLogicVar X
+	fun prj (TLogicVar (ref (SOME A), _)) = prj A
+	  | prj (TLogicVar (X as (ref NONE, _))) = ApxTLogicVar X
 	  | prj (TClos (A, _)) = prj A
 	  | prj (Apx A) = prj A
 	  | prj a = case AsyncType.prj a of
@@ -619,7 +745,7 @@ structure ApxSyncTypeRec = Rec2 (structure T = ApxSyncType)
 		in t end
   | copyLVar _ = raise Fail "Internal error: copyLVar called on instantiated LVars"*)
 (*fun eqLVar (ref (NON L1), ref (NON L2)) = L1 = L2*)
-fun eqLVar (X1 as ref NONE, X2 as ref NONE) = X1 = X2
+fun eqLVar ((X1 as ref NONE, _), (X2 as ref NONE, _)) = X1 = X2
   | eqLVar _ = raise Fail "Internal error: eqLVar called on instantiated LVars"
 
 type ('ki, 'aTy, 'sTy) apxFoldFuns = {
@@ -637,15 +763,15 @@ and foldApxSyncType fs x = ApxSyncTypeRec.fold (foldApxType fs) (#fsTy fs) x
 val apxCopyFfs = {fki = ApxKind.inj, faTy = ApxAsyncType.inj o cpLVar, fsTy = ApxSyncType.inj}*)
 
 (* updLVar : typeLogicVar * apxAsyncType -> unit *)
-fun updLVar (ref (SOME _), _) = raise Fail "typeLogicVar already updated\n"
-  | updLVar (X as ref NONE, A) = X := SOME A (*(foldApxType apxCopyFfs A)*)
+fun updLVar ((ref (SOME _), _), _) = raise Fail "typeLogicVar already updated\n"
+  | updLVar ((X as ref NONE, _), A) = X := SOME A (*(foldApxType apxCopyFfs A)*)
   (*| updLVar (ref (NON L), A) = app (fn X => X := SOM (foldApxType apxCopyFfs A)) (!L)*)
 
 (* isUnknown : asyncType -> bool *)
 fun isUnknown (TClos (A, _)) = isUnknown A
   | isUnknown (FixAsyncType _) = false
-  | isUnknown (TLogicVar (ref (SOME A))) = isUnknown A
-  | isUnknown (TLogicVar (ref NONE)) = true
+  | isUnknown (TLogicVar (ref (SOME A), _)) = isUnknown A
+  | isUnknown (TLogicVar (ref NONE, _)) = true
   | isUnknown (Apx A) = isUnknown A
 
 fun kindToApx x = x

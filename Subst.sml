@@ -4,7 +4,6 @@ functor SubstFun (
 	sharing type Syn.subst = subst
 	) =
 struct
-	open Either
 	open Syn infix with's
 	fun Clos' (Ob N, t) = Ob (Clos (N, t))
 	  | Clos' (Idx n, Shift n') = Idx (n+n')
@@ -25,13 +24,13 @@ struct
 	fun dotn 0 s = s
 	  | dotn n s = dotn (n-1) (dot1 s)
 
-	(* headSub : head * subst -> (head, obj) either *)
-	fun headSub (Const c, _) = LEFT (Const c)
-	  | headSub (UCVar v, _) = LEFT (UCVar v)
-	  | headSub (LogicVar X, s') = LEFT (LogicVar (X with's comp (#s X, s')))
-	  | headSub (Var n, Shift n') = LEFT (Var (n+n'))
-	  | headSub (Var 1, Dot (Idx n, s)) = LEFT (Var n)
-	  | headSub (Var 1, Dot (Ob N, s)) = RIGHT N
+	(* headSub : head * subst -> (head, obj) sum *)
+	fun headSub (Const c, _) = INL (Const c)
+	  | headSub (UCVar v, _) = INL (UCVar v)
+	  | headSub (LogicVar X, s') = INL (LogicVar (X with's comp (#s X, s')))
+	  | headSub (Var n, Shift n') = INL (Var (n+n'))
+	  | headSub (Var 1, Dot (Idx n, s)) = INL (Var n)
+	  | headSub (Var 1, Dot (Ob N, s)) = INR N
 	  | headSub (Var 1, Dot (Undef, s)) = raise ExnUndef
 	  | headSub (Var n, Dot (_, s)) = headSub (Var (n-1), s)
 
@@ -60,8 +59,8 @@ struct
 	  | subObj _ (Unit, _) = Unit
 	  | subObj _ (Monad E, s) = Monad (EClos (E, s))
 	  | subObj redex (Atomic (H, S), s) = (case headSub (H, s) of
-			  LEFT H' => Atomic (H', SClos (S, s))
-			| RIGHT N => redex (N, SClos (S, s)))
+			  INL H' => Atomic (H', SClos (S, s))
+			| INR N => redex (N, SClos (S, s)))
 	  | subObj _ (Redex (N, A, S), s) = Redex (Clos (N, s), A, SClos (S, s))
 	  | subObj _ (Constraint (N, A), s) = Constraint (Clos (N, s), TClos (A, s))
 	fun subSpine (Nil, _) = Nil
@@ -80,14 +79,13 @@ struct
 	  | subPattern (PDepPair (x, A, p), s) = PDepPair (x, TClos (A, s), PClos (p, dot1 s))
 	  | subPattern (PVar (x, A), s) = PVar (x, TClos (A, s))
 	
-(*	val dummytype = TLogicVar (ref NONE)
-	fun dummyvar n = FixObj (Atomic (Var n, dummytype, FixSpine Nil))
-	val dummy = Clos (dummyvar 1, Dot (Undef, Shift 0))*)
+	fun leftOf (INL l) = l
+	  | leftOf (INR _) = raise Option.Option
 	(**************************)
 
 	val id = Shift 0
 
-	fun shiftHead (H, n) = leftOf (headSub (H, Shift n))
+	fun shiftHead (H, n) = leftOf $ headSub (H, Shift n)
 
 	(* Invariant:
 	   Let G1, G2 contexts,
@@ -103,9 +101,9 @@ struct
 
 	fun intersection conv s1s2 =
 		let fun eq (Idx n, Idx m) = n=m
-			  | eq (Idx n, Ob N) = conv (LEFT n, N)
-			  | eq (Ob N, Idx n) = conv (LEFT n, N)
-			  | eq (Ob N1, Ob N2) = conv (RIGHT N1, N2)
+			  | eq (Idx n, Ob N) = conv (INL n, N)
+			  | eq (Ob N, Idx n) = conv (INL n, N)
+			  | eq (Ob N1, Ob N2) = conv (INR N1, N2)
 			  | eq (Undef, _) = raise Fail "Internal error intersection"
 			  | eq (_, Undef) = raise Fail "Internal error intersection"
 			fun intersect (Dot (n1, s1), Dot (n2, s2)) =

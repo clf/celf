@@ -1,6 +1,15 @@
 $(SML_LIB)/basis/basis.mlb
 $(SML_LIB)/mlyacc-lib/mlyacc-lib.mlb
-Either.sml
+(*
+$(SML_LIB)/basis/mlton.mlb
+WeakList.sig
+WeakList.sml
+Hash.sig
+Hash.sml
+HashCons.sig
+HashCons.sml
+*)
+TopLevelUtil.sml
 AbstractRecursion.sml
 Binarymap/Binarymap.mlb
 SymbTable.sig

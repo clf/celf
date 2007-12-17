@@ -29,7 +29,7 @@ datatype head = Const of string
 		s     : subst,
 		ctx   : asyncType Context.context option ref,
 		cnstr : constr VRef.vref list VRef.vref,
-		tag   : int }
+		tag   : word }
 
 datatype ('aTy, 'ki) kindFF = Type
 	| KPi of string option * 'aTy * 'ki
@@ -89,17 +89,17 @@ type 'p patternF = (asyncType, 'p) patternFF
 val with'ty :
 	{X : obj option VRef.vref, ty : asyncType, s : subst,
 		ctx : asyncType Context.context option ref,
-		cnstr : constr VRef.vref list VRef.vref, tag : int }
+		cnstr : constr VRef.vref list VRef.vref, tag : word }
 	* asyncType -> {X : obj option VRef.vref, ty : asyncType, s : subst,
 		ctx : asyncType Context.context option ref,
-		cnstr : constr VRef.vref list VRef.vref, tag : int }
+		cnstr : constr VRef.vref list VRef.vref, tag : word }
 val with's :
 	{X : obj option VRef.vref, ty : asyncType, s : subst,
 		ctx : asyncType Context.context option ref,
-		cnstr : constr VRef.vref list VRef.vref, tag : int }
+		cnstr : constr VRef.vref list VRef.vref, tag : word }
 	* subst -> {X : obj option VRef.vref, ty : asyncType, s : subst,
 		ctx : asyncType Context.context option ref,
-		cnstr : constr VRef.vref list VRef.vref, tag : int }
+		cnstr : constr VRef.vref list VRef.vref, tag : word }
 
 (*type implicits = (string * asyncType) list*)
 datatype typeOrKind = Ty of asyncType | Ki of kind
@@ -159,7 +159,7 @@ structure Subst : sig
 	val comp : subst * subst -> subst
 	val shiftHead : head * int -> head
 	val switchSub : int * int -> subst
-	val intersection : ((int, obj) Either.either * obj -> bool) -> subst * subst -> subst
+	val intersection : ((int, obj) sum * obj -> bool) -> subst * subst -> subst
 	val invert : (*pat*)subst -> subst
 	val patSub : (exn -> obj -> int) -> subst -> (*pat*)subst option
 	val isId : subst -> bool

@@ -87,7 +87,7 @@ and pHead ctx h = case h of
 	| Var n => [lookup ctx n] (*[Int.toString n]*)
 	| UCVar v => ["#"^v]
 	| LogicVar {ty, s, ctx=ref G, tag, ...} =>
-		["_$", Int.toString tag]
+		["$", Word.toString tag]
 		(*@ ["<"] @ pContext ctx G @ [", "] @ pType ctx false (TClos (ty, s)) @ [">"]*)
 		@ [Subst.substToStr (String.concat o (pObj ctx true)) s]
 and pContext ctx NONE = ["--"]
@@ -191,7 +191,7 @@ and rdHead h = case h of
 	| Var n => (Var n, occur n)
 	| UCVar v => (UCVar v, empty)
 	| LogicVar (X as {ctx, s, ty, ...}) =>
-			let val ctxL = (length o Context.ctx2list o valOf o !) ctx
+			let val ctxL = length $ Context.ctx2list $ valOf $ !ctx
 				val subL = Subst.fold (fn (_, n) => n+1) (fn _ => 0) s
 				fun occurSubOb Undef = empty
 				  | occurSubOb (Ob ob) = #2 (rdObj ob)
