@@ -72,8 +72,6 @@ fun etaExpand (A, H, S) =
 				in (PDepPair' ("", injectApxType A, p), DepPair' (Idx A (n + nbinds p), M)) end
 			| ApxAsync A => (PVar' ("", injectApxType A), Norm' (Idx A n))
 		fun addEtaSpine (n, Sf) =
-				(*Atomic' (Either.leftOf (Subst.headSub (H, Shift n)), 
-						Whnf.appendSpine (S, Shift n, (Sf (1, Nil), id)))*)
 				Atomic' (Subst.shiftHead (H, n),
 						appendSpine (SClos (S, Subst.shift n), Sf (1, Nil')))
 		fun eta' (ty, n, Sf) = case Util.apxTypePrjAbbrev ty of
