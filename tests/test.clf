@@ -15,10 +15,10 @@ ev_z   : ev z z.
 ev_s   : ev E V -> ev (s E) (s V).
 ev_p_z : ev E z -> ev (p E) z.
 ev_p_s : ev E (s V) -> ev (p E) V.
-ev_case_z : ev E1 z -> ev E2 V -> ev (case E1 E2 E3) V.
-ev_case_s : ev E1 (s V') -> ev (E3 V') V -> ev (case E1 E2 E3) V.
+ev_case_z : ev E2 V -> ev E1 z -> ev (case E1 E2 E3) V.
+ev_case_s :  ev (E3 V') V -> ev E1 (s V') -> ev (case E1 E2 E3) V.
 ev_lam : ev (lam E) (lam E).
-ev_app : ev E1 (lam E1') -> ev E2 V2 -> ev (E1' V2) V -> ev (app E1 E2) V.
+ev_app : ev (E1' V2) V -> ev E2 V2 -> ev E1 (lam E1') -> ev (app E1 E2) V.
 ev_fix : ev (E (fix E)) V -> ev (fix E) V.
 
 
@@ -31,9 +31,9 @@ run : (Pi d:dest. eval E d -o {return V d}) -> evaluate E V.
 
 eval_z : eval z D -o {return z D}.
 eval_s : eval (s E) D -o {Exists d':dest. eval E d' @
-									Pi V:exp. return V d' -o {return (s V) D}}.
+       	      Pi V:exp. return V d' -o {return (s V) D}}.
 eval_p : eval (p E) D -o {Exists d':dest. eval E d' @
-									( (return z d' -o {return z D}) &
+		( (return z d' -o {return z D}) &
 									  (Pi V:exp. return (s V) d' -o {return V D})
 									)}.
 eval_case : eval (case E1 E2 (\x. E3 x)) D -o
@@ -51,6 +51,9 @@ eval_app : eval (app E1 E2) D -o
 			)
 		}.
 eval_fix : eval (fix (\x. E x)) D -o {eval (E (fix (\x. E x))) D}.
+
+#query 1 2 3 evaluate z V.
+
 
 test : evaluate E V -> type.
 ttt1 : test (run (\d. \^u: eval z d. {let {r} = eval_z ^u in r})).
@@ -101,7 +104,7 @@ tr_p_s : tr (ev_p_s D) (run \d. \^u:eval (p E) d.
 		let {r:return V d} = f1 pi_2 V ^r' in
 		r})
 	<- tr D (run \d. \^u:eval E d. {let {r:return (s V) d} = P d ^u in r}).
-tr_case_z : tr (ev_case_z D1 D2) (run \d. \^u:eval (case E1 E2 E3) d.
+tr_case_z : tr (ev_case_z D2 D1) (run \d. \^u:eval (case E1 E2 E3) d.
 		{let {[d',(p1:eval E1 d') @ f1]} = eval_case ^u in
 		let {r':return z d'} = P1 d' ^p1 in
 		let {p2:eval E2 d} = f1 pi_1 ^r' in
@@ -109,7 +112,7 @@ tr_case_z : tr (ev_case_z D1 D2) (run \d. \^u:eval (case E1 E2 E3) d.
 		r})
 	<- tr D1 (run \d. \^u:eval E1 d. {let {r:return z d} = P1 d ^u in r})
 	<- tr D2 (run \d. \^u:eval E2 d. {let {r:return V d} = P2 d ^u in r}).
-tr_case_s : tr (ev_case_s D1 D2) (run \d. \^u:eval (case E1 E2 E3) d.
+tr_case_s : tr (ev_case_s D2 D1) (run \d. \^u:eval (case E1 E2 E3) d.
 		{let {[d',(p1:eval E1 d') @ f1]} = eval_case ^u in
 		let {r':return (s V') d'} = P1 d' ^p1 in
 		let {p2:eval (E3 V') d} = f1 pi_2 V' ^r' in
@@ -119,7 +122,7 @@ tr_case_s : tr (ev_case_s D1 D2) (run \d. \^u:eval (case E1 E2 E3) d.
 	<- tr D2 (run \d. \^u:eval (E3 V') d. {let {r:return V d} = P2 d ^u in r}).
 tr_lam : tr ev_lam (run \d. \^u:eval (lam E) d.
 		{let {r:return (lam E) d} = eval_lam ^u in r}).
-tr_app : tr (ev_app D1 D2 D3) (run \d. \^u:eval (app E1 E2) d.
+tr_app : tr (ev_app D3 D2 D1) (run \d. \^u:eval (app E1 E2) d.
 		{let {[d',(p1:eval E1 d') @ f1]} = eval_app ^u in
 		let {r':return (lam \x. E1' x) d'} = P1 d' ^p1 in
 		let {[d'',(p2:eval E2 d'') @ f2]} = f1 E1' ^r' in
@@ -137,3 +140,12 @@ tr_fix : tr (ev_fix D) (run \d. \^u:eval (fix E) d.
 	<- tr D (run \d. \^u:eval (E (fix E)) d. {let {r:return V d} = P d ^u in r}).
 
 
+
+
+
+
+#query 1 2 3 ev (app (fix \f. lam \x. case x z (\y. s (s (app f y)))) (s (s z))) V.
+
+d : ev _ _ = (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_z ev_z ev_z) ev_z (ev_fix ev_lam)))) (ev_s ev_z)) (ev_s ev_z) (ev_fix ev_lam)))) (ev_s (ev_s ev_z))) (ev_s (ev_s ev_z)) (ev_fix ev_lam)).
+
+#query 1 2 3 tr (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_z ev_z ev_z) ev_z (ev_fix ev_lam)))) (ev_s ev_z)) (ev_s ev_z) (ev_fix ev_lam)))) (ev_s (ev_s ev_z))) (ev_s (ev_s ev_z)) (ev_fix ev_lam)) X.
