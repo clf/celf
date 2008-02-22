@@ -120,11 +120,11 @@ and inferHead (ctx, h) = case h of
 				val lvarCtx = calcCtx (Subst.invert s) $ ctx2list $ ctxDelLin ctx
 				val () = case !rctx of
 						  NONE => rctx := SOME lvarCtx
-						| SOME prevCtx => raise Fail "Internal error: double ctx instantiation"
-							(*print "Checking context\n";
+						| SOME prevCtx => (*raise Fail "Internal error: double ctx instantiation"*)
+							(print "Checking context\n";
 							ListPair.appEq ApproxTypes.apxUnifyType
 								(map (asyncTypeToApx o #2) (ctx2list prevCtx),
-								 map (asyncTypeToApx o #2) (ctx2list lvarCtx)) *)
+								 map (asyncTypeToApx o #2) (ctx2list lvarCtx)) )
 				val () = checkType (lvarCtx, ty)
 			in (ctx, TClos (ty, s)) end
 

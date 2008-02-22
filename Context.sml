@@ -75,8 +75,11 @@ fun addJoin (t1, t2) ((x, A, f1), (_, _, f2)) =
 				  | _ => raise Fail "Internal error: context misalignment\n"
 	in (x, A, f) end
 
+fun mapEq f ([], []) = []
+  | mapEq f (x::xs, y::ys) = f (x, y) :: mapEq f (xs, ys)
+  | mapEq _ _ = raise Fail "Unequal lengths"
 (* ctxAddJoin : bool * bool -> 'a context * 'a context -> 'a context *)
-fun ctxAddJoin topFlags ctxs = ListPair.mapEq (addJoin topFlags) ctxs
+fun ctxAddJoin topFlags ctxs = (*ListPair.*)mapEq (addJoin topFlags) ctxs
 
 (* ctxAddJoinOpt : bool * bool -> 'a context * 'a context -> 'a context option *)
 fun ctxAddJoinOpt topFlags ctxs = SOME (ctxAddJoin topFlags ctxs) handle ExnCtx _ => NONE

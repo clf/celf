@@ -52,7 +52,6 @@ eval_app : eval (app E1 E2) D -o
 		}.
 eval_fix : eval (fix (\x. E x)) D -o {eval (E (fix (\x. E x))) D}.
 
-#query 1 2 3 evaluate z V.
 
 
 test : evaluate E V -> type.
@@ -146,6 +145,10 @@ tr_fix : tr (ev_fix D) (run \d. \^u:eval (fix E) d.
 
 #query 1 2 3 ev (app (fix \f. lam \x. case x z (\y. s (s (app f y)))) (s (s z))) V.
 
-d : ev _ _ = (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_z ev_z ev_z) ev_z (ev_fix ev_lam)))) (ev_s ev_z)) (ev_s ev_z) (ev_fix ev_lam)))) (ev_s (ev_s ev_z))) (ev_s (ev_s ev_z)) (ev_fix ev_lam)).
+d : ev (app (fix \f. lam \x. case x z (\y. s (s (app f y)))) (s (s z))) _ = (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_z ev_z ev_z) ev_z (ev_fix ev_lam)))) (ev_s ev_z)) (ev_s ev_z) (ev_fix ev_lam)))) (ev_s (ev_s ev_z))) (ev_s (ev_s ev_z)) (ev_fix ev_lam)).
 
-#query 1 2 3 tr (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_z ev_z ev_z) ev_z (ev_fix ev_lam)))) (ev_s ev_z)) (ev_s ev_z) (ev_fix ev_lam)))) (ev_s (ev_s ev_z))) (ev_s (ev_s ev_z)) (ev_fix ev_lam)) X.
+#query 1 2 3 tr ((ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_z ev_z ev_z) ev_z (ev_fix ev_lam)))) (ev_s ev_z)) (ev_s ev_z) (ev_fix ev_lam)))) (ev_s (ev_s ev_z))) (ev_s (ev_s ev_z)) (ev_fix ev_lam)) : ev (app (fix \f. lam \x. case x z (\y. s (s (app f y)))) (s (s z))) _) X.
+
+
+#query 1000 2 3 evaluate z V.
+

@@ -110,6 +110,7 @@ fun reconstructDecl dec =
 							fun sc N =
 								( print ("Solution: "^PrettyPrint.printObj N^"\n")
 								; app printInst lvars )
+							val () = OpSem.fcLimit := e
 						in OpSem.solveEC (ty, sc) end
 			val () = if isQuery dec then () else Signatur.sigAddDecl dec
 		in () end

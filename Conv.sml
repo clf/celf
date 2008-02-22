@@ -30,7 +30,8 @@ fun convAsyncType (ty1, ty2) = case (Util.nfTypePrjAbbrev ty1, Util.nfTypePrjAbb
      | (TAtomic (a1, TS1), TAtomic (a2, TS2)) =>
 	 if (a1 = a2) then convTypeSpine (TS1, TS2)
 	   else raise Fail "Convertibility: Type Clash"
-     | _ => raise Fail "Convertibility"
+	 | (TMonad S1, TMonad S2) => convSyncType (S1, S2)
+     | _ => raise Fail "Convertibility: Types differ"
 
 
 (* Invariant:  convTypeSpine (TS1, TS2) => ()
@@ -42,6 +43,15 @@ and convTypeSpine (ts1, ts2) = case (NfTypeSpine.prj ts1, NfTypeSpine.prj ts2) o
      | (TApp (M1, TS1), TApp (M2, TS2)) => (convObj (M1, M2); convTypeSpine (TS1, TS2))
      | _ => raise Fail "Convertibility"
 
+and convSyncType (st1, st2) = case (NfSyncType.prj st1, NfSyncType.prj st2) of
+	  (TTensor (S1, T1), TTensor (S2, T2)) => (convSyncType (S1, S2); convSyncType (T1, T2))
+	| (TOne, TOne) => ()
+	| (Exists (x1, A1, S1), Exists (x2, A2, S2)) =>
+			let val S1' = if isSome x1 then S1 else NfSTClos (S1, Subst.shift 1)
+				val S2' = if isSome x2 then S2 else NfSTClos (S2, Subst.shift 1)
+			in (convAsyncType (A1, A2); convSyncType (S1', S2')) end
+	| (Async A1, Async A2) => convAsyncType (A1, A2)
+	| _ => raise Fail "Convertibility: SyncTypes differ"
 
 (* Invariant:  convObj (N1, N2) => ()
    if  G |- N1 == N2 : A

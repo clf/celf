@@ -6176,11 +6176,11 @@ neq_greater_' :
    compare_' X' Y' rel_greater' CP' -> neq_' X' Y' (neq_greater' CP').
 c_size_' : Pi C':code'. Pi Sz':int'. c_size' C' Sz' -> type.
 c_size_$_' : c_size_' $' z' c_size_$'.
-c_size_$_' :
+c_size_;_' :
    c_size_' C' X' CS' -> c_size_' (;' I' C') (s' X') (c_size_;' inc_X' CS').
 t_nth_' : Pi T':tp_list'. Pi X':int'. Pi Tp':tp'. t_nth' T' X' Tp' -> type.
 t_nth_z_' : t_nth_' (tp_cons' T' T1') z' T' t_nth_z'.
-t_nth_z_' :
+t_nth_s_' :
    t_nth_' T1' X' Tp' NP'
       -> t_nth_' (tp_cons' T' T1') (s' X') Tp' (t_nth_s' NP').
 t_replace_' :
@@ -6683,13 +6683,14 @@ tp_nil'))
 
 %define le = LE
 #query 1 2 3 create_env' il' LE'.
+#query 1 2 3 create_env' il' le'.
 
 
 %% TODO: for some reason solve doesnt always work?
 
 %define start_prf = TP 
-% #query 1 2 3 extract' c' z' hl' le' p' (stp_' (s' (s' z')) tp_nil') TP'.
+#query 1 2 3 extract' c' z' hl' le' p' (stp_' (s' (s' z')) tp_nil') TP'.
 
 %define le_prf = LETP
-#query 1 2 3 extract_label' le' p' c' le' hl' z' LETP'.
+% #query 1 2 3 extract_label' le' p' c' le' hl' z' LETP'.
 

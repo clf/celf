@@ -8,17 +8,21 @@ open SignaturTable
 
 type context = (asyncType * (lr list * headType) list) context
 
+val fcLimit = ref 100
+
 (* solve : context * asyncType * (obj * (context * bool) -> unit) -> unit *)
 (* Right Inversion : Gamma;Delta => A *)
+(*fun solve (ctx, ty, sc) = (print ("Solve ("^PrettyPrint.printType ty^")\n"); solve' (ctx, ty, sc))*)
 fun solve (ctx, ty, sc) = case Util.typePrjAbbrev ty of
-	  Lolli (A, B) => solve (ctxPushLIN ("", (A, heads A), ctx), B,
+	  Lolli (A, B) => solve (ctxPushLIN ("", (A, heads A), ctx), TClos (B, Subst.shift 1),
 				fn (N, (ctxo, t)) => case ctxPopLINopt (t, ctxo) of
 					  NONE => ()
 					| SOME ctxo' => sc (LinLam' ("", N), (ctxo', t)))
 	| TPi (x, A, B) =>
 			let val x' = getOpt (x, "")
 				val hds = if isSome x then [] else heads A
-			in solve (ctxPushUN (x', (A, hds), ctx), B,
+				val B' = if isSome x then B else TClos (B, Subst.shift 1)
+			in solve (ctxPushUN (x', (A, hds), ctx), B',
 				fn (N, ctxo) => sc (Lam' (x', N), Util.map1 ctxPopUN ctxo))
 			end
 	| AddProd (A, B) => solve (ctx, A,
@@ -27,12 +31,13 @@ fun solve (ctx, ty, sc) = case Util.typePrjAbbrev ty of
 					  NONE => ()
 					| SOME ctxo => sc (AddPair' (N1, N2), (ctxo, t1 andalso t2))))
 	| Top => sc (Unit', (ctx, true))
-	| TMonad S => forwardChain (ctx, S, fn (E, ctxo) => sc (Monad' E, ctxo))
+	| TMonad S => forwardChain (!fcLimit, ctx, S, fn (E, ctxo) => sc (Monad' E, ctxo))
 	| P as TAtomic _ => matchAtom (ctx, P, sc)
 	| _ => raise Fail "Internal error solve: TAbbrev\n"
 
 (* matchAtom : context * asyncType asyncTypeF * (obj * (context * bool) -> unit) -> unit *)
 (* Choice point: choose hypothesis and switch from Right Inversion to Left Focusing *)
+(*and matchAtom (ctx, P, sc) = (print ("MatchAtom ("^PrettyPrint.printType (AsyncType.inj P)^")\n"); matchAtom' (ctx, P, sc))*)
 and matchAtom (ctx, P, sc) =
 	let val aP = (case P of TAtomic (a, _) => a
 					| _ => raise Fail "Internal error: wrong argument to matchAtom!\n")
@@ -53,8 +58,9 @@ and matchAtom (ctx, P, sc) =
 	; app matchSig (getCandAtomic aP)
 	end
 
-(* forwardChain : context * syncType * (expObj * (context * bool) -> unit) -> unit *)
-and forwardChain (ctx, S, sc) =
+(* forwardChain : int * context * syncType * (expObj * (context * bool) -> unit) -> unit *)
+(*and forwardChain (fcLim, ctx, S, sc) = (print ("ForwardChain ("^PrettyPrint.printType (TMonad' S)^")\n"); forwardChain' (fcLim, ctx, S, sc))*)
+and forwardChain (fcLim, ctx, S, sc) =
 	let fun mlFocus (ctx', lr, A, h) = fn commitExn =>
 					monLeftFocus (lr, ctx', A, fn (S, ctxo) =>
 						raise commitExn (Atomic' (h, S), ctxo))
@@ -72,8 +78,10 @@ and forwardChain (ctx, S, sc) =
 					@ matchCtx (G, k+1)
 				end
 	in
-		case PermuteList.findSome (fn f => f ())
-					(PermuteList.fromList (matchCtx (ctx2list ctx, 1) @ map matchSig (getCandMonad ()))) of
+		case if fcLim > 0 then
+				PermuteList.findSome (fn f => f ())
+					(PermuteList.fromList (matchCtx (ctx2list ctx, 1) @ map matchSig (getCandMonad ())))
+			else NONE of
 			  NONE => rightFocus (ctx, S, fn (M, ctxo) => sc (Mon' M, ctxo))
 			| SOME (N, ((ctxm, sty), t1)) =>
 				let fun syncType2pat sty = case SyncType.prj sty of
@@ -84,7 +92,9 @@ and forwardChain (ctx, S, sc) =
 						| Exists (SOME x, A, S) => PDepPair' (x, A, syncType2pat S)
 						| Async A => PVar' ("", A)
 					val p = syncType2pat sty
-				in forwardChain (patBind (fn A => (A, heads A)) p ctxm, S, fn (E, (ctxo', t2)) =>
+				in forwardChain (fcLim - 1, patBind (fn A => (A, heads A)) p ctxm,
+					STClos (S, Subst.shift $ nbinds p),
+					fn (E, (ctxo', t2)) =>
 						case patUnbindOpt (p, ctxo', t2) of
 							  NONE => ()
 							| SOME ctxo => sc (Let' (p, N, E), (ctxo, t1 orelse t2)))
@@ -94,6 +104,7 @@ and forwardChain (ctx, S, sc) =
 (* rightFocus : context * syncType * (monadObj * (context * bool) -> unit) -> unit *)
 (* Right Focusing : Gamma;Delta >> S
  * This is the end of forward chaining; construct the monadic object directly. *)
+(*and rightFocus (ctx, sty, sc) = (print ("RightFocus ("^PrettyPrint.printType (TMonad' sty)^")\n"); rightFocus' (ctx, sty, sc))*)
 and rightFocus (ctx, sty, sc) = case SyncType.prj sty of
 	  TTensor (S1, S2) => rightFocus (ctx, S1,
 				fn (M1, (ctxm, t1)) => rightFocus (ctxm, S2,
@@ -111,6 +122,7 @@ and rightFocus (ctx, sty, sc) = case SyncType.prj sty of
 		* (spine * (context * bool) -> unit) -> unit *)
 (* Left Focusing : Gamma;Delta;A >> P  ~~  leftFocus (LR-Oracle, Gamma;Delta, P, A, SuccCont)
  * Construct the spine corresponding to the chosen hypothesis. *)
+(*and leftFocus (lr, ctx, P, ty, sc) = (print ("LeftFocus ("^PrettyPrint.printType ty^")\n"); leftFocus' (lr, ctx, P, ty, sc))*)
 and leftFocus (lr, ctx, P, ty, sc) = case Util.typePrjAbbrev ty of
 	  Lolli (A, B) => leftFocus (lr, ctx, P, B,
 				fn (S, (ctxm, t1)) => solve (ctxm, A,
@@ -133,6 +145,7 @@ and leftFocus (lr, ctx, P, ty, sc) = case Util.typePrjAbbrev ty of
 				else ()
 	| _ => raise Fail "Internal error leftFocus: TAbbrev\n"
 
+(*and monLeftFocus (lr, ctx, ty, sc) = (print ("monLeftFocus ("^PrettyPrint.printType ty^")\n"); monLeftFocus' (lr, ctx, ty, sc))*)
 and monLeftFocus (lr, ctx, ty, sc) = case Util.typePrjAbbrev ty of
 	  Lolli (A, B) => solve (ctx, A,
 				fn (N, (ctxm, t1)) => monLeftFocus (lr, ctxm, B,

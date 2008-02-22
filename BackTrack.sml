@@ -50,6 +50,7 @@ fun backtrackC f =
 (* val backtrack f = let val NONE = backtrackC (fn _ => f ()) in () end *)
 fun backtrack f =
 	( mark ()
+(*	; if !nMarks mod 1000 = 0 then print ("["^Int.toString (!nMarks)^"]") else ()*)
 	; f ()
 	; rewind () )
 
