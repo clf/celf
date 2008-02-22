@@ -1,9 +1,5 @@
 place : type. 
-nat : type.
-z: nat. 
-s : nat -> nat. 
 tok : place -> type. 
-timer : nat -> type.
  
 r : place. 
 p : place. 
@@ -11,9 +7,9 @@ n : place.
 b : place. 
 c : place. 
 a : place. 
-tp : timer (s N) -o tok p -o {timer N @ tok r}. 
-tr : timer (s N) -o tok r -o {timer N @ tok p @ tok b @ tok n}. 
-ta : timer (s N) -o tok b -o tok b -o tok a -o {timer N @ tok c}. 
-tc : timer (s N) -o tok c -o {timer N @ tok a}. 
+tp : tok p -o {tok r}. 
+tr : tok r -o {tok p @ tok b @ tok n}. 
+ta : tok b -o tok b -o tok a -o {tok c}. 
+tc : tok c -o {tok a}. 
 
-#query 1 2 3 timer (s (s (s (s (s (s (s z))))))) -o tok p -o tok c -o {top}.
+#query 12 2 3 tok p -o tok c -o {top}.

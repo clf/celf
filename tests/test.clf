@@ -150,5 +150,5 @@ d : ev (app (fix \f. lam \x. case x z (\y. s (s (app f y)))) (s (s z))) _ = (ev_
 #query 1 2 3 tr ((ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_z ev_z ev_z) ev_z (ev_fix ev_lam)))) (ev_s ev_z)) (ev_s ev_z) (ev_fix ev_lam)))) (ev_s (ev_s ev_z))) (ev_s (ev_s ev_z)) (ev_fix ev_lam)) : ev (app (fix \f. lam \x. case x z (\y. s (s (app f y)))) (s (s z))) _) X.
 
 
-#query 1000 2 3 evaluate z V.
+#query 1000 2 3 evaluate (app (fix \f. lam \x. case x z (\y. s (s (app f y)))) (s (s z))) V.
 
