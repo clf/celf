@@ -2,7 +2,7 @@ structure ImplicitVars :> IMPLICITVARS =
 struct
 
 open VRef infix ::=
-open Syntax
+open Syntax infix with'ty with's
 open SymbTable
 open Context
 
@@ -144,7 +144,8 @@ and uc2xObj lookup n ob = case Obj.prj ob of
 and uc2xHead lookup n h = case h of
 	  Const c => Const c
 	| UCVar v => lookup n v
-	| LogicVar _ => raise Fail "Internal error: uc2xHead\n"
+	| LogicVar X =>
+		LogicVar (X with'ty uc2xType lookup n (#ty X) with's Subst.map (uc2xObj lookup n) (#s X))
 	| Var vn => Var vn
 and uc2xSpine lookup n sp = Util.SpineRec.unfold (uc2xObj lookup n) Spine.prj sp
 and uc2xExp lookup n e = case ExpObj.prj e of

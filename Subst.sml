@@ -144,6 +144,11 @@ struct
 	  | fold f e (Dot (Idx n, s)) = f (dummyvar n, fold f e s)
 	  | fold f e (Shift n) = e n*)
 
+	fun map f (Dot (Ob ob, s)) = Dot (Ob $ f ob, map f s)
+	  | map f (Dot (Undef, s)) = Dot (Undef, map f s)
+	  | map f (Dot (Idx n, s)) = Dot (Idx n, map f s)
+	  | map f (Shift n) = Shift n
+
 	fun hdDef (Dot (Undef, _)) = false
 	  | hdDef (Dot (Ob _, _)) = raise Fail "Internal error hdDef: not patSub\n"
 	  | hdDef (Dot (Idx _, _)) = true

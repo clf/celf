@@ -166,6 +166,7 @@ structure Subst : sig
 	val isId : subst -> bool
 	val substToStr : (obj -> string) -> subst -> string
 	val fold : (subObj * 'a -> 'a) -> (int -> 'a) -> subst -> 'a
+	val map : (obj -> obj) -> subst -> subst
 	val hdDef : subst -> bool
 end
 
