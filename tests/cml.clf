@@ -210,3 +210,5 @@ synch2 : synch W1 D1
 	  -o action W1 (sendEvt' (chn K) V) (\x1 . E1 x1 ) 
           -> action W2 (recvEvt' (chn K)) (\x2 . E2 x2 ) 
           -> {eval (E1 unit' ) D1 @ eval (E2 V) D2 }. 
+
+#query 50 2 3 evaluate (s z) V.

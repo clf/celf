@@ -23,8 +23,8 @@ fun add x ctx =
 		fun add1 n x =
 			let val tryname = x ^ Int.toString n
 			in if List.exists (eq tryname) ctx then add1 (n+1) x else (tryname, tryname::ctx) end
-	(*in if x="" then add1 1 "X" else add' x end*)
-	in if x="" then add1 1 "X" else add1 1 (x^"_") end
+		fun add' x = if List.exists (eq x) ctx then add1 1 (x^"_") else (x, x::ctx)
+	in if x="" then add1 1 "X" else add' x end
 
 val noSkip = ref false
 fun getImplLength c = if !noSkip then 0 else Signatur.getImplLength c
