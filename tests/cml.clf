@@ -14,43 +14,55 @@ run : (Pi d : dest A. eval E d -o {return V d @ T})
         -o evaluate E V. 
 % typo in the paper
 
+% Adding values
+
 value : val A -> exp A. 
 evvalue : eval (value V) D -o {return V D}. 
+
+% Adding recursion
 
 fix : (exp A -> exp A) -> exp A. 
 evfix : eval (fix \u. E u) D -o {eval (E (fix \u. E u)) D}. 
 
+% Adding local definitions
+
 llet : exp A -> (val A -> exp S) -> exp S. 
 evllet : eval (llet E1 (\x. E2 x)) D 
         -o {Exists d : dest A. eval E1 d
-	   @ (Pi V: val A. return V d -o {eval (E V) D})}.
+	   @ (Pi V: val A. return V d -o {eval (E2 V) D})}.
+
+
+% Adding natural numbers
 
 nat : tp. 
 z : exp nat. 
 s : exp nat -> exp nat. 
 case : exp nat -> exp A -> (val nat -> exp A) -> exp A. 
-
 z' : val nat. 
 s' : val nat -> val nat. 
-
 evz : eval z D -o {return z' D}. 
 evs : eval (s E1) D -o {Exists d1 : dest nat. eval E1 d1 @ (Pi V1 : val nat. return V1 d1 -o {return (s' V1 ) D})}. 
 evcase : eval (case E1 E2 (\x. E3 x)) D -o 
            {Exists d1 : dest nat. eval E1 d1 
 	    @ ((return z' d1 -o {eval E2 D}) 
 	   & (Pi V1' : val nat. return (s' V1' ) d1 -o {eval (E3 V1') D}))}. 
-% typo	   
+% typo in the rule formulation in the paper	   
 
+
+% Adding Function types
 
 arrow : tp -> tp -> tp. 
 lam : (val T2 -> exp T1) -> exp (arrow T2 T1). 
 app : exp (arrow T2 T1) -> exp T2 -> exp T1. 
 lam' : (val T2 -> exp T1 ) -> val (arrow T2 T1 ). 
 evlam : eval (lam (\x. E1 x)) D -o {return (lam' (\x. E1 x)) D}. 
-evapp : eval (app E1 E2) D -o {Exists d1 : dest (arrow T2 T1). eval E1 d1 
-         @ (Pi E1' : val T2 -> exp T1 . return (lam' (\x. E1' x)) d1 
-         -o {Exists d2 : dest T2 . eval E2 d2 @ (Pi V2 : val T2 . return V2 d2 -o {eval (E1' V2 ) D})})}. 
-%typo
+evapp : eval (app E1 E2) D -o 
+          {Exists d1 : dest (arrow T2 T1). eval E1 d1 @ 
+	    (Pi E1' : val T2 -> exp T1 . return (lam' (\x. E1' x)) d1 
+              -o {Exists d2 : dest T2 . eval E2 d2 @ (Pi V2 : val T2 . return V2 d2 -o {eval (E1' V2 ) D})})}. 
+% typo
+
+% Adding Pairs
 
 cross : tp -> tp -> tp. 
 pair : exp T1 -> exp T2 -> exp (cross T1 T2 ). 
@@ -70,10 +82,14 @@ evsnd : eval (snd E1 ) D
              @ (Pi V1 : val T1 . Pi V2 : val T2 . return (pair' V1 V2 ) d1 
              -o {return V2 D})}.
 
+% Adding Unit.
+
 oone : tp. 
 unit : exp oone. 
 unit' : val oone. 
 evone : eval (unit) D -o {return (unit') D}. 
+
+% Adding Memoization.
 
 susp : tp -> tp. 
 delay : exp A -> exp (susp A). 
@@ -81,7 +97,7 @@ force : exp (susp A) -> exp A.
 thunk : dest A -> val (susp A). 
 read : dest A -> dest A -> type. 
 evdelay : eval (delay E1) D 
-	   -o {Exists l1 : dest A. return (thunk l1 ) D 
+	   -o {Exists l1 : dest A. return (thunk l1) D 
             @ (Pi D' : dest A. read l1 D' 
            -o {Exists d1 : dest A. eval E1 d1 
             @ (Pi V1 : val A. return V1 d1 -o {return V1 D' 
@@ -90,7 +106,6 @@ evforce : eval (force E1 ) D
 	   -o {Exists d1 : dest (susp A). eval E1 d1 
               @ (Pi L1 : dest A. return (thunk L1 ) d1 -o {read L1 D})}. 
 %typo
-
 
 future : exp A -> exp A. 
 promise : dest A -> val A. 
@@ -102,7 +117,8 @@ evfuture : eval (future E1 ) D
 %typo
 retdeliver : deliver V D1 
 	      -> return (promise D1 ) D 
-	      -o return V D. 
+	      -o {return V D}. 
+
 ref : tp -> tp. 
 newref : exp A -> exp (ref A). 
 assign : exp (ref A) -> exp A -> exp (oone). 
@@ -111,7 +127,7 @@ cell : dest A -> val (ref A).
 contains : dest A -> val A -> type. 
 evnewref : eval (newref E1) D 
 	    -o {Exists d1 : dest A. eval E1 d1 @ (Pi V1 : val A. return V1 d1 
-            -o {Exists c : dest A. contains c V1 @ return (cell C) D})}. 
+            -o {Exists c : dest A. contains c V1 @ return (cell c) D})}. 
 evassign : eval (assign E1 E2) D 
             -o {Exists d1 : dest (ref A). eval E1 d1 
                @ (Pi C1 : dest A. return (cell C1 ) d1 
@@ -151,6 +167,7 @@ wrap' : val (event A1 ) -> (val A1 -> exp A2) -> val (event A2).
 synch : val (event A) -> dest A -> type. 
 evspawn : eval (spawn E1 ) D -o {return (unit' ) D 
              @ (Exists d1 : dest A. eval E1 d1 @ (Pi V1 . return V1 d1 -o {1}))}. 
+
 %typo.
 evsync : eval (sync E1 ) D 
 	   -o {Exists d1 : dest (event A). eval E1 d1 
@@ -211,4 +228,79 @@ synch2 : synch W1 D1
           -> action W2 (recvEvt' (chn K)) (\x2 . E2 x2 ) 
           -> {eval (E1 unit' ) D1 @ eval (E2 V) D2 }. 
 
-#query 50 2 3 evaluate (s z) V.
+
+% Examples.
+
+#query 1000 2 3 evaluate z V.
+#query 1000 2 3 evaluate (s z) V.
+#query 1000 2 3 evaluate (app (fix \f. lam \x. case (value x) z (\y. s (s (app f (value y))))) (s (s z))) V.
+
+
+#query 1000 1 1 evaluate (llet (newref z) (\f.
+                          llet (assign (value f) (s (deref (value f)))) (\g. 
+			  deref (value f)))) V.
+
+double : exp (arrow nat nat) 
+  = lam (\x:val nat. 
+    llet (newref (value x)) \counter:val (ref nat) .
+    llet (newref z) \result:val (ref nat).
+    fix \f:exp nat.
+    case (deref (value counter)) (deref (value result))
+         (\y. llet (assign (value counter) (value y)) \i1.
+	      llet (assign (value result) (s (s (deref (value result))))) \i2.
+	      f)). 
+
+plus : exp (arrow nat (arrow nat nat)) 
+  = lam (\x1:val nat. lam \x2: val nat.
+    llet (newref (value x1)) \counter:val (ref nat) .
+    llet (newref (value x2)) \result:val (ref nat).
+    fix \f:exp nat.
+    case (deref (value counter)) (deref (value result))
+         (\y. llet (assign (value counter) (value y)) \i1.
+	      llet (assign (value result) (s (deref (value result)))) \i2.
+	      f)). 
+
+
+mult : exp (arrow nat (arrow nat nat)) 
+  = lam (\x1:val nat. lam \x2:val nat.
+    llet (newref (value x1)) \counter:val (ref nat) .
+    llet (newref z) \result:val (ref nat).
+    fix \f:exp nat.
+    case (deref (value counter)) (deref (value result))
+         (\y. llet (assign (value counter) (value y)) \i1.
+	      llet (assign (value result) (app (app plus (deref (value result))) (value x2))) \i2.
+	      f)). 
+
+
+factorial : exp (arrow nat nat) 
+  = lam (\x:val nat. 
+    llet (newref (value x)) \counter:val (ref nat) .
+    llet (newref (s z)) \result:val (ref nat).
+    fix \f:exp nat.
+    case (deref (value counter)) (deref (value result))
+         (\y. llet (assign (value counter) (value y)) \i1.
+	      llet (assign (value result) (app (app mult (s (value y))) (deref (value result)))) \i2.
+	      f)). 
+
+
+#query 1000 1 1 evaluate (app double z) V.
+
+#query 1000 1 1 evaluate (app double (s z)) V.
+
+#query 1000 1 1 evaluate (app (app plus (s z)) (s (s z))) V.
+
+#query 1000 1 1 evaluate (app (app mult (s (s (s z)))) (s (s z))) V.
+
+#query 1000 1 1 evaluate (app factorial (s (s (s z)))) V.
+
+
+#query 1000 1 1 evaluate (llet (newref (lam \x. value x)) (\f.
+			  deref (value f))) V.
+
+
+knot : exp nat 
+  = llet (newref (lam \x. z)) \f.
+    llet (assign (value f) (lam \x. case (value x) z (\y. s ( s (app (deref (value f)) (value y)))))) \r.
+    app (deref (value f)) (s (s (s (s (s z))))).
+
+#query 1000 1 1 evaluate knot V.
