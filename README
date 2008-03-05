@@ -1,5 +1,5 @@
-CLF Compilation
+Celf Compilation
 
-mllex clf.lex
-mlyacc clf.grm
-mlton clf.mlb
+mllex celf.lex
+mlyacc celf.grm
+mlton celf.mlb
