@@ -38,7 +38,7 @@ fun parseArgs args = case args of
 		; ExactTypes.traceExact := true
 		; parseArgs args )
 	| "-h"::_ =>
-		( print ("Commandline: clf [-s seed] [-h] [-d] [-pi] <filename>\n"
+		( print ("Commandline: celf [-s seed] [-h] [-d] [-pi] <filename>\n"
 				^" -s seed : set random seed\n"
 				^" -h      : show this\n"
 				^" -d      : enable double checking\n"

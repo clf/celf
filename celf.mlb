@@ -1,14 +1,5 @@
 $(SML_LIB)/basis/basis.mlb
 $(SML_LIB)/mlyacc-lib/mlyacc-lib.mlb
-(*
-$(SML_LIB)/basis/mlton.mlb
-WeakList.sig
-WeakList.sml
-Hash.sig
-Hash.sml
-HashCons.sig
-HashCons.sml
-*)
 TopLevelUtil.sml
 AbstractRecursion.sml
 Binarymap/Binarymap.mlb
@@ -28,9 +19,9 @@ Signatur.sml
 Syntax.sml
 Util.sig
 Util.sml
-clf.grm.sig
-clf.lex.sml
-clf.grm.sml
+celf.grm.sig
+celf.lex.sml
+celf.grm.sml
 ImplicitVars.sig
 ImplicitVars.sml
 PrettyPrint.sig

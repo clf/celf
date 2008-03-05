@@ -19,9 +19,9 @@ Signatur.sml
 Syntax.sml
 Util.sig
 Util.sml
-clf.grm.sig
-clf.lex.sml
-clf.grm.sml
+celf.grm.sig
+celf.lex.sml
+celf.grm.sml
 ImplicitVars.sig
 ImplicitVars.sml
 PrettyPrint.sig
