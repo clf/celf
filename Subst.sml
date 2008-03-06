@@ -17,9 +17,10 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+signature TLU_SubstFun = TOP_LEVEL_UTIL
 functor SubstFun (
 	structure Syn : SYNTAX_CORE1
-	datatype subst = Dot of Syn.subObj * Syn.subst | Shift of int
+	datatype subst = Dot of Syn.subObj * subst | Shift of int
 	sharing type Syn.subst = subst
 	) =
 struct

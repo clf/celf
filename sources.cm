@@ -1,8 +1,13 @@
-$(SML_LIB)/basis/basis.mlb
-$(SML_LIB)/mlyacc-lib/mlyacc-lib.mlb
+Group is
+#if defined(NEW_CM)
+  $/basis.cm
+#endif
+
+$/ml-yacc-lib.cm
+$/smlnj-lib.cm
+
 TopLevelUtil.sml
 AbstractRecursion.sml
-Binarymap/Binarymap.mlb
 SymbTable.sig
 SymbTable.sml
 Context.sig
@@ -19,9 +24,11 @@ Signatur.sml
 Syntax.sml
 Util.sig
 Util.sml
-celf.grm.sig
-celf.lex.sml
-celf.grm.sml
+(*clf.grm.sig
+clf.lex.sml
+clf.grm.sml*)
+celf.lex
+celf.grm
 ImplicitVars.sig
 ImplicitVars.sml
 PrettyPrint.sig
@@ -40,9 +47,8 @@ Conv.sig
 Conv.sml
 TypeCheck.sig
 TypeCheck.sml
-(*$(SML_LIB)/smlnj-lib/Util/smlnj-lib.mlb*)
 Rnd.sig
-Rnd-mlkit.sml
+Rnd-smlnj-mlton.sml
 PermuteList.sig
 PermuteList.sml
 SignaturTable.sig
@@ -52,4 +58,3 @@ OpSem.sml
 TypeRecon.sig
 TypeRecon.sml
 main.sml
-main-run.sml

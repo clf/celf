@@ -17,6 +17,7 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+signature TLU_Unify = TOP_LEVEL_UTIL
 structure Unify :> UNIFY =
 struct
 
@@ -29,8 +30,8 @@ val outputUnify = ref false
 
 exception ExnUnify of string
 
-val constraints = vref []
-val awakenedConstrs = ref []
+val constraints = vref [] : constr vref list vref
+val awakenedConstrs = ref [] : constr vref list ref
 
 (* resetConstrs : unit -> unit *)
 fun resetConstrs () = (constraints ::= [])

@@ -17,6 +17,9 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+structure Main =
+struct
+
 structure ClfLrVals =
 		ClfLrValsFun(structure Token = LrParser.Token)
 structure ClfLex =
@@ -57,7 +60,8 @@ fun parseArgs args = case args of
 		; ExactTypes.traceExact := true
 		; parseArgs args )
 	| "-h"::_ =>
-		( print ("Commandline: celf [-s seed] [-h] [-d] [-pi] <filename>\n"
+		( print ("Commandline: celf <options> <filename>\n"
+				^"Available options:\n"
 				^" -s seed : set random seed\n"
 				^" -h      : show this\n"
 				^" -d      : enable double checking\n"
@@ -66,24 +70,26 @@ fun parseArgs args = case args of
 				^" -te     : trace eta expansion\n"
 				^" -tt     : trace exact type reconstruction\n"
 				^" -tu     : trace unifications\n")
-		; raise Fail "Commandline help" )
+		; "" )
 	| f::_ => f
 
-val () = print "Celf ver 1.0. Copyright (C) 2008\n"
+fun celfMain' args =
+	let val () = print "Celf ver 1.0. Copyright (C) 2008\n"
+		val filename = parseArgs args
+	in if filename = "" then OS.Process.success (* -h was given *) else
+	let val () = print ("Reading "^filename^":\n\n")
+		val instream = TextIO.openIn filename
+		val lexer = ClfParser.makeLexer (fn n => TextIO.inputN (instream,n))
+		fun print_parse_error (s,(l1,c1),(l2,c2)) =
+			print ("Parse error at "^
+				Int.toString l1^","^Int.toString c1^"--"^
+				Int.toString l2^","^Int.toString c2^": "^s^"\n")
+		val (result : Syntax.decl list,_) = ClfParser.parse(0,lexer,print_parse_error,())
+		val () = TypeRecon.reconstructSignature result
+	in OS.Process.success end end
 
-val filename = parseArgs (CommandLine.arguments ())
+fun celfMain (_, args) = celfMain' args handle e =>
+	( print ("Unhandled exception:\n"^exnMessage e^"\n")
+	; OS.Process.failure )
 
-val () = print ("Reading "^filename^":\n\n")
-
-val instream = TextIO.openIn filename
-
-val lexer = ClfParser.makeLexer (fn n => TextIO.inputN (instream,n))
-fun print_parse_error (s,(l1,c1),(l2,c2)) =
-	print ("Parse error at "^
-		Int.toString l1^","^Int.toString c1^"--"^
-		Int.toString l2^","^Int.toString c2^": "^s^"\n")
-val (result : Syntax.decl list,_) = ClfParser.parse(0,lexer,print_parse_error,())
-
-val () = TypeRecon.reconstructSignature result
-
-
+end

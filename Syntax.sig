@@ -17,7 +17,7 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-signature TLU = TOP_LEVEL_UTIL
+signature TLU_SYNTAX = TOP_LEVEL_UTIL
 signature SYNTAX_CORE1 =
 sig
 

@@ -20,16 +20,26 @@
 structure SymbTable :> SYMBTABLE =
 struct
 
-type 'a Table = (string, 'a) Binarymap.dict
+structure Binarymap = BinaryMapFn (struct
+			type ord_key = string
+			val compare = String.compare
+			end)
 
-val empty = fn () => Binarymap.mkDict String.compare
-val peek = Binarymap.peek
+(*type 'a Table = (string, 'a) Binarymap.dict*)
+type 'a Table = 'a Binarymap.map
+
+(*val empty = fn () => Binarymap.mkDict String.compare*)
+val empty = fn () => Binarymap.empty
+(*val peek = Binarymap.peek*)
+val peek = Binarymap.find
 val insert = Binarymap.insert
-(*fun equal (t1,t2) = (Binarymap.listItems t1) = (Binarymap.listItems t2)*)
-val toList = Binarymap.listItems
+(*val toList = Binarymap.listItems*)
+val toList = Binarymap.listItemsi
 val numItems = Binarymap.numItems
 fun delete tk = #1 (Binarymap.remove tk)
-val mapTable = Binarymap.transform
-fun appTable f t = Binarymap.app (f o #2) t
+(*val mapTable = Binarymap.transform*)
+val mapTable = Binarymap.map
+(*fun appTable f t = Binarymap.app (f o #2) t*)
+val appTable = Binarymap.app
 
 end

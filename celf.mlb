@@ -1,8 +1,8 @@
 $(SML_LIB)/basis/basis.mlb
 $(SML_LIB)/mlyacc-lib/mlyacc-lib.mlb
+$(SML_LIB)/smlnj-lib/Util/smlnj-lib.mlb
 TopLevelUtil.sml
 AbstractRecursion.sml
-Binarymap/Binarymap.mlb
 SymbTable.sig
 SymbTable.sml
 Context.sig
@@ -40,9 +40,8 @@ Conv.sig
 Conv.sml
 TypeCheck.sig
 TypeCheck.sml
-$(SML_LIB)/smlnj-lib/Util/smlnj-lib.mlb
 Rnd.sig
-Rnd-mlton.sml
+Rnd-smlnj-mlton.sml
 PermuteList.sig
 PermuteList.sml
 SignaturTable.sig
@@ -52,3 +51,4 @@ OpSem.sml
 TypeRecon.sig
 TypeRecon.sml
 main.sml
+main-run.sml
