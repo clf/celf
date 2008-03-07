@@ -1,8 +1,5 @@
 Group is
-#if defined(NEW_CM)
-  $/basis.cm
-#endif
-
+$/basis.cm
 $/ml-yacc-lib.cm
 $/smlnj-lib.cm
 
@@ -24,9 +21,6 @@ Signatur.sml
 Syntax.sml
 Util.sig
 Util.sml
-(*clf.grm.sig
-clf.lex.sml
-clf.grm.sml*)
 celf.lex
 celf.grm
 ImplicitVars.sig
