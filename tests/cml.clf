@@ -12,19 +12,21 @@ return : val A -> dest A -> type.
 evaluate : exp A -> val A -> type. 
 run : (Pi d : dest A. eval E d -o {return V d @ T}) 
         -o evaluate E V. 
-% typo in the paper
 
-% Adding values
+
+% Values
 
 value : val A -> exp A. 
 evvalue : eval (value V) D -o {return V D}. 
 
-% Adding recursion
+
+% Recursion
 
 fix : (exp A -> exp A) -> exp A. 
 evfix : eval (fix \u. E u) D -o {eval (E (fix \u. E u)) D}. 
 
-% Adding local definitions
+
+% Local definitions
 
 llet : exp A -> (val A -> exp S) -> exp S. 
 evllet : eval (llet E1 (\x. E2 x)) D 
@@ -32,7 +34,7 @@ evllet : eval (llet E1 (\x. E2 x)) D
 	   @ (Pi V: val A. return V d -o {eval (E2 V) D})}.
 
 
-% Adding natural numbers
+% Natural numbers
 
 nat : tp. 
 z : exp nat. 
@@ -46,10 +48,9 @@ evcase : eval (case E1 E2 (\x. E3 x)) D -o
            {Exists d1 : dest nat. eval E1 d1 
 	    @ ((return z' d1 -o {eval E2 D}) 
 	   & (Pi V1' : val nat. return (s' V1' ) d1 -o {eval (E3 V1') D}))}. 
-% typo in the rule formulation in the paper	   
 
 
-% Adding Function types
+% Functions
 
 arrow : tp -> tp -> tp. 
 lam : (val T2 -> exp T1) -> exp (arrow T2 T1). 
@@ -60,9 +61,9 @@ evapp : eval (app E1 E2) D -o
           {Exists d1 : dest (arrow T2 T1). eval E1 d1 @ 
 	    (Pi E1' : val T2 -> exp T1 . return (lam' (\x. E1' x)) d1 
               -o {Exists d2 : dest T2 . eval E2 d2 @ (Pi V2 : val T2 . return V2 d2 -o {eval (E1' V2 ) D})})}. 
-% typo
 
-% Adding Pairs
+
+% Pairs
 
 cross : tp -> tp -> tp. 
 pair : exp T1 -> exp T2 -> exp (cross T1 T2 ). 
@@ -82,14 +83,16 @@ evsnd : eval (snd E1 ) D
              @ (Pi V1 : val T1 . Pi V2 : val T2 . return (pair' V1 V2 ) d1 
              -o {return V2 D})}.
 
-% Adding Unit.
+
+% Unit
 
 oone : tp. 
 unit : exp oone. 
 unit' : val oone. 
 evone : eval (unit) D -o {return (unit') D}. 
 
-% Adding Memoization.
+
+% Lazy computations
 
 susp : tp -> tp. 
 delay : exp A -> exp (susp A). 
@@ -105,7 +108,9 @@ evdelay : eval (delay E1) D
 evforce : eval (force E1 ) D 
 	   -o {Exists d1 : dest (susp A). eval E1 d1 
               @ (Pi L1 : dest A. return (thunk L1 ) d1 -o {read L1 D})}. 
-%typo
+
+
+% Futures
 
 future : exp A -> exp A. 
 promise : dest A -> val A. 
@@ -114,10 +119,12 @@ evfuture : eval (future E1 ) D
 	    -o {Exists d1 : dest A. return (promise d1 ) D 
                @ eval E1 d1 
                @ (Pi V1 : val A. return V1 d1 -o {Exists u:deliver V1 d1. 1})}. 
-%typo
 retdeliver : deliver V D1 
 	      -> return (promise D1 ) D 
 	      -o {return V D}. 
+
+
+% References
 
 ref : tp -> tp. 
 newref : exp A -> exp (ref A). 
@@ -141,6 +148,9 @@ evderef : eval (deref E1) D
                 -o Pi V1 : val A. contains C1 V1 
                 -o {contains C1 V1 @ return V1 D})}. 
 
+
+% Concurrency 
+
 chan : tp -> tp. 
 event : tp -> tp. 
 
@@ -154,7 +164,6 @@ choose : exp (event A) -> exp (event A) -> exp (event A).
 neverEvt : exp (event A). 
 wrap : exp (event A1 ) -> (val A1 -> exp A2 ) -> exp (event A2 ). 
 
-
 ch : tp -> type. 
 chn : ch A -> val (chan A). 
 alwaysEvt' : val A -> val (event A). 
@@ -163,12 +172,11 @@ sendEvt' : val (chan A) -> val A -> val (event (oone)).
 choose' : val (event A) -> val (event A) -> val (event A). 
 neverEvt' : val (event A). 
 wrap' : val (event A1 ) -> (val A1 -> exp A2) -> val (event A2). 
-
 synch : val (event A) -> dest A -> type. 
+
 evspawn : eval (spawn E1 ) D -o {return (unit' ) D 
              @ (Exists d1 : dest A. eval E1 d1 @ (Pi V1 . return V1 d1 -o {1}))}. 
 
-%typo.
 evsync : eval (sync E1 ) D 
 	   -o {Exists d1 : dest (event A). eval E1 d1 
             @ (Pi W1 : val (event A). return W1 d1 
@@ -176,14 +184,11 @@ evsync : eval (sync E1 ) D
 evchannel : eval (channel) D 
 	      -o {Exists K : ch A. return (chn K) D}. 
 
-
-
 evalwaysEvt : eval (alwaysEvt E1 ) D 
 		-o {Exists d1 : dest A. eval E1 d1 
                    @ (Pi V1 : val A. return V1 d1 
                      -o {return (alwaysEvt' V1 ) D })}. 
 
-%typo.
 evrecvEvt : eval (recvEvt E1 ) D 
 	     -o {Exists d1 : dest (chan A). eval E1 d1 
                 @ (Pi K : ch A. return (chn K) d1 
@@ -211,7 +216,6 @@ evwrap : eval (wrap E1 (\x. E2 x)) D
              @ (Pi W1 : val (event A1). return W1 d1 
                 -o {return (wrap' W1 (\x. E2 x)) D})}. 
 
-
 action : val (event A) -> val (event S) -> (val S -> exp A) -> type. 
 actT : action (alwaysEvt' V) (alwaysEvt' V) (\x. value x). 
 actex : action (sendEvt' (chn K) V) (sendEvt' (chn K) V) (\x. value x). 
@@ -229,13 +233,10 @@ synch2 : synch W1 D1
           -> {eval (E1 unit' ) D1 @ eval (E2 V) D2 }. 
 
 
+
 % Examples.
 
-#query * 1 * 1 evaluate z V.
-#query * 1 * 1 evaluate (s z) V.
 #query * 1 * 1 evaluate (app (fix \f. lam \x. case (value x) z (\y. s (s (app f (value y))))) (s (s z))) V.
-
-
 #query * 1 * 1 evaluate (llet (newref z) (\f.
                           llet (assign (value f) (s (deref (value f)))) (\g. 
 			  deref (value f)))) V.
@@ -260,7 +261,6 @@ plus : exp (arrow nat (arrow nat nat))
 	      llet (assign (value result) (s (deref (value result)))) \i2.
 	      f)). 
 
-
 mult : exp (arrow nat (arrow nat nat)) 
   = lam (\x1:val nat. lam \x2:val nat.
     llet (newref (value x1)) \counter:val (ref nat) .
@@ -270,7 +270,6 @@ mult : exp (arrow nat (arrow nat nat))
          (\y. llet (assign (value counter) (value y)) \i1.
 	      llet (assign (value result) (app (app plus (deref (value result))) (value x2))) \i2.
 	      f)). 
-
 
 factorial : exp (arrow nat nat) 
   = lam (\x:val nat. 
@@ -282,21 +281,10 @@ factorial : exp (arrow nat nat)
 	      llet (assign (value result) (app (app mult (s (value y))) (deref (value result)))) \i2.
 	      f)). 
 
-
-#query * 1 * 1 evaluate (app double z) V.
-
 #query * 1 * 1 evaluate (app double (s z)) V.
-
 #query * 1 * 1 evaluate (app (app plus (s z)) (s (s z))) V.
-
 #query * 1 * 1 evaluate (app (app mult (s (s (s z)))) (s (s z))) V.
-
 #query * 1 * 1 evaluate (app factorial (s (s (s z)))) V.
-
-
-#query * 1 * 1 evaluate (llet (newref (lam \x. value x)) (\f.
-			  deref (value f))) V.
-
 
 knot : exp nat 
   = llet (newref (lam \x. z)) \f.
@@ -304,3 +292,11 @@ knot : exp nat
     app (deref (value f)) (s (s (s (s (s z))))).
 
 #query * 1 * 1 evaluate knot V.
+
+
+comm : exp nat 
+  = llet channel \c.
+    llet (spawn (sync (sendEvt (value c) z))) \x.
+    sync (recvEvt (value c)).
+
+#query * 1 * 1 evaluate comm V.
