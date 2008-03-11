@@ -189,3 +189,20 @@ eq6_red : eq3 R* S* -> eq6 (red R*) (reduce S*).
 cr_ord : <-> M M' -> -->* M N -> -->* M' N -> type.
 cr_all :
    eq4 R*' S*' -> eq4 R* S* -> cr C' R* R*' -> eq6 C C' -> cr_ord C S* S*'.
+
+
+
+#query * 2 * 1 (--> (app (lam \x. app (lam \y. x) x) (lam \x. x)) V). 
+#query * 1 * 1 (--> (app (lam (\ m. m)) (lam (\ x. x))) V). 
+#query * 1 * 1 (--> (app (lam (\ y. lam (\ x. x))) (lam (\ x. x))) V). 
+
+r1 : <-> (app (lam \x. app (lam \y. x) x) (lam \x. x)) (app (lam (\ m. m)) (lam (\ x. x)))
+   = red (step1 (apl1 (lm1 (\ x. beta1))) id1).
+r2 : <-> (app (lam \x. app (lam \y. x) x) (lam \x. x)) (app (lam (\ y. lam (\ x. x))) (lam (\ x. x)))
+   = red (step1 beta1 id1).
+r1' : <-> (app (lam (\ m. m)) (lam (\ x. x))) (app (lam \x. app (lam \y. x) x) (lam \x. x)) 
+    = sym r1.
+r3 : <-> (app (lam (\ m. m)) (lam (\ x. x))) (app (lam (\ y. lam (\ x. x))) (lam (\ x. x)))
+   = trans r2 r1'.
+
+#query * 1 * 1 (cr_ord r3 L R).

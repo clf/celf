@@ -1,3 +1,7 @@
+% Petri Nets
+% Section 5, A Concurrent Logical Framework II: Examples and Applications
+
+
 place : type. 
 tok : place -> type. 
  
@@ -12,4 +16,8 @@ tr : tok r -o {tok p @ tok b @ tok n}.
 ta : tok b -o tok b -o tok a -o {tok c}. 
 tc : tok c -o {tok a}. 
 
-#query 12 2 3 tok p -o tok c -o {top}.
+% We run the following query five times. In the output you will see
+% different proof terms.  The first parameter 12 limits the search
+% depth within the monad.
+
+#query 12 * * 5 tok p -o tok c -o {T}.
