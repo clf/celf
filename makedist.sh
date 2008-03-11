@@ -69,6 +69,8 @@ else
 	echo "ignore cvs comments about celf.lex.sml, celf.grm.sig, and celf.grm.sml"
 	cvs stat README celf.lex celf.grm celf.mlb *.cm .mkexec *.sml *.sig | grep Reposit > publish/ver$1/ver$1.txt
 
+	grep "Celf ver" main.sml
+
 	cd publish/ver$1
 	tar -c celf | gzip > celf-v$1.tgz
 	cd ../..
