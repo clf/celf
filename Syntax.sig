@@ -126,7 +126,7 @@ datatype typeOrKind = Ty of asyncType | Ki of kind
 datatype decl = ConstDecl of string * int * typeOrKind
 	| TypeAbbrev of string * asyncType
 	| ObjAbbrev of string * asyncType * obj
-	| Query of int * int * int * asyncType
+	| Query of int option * int option * int option * int * asyncType
 
 val KClos : kind * subst -> kind
 val TClos : asyncType * subst -> asyncType

@@ -40,14 +40,14 @@ fun mapDecl fk ft fo (ConstDecl (id, imps, Ki ki)) = ConstDecl (id, imps, Ki (fk
   | mapDecl fk ft fo (TypeAbbrev (id, ty)) = TypeAbbrev (id, ft ty)
   | mapDecl fk ft fo (ObjAbbrev (id, ty, ob)) =
 		let val ty' = ft ty in ObjAbbrev (id, ty', fo (ob, ty')) end
-  | mapDecl fk ft fo (Query (e, l, a, ty)) = Query (e, l, a, ft ty)
+  | mapDecl fk ft fo (Query (d, e, l, a, ty)) = Query (d, e, l, a, ft ty)
 
 (* appDecl : (kind -> unit) -> (asyncType -> unit) -> (obj * asyncType -> unit) -> decl -> unit *)
 fun appDecl fk ft fo (ConstDecl (_, _, Ki ki)) = fk ki
   | appDecl fk ft fo (ConstDecl (_, _, Ty ty)) = ft ty
   | appDecl fk ft fo (TypeAbbrev (_, ty)) = ft ty
   | appDecl fk ft fo (ObjAbbrev (_, ty, ob)) = (ft ty ; fo (ob, ty))
-  | appDecl fk ft fo (Query (_, _, _, ty)) = ft ty
+  | appDecl fk ft fo (Query (_, _, _, _, ty)) = ft ty
 
 (* isQuery : decl -> bool *)
 fun isQuery (Query _) = true
@@ -121,16 +121,49 @@ fun reconstructDecl dec =
 						( print (id^": "^(PrettyPrint.printType ty)
 								^" = "^(PrettyPrint.printObj ob)^".\n")
 						; if TypeCheck.isEnabled () then TypeCheck.checkObjEC (ob, ty) else () )
-				| Query (e, l, a, ty) =>
-						let val () = print ("Query ("^Int.toString e^", "^Int.toString l^", "
+				| Query (d, e, l, a, ty) =>
+						(* d : let-depth-bound * = inf
+						 * e : expected number of solutions * = ?
+						 * l : number of solutions to look for * = inf
+						 * a : number of times to execute the query
+						 *)
+						let fun n2str (SOME n) = Int.toString n
+							  | n2str NONE = "*"
+							val () = print ("Query ("^n2str d^", "^n2str e^", "^n2str l^", "
 								^Int.toString a^") "^PrettyPrint.printType ty^".\n")
 							val (ty, lvars) = ImplicitVars.convUCVars2LogicVarsType ty
-							fun printInst (a, ob) = print (" #"^a^" = "^PrettyPrint.printObj ob^"\n")
+							fun printInst (x, ob) = print (" #"^x^" = "^PrettyPrint.printObj ob^"\n")
+							exception stopSearchExn
+							val solCount = ref 0
 							fun sc N =
 								( print ("Solution: "^PrettyPrint.printObj N^"\n")
-								; app printInst lvars )
-							val () = OpSem.fcLimit := e
-						in OpSem.solveEC (ty, sc) end
+								; app printInst lvars
+								; solCount := !solCount + 1
+								; if l = SOME (!solCount) then raise stopSearchExn else () )
+							val () = OpSem.fcLimit := d
+							fun runQuery 0 = false
+							  | runQuery n = 
+									( solCount := 0
+									; if a > 1 then
+										print ("Iteration "^Int.toString (a+1-n)^"\n")
+									  else ()
+									; OpSem.solveEC (ty, sc)
+									; e = SOME (!solCount) orelse runQuery (n-1) )
+						in if a = 0 orelse l = SOME 0 then
+							print "Ignoring query\n"
+						else if a >= 2 andalso isSome l then
+							(* disallow combined monad exploration and backtrack exploration *)
+							raise Fail "Malformed query (D,E,L,A): A>1 and L<>*\n"
+						else if isSome e andalso isSome l andalso valOf e >= valOf l then
+							(* disallow querys with uncheckable expect *)
+							raise Fail "Malformed query (D,E,L,A): E>=L\n"
+						else if (runQuery a handle stopSearchExn => false) then
+							print "Query ok.\n"
+						else if isSome e then
+							raise Fail "Query failed\n"
+						else
+							()
+						end
 			val () = if isQuery dec then () else Signatur.sigAddDecl dec
 		in () end
 

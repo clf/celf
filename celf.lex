@@ -48,6 +48,7 @@ fun keyword (s,p) =
 	  | "let" => Tokens.LET(p,p)
 	  | "in" => Tokens.IN(p,p)
 	  | "#query" => Tokens.QUERY(p,p)
+	  | "*" => Tokens.STAR(p,p)
 	  | _ => Tokens.ID(s,p,p))
 %%
 %header (functor ClfLexFun(structure Tokens: Clf_TOKENS));

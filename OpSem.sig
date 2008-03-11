@@ -22,7 +22,7 @@ sig
 
 type context
 
-val fcLimit : int ref
+val fcLimit : int option ref
 
 val solve : context * Syntax.asyncType * (Syntax.obj * (context * bool) -> unit) -> unit
 

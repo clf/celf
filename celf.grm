@@ -32,7 +32,7 @@ fun objs2spine objs =
 	| AMPH | TOP | LCURLY | RCURLY | TENSOR | ONE | EXISTS | LAMBDA | LINLAMBDA
 	| LANGLE | RANGLE | COMMA | LINAPP | LET | EQUAL | IN | PROJLEFT | PROJRIGHT
 	| LBRACKET | RBRACKET | ARROW | BACKARROW | LPAREN | RPAREN | UNIT | EOF
-	| QUERY | NUM of int
+	| QUERY | NUM of int | STAR
 
 %nonterm Kind of Syntax.kind | AsyncType of Syntax.asyncType
 	(*| AtomicType of Syntax.atomicType*)
@@ -42,7 +42,7 @@ fun objs2spine objs =
 	| Pattern of Syntax.pattern
 	| Decl of Syntax.decl | DeclList of Syntax.decl list
 	| Program of Syntax.decl list
-	| Number of int
+	| Number of int | NumOpt of int option
 
 %start Program
 
@@ -74,11 +74,17 @@ Decl :
 	| ID COLON AsyncType DOT                   ( Syntax.ConstDecl(ID,0,Syntax.Ty AsyncType) )
 	| ID COLON TYPE EQUAL AsyncType DOT        ( Syntax.TypeAbbrev(ID,AsyncType) )
 	| ID COLON AsyncType EQUAL Obj DOT         ( Syntax.ObjAbbrev(ID,AsyncType,Obj) )
-	| QUERY Number Number Number AsyncType DOT ( Syntax.Query(Number1,Number2,Number3,AsyncType) )
+	| QUERY NumOpt NumOpt NumOpt Number AsyncType DOT
+			( Syntax.Query(NumOpt1,NumOpt2,NumOpt3,Number,AsyncType) )
 
 Number :
 	  ONE ( 1 )
 	| NUM ( NUM )
+
+NumOpt :
+	  ONE  ( SOME 1 )
+	| NUM  ( SOME NUM )
+	| STAR ( NONE )
 
 Kind :
 	  TYPE                           ( Syntax.Type' )

@@ -231,12 +231,12 @@ synch2 : synch W1 D1
 
 % Examples.
 
-#query 1000 2 3 evaluate z V.
-#query 1000 2 3 evaluate (s z) V.
-#query 1000 2 3 evaluate (app (fix \f. lam \x. case (value x) z (\y. s (s (app f (value y))))) (s (s z))) V.
+#query * 1 * 1 evaluate z V.
+#query * 1 * 1 evaluate (s z) V.
+#query * 1 * 1 evaluate (app (fix \f. lam \x. case (value x) z (\y. s (s (app f (value y))))) (s (s z))) V.
 
 
-#query 1000 1 1 evaluate (llet (newref z) (\f.
+#query * 1 * 1 evaluate (llet (newref z) (\f.
                           llet (assign (value f) (s (deref (value f)))) (\g. 
 			  deref (value f)))) V.
 
@@ -283,18 +283,18 @@ factorial : exp (arrow nat nat)
 	      f)). 
 
 
-#query 1000 1 1 evaluate (app double z) V.
+#query * 1 * 1 evaluate (app double z) V.
 
-#query 1000 1 1 evaluate (app double (s z)) V.
+#query * 1 * 1 evaluate (app double (s z)) V.
 
-#query 1000 1 1 evaluate (app (app plus (s z)) (s (s z))) V.
+#query * 1 * 1 evaluate (app (app plus (s z)) (s (s z))) V.
 
-#query 1000 1 1 evaluate (app (app mult (s (s (s z)))) (s (s z))) V.
+#query * 1 * 1 evaluate (app (app mult (s (s (s z)))) (s (s z))) V.
 
-#query 1000 1 1 evaluate (app factorial (s (s (s z)))) V.
+#query * 1 * 1 evaluate (app factorial (s (s (s z)))) V.
 
 
-#query 1000 1 1 evaluate (llet (newref (lam \x. value x)) (\f.
+#query * 1 * 1 evaluate (llet (newref (lam \x. value x)) (\f.
 			  deref (value f))) V.
 
 
@@ -303,4 +303,4 @@ knot : exp nat
     llet (assign (value f) (lam \x. case (value x) z (\y. s ( s (app (deref (value f)) (value y)))))) \r.
     app (deref (value f)) (s (s (s (s (s z))))).
 
-#query 1000 1 1 evaluate knot V.
+#query * 1 * 1 evaluate knot V.

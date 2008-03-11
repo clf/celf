@@ -28,7 +28,7 @@ open SignaturTable
 
 type context = (asyncType * (lr list * headType) list) context
 
-val fcLimit = ref 100
+val fcLimit = ref NONE : int option ref
 
 (* solve : context * asyncType * (obj * (context * bool) -> unit) -> unit *)
 (* Right Inversion : Gamma;Delta => A *)
@@ -98,7 +98,7 @@ and forwardChain (fcLim, ctx, S, sc) =
 					@ matchCtx (G, k+1)
 				end
 	in
-		case if fcLim > 0 then
+		case if fcLim <> SOME 0 then
 				PermuteList.findSome (fn f => f ())
 					(PermuteList.fromList (matchCtx (ctx2list ctx, 1) @ map matchSig (getCandMonad ())))
 			else NONE of
@@ -112,7 +112,8 @@ and forwardChain (fcLim, ctx, S, sc) =
 						| Exists (SOME x, A, S) => PDepPair' (x, A, syncType2pat S)
 						| Async A => PVar' ("", A)
 					val p = syncType2pat sty
-				in forwardChain (fcLim - 1, patBind (fn A => (A, heads A)) p ctxm,
+				in forwardChain (Option.map (fn x => x - 1) fcLim,
+					patBind (fn A => (A, heads A)) p ctxm,
 					STClos (S, Subst.shift $ nbinds p),
 					fn (E, (ctxo', t2)) =>
 						case patUnbindOpt (p, ctxo', t2) of
