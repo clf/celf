@@ -22,7 +22,7 @@ structure Unify :> UNIFY =
 struct
 
 open VRef infix ::=
-open Syntax
+open Syntax infix with's
 open Context
 open PatternBind
 
@@ -38,6 +38,7 @@ fun resetConstrs () = (constraints ::= [])
 
 fun constrToStr Solved = "Solved"
   | constrToStr (Eqn (o1, o2)) = (PrettyPrint.printObj o1)^" == "^(PrettyPrint.printObj o2)
+  | constrToStr (Exist o1) = "EXIST: "^(PrettyPrint.printObj o1)
 
 (* addConstraint : constr vref * constr vref list vref list -> unit *)
 fun addConstraint (c, css) =
@@ -157,68 +158,73 @@ fun splitExp (rOccur, ex) =
 		| NONE => INL (pruneLetOccur NONE ex)
 	end
 
-(* objExists : bool -> obj option vref -> subst -> obj -> obj option *)
-(* typeExists : bool -> obj option vref -> subst -> asyncType -> asyncType option *)
-(*fun objExists prune rOccur s ob =*)
+exception ExnOccur
+(* objExists : obj option vref -> obj -> obj option *)
+(* typeExists : obj option vref -> asyncType -> asyncType option *)
 val (objExists, typeExists) =
-	let exception ExnMayNotExist
-		fun pruneCtx f wi [] = emptyCtx
-		  | pruneCtx f wi ((x, A, mode)::G) =
+	let fun pruneCtx _ wi [] = emptyCtx
+		  | pruneCtx pruneType wi ((x, A, mode)::G) =
 				let val s = Subst.shift 1
 					val si = Subst.invert s
 				in if Subst.hdDef wi then
 					let val wi' = Subst.comp (Subst.comp (s, wi), si)
-						val A' = Util.objMapType (f (Subst.invert wi')) (TClos (A, wi'))
-					in ctxCons (x, A', mode) (pruneCtx f wi' G) end
+						(*val A' = Util.objMapType (f (Subst.invert wi')) (TClos (A, wi'))*)
+						val A' = pruneType (TClos (A, wi'))
+					in ctxCons (x, A', mode) (pruneCtx pruneType wi' G) end
 				else if mode = LIN then (* and hd wi = Undef *)
 					raise Subst.ExnUndef
 				else (* mode <> LIN and hd wi = Undef *)
-					pruneCtx f (Subst.comp (s, wi)) G
+					pruneCtx pruneType (Subst.comp (s, wi)) G
 				end
-		fun f prune rOccur s ob = case whnf2obj $ lowerObj $ Whnf.whnfObj ob of
-		  N as Atomic (LogicVar {X=rY, ty=A, s=sY, ctx=ref G, cnstr=cs, tag}, _ (* = Nil *)) =>
-				if eq (rY, rOccur) then raise Subst.ExnUndef
-				else let fun subObjExists Undef = false
-				           | subObjExists (Idx _) = true
-				           | subObjExists (Ob ob) = isSome (objExists false rOccur s ob)
-				in if prune then
-					let val weakenSub =
-							SOME (Subst.fold
-									(fn (ob, w) => if subObjExists ob
-										then Subst.dot1 w
-										else Subst.comp (w, Subst.shift 1))
-									(fn _ => Subst.id) sY)
-							handle ExnMayNotExist => NONE
-					in case weakenSub of
-						  SOME w =>
-							if Subst.isId w then N else
-							let val wi = Subst.invert w
-								val G' = Option.map
-										(pruneCtx (f prune(*=true*) rOccur) wi o ctx2list) G
-								val A' = Util.objMapType (f prune(*=true*) rOccur w) (TClos (A, wi))
-								val Y'w = Clos (newLVarCtx G' A', w)
-								val () = instantiate (rY, Y'w, cs, tag)
-							in Obj.prj $ Clos (Y'w, sY) end
-						| NONE =>
-							let val A' = Util.objMapType (f prune(*=true*) rOccur s) (TClos (A, sY))
-								val Y' = newLVarCtx NONE A'
-								val cnstr = vref (Eqn (Clos (Y', s), Clos (Obj.inj N, s)))
-								val () = addConstraint (cnstr, [cs])
-							in Obj.prj Y' end
-					end
-				else (* no pruning *)
-					(Subst.fold
-						(fn (ob, ()) => if subObjExists ob then () else raise ExnMayNotExist)
-						ignore sY
-					; N)
-				end
+		fun allowPrune nprune = not $ isSome nprune
+		fun xExists NONE f x = (SOME (f x) handle Subst.ExnUndef => NONE)
+		  | xExists (SOME (npR as ref np)) f x =
+				(SOME (f x) handle Subst.ExnUndef => (npR := np; NONE))
+		fun f nprune rOccur srig ob = case whnf2obj $ lowerObj $ Whnf.whnfObj ob of
+		  Atomic (LogicVar (Y as {X=rY, ty=A, s=sY, ctx=ref G, cnstr=cs, tag}), _ (* = Nil *)) =>
+				if eq (rY, rOccur) then
+					(* X = H . S{X[p]} --> X = H . S{_}   if p is pattern
+					 * X = H . S_srig{X[s]} --> _         with H <> lvar and H <> var
+					 * To simply raise ExnUndef is a completeness bug.  We must either
+					 * be in a strongly rigid context or have sY preserve size, i.e.:
+					 * For all ground R, |R| >= |R[sY]|
+					 *)
+					if srig andalso allowPrune nprune then raise Subst.ExnUndef
+					else if isSome $ Subst.patSub Eta.etaContract sY then raise Subst.ExnUndef
+					else raise ExnOccur
+				else let
+					val needSubPrune = ref false
+					fun getOptUndef (SOME ob) = ob
+					  | getOptUndef NONE = raise Subst.ExnUndef
+					val sY' = Subst.map (getOptUndef o objExistsP (SOME needSubPrune) rOccur) sY
+					val w = Subst.fold (* calculate weakening substitution *)
+								(fn (Undef, w) => Subst.comp (w, Subst.shift 1)
+								  | (_, w) => Subst.dot1 w)
+								(fn _ => Subst.id) sY'
+					val needPrune = not $ Subst.isId w
+					val N' = if allowPrune nprune andalso needPrune then
+								let val wi = Subst.invert w
+									val pruneType = Util.objSRigMapType (f NONE rOccur) srig
+									val G' = Option.map (pruneCtx pruneType wi o ctx2list) G
+									val A' = pruneType (TClos (A, wi))
+									val Y'w = Clos (newLVarCtx G' A', w)
+									val () = instantiate (rY, Y'w, cs, tag)
+								in Obj.prj $ Clos (Y'w, sY') end
+							else Atomic (LogicVar (Y with's sY'), Nil')
+					val () = if allowPrune nprune andalso !needSubPrune then
+								case N' of Atomic (LogicVar {cnstr, ...}, _) =>
+									addConstraint (vref (Exist (Obj.inj N')), [cnstr])
+								| _ => raise Fail "Internal error: no lvar"
+							else ()
+					val () = Option.app
+							(fn p => p := (!p orelse needPrune orelse !needSubPrune)) nprune
+				in N' end
 		| N => N
-		and objExists prune rOccur s ob =
-			(SOME (Util.objMapObj (f prune rOccur s) ob) handle Subst.ExnUndef => NONE)
-		fun typeExists prune rOccur s ty =
-			(SOME (Util.objMapType (f prune rOccur s) ty) handle Subst.ExnUndef => NONE)
-	in (objExists, typeExists) end
-	(*in SOME (Util.objMapObj f ob) handle Subst.ExnUndef => NONE end*)
+		and objExistsP nprune rOccur ob =
+			xExists nprune (Util.objSRigMapObj (f nprune rOccur) true) ob
+		fun typeExistsP nprune rOccur ty =
+			xExists nprune (Util.objSRigMapType (f nprune rOccur) true) ty
+	in (objExistsP NONE, typeExistsP NONE) end
 
 fun unifyType (ty1, ty2) = case (Util.typePrjAbbrev ty1, Util.typePrjAbbrev ty2) of
 	  (Lolli (A1, B1), Lolli (A2, B2)) => (unifyType (A1, A2); unifyType (B1, B2))
@@ -289,8 +295,8 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 	| (Var n1, Var n2) =>
 			if n1 <> n2 then raise ExnUnify "Vars differ\n"
 			else unifySpine dryRun (S1, S2)
-	| (LogicVar {X=r1, ty=A1, s=s1, ctx=ref G1, cnstr=cs1, tag=tag1},
-		LogicVar {X=r2, s=s2, cnstr=cs2, tag=tag2, ...}) =>
+	| (LogicVar (X1 as {X=r1, ty=A1, s=s1, ctx=ref G1, cnstr=cs1, tag=tag1}),
+		LogicVar (X2 as {X=r2, s=s2, cnstr=cs2, ...})) =>
 			if eq (r1, r2) then
 				let val dryRunIntersect = ref true
 					exception ExnUnifyMaybe
@@ -313,38 +319,25 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 								val A' = TClos (A1, si)
 							in instantiate (r1, Clos (newLVarCtx G' A', s'), cs1, tag1) end
 				end
-(*			case Subst.patSub Eta.etaContract s1 of
-				  NONE => addConstraint (vref (Eqn (Atomic' hS2, Atomic' hS1)), [cs1])
-				| SOME s1' => (case Subst.patSub Eta.etaContract s2 of
-					  NONE => addConstraint (vref (Eqn (Atomic' hS1, Atomic' hS2)), [cs1])
-					| SOME s2' =>
-						let val s' = Subst.intersection (s1', s2')
-						in if Subst.isId s' then () else 
-							let val si = Subst.invert s'
-								val G' = raise Fail "stub: reduce context (G1,si)"
-								(*val A' = case typeExists true (ref NONE) s' (TClos (A1, si)) of
-									SOME ty => ty | NONE => raise ExnUnify "Unification failed\n"*)
-								val A' = TClos (A1, si)
-							in instantiate (r1, Clos (newLVarCtx G' A', s'), cs1, tag1) end
-						end)*)
 			else if isSome dryRun then (valOf dryRun) := false
 			else (case Subst.patSub Eta.etaContract s1 of
-				  SOME s' => unifyLVar (r1, tag1, s', Atomic' hS2, cs1)
+				  SOME s' => unifyLVar (X1 with's s', Atomic' hS2)
 				| NONE =>
 					(case Subst.patSub Eta.etaContract s2 of
-					  SOME s' => unifyLVar (r2, tag2, s', Atomic' hS1, cs2)
+					  SOME s' => unifyLVar (X2 with's s', Atomic' hS1)
 					| NONE => addConstraint (vref (Eqn (Atomic' hS1, Atomic' hS2)), [cs1, cs2])))
-	| (LogicVar {X, s, cnstr=cs, tag, ...}, _) =>
+	| (LogicVar (X as {s, cnstr=cs, ...}), _) =>
 			if isSome dryRun then (valOf dryRun) := false else
 			(case Subst.patSub Eta.etaContract s of
-				  SOME s' => unifyLVar (X, tag, s', Atomic' hS2, cs)
+				  SOME s' => unifyLVar (X with's s', Atomic' hS2)
 				| NONE => addConstraint (vref (Eqn (Atomic' hS1, Atomic' hS2)), [cs]))
 	| (_, LogicVar _) => unifyHead dryRun (hS2, hS1)
 	| _ => raise ExnUnify "h1 h2"
-and unifyLVar (r, l, s, ob, cs) = (* LogicVar (r, _, s, _, cs, l) =unify= ob *)
-	case objExists true r s (Clos (ob, Subst.invert s)) of
+and unifyLVar (X as {X=r, s, cnstr=cs, tag, ...}, ob) =
+	(case objExists r (Clos (ob, Subst.invert s)) of
 		  NONE => raise ExnUnify "Unification failed\n"
-		| SOME N => instantiate (r, N, cs, l)
+		| SOME N => instantiate (r, N, cs, tag))
+			handle ExnOccur => addConstraint (vref (Eqn (Atomic' (LogicVar X, Nil'), ob)), [cs])
 and unifySpine dryRun (sp1, sp2) = case (Spine.prj sp1, Spine.prj sp2) of
 	  (Nil, Nil) => ()
 	| (App (N1, S1), App (N2, S2)) => (unifyObj dryRun (N1, N2); unifySpine dryRun (S1, S2))
@@ -383,7 +376,7 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 		val ob2' = invAtomic $ whnf2obj $ lowerObj $ Whnf.whnfObj $ Atomic' ob2
 		val expWhnfInj = ExpObj.inj o (ExpObj.Fmap ((Atomic', fn x=>x, fn x=>x), fn x=>x))
 	in case (ob1', Whnf.whnfExp E1, ob2', Whnf.whnfExp E2) of
-		  ((L1 as LogicVar {X, ty, s, ctx=ref G, cnstr=cs, tag}, S (*=Nil*)), Mon M1, _, E2') =>
+		  ((L1 as LogicVar (X1 as {X, ty, s, ctx=ref G, ...}), S (*=Nil*)), Mon M1, _, E2') =>
 			(case splitExp (X, Let' (p2, Atomic' ob2', expWhnfInj E2')) of
 				  INL (L2, M2) =>
 					( unifyHead NONE ((L1, S), (L2, S))
@@ -398,7 +391,7 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 								( unifyExp NONE (Let' (PClos (p1, Subst.shift n), Monad' newM,
 										Mon' (MClos (M1, Subst.dotn (nbinds p1) (Subst.shift n)))),
 									Mon' M2)
-								; unifyLVar (X, tag, s', Monad' (e newM), cs) )
+								; unifyLVar (X1 with's s', Monad' (e newM)) )
 							end))
 		| (_, E1', (LogicVar _, _), Mon M2) =>
 			unifyLetLet NONE ((p2, ob2', Mon' M2), (p1, ob1', expWhnfInj E1'))
@@ -448,10 +441,19 @@ and matchHeadInLet (hS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, Whnf.whnfE
 	| _ => raise Fail "Internal error: matchHeadInLet\n"
 
 (* solveConstr : constr vref -> unit *)
-fun solveConstr c = case !!c of Solved => () | Eqn ob1ob2 =>
-	( if !outputUnify then print ("Unifying leftover constraint: "^(constrToStr (!!c))^"\n") else ()
-	; c ::= Solved
-	; unifyObj NONE ob1ob2 )
+fun solveConstr c = case !!c of
+	  Solved => ()
+	| Eqn ob1ob2 =>
+		( if !outputUnify then
+			print ("Solving leftover constraint: "^(constrToStr (!!c))^"\n") else ()
+		; c ::= Solved
+		; unifyObj NONE ob1ob2 )
+	| Exist ob1 =>
+		( if !outputUnify then
+			print ("Solving leftover constraint: "^(constrToStr (!!c))^"\n") else ()
+		; c ::= Solved
+		; if isSome $ objExists (vref NONE) ob1 then ()
+			else raise ExnUnify "Exist constraint failed" )
 
 (* solveAwakened : unit -> unit *)
 fun solveAwakened () = case !awakenedConstrs of [] => () | c::cs =>
@@ -463,10 +465,10 @@ fun solveAwakened () = case !awakenedConstrs of [] => () | c::cs =>
 fun noConstrs () =
 	let val () = awakenedConstrs := !!constraints
 		val () = solveAwakened ()
-		val leftOver = List.mapPartial (fn Solved => NONE | Eqn e => SOME e)
+		val leftOver = List.mapPartial (fn Solved => NONE | e => SOME e)
 						(map !! (!!constraints))
 	in case leftOver of [] => ()
-	| _::_ => (app (fn o1o2 => print ("Constr: "^(constrToStr (Eqn o1o2))^"\n")) leftOver
+	| _::_ => (app (fn c => print ("Constr: "^(constrToStr c)^"\n")) leftOver
 		; raise Fail "Leftover constraints\n") end
 
 val unifyProblemCounter = ref 0

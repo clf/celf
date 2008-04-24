@@ -73,6 +73,11 @@ val objMapKind : (Syntax.obj -> Syntax.obj Syntax.objF) -> Syntax.kind -> Syntax
 val objMapType : (Syntax.obj -> Syntax.obj Syntax.objF) -> Syntax.asyncType -> Syntax.asyncType
 val objMapObj : (Syntax.obj -> Syntax.obj Syntax.objF) -> Syntax.obj -> Syntax.obj
 
+(* boolean flag indicates a strong rigid context *)
+val objSRigMapKind : (bool -> Syntax.obj -> Syntax.obj Syntax.objF) -> bool -> Syntax.kind -> Syntax.kind
+val objSRigMapType : (bool -> Syntax.obj -> Syntax.obj Syntax.objF) -> bool -> Syntax.asyncType -> Syntax.asyncType
+val objSRigMapObj : (bool -> Syntax.obj -> Syntax.obj Syntax.objF) -> bool -> Syntax.obj -> Syntax.obj
+
 val forceNormalizeKind : Syntax.kind -> Syntax.kind
 val forceNormalizeType : Syntax.asyncType -> Syntax.asyncType
 val forceNormalizeObj : Syntax.obj -> Syntax.obj

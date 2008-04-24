@@ -39,7 +39,7 @@ type pattern
 type subst
 datatype subObj = Ob of obj | Idx of int | Undef
 
-datatype constr = Solved | Eqn of obj * obj
+datatype constr = Solved | Eqn of obj * obj | Exist of obj
 datatype head = Const of string
 	| Var of int
 	| UCVar of string

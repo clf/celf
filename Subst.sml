@@ -121,11 +121,11 @@ struct
 
 	fun intersection conv s1s2 =
 		let fun eq (Idx n, Idx m) = n=m
-			  | eq (Idx n, Ob N) = conv (INL n, N)
-			  | eq (Ob N, Idx n) = conv (INL n, N)
-			  | eq (Ob N1, Ob N2) = conv (INR N1, N2)
-			  | eq (Undef, _) = raise Fail "Internal error intersection"
-			  | eq (_, Undef) = raise Fail "Internal error intersection"
+			  | eq (Idx n, Ob N) = (conv (INL n, N) handle ExnUndef => false)
+			  | eq (Ob N, Idx n) = (conv (INL n, N) handle ExnUndef => false)
+			  | eq (Ob N1, Ob N2) = (conv (INR N1, N2) handle ExnUndef => false)
+			  | eq (Undef, _) = false (*raise Fail "Internal error intersection"*)
+			  | eq (_, Undef) = false (*raise Fail "Internal error intersection"*)
 			fun intersect (Dot (n1, s1), Dot (n2, s2)) =
 					if eq (n1, n2) then dot1 (intersect (s1, s2))
 					else comp (intersect (s1, s2), Shift 1)
@@ -164,7 +164,7 @@ struct
 	  | fold f e (Dot (Idx n, s)) = f (dummyvar n, fold f e s)
 	  | fold f e (Shift n) = e n*)
 
-	fun map f (Dot (Ob ob, s)) = Dot (Ob $ f ob, map f s)
+	fun map f (Dot (Ob ob, s)) = Dot (Ob $ f ob handle ExnUndef => Undef, map f s)
 	  | map f (Dot (Undef, s)) = Dot (Undef, map f s)
 	  | map f (Dot (Idx n, s)) = Dot (Idx n, map f s)
 	  | map f (Shift n) = Shift n
@@ -176,7 +176,7 @@ struct
 
 	fun substToStr f s = if isId s then "" else
 			let fun toStr (Dot (Undef, s)) = "*."^(toStr s)
-				  | toStr (Dot (Ob ob, s)) = (f ob)^"."^(toStr s)
+				  | toStr (Dot (Ob ob, s)) = (f ob handle ExnUndef => "*")^"."^(toStr s)
 				  | toStr (Dot (Idx n, s)) = (Int.toString n)^"."^(toStr s)
 				  | toStr (Shift n) = "^"^(Int.toString n)
 			in "["^(toStr s)^"]" end

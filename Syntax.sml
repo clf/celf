@@ -45,7 +45,7 @@ and pattern = FixPattern of pattern patternF * int | PClos of pattern * subst
 and subst = Dot of subObj * subst | Shift of int
 and subObj = Ob of obj | Idx of int | Undef
 
-and constr = Solved | Eqn of obj * obj
+and constr = Solved | Eqn of obj * obj | Exist of obj
 and head = Const of string
 	| Var of int
 	| UCVar of string

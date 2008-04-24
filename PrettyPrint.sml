@@ -215,7 +215,7 @@ and rdHead h = case h of
 			let val ctxL = length $ Context.ctx2list $ valOf $ !ctx
 				val subL = Subst.fold (fn (_, n) => n+1) (fn _ => 0) s
 				fun occurSubOb Undef = empty
-				  | occurSubOb (Ob ob) = #2 (rdObj ob)
+				  | occurSubOb (Ob ob) = (#2 (rdObj ob) handle Subst.ExnUndef => empty)
 				  | occurSubOb (Idx n) = occur n
 				val occurSub = Subst.fold (union o (Util.map1 occurSubOb))
 							(fn m => occurFromTo (m+1) (ctxL-subL+m)) s
