@@ -32,7 +32,7 @@ fun objs2spine objs =
 	| AMPH | TOP | LCURLY | RCURLY | TENSOR | ONE | EXISTS | LAMBDA | LINLAMBDA
 	| LANGLE | RANGLE | COMMA | LINAPP | LET | EQUAL | IN | PROJLEFT | PROJRIGHT
 	| LBRACKET | RBRACKET | ARROW | BACKARROW | LPAREN | RPAREN | UNIT | EOF
-	| QUERY | NUM of int | STAR
+	| QUERY | NUM of int
 
 %nonterm Kind of Syntax.kind | AsyncType of Syntax.asyncType
 	(*| AtomicType of Syntax.atomicType*)
@@ -84,7 +84,7 @@ Number :
 NumOpt :
 	  ONE  ( SOME 1 )
 	| NUM  ( SOME NUM )
-	| STAR ( NONE )
+	| TENSOR ( NONE )
 
 Kind :
 	  TYPE                           ( Syntax.Type' )

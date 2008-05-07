@@ -27,12 +27,10 @@ struct
 (* All objects, types, spines, patterns, expressions and monadic objects are
    assumed to be well-typed and in normal form  *)
 
-(* does currently not weak head reduce.  --cs *)
-
 open Syntax
 
 
-(* Invariant:  convAsynType (ty1, ty2) => ()
+(* Invariant:  convAsyncType (ty1, ty2) => ()
    if  G |- ty1 == ty2 : kind
    otherwise Fail is raised 
 *)

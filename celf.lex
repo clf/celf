@@ -41,14 +41,14 @@ fun keyword (s,p) =
 	  | "#2" => Tokens.PROJRIGHT(p,p)
 	  (*| "pi_2" => Tokens.PROJRIGHT(p,p) -- retired *)
 	  (*| "top" => Tokens.TOP(p,p) -- retired *)
-	  | "T" => Tokens.TOP(p,p)
+	  (*| "T" => Tokens.TOP(p,p) -- retired, changed to <T> *)
 	  (*| "one" => Tokens.ONE(p,p) -- retired *)
 	  (*| "1" => Tokens.ONE(p,p) -- handled by number parsing *)
 	  | "Exists" => Tokens.EXISTS(p,p)
 	  | "let" => Tokens.LET(p,p)
 	  | "in" => Tokens.IN(p,p)
 	  | "#query" => Tokens.QUERY(p,p)
-	  | "*" => Tokens.STAR(p,p)
+	  (*| "*" => Tokens.STAR(p,p)*)
 	  | _ => Tokens.ID(s,p,p))
 %%
 %header (functor ClfLexFun(structure Tokens: Clf_TOKENS));
@@ -67,10 +67,11 @@ ws = [\ \t];
 "&" => (Tokens.AMPH(getpos yypos,getpos yypos));
 "{" => (Tokens.LCURLY(getpos yypos,getpos yypos));
 "}" => (Tokens.RCURLY(getpos yypos,getpos yypos));
-"@" => (Tokens.TENSOR(getpos yypos,getpos yypos));
+"*" => (Tokens.TENSOR(getpos yypos,getpos yypos));
 \\"^" => (Tokens.LINLAMBDA(getpos yypos,getpos yypos));
 \\ => (Tokens.LAMBDA(getpos yypos,getpos yypos));
 "<>" => (Tokens.UNIT(getpos yypos,getpos yypos));
+"<T>" => (Tokens.TOP(getpos yypos,getpos yypos));
 "<" => (Tokens.LANGLE(getpos yypos,getpos yypos));
 ">" => (Tokens.RANGLE(getpos yypos,getpos yypos));
 "," => (Tokens.COMMA(getpos yypos,getpos yypos));
@@ -83,7 +84,7 @@ ws = [\ \t];
 "->" => (Tokens.ARROW(getpos yypos,getpos yypos));
 "<-" => (Tokens.BACKARROW(getpos yypos,getpos yypos));
 [0-9]+ => (number (yytext,getpos yypos));
-[-a-zA-Z0-9<>=/_'*#+@;$]+ => (keyword (yytext,getpos yypos));
+[-a-zA-Z0-9<>=/_'*#+@&~;$]+ => (keyword (yytext,getpos yypos));
 . => (let val (l,c) = getpos(yypos) in
 		print ("Lexer Warning: Ignoring illegal symbol ``"^yytext^"'' in line "^
 					(Int.toString l)^" pos "^(Int.toString c)^"\n")

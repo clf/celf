@@ -46,9 +46,10 @@ fun etaContract e ob =
 					| _ => raise e
 				end
 			| NfAtomic (Var n, S) =>
-				let val k = n - nbinds sp
+				let val nb = nbinds sp
+					val k = n - nb
 					val () = if k>0 then () else raise e
-					val () = etaSp (1, S, sp)
+					val () = etaSp (nb, S, rev sp)
 				in k end
 			| NfAtomic _ => raise e
 			| NfUnit => raise e (* Not complete? Pair could perhaps absorb one Unit. --asn *)
@@ -63,9 +64,9 @@ fun etaContract e ob =
 		and etaSp (m, Sp, sp) = case (Spine.prj Sp, sp) of
 			  (Nil, []) => ()
 			| (App (N, S), Ap::sp) =>
-				(etaSp (m+1, S, sp); if etaC (N, []) = m then () else raise e)
+				(etaSp (m-1, S, sp); if etaC (N, []) = m then () else raise e)
 			| (LinApp (N, S), LAp::sp) =>
-				(etaSp (m+1, S, sp); if etaC (N, []) = m then () else raise e)
+				(etaSp (m-1, S, sp); if etaC (N, []) = m then () else raise e)
 			| (ProjLeft S, Pl::sp) => etaSp (m, S, sp)
 			| (ProjRight S, Pr::sp) => etaSp (m, S, sp)
 			| _ => raise e

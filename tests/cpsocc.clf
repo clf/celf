@@ -21,7 +21,7 @@ cps_droot :
    (Pi k:ccont. cpsE E (\v:ctriv. cret k v) (E' k))
       -> cpsR (dexp->droot E) (klam (\ccont1:ccont. E' ccont1)).
 cps_dtriv :
-   cpsT T' T' -> cpsE (dtriv->dexp T') (\ctriv1:ctriv. K ctriv1) (K T').
+   cpsT T T' -> cpsE (dtriv->dexp T) (\ctriv1:ctriv. K ctriv1) (K T').
 cps_dapp :
    cpsE E0 (\ctriv1:ctriv. E1' ctriv1) E'
       -> (Pi t0:ctriv.
@@ -42,8 +42,8 @@ cval_capp :
    cvalC (\ccont1:ccont. C ccont1) -> cvalT T0 -> cvalT T1
       -> cvalE (\k:ccont. capp T0 T1 (C k)).
 cval_cret :
-   cvalC (\ccont1:ccont. C ccont1) -> cvalT T'
-      -> cvalE (\k:ccont. cret (C k) T').
+   cvalC (\ccont1:ccont. C ccont1) -> cvalT T
+      -> cvalE (\k:ccont. cret (C k) T).
 cval_xlam :
    (Pi x:ctriv. cvalT x -> cvalR (R x))
       -> cvalT (xlam (\ctriv1:ctriv. R ctriv1)).
@@ -59,7 +59,7 @@ cps_cvE :
    cvalK (\ccont1:ccont. \ctriv1:ctriv. Kappa ccont1 ctriv1)
       -> (Pi k:ccont. cpsE E (\ctriv1:ctriv. Kappa k ctriv1) (E' k))
       -> cvalE (\ccont1:ccont. E' ccont1) -> type.
-cps_cvT : cpsT T' T' -> cvalT T' -> type.
+cps_cvT : cpsT T T' -> cvalT T' -> type.
 cval_droot :
    cps_cvE (cval_kappa (\v:ctriv. \CVV:cvalT v. cval_cret cval_k CVV))
       (\k:ccont. CE k) CVE
@@ -67,7 +67,7 @@ cval_droot :
 cval_dtriv :
    cps_cvT CT CVT
       -> cps_cvE (cval_kappa (\t:ctriv. \cvt:cvalT t. CVE t cvt))
-            (\k:ccont. cps_dtriv CT) (CVE T' CVT).
+            (\k:ccont. cps_dtriv CT) (CVE T CVT).
 cval_dapp :
    cps_cvE (cval_kappa (\t:ctriv. \cvt:cvalT t. CVE' t cvt)) (\k:ccont. CE0 k)
       CE
@@ -88,7 +88,7 @@ cval_dlam :
             (cval_xlam (\x:ctriv. \cvt:cvalT x. CVR x cvt)).
 stack : type.
 dot : stack.
-,' : stack -> ctriv -> stack.
+; : stack -> ctriv -> stack.
 &' : stack -> stack -> stack.
 vvalR : croot -> type.
 vvalE : stack -> cexp -> type.
@@ -100,30 +100,30 @@ vval_klam :
       -> vvalR (klam (\ccont1:ccont. E ccont1)).
 vval_capp :
    vvalC Xi0 C -> vvalT Xi1 T0 Xi0 -> vvalT Xi T1 Xi1 -> vvalE Xi (capp T0 T1 C).
-vval_cret : vvalC Xi' C -> vvalT Xi T' Xi' -> vvalE Xi (cret C T').
+vval_cret : vvalC Xi' C -> vvalT Xi T Xi' -> vvalE Xi (cret C T).
 vval_xlam :
    (Pi x:ctriv. (Pi Xi':stack. vvalT Xi' x Xi') -> vvalR (R x))
       -> vvalT Xi (xlam (\ctriv1:ctriv. R ctriv1)) Xi.
 vval_vlam :
-   (Pi v:ctriv. (Pi Xi':stack. vvalT (,' Xi' v) v Xi') -> vvalE (,' Xi v) (E v))
+   (Pi v:ctriv. (Pi Xi':stack. vvalT (; Xi' v) v Xi') -> vvalE (; Xi v) (E v))
       -> vvalC Xi (vlam (\ctriv1:ctriv. E ctriv1)).
 vval_kappa :
    (Pi t:ctriv. (Pi Xi':stack. vvalT Xi' t Xi') -> vvalE Xi (Kappa t))
       -> (Pi v:ctriv.
-             (Pi Xi':stack. vvalT (,' Xi' v) v Xi') -> vvalE (,' Xi v) (Kappa v))
+             (Pi Xi':stack. vvalT (; Xi' v) v Xi') -> vvalE (; Xi v) (Kappa v))
       -> vvalK Xi (\ctriv1:ctriv. Kappa ctriv1).
 cps_vvR : cpsR R R' -> vvalR R' -> type.
 cps_vvE :
    vvalK Xi (\ctriv1:ctriv. Kappa ctriv1)
       -> cpsE E (\ctriv1:ctriv. Kappa ctriv1) E' -> vvalE Xi E' -> type.
-cps_vvT : cpsT T' T' -> (Pi Xi:stack. vvalT Xi T' Xi) -> type.
+cps_vvT : cpsT T T' -> (Pi Xi:stack. vvalT Xi T' Xi) -> type.
 vval_droot :
    (Pi k:ccont. Pi VVC:vvalC dot k.
        cps_vvE
           (vval_kappa
               (\t:ctriv. \VVV:Pi Xi':stack. vvalT Xi' t Xi'.
                   vval_cret VVC (VVV dot))
-              (\v:ctriv. \VVV:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+              (\v:ctriv. \VVV:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                   vval_cret VVC (VVV dot))) (CE k)
           (VVE k VVC))
       -> cps_vvR (cps_droot (\k:ccont. CE k))
@@ -134,33 +134,33 @@ vval_dtriv :
             (vval_kappa
                 (\t:ctriv. \vvt:Pi Xi':stack. vvalT Xi' t Xi'.
                     VVTE t (\Xi':stack. vvt Xi'))
-                (\v:ctriv. \vvt:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                (\v:ctriv. \vvt:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                     VVVE v (\Xi':stack. vvt Xi')))
-            (cps_dtriv CT) (VVTE T' (\x:stack. VVT x)).
+            (cps_dtriv CT) (VVTE T (\x:stack. VVT x)).
 vval_dapp :
    cps_vvE
       (vval_kappa
           (\t:ctriv. \vvt:Pi Xi':stack. vvalT Xi' t Xi'.
               VVTE' t (\Xi':stack. vvt Xi'))
-          (\v:ctriv. \vvt:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+          (\v:ctriv. \vvt:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
               VVVE' v (\Xi':stack. vvt Xi'))) CE0 VE
-      -> (Pi v0:ctriv. Pi VVv0:Pi Xi':stack. vvalT (,' Xi' v0) v0 Xi'.
+      -> (Pi v0:ctriv. Pi VVv0:Pi Xi':stack. vvalT (; Xi' v0) v0 Xi'.
              cps_vvE
                 (vval_kappa
                     (\t1:ctriv. \vvt1:Pi Xi1:stack. vvalT Xi1 t1 Xi1.
                         vval_capp
                            (vval_vlam
                                (\v:ctriv.
-                                   \vvt:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                                   \vvt:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                                    VVVE v (\Xi':stack. vvt Xi')))
-                           (VVv0 Xi) (vvt1 (,' Xi v0)))
-                    (\v1:ctriv. \vvv1:Pi Xi2:stack. vvalT (,' Xi2 v1) v1 Xi2.
+                           (VVv0 Xi) (vvt1 (; Xi v0)))
+                    (\v1:ctriv. \vvv1:Pi Xi2:stack. vvalT (; Xi2 v1) v1 Xi2.
                         vval_capp
                            (vval_vlam
                                (\v:ctriv.
-                                   \vvt:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                                   \vvt:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                                    VVVE v (\Xi':stack. vvt Xi')))
-                           (VVv0 Xi) (vvv1 (,' Xi v0))))
+                           (VVv0 Xi) (vvv1 (; Xi v0))))
                 (CE1 v0) (VVVE' v0 (\x:stack. VVv0 x)))
       -> (Pi t0:ctriv. Pi VVt0:Pi Xi':stack. vvalT Xi' t0 Xi'.
              cps_vvE
@@ -169,14 +169,14 @@ vval_dapp :
                         vval_capp
                            (vval_vlam
                                (\v:ctriv.
-                                   \vvt:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                                   \vvt:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                                    VVVE v (\Xi':stack. vvt Xi')))
                            (VVt0 Xi) (vvt1 Xi))
-                    (\v1:ctriv. \vvv1:Pi Xi4:stack. vvalT (,' Xi4 v1) v1 Xi4.
+                    (\v1:ctriv. \vvv1:Pi Xi4:stack. vvalT (; Xi4 v1) v1 Xi4.
                         vval_capp
                            (vval_vlam
                                (\v:ctriv.
-                                   \vvt:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                                   \vvt:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                                    VVVE v (\Xi':stack. vvt Xi')))
                            (VVt0 Xi) (vvv1 Xi)))
                 (CE1 t0) (VVTE' t0 (\x:stack. VVt0 x)))
@@ -184,7 +184,7 @@ vval_dapp :
             (vval_kappa
                 (\t:ctriv. \vvt:Pi Xi':stack. vvalT Xi' t Xi'.
                     VVTE t (\Xi':stack. vvt Xi'))
-                (\v:ctriv. \vvt:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                (\v:ctriv. \vvt:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                     VVVE v (\Xi':stack. vvt Xi')))
             (cps_dapp CE0 (\t0:ctriv. CE1 t0)) VE.
 vval_dlam :
@@ -200,13 +200,13 @@ vval_dlam :
 bareR : croot -> ctriv -> type.
 bareE : cexp -> ctriv -> type.
 bare_klam :
-   (Pi k:ccont. (Pi T':ctriv. bareE (cret k T') T') -> bareE (E k) A)
+   (Pi k:ccont. (Pi T:ctriv. bareE (cret k T) T) -> bareE (E k) A)
       -> bareR (klam (\ccont1:ccont. E ccont1)) A.
 bare_cret :
-   bareE (E T') A -> bareE (cret (vlam (\ctriv1:ctriv. E ctriv1)) T') A.
+   bareE (E T) A -> bareE (cret (vlam (\ctriv1:ctriv. E ctriv1)) T) A.
 bare_capp :
-   bareE (E T' C) A
-      -> bareE (capp (xlam (\x:ctriv. klam (\ccont1:ccont. E x ccont1))) T' C) A.
+   bareE (E T C) A
+      -> bareE (capp (xlam (\x:ctriv. klam (\ccont1:ccont. E x ccont1))) T C) A.
 cstack : type.
 cdot : cstack.
 ;' : cstack -> ccont -> cstack.
@@ -216,22 +216,22 @@ cstackC : (ccont -> cstack) -> (ccont -> ccont) -> (ccont -> cstack) -> type.
 cstack_klam :
    cstackE (\k:ccont. cdot) (\ccont1:ccont. E ccont1) A
       -> cstackR (klam (\ccont1:ccont. E ccont1)) A.
-cstack_cret_k_init : cstackE (\k:ccont. cdot) (\k:ccont. cret k T') T'.
+cstack_cret_k_init : cstackE (\k:ccont. cdot) (\k:ccont. cret k T) T.
 cstack_cret_k_vlam :
-   cstackE (\ccont1:ccont. Phi ccont1) (\ccont1:ccont. E T' ccont1) A
+   cstackE (\ccont1:ccont. Phi ccont1) (\ccont1:ccont. E T ccont1) A
       -> cstackE (\k:ccont. ;' (Phi k) (vlam (\v:ctriv. E v k)))
-            (\k:ccont. cret k T') A.
+            (\k:ccont. cret k T) A.
 cstack_cret_vlam_phi :
-   cstackE (\ccont1:ccont. Phi ccont1) (\ccont1:ccont. E T' ccont1) A
+   cstackE (\ccont1:ccont. Phi ccont1) (\ccont1:ccont. E T ccont1) A
       -> cstackE (\ccont1:ccont. Phi ccont1)
-            (\k:ccont. cret (vlam (\v:ctriv. E v k)) T') A.
+            (\k:ccont. cret (vlam (\v:ctriv. E v k)) T) A.
 cstack_capp :
-   cstackE (\ccont1:ccont. Phi' ccont1) (\ccont1:ccont. E T' ccont1) A
+   cstackE (\ccont1:ccont. Phi' ccont1) (\ccont1:ccont. E T ccont1) A
       -> cstackC (\ccont1:ccont. Phi ccont1) (\ccont1:ccont. C ccont1)
             (\ccont1:ccont. Phi' ccont1)
       -> cstackE (\ccont1:ccont. Phi ccont1)
             (\k:ccont.
-                capp (xlam (\x:ctriv. klam (\ccont1:ccont. E x ccont1))) T'
+                capp (xlam (\x:ctriv. klam (\ccont1:ccont. E x ccont1))) T
                    (C k)) A.
 cstack_phi_k :
    cstackC (\ccont1:ccont. Phi ccont1) (\k:ccont. k) (\ccont1:ccont. Phi ccont1).
@@ -250,10 +250,10 @@ dstack_klam :
       -> dstackR (klam (\ccont1:ccont. E ccont1)) A.
 dstack_cret_vlam :
    (Pi v:ctriv.
-       (Pi t:ctriv. Pi xi:stack. dstackT (,' xi t) v t xi)
-          -> dstackE (,' Xi' T') (E v) A)
-      -> dstackT Xi T' T' Xi'
-      -> dstackE Xi (cret (vlam (\ctriv1:ctriv. E ctriv1)) T') A.
+       (Pi t:ctriv. Pi xi:stack. dstackT (; xi t) v t xi)
+          -> dstackE (; Xi' T') (E v) A)
+      -> dstackT Xi T T' Xi'
+      -> dstackE Xi (cret (vlam (\ctriv1:ctriv. E ctriv1)) T) A.
 dstack_capp :
    dstackE Xi0 (E T1' C) A
       -> dstackT Xi1 T0 (xlam (\x:ctriv. klam (\ccont1:ccont. E x ccont1))) Xi0
@@ -270,24 +270,24 @@ two_stacks_klam :
    two_stacksE (\k:ccont. cdot) dot (\ccont1:ccont. E ccont1) A
       -> two_stacksR (klam (\ccont1:ccont. E ccont1)) A.
 two_stacks_cret_k_init :
-   two_stacksT Xi T' A dot
-      -> two_stacksE (\k:ccont. cdot) Xi (\k:ccont. cret k T') A.
+   two_stacksT Xi T A dot
+      -> two_stacksE (\k:ccont. cdot) Xi (\k:ccont. cret k T) A.
 two_stacks_cret_k_vlam :
    (Pi v:ctriv.
-       (Pi xi:stack. Pi t:ctriv. two_stacksT (,' xi t) v t xi)
-          -> two_stacksE (\ccont1:ccont. Phi ccont1) (,' Xi' T')
+       (Pi xi:stack. Pi t:ctriv. two_stacksT (; xi t) v t xi)
+          -> two_stacksE (\ccont1:ccont. Phi ccont1) (; Xi' T')
                 (\ccont1:ccont. E v ccont1) A)
-      -> two_stacksT Xi T' T' Xi'
+      -> two_stacksT Xi T T' Xi'
       -> two_stacksE (\k:ccont. ;' (Phi k) (vlam (\v:ctriv. E v k))) Xi
-            (\k:ccont. cret k T') A.
+            (\k:ccont. cret k T) A.
 two_stacks_cret_vlam_phi :
    (Pi v:ctriv.
-       (Pi xi:stack. Pi t:ctriv. two_stacksT (,' xi t) v t xi)
-          -> two_stacksE (\ccont1:ccont. Phi ccont1) (,' Xi' T')
+       (Pi xi:stack. Pi t:ctriv. two_stacksT (; xi t) v t xi)
+          -> two_stacksE (\ccont1:ccont. Phi ccont1) (; Xi' T')
                 (\ccont1:ccont. E v ccont1) A)
-      -> two_stacksT Xi T' T' Xi'
+      -> two_stacksT Xi T T' Xi'
       -> two_stacksE (\ccont1:ccont. Phi ccont1) Xi
-            (\k:ccont. cret (vlam (\v:ctriv. E v k)) T') A.
+            (\k:ccont. cret (vlam (\v:ctriv. E v k)) T) A.
 two_stacks_capp :
    two_stacksE (\ccont1:ccont. Phi' ccont1) Xi0 (\ccont1:ccont. E T1' ccont1) A
       -> two_stacksC (\ccont1:ccont. Phi ccont1) (\ccont1:ccont. C ccont1)
@@ -326,18 +326,18 @@ lemma7_2d_vlam :
       -> lemma7_2d CVC' (cval_vlam (\v:ctriv. \cvt:cvalT v. CVE v cvt))
             (cval_vlam (\v:ctriv. \cvt:cvalT v. CVEreplC'k v cvt)).
 th8-1 :
-   cvalE (\k:ccont. cret (vlam (\v:ctriv. E v k)) T')
-      -> cvalE (\ccont1:ccont. E T' ccont1) -> type.
+   cvalE (\k:ccont. cret (vlam (\v:ctriv. E v k)) T)
+      -> cvalE (\ccont1:ccont. E T ccont1) -> type.
 th8-1_proof :
    th8-1 (cval_cret (cval_vlam (\v:ctriv. \cvt:cvalT v. CVE v cvt)) CVT)
-      (CVE T' CVT).
+      (CVE T CVT).
 th8-2 :
    cvalE
       (\k:ccont.
-          capp (xlam (\x:ctriv. klam (\ccont1:ccont. R x ccont1))) T' (C k))
-      -> cvalE (\k:ccont. R T' (C k)) -> type.
+          capp (xlam (\x:ctriv. klam (\ccont1:ccont. R x ccont1))) T (C k))
+      -> cvalE (\k:ccont. R T (C k)) -> type.
 th8-2_proof :
-   lemma7_2b CVC (CVE T' CVT) CVEreplCk
+   lemma7_2b CVC (CVE T CVT) CVEreplCk
       -> th8-2
             (cval_capp CVC
                 (cval_xlam (\x:ctriv. \cvx:cvalT x. cval_klam (CVE x cvx))) CVT)
@@ -350,10 +350,10 @@ cvalCS_vlam :
       -> cvalCS (\k:ccont. ;' (Phi k) (vlam (\v:ctriv. E v k))).
 app : stack -> stack -> type.
 app_init : app (&' Xi dot) Xi.
-app_stack : app (&' Xi1 Xi2) Xi -> app (&' Xi1 (,' Xi2 T')) (,' Xi T').
+app_stack : app (&' Xi1 Xi2) Xi -> app (&' Xi1 (; Xi2 T)) (; Xi T).
 appT :
-   vvalT Xi T' Xi' -> app (&' Xi0 Xi) Xi1 -> app (&' Xi0 Xi') Xi1'
-      -> vvalT Xi1 T' Xi1' -> type.
+   vvalT Xi T Xi' -> app (&' Xi0 Xi) Xi1 -> app (&' Xi0 Xi') Xi1'
+      -> vvalT Xi1 T Xi1' -> type.
 app_t :
    appT
       (vval_xlam
@@ -363,13 +363,13 @@ app_t :
           (\x:ctriv. \vvt:Pi Xi':stack. vvalT Xi' x Xi'.
               VVR x (\Xi':stack. vvt Xi'))).
 lemma9-1b :
-   (Pi v:ctriv. app (&' (,' Xi' v) Xi'') (Xi v))
-      -> (Pi v:ctriv. (Pi xi:stack. vvalT (,' xi v) v xi) -> vvalE (Xi v) (E v))
+   (Pi v:ctriv. app (&' (; Xi' v) Xi'') (Xi v))
+      -> (Pi v:ctriv. (Pi xi:stack. vvalT (; xi v) v xi) -> vvalE (Xi v) (E v))
       -> (Pi xi:stack. vvalT xi T1 xi) -> app (&' Xi' Xi'') Xi1
       -> vvalE Xi1 (E T1) -> type.
 lemma9-1e :
-   (Pi v:ctriv. app (&' (,' Xi' v) Xi'') (Xi v))
-      -> (Pi v:ctriv. (Pi xi:stack. vvalT (,' xi v) v xi) -> vvalC (Xi v) (C v))
+   (Pi v:ctriv. app (&' (; Xi' v) Xi'') (Xi v))
+      -> (Pi v:ctriv. (Pi xi:stack. vvalT (; xi v) v xi) -> vvalC (Xi v) (C v))
       -> (Pi xi:stack. vvalT xi T1 xi) -> app (&' Xi' Xi'') Xi1
       -> vvalC Xi1 (C T1) -> type.
 lemma9-3a :
@@ -382,25 +382,25 @@ lemma9-3b :
       -> vvalC Xi0 (C C') -> type.
 lemma9-1b_cret_t :
    lemma9-1b (\v:ctriv. app_init)
-      (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi. vval_cret VVC (vvv Xi'))
+      (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi. vval_cret VVC (vvv Xi'))
       (\xi:stack. VVT xi) app_init (vval_cret VVC (VVT Xi')).
 lemma9-1b_cret_c :
    lemma9-1e (\v:ctriv. APP v)
-      (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+      (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
           VVC v (\xi:stack. vvv xi)) (\xi:stack. VVT1 xi)
       APP1 VVC'
       -> lemma9-1b (\v:ctriv. APP v)
-            (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+            (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
                 vval_cret (VVC v (\x:stack. vvv x)) VVT)
             (\xi:stack. VVT1 xi) APP1 (vval_cret VVC' (VVT1 Xi0)).
 lemma9-1b_capp_t1 :
    lemma9-1b (\v:ctriv. app_init)
-      (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+      (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
           vval_capp VVC VVT0 (vvv Xi')) (\xi:stack. VVT xi)
       app_init (vval_capp VVC VVT0 (VVT Xi')).
 lemma9-1b_capp_t0 :
    lemma9-1b (\v:ctriv. app_init)
-      (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+      (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
           vval_capp VVC (vvv Xi')
              (vval_xlam
                  (\x:ctriv. \vvt:Pi Xi'1:stack. vvalT Xi'1 x Xi'1.
@@ -412,30 +412,30 @@ lemma9-1b_capp_t0 :
                   VVR x (\Xi'4:stack. vvt Xi'4)))).
 lemma9-1b_capp_c :
    lemma9-1e (\v:ctriv. APP v)
-      (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+      (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
           VVC v (\xi:stack. vvv xi)) (\xi:stack. VVT xi)
       APP1 VVC'
       -> lemma9-1b (\v:ctriv. APP v)
-            (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+            (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
                 vval_capp (VVC v (\x:stack. vvv x)) VVT0 VVT1)
             (\xi:stack. VVT xi) APP1 (vval_capp VVC' VVT0 VVT1).
 lemma9-1e_vlam :
-   (Pi v1:ctriv. Pi vvv1:Pi xi:stack. vvalT (,' xi v1) v1 xi.
+   (Pi v1:ctriv. Pi vvv1:Pi xi:stack. vvalT (; xi v1) v1 xi.
        (Pi Xi:stack. Pi Xi0:stack. Pi Xi1:stack. Pi APP2:app (&' Xi0 Xi) Xi1.
            appT (vvv1 Xi) (app_stack APP2) APP2 (vvv1 Xi1))
           -> lemma9-1b (\v:ctriv. app_stack (APP v))
-                (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+                (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
                     VVE v1 (\x:stack. vvv1 x) v (\xi:stack. vvv xi))
                 (\xi:stack. VVT xi) (app_stack APP1)
                 (VVE' v1 (\x:stack. vvv1 x)))
       -> lemma9-1e (\v:ctriv. APP v)
-            (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+            (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
                 vval_vlam
-                   (\v1:ctriv. \vvv1:Pi Xi':stack. vvalT (,' Xi' v1) v1 Xi'.
+                   (\v1:ctriv. \vvv1:Pi Xi':stack. vvalT (; Xi' v1) v1 Xi'.
                        VVE v1 (\x:stack. vvv1 x) v (\x:stack. vvv x)))
             (\xi:stack. VVT xi) APP1
             (vval_vlam
-                (\v:ctriv. \vvt:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                (\v:ctriv. \vvt:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                     VVE' v (\Xi':stack. vvt Xi'))).
 lemma9-3a_cret_c :
    lemma9-3b (\k:ccont. \vvk:vvalC dot k. VVC k vvk) CVC VVC1 APP1 VVC'
@@ -448,7 +448,7 @@ lemma9-3a_capp_c :
       -> lemma9-3a (\k:ccont. \vvk:vvalC dot k. vval_capp (VVC k vvk) VVT0 VVT1)
             (cval_capp CVC CVT0 CVT1) VVC1 APP (vval_capp VVC' VVT0' VVT1').
 lemma9-3b_vlam :
-   (Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (,' xi v) v xi. Pi cvv:cvalT v.
+   (Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (; xi v) v xi. Pi cvv:cvalT v.
        (Pi Xi:stack. Pi Xi0:stack. Pi Xi1:stack. Pi APP1:app (&' Xi0 Xi) Xi1.
            appT (vvv Xi) (app_stack APP1) APP1 (vvv Xi1))
           -> lemma9-3a
@@ -457,31 +457,31 @@ lemma9-3b_vlam :
       -> lemma9-3b
             (\k:ccont. \vvk:vvalC dot k.
                 vval_vlam
-                   (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+                   (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
                        VVE v (\x:stack. vvv x) k vvk))
             (cval_vlam (\v:ctriv. \cvt:cvalT v. CVE v cvt)) VVC1 APP
             (vval_vlam
-                (\v:ctriv. \vvt:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                (\v:ctriv. \vvt:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                     VVE' v (\Xi':stack. vvt Xi'))).
 lemma9-3b_k : lemma9-3b (\k:ccont. \vvk:vvalC dot k. vvk) cval_k VVC APP VVC.
 th10-1 :
-   vvalE Xi (cret (vlam (\ctriv1:ctriv. E ctriv1)) T') -> vvalE Xi (E T')
+   vvalE Xi (cret (vlam (\ctriv1:ctriv. E ctriv1)) T) -> vvalE Xi (E T)
       -> type.
 th10-2 :
    (Pi k:ccont.
        vvalC dot k
           -> vvalE Xi
-                (capp (xlam (\x:ctriv. klam (\ccont1:ccont. E x ccont1))) T'
+                (capp (xlam (\x:ctriv. klam (\ccont1:ccont. E x ccont1))) T
                     (C k)))
       -> cvalE
             (\k:ccont.
-                capp (xlam (\x:ctriv. klam (\ccont1:ccont. E x ccont1))) T'
+                capp (xlam (\x:ctriv. klam (\ccont1:ccont. E x ccont1))) T
                    (C k))
-      -> (Pi xi:stack. vvalT xi T' xi)
-      -> (Pi k:ccont. vvalC dot k -> vvalE Xi (E T' (C k))) -> type.
+      -> (Pi xi:stack. vvalT xi T xi)
+      -> (Pi k:ccont. vvalC dot k -> vvalE Xi (E T (C k))) -> type.
 th10-1_c :
    lemma9-1b (\v:ctriv. app_init)
-      (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+      (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
           VVE v (\xi:stack. vvv xi))
       (\xi:stack.
           vval_xlam
@@ -490,7 +490,7 @@ th10-1_c :
       -> th10-1
             (vval_cret
                 (vval_vlam
-                    (\v:ctriv. \vvt:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                    (\v:ctriv. \vvt:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                         VVE v (\Xi':stack. vvt Xi')))
                 (vval_xlam
                     (\x:ctriv. \vvt:Pi Xi':stack. vvalT Xi' x Xi'.
@@ -499,8 +499,8 @@ th10-1_c :
 th10-2_proof :
    (Pi k:ccont. Pi vvk:vvalC dot k.
        lemma9-3a
-          (\k1:ccont. \vvk1:vvalC dot k1. VVE T' (\x:stack. VVT x) k1 vvk1)
-          (CVE T' CVT) (VVC k vvk) app_init (VVE' k vvk))
+          (\k1:ccont. \vvk1:vvalC dot k1. VVE T (\x:stack. VVT x) k1 vvk1)
+          (CVE T CVT) (VVC k vvk) app_init (VVE' k vvk))
       -> th10-2
             (\k:ccont. \vvk:vvalC dot k.
                 vval_capp (VVC k vvk)
@@ -518,8 +518,8 @@ cstack_substC :
 csubst_cret :
    cstack_substC (\ccont1:ccont. C ccont1) (\ccont1:ccont. Phi ccont1)
       (\ccont1:ccont. C' ccont1)
-      -> cstack_substE (\k:ccont. cret (C k) T') (\ccont1:ccont. Phi ccont1)
-            (\k:ccont. cret (C' k) T').
+      -> cstack_substE (\k:ccont. cret (C k) T) (\ccont1:ccont. Phi ccont1)
+            (\k:ccont. cret (C' k) T).
 csubst_capp :
    cstack_substC (\ccont1:ccont. C ccont1) (\ccont1:ccont. Phi ccont1)
       (\ccont1:ccont. C' ccont1)
@@ -602,12 +602,12 @@ th15-1_proof :
       -> lemma14-1c CVE CSE'
       -> th15-1 (cval_klam CVE) (cstack_klam CE)
             (bare_klam
-                (\k:ccont. \b:Pi T':ctriv. bareE (cret k T') T'.
+                (\k:ccont. \b:Pi T:ctriv. bareE (cret k T) T.
                     BE k (\ctriv1:ctriv. b ctriv1))).
 th15-2_capp_k_k_init :
-   th15-2 cvalCS_init (CVE T' CVT) CE CSE'
+   th15-2 cvalCS_init (CVE T CVT) CE CSE'
       (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t. BE k (\t:ctriv. b t))
-      -> lemma14-1c (CVE T' CVT) CSE'
+      -> lemma14-1c (CVE T CVT) CSE'
       -> th15-2 cvalCS_init
             (cval_capp cval_k
                 (cval_xlam (\t:ctriv. \cvt:cvalT t. cval_klam (CVE t cvt))) CVT)
@@ -615,9 +615,9 @@ th15-2_capp_k_k_init :
             (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t.
                 bare_capp (BE k (\ctriv1:ctriv. b ctriv1))).
 th15-2_capp_k_vlam :
-   th15-2 CVS (CVE T' CVT) CE CSE'
+   th15-2 CVS (CVE T CVT) CE CSE'
       (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t. BE k (\t:ctriv. b t))
-      -> lemma14-1a CVS (CVE T' CVT) (\v:ctriv. CSE1 v) CSE'
+      -> lemma14-1a CVS (CVE T CVT) (\v:ctriv. CSE1 v) CSE'
       -> th15-2 CVS
             (cval_capp cval_k
                 (cval_xlam (\t:ctriv. \cvt:cvalT t. cval_klam (CVE t cvt))) CVT)
@@ -626,10 +626,10 @@ th15-2_capp_k_vlam :
             (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t.
                 bare_capp (BE k (\ctriv1:ctriv. b ctriv1))).
 th15-2_capp_vlam_phi :
-   th15-2 (cvalCS_vlam (\v:ctriv. \cvv:cvalT v. CVE1 v cvv) CVS) (CVE T' CVT) CE
+   th15-2 (cvalCS_vlam (\v:ctriv. \cvv:cvalT v. CVE1 v cvv) CVS) (CVE T CVT) CE
       CSE' (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t. BE k (\t:ctriv. b t))
       -> lemma14-1a (cvalCS_vlam (\v:ctriv. \cvv:cvalT v. CVE1 v cvv) CVS)
-            (CVE T' CVT) (\v:ctriv. CSE1 v) CSE'
+            (CVE T CVT) (\v:ctriv. CSE1 v) CSE'
       -> th15-2 CVS
             (cval_capp (cval_vlam (\v:ctriv. \cvt:cvalT v. CVE1 v cvt))
                 (cval_xlam (\t:ctriv. \cvt:cvalT t. cval_klam (CVE t cvt))) CVT)
@@ -640,9 +640,9 @@ th15-2_capp_vlam_phi :
 th15-2_cret_k_init :
    th15-2 cvalCS_init (cval_cret cval_k CVT) cstack_cret_k_init
       (csubst_cret csubst_k_init)
-      (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t. b T').
+      (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t. b T).
 th15-2_cret_k_vlam :
-   th15-2 CVS (CVE T' CVT) CE (CSE T')
+   th15-2 CVS (CVE T CVT) CE (CSE T)
       (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t. BE k (\t:ctriv. b t))
       -> th15-2 (cvalCS_vlam (\v:ctriv. \cvv:cvalT v. CVE v cvv) CVS)
             (cval_cret cval_k CVT) (cstack_cret_k_vlam CE)
@@ -650,7 +650,7 @@ th15-2_cret_k_vlam :
             (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t.
                 bare_cret (BE k (\ctriv1:ctriv. b ctriv1))).
 th15-2_cret_vlam_phi :
-   th15-2 CVS (CVE T' CVT) CE (CSE' T')
+   th15-2 CVS (CVE T CVT) CE (CSE' T)
       (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t. BE k (\t:ctriv. b t))
       -> th15-2 CVS
             (cval_cret (cval_vlam (\v:ctriv. \cvt:cvalT v. CVE v cvt)) CVT)
@@ -665,32 +665,32 @@ dstack_subst_xlam :
    dstack_substT (xlam (\ctriv1:ctriv. R ctriv1)) Xi
       (xlam (\ctriv1:ctriv. R ctriv1)) Xi.
 dstack_subst_cret :
-   dstack_substC C Xi' C' -> dstack_substT T' Xi T' Xi'
-      -> dstack_substE (cret C T') Xi (cret C' T').
+   dstack_substC C Xi' C' -> dstack_substT T Xi T' Xi'
+      -> dstack_substE (cret C T) Xi (cret C' T').
 dstack_subst_capp :
    dstack_substC C Xi0 C' -> dstack_substT T0 Xi1 T0' Xi0
       -> dstack_substT T1 Xi T1' Xi1
       -> dstack_substE (capp T0 T1 C) Xi (capp T0' T1' C').
 dstack_subst_vlam :
    (Pi v:ctriv.
-       (Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi)
-          -> dstack_substE (E v) (,' Xi v) (E' v))
+       (Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi)
+          -> dstack_substE (E v) (; Xi v) (E' v))
       -> dstack_substC (vlam (\ctriv1:ctriv. E ctriv1)) Xi
             (vlam (\ctriv1:ctriv. E' ctriv1)).
 vvalDS : stack -> stack -> type.
 vvalDS_init : vvalDS dot dot.
 vvalDS_stack :
-   vvalDS XXi Xi -> (Pi xi:stack. vvalT xi T' xi)
-      -> vvalDS (,' XXi V) (,' Xi T').
+   vvalDS XXi Xi -> (Pi xi:stack. vvalT xi T xi)
+      -> vvalDS (; XXi V) (; Xi T).
 cvalDS : stack -> type.
 cvalDS_init : cvalDS dot.
-cvalDS_stack : cvalDS Xi -> cvalT T' -> cvalDS (,' Xi T').
+cvalDS_stack : cvalDS Xi -> cvalT T -> cvalDS (; Xi T).
 vvalMS : stack -> stack -> type.
 vvalMS_init : vvalMS dot dot.
-vvalMS_v : vvalMS XXi Xi -> vvalMS (,' XXi V) (,' Xi V).
+vvalMS_v : vvalMS XXi Xi -> vvalMS (; XXi V) (; Xi V).
 vvalMS_t :
-   vvalMS XXi Xi -> (Pi xi:stack. vvalT xi T' xi)
-      -> vvalMS (,' XXi V) (,' Xi T').
+   vvalMS XXi Xi -> (Pi xi:stack. vvalT xi T xi)
+      -> vvalMS (; XXi V) (; Xi T).
 vvalDS->vvalMS : vvalDS XXi Xi -> vvalMS XXi Xi -> type.
 ds_ms_init : vvalDS->vvalMS vvalDS_init vvalMS_init.
 ds_ms_stack :
@@ -698,39 +698,39 @@ ds_ms_stack :
       -> vvalDS->vvalMS (vvalDS_stack VVDS (\xi:stack. VVT xi))
             (vvalMS_t VVMS (\xi:stack. VVT xi)).
 www :
-   vvalMS XXi Xi -> vvalT XXi T' XXi' -> dstack_substT T' Xi T' Xi'
+   vvalMS XXi Xi -> vvalT XXi T XXi' -> dstack_substT T Xi T' Xi'
       -> vvalMS XXi' Xi' -> type.
 www_vstack_v :
-   Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (,' xi v) v xi.
-      Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+   Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (; xi v) v xi.
+      Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
       www (vvalMS_v VVMS) (vvv XXi) (dsv Xi v) VVMS.
 www_tstack_v :
-   Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (,' xi v) v xi.
-      Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
-      www (vvalMS_t VVMS (\xi:stack. VVT xi)) (vvv XXi) (dsv Xi T') VVMS.
+   Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (; xi v) v xi.
+      Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
+      www (vvalMS_t VVMS (\xi:stack. VVT xi)) (vvv XXi) (dsv Xi T) VVMS.
 www_stack_t :
    Pi t:ctriv. Pi vvt:Pi xi:stack. vvalT xi t xi.
       Pi dst:Pi xi:stack. dstack_substT t xi t xi.
       www VVMS (vvt XXi) (dst Xi) VVMS.
 lappT :
-   dstack_substT T' Xi T' Xi' -> app (&' Xi1 Xi) NXi -> app (&' Xi1 Xi') NXi'
-      -> dstack_substT T' NXi T' NXi' -> type.
+   dstack_substT T Xi T' Xi' -> app (&' Xi1 Xi) NXi -> app (&' Xi1 Xi') NXi'
+      -> dstack_substT T NXi T' NXi' -> type.
 lappT_v :
-   Pi v:ctriv. Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
-      lappT (dsv Xi T') (app_stack APP) APP (dsv Xi1 T').
+   Pi v:ctriv. Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
+      lappT (dsv Xi T) (app_stack APP) APP (dsv Xi1 T).
 lappT_t :
    Pi t:ctriv. Pi dst:Pi xi:stack. dstack_substT t xi t xi.
       lappT (dst Xi) APP APP (dst Xi1).
 lemma17-1E : vvalE XXi E -> dstack_substE E XXi E -> type.
-lemma17-1T : vvalT XXi T' XXi' -> dstack_substT T' XXi T' XXi' -> type.
+lemma17-1T : vvalT XXi T XXi' -> dstack_substT T XXi T XXi' -> type.
 lemma17-1C : vvalC XXi C -> dstack_substC C XXi C -> type.
 lemma17-1_t :
    Pi t:ctriv. Pi vvt:Pi xi:stack. vvalT xi t xi.
       Pi dst:Pi xi:stack. dstack_substT t xi t xi.
       lemma17-1T (vvt XXi) (dst XXi).
 lemma17-1_v :
-   Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (,' xi v) v xi.
-      Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+   Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (; xi v) v xi.
+      Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
       lemma17-1T (vvv XXi) (dsv XXi v).
 lemma17-1_cret :
    lemma17-1C VVC DSC -> lemma17-1T VVT DST
@@ -739,30 +739,30 @@ lemma17-1_capp :
    lemma17-1C VVC DSC -> lemma17-1T VVT1 DST1 -> lemma17-1T VVT0 DST0
       -> lemma17-1E (vval_capp VVC VVT0 VVT1) (dstack_subst_capp DSC DST0 DST1).
 lemma17-1_vlam :
-   (Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (,' xi v) v xi.
-       Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+   (Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (; xi v) v xi.
+       Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
        lemma17-1E (VE v (\x:stack. vvv x))
           (DE v (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
       -> lemma17-1C
             (vval_vlam
-                (\v:ctriv. \vvt:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                (\v:ctriv. \vvt:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                     VE v (\Xi':stack. vvt Xi')))
             (dstack_subst_vlam
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     DE v (\xi:stack. \t:ctriv. dsv xi t))).
 lemma17-2 :
    Pi t:ctriv -> ctriv.
-      (Pi v:ctriv. app (&' (,' XXi v) XXi') (XXi1 v))
+      (Pi v:ctriv. app (&' (; XXi v) XXi') (XXi1 v))
          -> (Pi v:ctriv.
-                (Pi xi:stack. vvalT (,' xi v) v xi) -> vvalE (XXi1 v) (E v))
-         -> (Pi v:ctriv. app (&' (,' Xi v) Xi') (Xi1 v))
+                (Pi xi:stack. vvalT (; xi v) v xi) -> vvalE (XXi1 v) (E v))
+         -> (Pi v:ctriv. app (&' (; Xi v) Xi') (Xi1 v))
          -> (Pi v:ctriv. vvalMS (XXi1 v) (Xi1 (t v)))
          -> (Pi v:ctriv.
-                (Pi xi:stack. Pi t1:ctriv. dstack_substT v (,' xi t1) t1 xi)
+                (Pi xi:stack. Pi t1:ctriv. dstack_substT v (; xi t1) t1 xi)
                    -> dstack_substE (E v) (Xi1 v) (E' v))
          -> (Pi v:ctriv.
-                (Pi xi:stack. Pi t2:ctriv. dstack_substT v (,' xi t2) t2 xi)
+                (Pi xi:stack. Pi t2:ctriv. dstack_substT v (; xi t2) t2 xi)
                    -> dstack_substE (E v) (Xi1 (t v)) (E' (t v)))
          -> type.
 lemma17-3 :
@@ -772,394 +772,394 @@ lemma17-3 :
       -> dstack_substE (E C') Xi E1 -> dstack_substE (E C) Xi0 E1 -> type.
 lemma17-2_cret_v1 :
    (Pi v2:ctriv.
-       Pi dsv2:Pi xi:stack. Pi t:ctriv. dstack_substT v2 (,' xi t) t xi.
-       Pi vvv2:Pi xi:stack. vvalT (,' xi v2) v2 xi.
-       lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_stack (APP v))
-          (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+       Pi dsv2:Pi xi:stack. Pi t:ctriv. dstack_substT v2 (; xi t) t xi.
+       Pi vvv2:Pi xi:stack. vvalT (; xi v2) v2 xi.
+       lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. app_stack (APP v))
+          (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
               VVE' v2 (\x:stack. vvv2 x) v (\xi:stack. vvv xi))
           (\v:ctriv. app_stack (APP1 v)) (\v:ctriv. vvalMS_v (VVMS' v))
           (\v:ctriv.
-              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
               DSE v2 (\x:stack. \ctriv1:ctriv. dsv2 x ctriv1) v
                  (\xi:stack. \t:ctriv. dsv xi t))
           (\v:ctriv.
-              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
               DSE' v2 (\x:stack. \ctriv1:ctriv. dsv2 x ctriv1) v
                  (\xi:stack. \t:ctriv. dsv xi t)))
       -> (Pi v:ctriv. Pi v1:ctriv.
-             Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (,' xi t) t xi.
-             Pi vvv1:Pi xi:stack. vvalT (,' xi v1) v1 xi.
-             www (VVMS v1 v) (vvv1 (XXi v)) (dsv1 (Xi (T' v)) (T1 v1)) (VVMS' v))
+             Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (; xi t) t xi.
+             Pi vvv1:Pi xi:stack. vvalT (; xi v1) v1 xi.
+             www (VVMS v1 v) (vvv1 (XXi v)) (dsv1 (Xi (T v)) (T1 v1)) (VVMS' v))
       -> (Pi v1:ctriv.
-             Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (,' xi t) t xi.
-             Pi vvv1:Pi xi:stack. vvalT (,' xi v1) v1 xi.
-             lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_stack (APP v))
-                (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+             Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (; xi t) t xi.
+             Pi vvv1:Pi xi:stack. vvalT (; xi v1) v1 xi.
+             lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. app_stack (APP v))
+                (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
                     vval_cret
                        (vval_vlam
                            (\v2:ctriv.
-                               \vvv2:Pi Xi':stack. vvalT (,' Xi' v2) v2 Xi'.
+                               \vvv2:Pi Xi':stack. vvalT (; Xi' v2) v2 Xi'.
                                VVE v2 (\x:stack. vvv2 x) v (\x:stack. vvv x)))
                        (vvv1 (XXi v)))
                 (\v:ctriv. app_stack (APP1 v)) (\v:ctriv. VVMS v1 v)
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     dstack_subst_cret
                        (dstack_subst_vlam
                            (\v2:ctriv.
                                \dsv2:Pi xi:stack. Pi t:ctriv.
-                                        dstack_substT v2 (,' xi t) t xi.
+                                        dstack_substT v2 (; xi t) t xi.
                                DSE v2 (\x:stack. \ctriv1:ctriv. dsv2 x ctriv1) v
                                   (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
                        (dsv1 (Xi v) (T1 v1)))
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     dstack_subst_cret
                        (dstack_subst_vlam
                            (\v2:ctriv.
                                \dsv2:Pi xi:stack. Pi t:ctriv.
-                                        dstack_substT v2 (,' xi t) t xi.
+                                        dstack_substT v2 (; xi t) t xi.
                                DSE' v2 (\x:stack. \ctriv1:ctriv. dsv2 x ctriv1)
                                   v (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
-                       (dsv1 (Xi (T' v)) (T1 v1)))).
+                       (dsv1 (Xi (T v)) (T1 v1)))).
 lemma17-2_cret_t :
    (Pi v1:ctriv.
-       Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (,' xi t) t xi.
-       Pi vvv1:Pi xi:stack. vvalT (,' xi v1) v1 xi.
+       Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (; xi t) t xi.
+       Pi vvv1:Pi xi:stack. vvalT (; xi v1) v1 xi.
        lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_stack (APP v))
-          (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+          (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
               VVE v1 (\x:stack. vvv1 x) v (\xi:stack. vvv xi))
           (\v:ctriv. app_stack (APP1 v)) (\v:ctriv. vvalMS_v (VVMS v))
           (\v:ctriv.
-              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
               DSE v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1) v
                  (\xi:stack. \t:ctriv. dsv xi t))
           (\v:ctriv.
-              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
               DSE' v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1) v
                  (\xi:stack. \t:ctriv. dsv xi t)))
       -> (Pi t:ctriv. Pi dst:Pi xi:stack. dstack_substT t xi t xi.
              Pi vvt:Pi xi:stack. vvalT xi t xi.
              lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. APP v)
-                (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+                (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
                     vval_cret
                        (vval_vlam
                            (\v1:ctriv.
-                               \vvv1:Pi Xi':stack. vvalT (,' Xi' v1) v1 Xi'.
+                               \vvv1:Pi Xi':stack. vvalT (; Xi' v1) v1 Xi'.
                                VVE v1 (\x:stack. vvv1 x) v (\x:stack. vvv x)))
                        (vvt (XXi v)))
                 (\v:ctriv. APP1 v) (\v:ctriv. VVMS v)
                 (\v:ctriv.
                     \dsv:Pi xi:stack. Pi t1:ctriv.
-                            dstack_substT v (,' xi t1) t1 xi.
+                            dstack_substT v (; xi t1) t1 xi.
                     dstack_subst_cret
                        (dstack_subst_vlam
                            (\v1:ctriv.
                                \dsv1:Pi xi:stack. Pi t2:ctriv.
-                                        dstack_substT v1 (,' xi t2) t2 xi.
+                                        dstack_substT v1 (; xi t2) t2 xi.
                                DSE v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1) v
                                   (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
-                       (dst (,' Xi v)))
+                       (dst (; Xi v)))
                 (\v:ctriv.
                     \dsv:Pi xi:stack. Pi t3:ctriv.
-                            dstack_substT v (,' xi t3) t3 xi.
+                            dstack_substT v (; xi t3) t3 xi.
                     dstack_subst_cret
                        (dstack_subst_vlam
                            (\v1:ctriv.
                                \dsv1:Pi xi:stack. Pi t4:ctriv.
-                                        dstack_substT v1 (,' xi t4) t4 xi.
+                                        dstack_substT v1 (; xi t4) t4 xi.
                                DSE' v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1)
                                   v (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
-                       (dst (,' Xi (T' v))))).
+                       (dst (; Xi (T' v))))).
 lemma17-2_cret_v :
-   lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_init)
-      (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi. vval_cret VVC (vvv XXi))
+   lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. app_init)
+      (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi. vval_cret VVC (vvv XXi))
       (\v:ctriv. app_init) (\v:ctriv. VVMS v)
-      (\v:ctriv. \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+      (\v:ctriv. \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
           dstack_subst_cret DSC (dsv Xi v))
-      (\v:ctriv. \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
-          dstack_subst_cret DSC (dsv Xi (T' v))).
+      (\v:ctriv. \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
+          dstack_subst_cret DSC (dsv Xi (T v))).
 lemma17-2_capp_t0_v :
    Pi t0:ctriv. Pi dst0:Pi xi:stack. dstack_substT t0 xi t0 xi.
       Pi vvt0:Pi xi:stack. vvalT xi t0 xi.
-      lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_init)
-         (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+      lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. app_init)
+         (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
              vval_capp VVC (vvt0 XXi) (vvv XXi))
          (\v:ctriv. app_init) (\v:ctriv. VVMS v)
          (\v:ctriv.
-             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
              dstack_subst_capp DSC (dst0 Xi) (dsv Xi v))
          (\v:ctriv.
-             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
-             dstack_subst_capp DSC (dst0 Xi) (dsv Xi (T' v))).
+             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
+             dstack_subst_capp DSC (dst0 Xi) (dsv Xi (T v))).
 lemma17-2_capp_v0_v_c :
    Pi v0:ctriv.
-      Pi dsv0:Pi xi:stack. Pi t:ctriv. dstack_substT v0 (,' xi t) t xi.
-      Pi vvv0:Pi xi:stack. vvalT (,' xi v0) v0 xi.
-      lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_init)
-         (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
-             vval_capp VVC (vvv0 XXi) (vvv (,' XXi v0)))
+      Pi dsv0:Pi xi:stack. Pi t:ctriv. dstack_substT v0 (; xi t) t xi.
+      Pi vvv0:Pi xi:stack. vvalT (; xi v0) v0 xi.
+      lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. app_init)
+         (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
+             vval_capp VVC (vvv0 XXi) (vvv (; XXi v0)))
          (\v:ctriv. app_init) (\v:ctriv. VVMS v0 v)
          (\v:ctriv.
-             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
-             dstack_subst_capp DSC (dsv0 Xi T0) (dsv (,' Xi T0) v))
+             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
+             dstack_subst_capp DSC (dsv0 Xi T0) (dsv (; Xi T0) v))
          (\v:ctriv.
-             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
-             dstack_subst_capp DSC (dsv0 Xi T0) (dsv (,' Xi T0) (T' v))).
+             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
+             dstack_subst_capp DSC (dsv0 Xi T0) (dsv (; Xi T0) (T v))).
 lemma17-2_capp_v0_v1_c :
    (Pi v2:ctriv.
-       Pi dsv2:Pi xi:stack. Pi t:ctriv. dstack_substT v2 (,' xi t) t xi.
-       Pi vvv2:Pi xi:stack. vvalT (,' xi v2) v2 xi.
-       lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_stack (APP v))
-          (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+       Pi dsv2:Pi xi:stack. Pi t:ctriv. dstack_substT v2 (; xi t) t xi.
+       Pi vvv2:Pi xi:stack. vvalT (; xi v2) v2 xi.
+       lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. app_stack (APP v))
+          (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
               VVE v2 (\x:stack. vvv2 x) v (\xi:stack. vvv xi))
           (\v:ctriv. app_stack (APP1 v)) (\v:ctriv. vvalMS_v (VVMS'' v))
           (\v:ctriv.
-              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
               DSE v2 (\x:stack. \ctriv1:ctriv. dsv2 x ctriv1) v
                  (\xi:stack. \t:ctriv. dsv xi t))
           (\v:ctriv.
-              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
               DSE' v2 (\x:stack. \ctriv1:ctriv. dsv2 x ctriv1) v
                  (\xi:stack. \t:ctriv. dsv xi t)))
       -> (Pi v:ctriv. Pi v0:ctriv.
-             Pi dsv0:Pi xi:stack. Pi t:ctriv. dstack_substT v0 (,' xi t) t xi.
-             Pi vvv0:Pi xi:stack. vvalT (,' xi v0) v0 xi.
-             www (VVMS' v0 v) (vvv0 (XXi v)) (dsv0 (Xi (T' v)) (T'' v0))
+             Pi dsv0:Pi xi:stack. Pi t:ctriv. dstack_substT v0 (; xi t) t xi.
+             Pi vvv0:Pi xi:stack. vvalT (; xi v0) v0 xi.
+             www (VVMS' v0 v) (vvv0 (XXi v)) (dsv0 (Xi (T v)) (T'' v0))
                 (VVMS'' v))
       -> (Pi v:ctriv. Pi v1:ctriv.
-             Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (,' xi t) t xi.
-             Pi vvv1:Pi xi:stack. vvalT (,' xi v1) v1 xi. Pi v0:ctriv.
-             www (VVMS v0 v1 v) (vvv1 (,' (XXi v) v0))
-                (dsv1 (,' (Xi (T' v)) (T'' v0)) (T' v1)) (VVMS' v0 v))
+             Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (; xi t) t xi.
+             Pi vvv1:Pi xi:stack. vvalT (; xi v1) v1 xi. Pi v0:ctriv.
+             www (VVMS v0 v1 v) (vvv1 (; (XXi v) v0))
+                (dsv1 (; (Xi (T v)) (T'' v0)) (T' v1)) (VVMS' v0 v))
       -> (Pi v0:ctriv.
-             Pi dsv0:Pi xi:stack. Pi t:ctriv. dstack_substT v0 (,' xi t) t xi.
-             Pi vvv0:Pi xi:stack. vvalT (,' xi v0) v0 xi. Pi v1:ctriv.
-             Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (,' xi t) t xi.
-             Pi vvv1:Pi xi:stack. vvalT (,' xi v1) v1 xi.
-             lemma17-2 (\ctriv1:ctriv. T' ctriv1)
+             Pi dsv0:Pi xi:stack. Pi t:ctriv. dstack_substT v0 (; xi t) t xi.
+             Pi vvv0:Pi xi:stack. vvalT (; xi v0) v0 xi. Pi v1:ctriv.
+             Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (; xi t) t xi.
+             Pi vvv1:Pi xi:stack. vvalT (; xi v1) v1 xi.
+             lemma17-2 (\ctriv1:ctriv. T ctriv1)
                 (\v:ctriv. app_stack (app_stack (APP v)))
-                (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+                (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
                     vval_capp
                        (vval_vlam
                            (\v2:ctriv.
-                               \vvv2:Pi Xi':stack. vvalT (,' Xi' v2) v2 Xi'.
+                               \vvv2:Pi Xi':stack. vvalT (; Xi' v2) v2 Xi'.
                                VVE v2 (\x:stack. vvv2 x) v (\x:stack. vvv x)))
-                       (vvv0 (XXi v)) (vvv1 (,' (XXi v) v0)))
+                       (vvv0 (XXi v)) (vvv1 (; (XXi v) v0)))
                 (\v:ctriv. app_stack (app_stack (APP1 v)))
                 (\v:ctriv. VVMS v0 v1 v)
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     dstack_subst_capp
                        (dstack_subst_vlam
                            (\v2:ctriv.
                                \dsv2:Pi xi:stack. Pi t:ctriv.
-                                        dstack_substT v2 (,' xi t) t xi.
+                                        dstack_substT v2 (; xi t) t xi.
                                DSE v2 (\x:stack. \ctriv1:ctriv. dsv2 x ctriv1) v
                                   (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
                        (dsv0 (Xi v) (T'' v0))
-                       (dsv1 (,' (Xi v) (T'' v0)) (T' v1)))
+                       (dsv1 (; (Xi v) (T'' v0)) (T' v1)))
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     dstack_subst_capp
                        (dstack_subst_vlam
                            (\v2:ctriv.
                                \dsv2:Pi xi:stack. Pi t:ctriv.
-                                        dstack_substT v2 (,' xi t) t xi.
+                                        dstack_substT v2 (; xi t) t xi.
                                DSE' v2 (\x:stack. \ctriv1:ctriv. dsv2 x ctriv1)
                                   v (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
-                       (dsv0 (Xi (T' v)) (T'' v0))
-                       (dsv1 (,' (Xi (T' v)) (T'' v0)) (T' v1)))).
+                       (dsv0 (Xi (T v)) (T'' v0))
+                       (dsv1 (; (Xi (T v)) (T'' v0)) (T' v1)))).
 lemma17-2_capp_t0_v1_c :
    (Pi v2:ctriv.
-       Pi dsv2:Pi xi:stack. Pi t:ctriv. dstack_substT v2 (,' xi t) t xi.
-       Pi vvv2:Pi xi:stack. vvalT (,' xi v2) v2 xi.
-       lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_stack (APP v))
-          (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+       Pi dsv2:Pi xi:stack. Pi t:ctriv. dstack_substT v2 (; xi t) t xi.
+       Pi vvv2:Pi xi:stack. vvalT (; xi v2) v2 xi.
+       lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. app_stack (APP v))
+          (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
               VVE v2 (\x:stack. vvv2 x) v (\xi:stack. vvv xi))
           (\v:ctriv. app_stack (APP1 v)) (\v:ctriv. vvalMS_v (VVMS' v))
           (\v:ctriv.
-              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
               DSE v2 (\x:stack. \ctriv1:ctriv. dsv2 x ctriv1) v
                  (\xi:stack. \t:ctriv. dsv xi t))
           (\v:ctriv.
-              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
               DSE' v2 (\x:stack. \ctriv1:ctriv. dsv2 x ctriv1) v
                  (\xi:stack. \t:ctriv. dsv xi t)))
       -> (Pi v:ctriv. Pi v1:ctriv.
-             Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (,' xi t) t xi.
-             Pi vvv1:Pi xi:stack. vvalT (,' xi v1) v1 xi.
-             www (VVMS v1 v) (vvv1 (XXi v)) (dsv1 (Xi (T' v)) (T' v1)) (VVMS' v))
+             Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (; xi t) t xi.
+             Pi vvv1:Pi xi:stack. vvalT (; xi v1) v1 xi.
+             www (VVMS v1 v) (vvv1 (XXi v)) (dsv1 (Xi (T v)) (T' v1)) (VVMS' v))
       -> (Pi v1:ctriv.
-             Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (,' xi t) t xi.
-             Pi vvv1:Pi xi:stack. vvalT (,' xi v1) v1 xi. Pi t0:ctriv.
+             Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (; xi t) t xi.
+             Pi vvv1:Pi xi:stack. vvalT (; xi v1) v1 xi. Pi t0:ctriv.
              Pi dst0:Pi xi:stack. dstack_substT t0 xi t0 xi.
              Pi vvt0:Pi xi:stack. vvalT xi t0 xi.
-             lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_stack (APP v))
-                (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+             lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. app_stack (APP v))
+                (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
                     vval_capp
                        (vval_vlam
                            (\v2:ctriv.
-                               \vvv2:Pi Xi':stack. vvalT (,' Xi' v2) v2 Xi'.
+                               \vvv2:Pi Xi':stack. vvalT (; Xi' v2) v2 Xi'.
                                VVE v2 (\x:stack. vvv2 x) v (\x:stack. vvv x)))
                        (vvt0 (XXi v)) (vvv1 (XXi v)))
                 (\v:ctriv. app_stack (APP1 v)) (\v:ctriv. VVMS v1 v)
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     dstack_subst_capp
                        (dstack_subst_vlam
                            (\v2:ctriv.
                                \dsv2:Pi xi:stack. Pi t:ctriv.
-                                        dstack_substT v2 (,' xi t) t xi.
+                                        dstack_substT v2 (; xi t) t xi.
                                DSE v2 (\x:stack. \ctriv1:ctriv. dsv2 x ctriv1) v
                                   (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
                        (dst0 (Xi v)) (dsv1 (Xi v) (T' v1)))
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     dstack_subst_capp
                        (dstack_subst_vlam
                            (\v2:ctriv.
                                \dsv2:Pi xi:stack. Pi t:ctriv.
-                                        dstack_substT v2 (,' xi t) t xi.
+                                        dstack_substT v2 (; xi t) t xi.
                                DSE' v2 (\x:stack. \ctriv1:ctriv. dsv2 x ctriv1)
                                   v (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
-                       (dst0 (Xi (T' v))) (dsv1 (Xi (T' v)) (T' v1)))).
+                       (dst0 (Xi (T v))) (dsv1 (Xi (T v)) (T' v1)))).
 lemma17-2_capp_v_v1_c :
    Pi v1:ctriv.
-      Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (,' xi t) t xi.
-      Pi vvv1:Pi xi:stack. vvalT (,' xi v1) v1 xi.
+      Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (; xi t) t xi.
+      Pi vvv1:Pi xi:stack. vvalT (; xi v1) v1 xi.
       lemma17-2 (\ctriv1:ctriv. T'' ctriv1) (\v:ctriv. app_stack (APP v))
-         (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
-             vval_capp VVC (vvv XXi) (vvv1 (,' XXi v)))
+         (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
+             vval_capp VVC (vvv XXi) (vvv1 (; XXi v)))
          (\v:ctriv. app_stack (APP1 v)) (\v:ctriv. VVMS v1 v)
          (\v:ctriv.
-             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
-             dstack_subst_capp DSC (dsv Xi v) (dsv1 (,' Xi v) (T' v1)))
+             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
+             dstack_subst_capp DSC (dsv Xi v) (dsv1 (; Xi v) (T' v1)))
          (\v:ctriv.
-             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
              dstack_subst_capp DSC (dsv Xi (T'' v))
-                (dsv1 (,' Xi (T'' v)) (T' v1))).
+                (dsv1 (; Xi (T'' v)) (T' v1))).
 lemmaa17-2_capp_v0_t1_c :
    (Pi v1:ctriv.
-       Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (,' xi t) t xi.
-       Pi vvv1:Pi xi:stack. vvalT (,' xi v1) v1 xi.
-       lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_stack (APP v))
-          (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+       Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (; xi t) t xi.
+       Pi vvv1:Pi xi:stack. vvalT (; xi v1) v1 xi.
+       lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. app_stack (APP v))
+          (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
               VVE v1 (\x:stack. vvv1 x) v (\xi:stack. vvv xi))
           (\v:ctriv. app_stack (APP1 v)) (\v:ctriv. vvalMS_v (VVMS' v))
           (\v:ctriv.
-              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
               DSE v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1) v
                  (\xi:stack. \t:ctriv. dsv xi t))
           (\v:ctriv.
-              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
               DSE' v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1) v
                  (\xi:stack. \t:ctriv. dsv xi t)))
       -> (Pi v:ctriv. Pi v0:ctriv.
-             Pi dsv0:Pi xi:stack. Pi t:ctriv. dstack_substT v0 (,' xi t) t xi.
-             Pi vvv0:Pi xi:stack. vvalT (,' xi v0) v0 xi.
-             www (VVMS v0 v) (vvv0 (XXi v)) (dsv0 (Xi (T' v)) (T'' v0))
+             Pi dsv0:Pi xi:stack. Pi t:ctriv. dstack_substT v0 (; xi t) t xi.
+             Pi vvv0:Pi xi:stack. vvalT (; xi v0) v0 xi.
+             www (VVMS v0 v) (vvv0 (XXi v)) (dsv0 (Xi (T v)) (T'' v0))
                 (VVMS' v))
       -> (Pi v0:ctriv.
-             Pi dsv0:Pi xi:stack. Pi t:ctriv. dstack_substT v0 (,' xi t) t xi.
-             Pi vvv0:Pi xi:stack. vvalT (,' xi v0) v0 xi. Pi t1:ctriv.
+             Pi dsv0:Pi xi:stack. Pi t:ctriv. dstack_substT v0 (; xi t) t xi.
+             Pi vvv0:Pi xi:stack. vvalT (; xi v0) v0 xi. Pi t1:ctriv.
              Pi dst1:Pi xi:stack. dstack_substT t1 xi t1 xi.
              Pi vvt1:Pi xi:stack. vvalT xi t1 xi.
-             lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_stack (APP v))
-                (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+             lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. app_stack (APP v))
+                (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
                     vval_capp
                        (vval_vlam
                            (\v1:ctriv.
-                               \vvv1:Pi Xi':stack. vvalT (,' Xi' v1) v1 Xi'.
+                               \vvv1:Pi Xi':stack. vvalT (; Xi' v1) v1 Xi'.
                                VVC v1 (\x:stack. vvv1 x) v (\x:stack. vvv x)))
-                       (vvv0 (XXi v)) (vvt1 (,' (XXi v) v0)))
+                       (vvv0 (XXi v)) (vvt1 (; (XXi v) v0)))
                 (\v:ctriv. app_stack (APP1 v)) (\v:ctriv. VVMS v0 v)
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     dstack_subst_capp
                        (dstack_subst_vlam
                            (\v1:ctriv.
                                \dsv1:Pi xi:stack. Pi t:ctriv.
-                                        dstack_substT v1 (,' xi t) t xi.
+                                        dstack_substT v1 (; xi t) t xi.
                                DSE v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1) v
                                   (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
-                       (dsv0 (Xi v) (T'' v0)) (dst1 (,' (Xi v) (T'' v0))))
+                       (dsv0 (Xi v) (T'' v0)) (dst1 (; (Xi v) (T'' v0))))
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     dstack_subst_capp
                        (dstack_subst_vlam
                            (\v1:ctriv.
                                \dsv1:Pi xi:stack. Pi t:ctriv.
-                                        dstack_substT v1 (,' xi t) t xi.
+                                        dstack_substT v1 (; xi t) t xi.
                                DSE' v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1)
                                   v (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
-                       (dsv0 (Xi (T' v)) (T'' v0))
-                       (dst1 (,' (Xi (T' v)) (T'' v0))))).
+                       (dsv0 (Xi (T v)) (T'' v0))
+                       (dst1 (; (Xi (T v)) (T'' v0))))).
 lemma17-2_capp_v_t1_c :
    Pi t1:ctriv. Pi dst1:Pi xi:stack. dstack_substT t1 xi t1 xi.
       Pi vvt1:Pi xi:stack. vvalT xi t1 xi.
-      lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_init)
-         (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
-             vval_capp VVC (vvv XXi) (vvt1 (,' XXi v)))
+      lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. app_init)
+         (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
+             vval_capp VVC (vvv XXi) (vvt1 (; XXi v)))
          (\v:ctriv. app_init) (\v:ctriv. VVMS v)
          (\v:ctriv.
-             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
-             dstack_subst_capp DSC (dsv Xi v) (dst1 (,' Xi v)))
+             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
+             dstack_subst_capp DSC (dsv Xi v) (dst1 (; Xi v)))
          (\v:ctriv.
-             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
-             dstack_subst_capp DSC (dsv Xi (T' v)) (dst1 (,' Xi (T' v)))).
+             \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
+             dstack_subst_capp DSC (dsv Xi (T v)) (dst1 (; Xi (T v)))).
 lemma17-2_capp_t0_t1_c :
    (Pi v1:ctriv.
-       Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (,' xi t) t xi.
-       Pi vvv1:Pi xi:stack. vvalT (,' xi v1) v1 xi.
-       lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. app_stack (APP v))
-          (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+       Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (; xi t) t xi.
+       Pi vvv1:Pi xi:stack. vvalT (; xi v1) v1 xi.
+       lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. app_stack (APP v))
+          (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
               VVE v1 (\x:stack. vvv1 x) v (\xi:stack. vvv xi))
           (\v:ctriv. app_stack (APP1 v)) (\v:ctriv. vvalMS_v (VVMS v))
           (\v:ctriv.
-              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
               DSE v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1) v
                  (\xi:stack. \t:ctriv. dsv xi t))
           (\v:ctriv.
-              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+              \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
               DSE' v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1) v
                  (\xi:stack. \t:ctriv. dsv xi t)))
       -> (Pi t0:ctriv. Pi dst0:Pi xi:stack. dstack_substT t0 xi t0 xi.
              Pi vvt0:Pi xi:stack. vvalT xi t0 xi. Pi t1:ctriv.
              Pi dst1:Pi xi:stack. dstack_substT t1 xi t1 xi.
              Pi vvt1:Pi xi:stack. vvalT xi t1 xi.
-             lemma17-2 (\ctriv1:ctriv. T' ctriv1) (\v:ctriv. APP v)
-                (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+             lemma17-2 (\ctriv1:ctriv. T ctriv1) (\v:ctriv. APP v)
+                (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
                     vval_capp
                        (vval_vlam
                            (\v1:ctriv.
-                               \vvv1:Pi Xi':stack. vvalT (,' Xi' v1) v1 Xi'.
+                               \vvv1:Pi Xi':stack. vvalT (; Xi' v1) v1 Xi'.
                                VVE v1 (\x:stack. vvv1 x) v (\x:stack. vvv x)))
                        (vvt0 (XXi v)) (vvt1 (XXi v)))
                 (\v:ctriv. APP1 v) (\v:ctriv. VVMS v)
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     dstack_subst_capp
                        (dstack_subst_vlam
                            (\v1:ctriv.
                                \dsv1:Pi xi:stack. Pi t:ctriv.
-                                        dstack_substT v1 (,' xi t) t xi.
+                                        dstack_substT v1 (; xi t) t xi.
                                DSE v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1) v
                                   (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
                        (dst0 (Xi v)) (dst1 (Xi v)))
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     dstack_subst_capp
                        (dstack_subst_vlam
                            (\v1:ctriv.
                                \dsv1:Pi xi:stack. Pi t:ctriv.
-                                        dstack_substT v1 (,' xi t) t xi.
+                                        dstack_substT v1 (; xi t) t xi.
                                DSE' v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1)
                                   v (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
-                       (dst0 (Xi (T' v))) (dst1 (Xi (T' v))))).
+                       (dst0 (Xi (T v))) (dst1 (Xi (T v))))).
 v-part : vvalMS XXi Xi -> stack -> type.
 v-part_init : v-part vvalMS_init dot.
-v-part_v : v-part CV S -> v-part (vvalMS_v CV) (,' S V).
+v-part_v : v-part CV S -> v-part (vvalMS_v CV) (; S V).
 v-part_t : v-part CV S -> v-part (vvalMS_t CV (\xi:stack. VVT xi)) S.
 doubleC :
    vvalC XXi C -> vvalMS XXi Xi -> dstack_substC C Xi C' -> v-part CV XXi'
@@ -1168,31 +1168,31 @@ doubleE :
    vvalE XXi E -> vvalMS XXi Xi -> dstack_substE E Xi E' -> v-part VC XXi'
       -> dstack_substE E' Xi' E' -> type.
 doubleT :
-   vvalT XXi T' XXi' -> vvalMS XXi Xi -> dstack_substT T' Xi T' Xi'
+   vvalT XXi T XXi' -> vvalMS XXi Xi -> dstack_substT T Xi T' Xi'
       -> v-part CV XXi1 -> vvalMS XXi' Xi' -> v-part CV' XXi2
       -> dstack_substT T' XXi1 T' XXi2 -> type.
 double_vlam :
-   (Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (,' xi v) v xi.
-       Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+   (Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (; xi v) v xi.
+       Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
        doubleE (VVE v (\x:stack. vvv x)) (vvalMS_v VVALMS)
           (DSE v (\x:stack. \ctriv1:ctriv. dsv x ctriv1)) (v-part_v VP)
           (DSE' v (\x:stack. \ctriv1:ctriv. dsv x ctriv1)))
       -> doubleC
             (vval_vlam
-                (\v:ctriv. \vvt:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                (\v:ctriv. \vvt:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                     VVE v (\Xi':stack. vvt Xi'))) VVALMS
             (dstack_subst_vlam
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     DSE v (\xi:stack. \t:ctriv. dsv xi t)))
             VP
             (dstack_subst_vlam
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     DSE' v (\xi:stack. \t:ctriv. dsv xi t))).
 double_v :
-   Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (,' xi v) v xi.
-      Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+   Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (; xi v) v xi.
+      Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
       doubleT (vvv XXi) (vvalMS_v CV) (dsv Xi v) (v-part_v VP) CV VP
          (dsv XXi' v).
 double_t :
@@ -1223,8 +1223,8 @@ lemma17-3_cret_k :
             (cval_cret cval_k CVT) VVC VVMS VVDS APP DSC
             (dstack_subst_cret DSC' DST') (dstack_subst_cret DSC DST).
 lemma17-3_cret_vlam :
-   (Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (,' xi v) v xi. Pi cvv:cvalT v.
-       Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+   (Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (; xi v) v xi. Pi cvv:cvalT v.
+       Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
        lemma17-3 (\k:ccont. \vvk:vvalC dot k. VVE v (\x:stack. vvv x) k vvk)
           (CVE v cvv) VVC1 (vvalMS_v VVMS') VVDS (app_stack APP') DSC1
           (DSE' v (\x:stack. \ctriv1:ctriv. dsv x ctriv1))
@@ -1234,7 +1234,7 @@ lemma17-3_cret_vlam :
             (\k:ccont. \vvk:vvalC dot k.
                 vval_cret
                    (vval_vlam
-                       (\v:ctriv. \vvv:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                       (\v:ctriv. \vvv:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                            VVE v (\x:stack. vvv x) k vvk))
                    VVT)
             (cval_cret (cval_vlam (\v:ctriv. \cvt:cvalT v. CVE v cvt)) CVT) VVC1
@@ -1243,13 +1243,13 @@ lemma17-3_cret_vlam :
                 (dstack_subst_vlam
                     (\v:ctriv.
                         \dsv:Pi xi:stack. Pi t:ctriv.
-                                dstack_substT v (,' xi t) t xi.
+                                dstack_substT v (; xi t) t xi.
                         DSE' v (\xi:stack. \t:ctriv. dsv xi t))) DST')
             (dstack_subst_cret
                 (dstack_subst_vlam
                     (\v:ctriv.
                         \dsv:Pi xi:stack. Pi t:ctriv.
-                                dstack_substT v (,' xi t) t xi.
+                                dstack_substT v (; xi t) t xi.
                         DSE v (\xi:stack. \t:ctriv. dsv xi t))) DST).
 lemma17-3_capp_k :
    lappT DST0' APP' app_init DST0 -> lappT DST1' APP APP' DST1
@@ -1259,8 +1259,8 @@ lemma17-3_capp_k :
             (dstack_subst_capp DSC' DST0' DST1')
             (dstack_subst_capp DSC DST0 DST1).
 lemma17-3_capp_vlam :
-   (Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (,' xi v) v xi. Pi cvv:cvalT v.
-       Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+   (Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (; xi v) v xi. Pi cvv:cvalT v.
+       Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
        lemma17-3 (\k:ccont. \vvk:vvalC dot k. VVE v (\x:stack. vvv x) k vvk)
           (CVE v cvv) VVC1 (vvalMS_v VVMS'') VVDS (app_stack APP'') DSC1
           (DSE' v (\x:stack. \ctriv1:ctriv. dsv x ctriv1))
@@ -1271,7 +1271,7 @@ lemma17-3_capp_vlam :
             (\k:ccont. \vvk:vvalC dot k.
                 vval_capp
                    (vval_vlam
-                       (\v:ctriv. \vvv:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                       (\v:ctriv. \vvv:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                            VVE v (\x:stack. vvv x) k vvk))
                    VVT0 VVT1)
             (cval_capp (cval_vlam (\v:ctriv. \cvt:cvalT v. CVE v cvt)) CVT1 CVT0)
@@ -1280,26 +1280,26 @@ lemma17-3_capp_vlam :
                 (dstack_subst_vlam
                     (\v:ctriv.
                         \dsv:Pi xi:stack. Pi t:ctriv.
-                                dstack_substT v (,' xi t) t xi.
+                                dstack_substT v (; xi t) t xi.
                         DSE' v (\xi:stack. \t:ctriv. dsv xi t))) DST0' DST1')
             (dstack_subst_capp
                 (dstack_subst_vlam
                     (\v:ctriv.
                         \dsv:Pi xi:stack. Pi t:ctriv.
-                                dstack_substT v (,' xi t) t xi.
+                                dstack_substT v (; xi t) t xi.
                         DSE v (\xi:stack. \t:ctriv. dsv xi t))) DST0 DST1).
 rsT :
-   vvalT XXi T' XXi' -> cvalT T' -> vvalDS XXi Xi -> cvalDS Xi
-      -> dstack_substT T' Xi T' Xi' -> (Pi xi:stack. vvalT xi T' xi) -> cvalT T'
+   vvalT XXi T XXi' -> cvalT T -> vvalDS XXi Xi -> cvalDS Xi
+      -> dstack_substT T Xi T' Xi' -> (Pi xi:stack. vvalT xi T' xi) -> cvalT T'
       -> vvalDS XXi' Xi' -> cvalDS Xi'
       -> (Pi xi:stack. dstack_substT T' xi T' xi) -> type.
 rs_v :
-   Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (,' xi v) v xi. Pi cvv:cvalT v.
-      Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+   Pi v:ctriv. Pi vvv:Pi xi:stack. vvalT (; xi v) v xi. Pi cvv:cvalT v.
+      Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
       rsT (VVT' XXi) CVT' VVDS CVDS (DST' Xi) (\xi:stack. VVT' xi) CVT' VVDS
          CVDS (\xi:stack. DST' xi)
          -> rsT (vvv XXi) cvv (vvalDS_stack VVDS (\xi:stack. VVT' xi))
-               (cvalDS_stack CVDS CVT') (dsv Xi T') (\xi:stack. VVT' xi) CVT'
+               (cvalDS_stack CVDS CVT') (dsv Xi T) (\xi:stack. VVT' xi) CVT'
                VVDS CVDS (\xi:stack. DST' xi).
 rs_t :
    Pi t:ctriv. Pi vvt:Pi xi:stack. vvalT xi t xi. Pi cvt:cvalT t.
@@ -1328,7 +1328,7 @@ th18-2 :
       -> (Pi k:ccont. (Pi t:ctriv. bareE (cret k t) t) -> bareE (E' k) A)
       -> type.
 th18-3 :
-   vvalDS XXi Xi -> dstackT Xi T' T' Xi' -> dstack_substT T' Xi T' Xi' -> type.
+   vvalDS XXi Xi -> dstackT Xi T T' Xi' -> dstack_substT T Xi T' Xi' -> type.
 th18-1_klam :
    th18-2 vvalDS_init cvalDS_init (\k:ccont. \vvk:vvalC dot k. VVE k vvk) CVE
       (\k:ccont.
@@ -1359,14 +1359,14 @@ th18-2_cret_init :
             (\k:ccont.
                 \d:Pi xi:stack. Pi t:ctriv. Pi t':ctriv.
                       dstackT xi t t' dot -> dstackE xi (cret k t) t'.
-                d Xi T' T' DT)
+                d Xi T T' DT)
             (\k:ccont. \s:dstack_substC k dot k. dstack_subst_cret s DST)
             (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t. BE k (\t:ctriv. b t)).
 th18-2_cret_vlam :
    (Pi v1:ctriv.
-       Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (,' xi t) t xi.
-       Pi dv1:Pi t:ctriv. Pi xi:stack. dstackT (,' xi t) v1 t xi.
-       Pi vvv1:Pi xi:stack. vvalT (,' xi v1) v1 xi. Pi cvv1:cvalT v1.
+       Pi dsv1:Pi xi:stack. Pi t:ctriv. dstack_substT v1 (; xi t) t xi.
+       Pi dv1:Pi t:ctriv. Pi xi:stack. dstackT (; xi t) v1 t xi.
+       Pi vvv1:Pi xi:stack. vvalT (; xi v1) v1 xi. Pi cvv1:cvalT v1.
        th18-2 (vvalDS_stack DVS' (\xi:stack. VVT' xi)) (cvalDS_stack CVS' CVT')
           (\k:ccont. \vvk:vvalC dot k. VVE v1 (\x:stack. vvv1 x) k vvk)
           (CVE v1 cvv1)
@@ -1380,16 +1380,16 @@ th18-2_cret_vlam :
               DSE' v1 (\x:stack. \ctriv1:ctriv. dsv1 x ctriv1) k s)
           (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t. BE k (\t:ctriv. b t)))
       -> (Pi k:ccont. Pi vvk:vvalC dot k. Pi s:dstack_substC k dot k.
-             lemma17-2 (\v:ctriv. T') (\v:ctriv. app_init)
-                (\v:ctriv. \vvv:Pi xi:stack. vvalT (,' xi v) v xi.
+             lemma17-2 (\v:ctriv. T) (\v:ctriv. app_init)
+                (\v:ctriv. \vvv:Pi xi:stack. vvalT (; xi v) v xi.
                     VVE v (\x:stack. vvv x) k vvk)
                 (\v:ctriv. app_init)
                 (\v:ctriv. vvalMS_t VVMS' (\xi:stack. VVT' xi))
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     DSE v (\x:stack. \ctriv1:ctriv. dsv x ctriv1) k s)
                 (\v:ctriv.
-                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
+                    \dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
                     DSE' v (\x:stack. \ctriv1:ctriv. dsv x ctriv1) k s))
       -> vvalDS->vvalMS VVDS' VVMS'
       -> rsT VVT CVT VVDS CVDS DST (\xi:stack. VVT' xi) CVT' VVDS' CVDS'
@@ -1399,7 +1399,7 @@ th18-2_cret_vlam :
             (\k:ccont. \vvk:vvalC dot k.
                 vval_cret
                    (vval_vlam
-                       (\v:ctriv. \vvv:Pi Xi':stack. vvalT (,' Xi' v) v Xi'.
+                       (\v:ctriv. \vvv:Pi Xi':stack. vvalT (; Xi' v) v Xi'.
                            VVE v (\x:stack. vvv x) k vvk))
                    VVT)
             (cval_cret (cval_vlam (\v:ctriv. \cvt:cvalT v. CVE v cvt)) CVT)
@@ -1408,7 +1408,7 @@ th18-2_cret_vlam :
                       dstackT xi t t' dot -> dstackE xi (cret k t) t'.
                 dstack_cret_vlam
                    (\v:ctriv.
-                       \dv:Pi t:ctriv. Pi xi:stack. dstackT (,' xi t) v t xi.
+                       \dv:Pi t:ctriv. Pi xi:stack. dstackT (; xi t) v t xi.
                        DE v (\ctriv1:ctriv. \x:stack. dv ctriv1 x) k
                           (\x:stack. \ctriv1:ctriv. \ctriv2:ctriv.
                               \datat:dstackT x ctriv1 ctriv2 dot.
@@ -1419,7 +1419,7 @@ th18-2_cret_vlam :
                    (dstack_subst_vlam
                        (\v:ctriv.
                            \dsv:Pi xi:stack. Pi t:ctriv.
-                                   dstack_substT v (,' xi t) t xi.
+                                   dstack_substT v (; xi t) t xi.
                            DSE v (\x:stack. \ctriv1:ctriv. dsv x ctriv1) k s))
                    DST)
             (\k:ccont. \b:Pi t:ctriv. bareE (cret k t) t.
@@ -1490,6 +1490,6 @@ th18-3_t :
    Pi t:ctriv. Pi dst:Pi xi:stack. dstack_substT t xi t xi.
       Pi dt:Pi xi:stack. dstackT xi t t xi. th18-3 DVS (dt Xi) (dst Xi).
 th18-3_v :
-   Pi v:ctriv. Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (,' xi t) t xi.
-      Pi dv:Pi xi:stack. Pi t:ctriv. dstackT (,' xi t) v t xi.
-      th18-3 DVS (dv Xi T') (dsv Xi T').
+   Pi v:ctriv. Pi dsv:Pi xi:stack. Pi t:ctriv. dstack_substT v (; xi t) t xi.
+      Pi dv:Pi xi:stack. Pi t:ctriv. dstackT (; xi t) v t xi.
+      th18-3 DVS (dv Xi T) (dsv Xi T).

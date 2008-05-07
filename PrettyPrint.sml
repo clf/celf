@@ -63,7 +63,7 @@ and pType ctx pa ty = if isUnknown ty then ["???"] else case AsyncType.prj ty of
 			in paren pa (["Pi "^x'^": "] @ pType ctx false A @ [". "]
 					@ pType ctx' false B) end
 	| AddProd (A, B) => paren pa (pType ctx true A @ [" & "] @ pType ctx true B)
-	| Top => ["T"]
+	| Top => ["<T>"]
 	| TMonad S => ["{"] @ pSyncType ctx false S @ ["}"]
 	| TAtomic (a, S) => (*(fn (a', []) => a' | (a', ts) => paren pa (a' @ ts)) ([a] @ join (map (pObj ctx true) impl), pTypeSpine ctx S)*)
 			[a] @ (*join (map (pObj ctx false) impl) @*) pTypeSpineSkip ctx S (getImplLength a)
@@ -77,7 +77,7 @@ and pTypeSpine ctx sp = case TypeSpine.prj sp of
 	  TNil => []
 	| TApp (N, S) => [" "] @ pObj ctx true N @ pTypeSpine ctx S
 and pSyncType ctx pa sty = case SyncType.prj sty of
-	  TTensor (S1, S2) => paren pa (pSyncType ctx true S1 @ [" @ "] @ pSyncType ctx true S2)
+	  TTensor (S1, S2) => paren pa (pSyncType ctx true S1 @ [" * "] @ pSyncType ctx true S2)
 	| TOne => ["1"]
 	| Exists (x, A, S) =>
 			let val (x', ctx') = case x of NONE => ("!", ctx) | SOME x => add x ctx
@@ -130,7 +130,7 @@ and pExp ctx e = case ExpObj.prj e of
 			in ["\n    let {"] @ pP @ ["} = "] @ pObj ctx false N @ [" in "] @ pExp ctx' E end
 	| Mon M => pMonadObj ctx false M
 and pMonadObj ctx pa m = case MonadObj.prj m of
-	  Tensor (M1, M2) => paren pa (pMonadObj ctx true M1 @ [" @ "] @ pMonadObj ctx true M2)
+	  Tensor (M1, M2) => paren pa (pMonadObj ctx true M1 @ [" * "] @ pMonadObj ctx true M2)
 	| One => ["1"]
 	| DepPair (N, M) => ["["] @ pObj ctx false N @ [", "] @ pMonadObj ctx false M @ ["]"]
 	| Norm N => pObj ctx pa N
@@ -138,7 +138,7 @@ and pPattern ctx bctx pa p = case Pattern.prj p of
 	  PTensor (p1, p2) =>
 			let val (pP1, bctx') = pPattern ctx bctx true p1
 				val (pP2, bctx'') = pPattern ctx bctx' true p2
-			in (paren pa (pP1 @ [" @ "] @ pP2), bctx'') end
+			in (paren pa (pP1 @ [" * "] @ pP2), bctx'') end
 	| POne => (["1"], bctx)
 	| PDepPair (x, A, p) =>
 			let val (x', bctx') = add x bctx
