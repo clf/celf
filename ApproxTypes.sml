@@ -72,11 +72,14 @@ and apxUnifySyncType (ty1, ty2) = case (ApxSyncType.prj ty1, ApxSyncType.prj ty2
 			(PrettyPrint.printType (unsafeCast (ApxTMonad' ty1))^"\nand: "
 						^PrettyPrint.printType (unsafeCast (ApxTMonad' ty2)))
 
-fun apxUnify (ty1ty2 as (ty1, ty2)) = (apxUnifyType ty1ty2)
-		(*handle (e as ExnApxUnifyType s) => (print ("ExnApxUnify: "^s^"\n") ; raise e)*)
-		handle (e as ExnApxUnifyType s) => (print ("ExnApxUnify: "^
+fun apxUnify (ty1, ty2, errmsg) = (apxUnifyType (ty1, ty2))
+		handle (e as ExnApxUnifyType s) =>
+			( print ("ExnApxUnify: "^s^"\n")
+			; print $ errmsg ()
+			; raise e)
+		(*handle (e as ExnApxUnifyType s) => (print ("ExnApxUnify: "^
 			(PrettyPrint.printType (unsafeCast ty1))^"\nand: "
-						^(PrettyPrint.printType (unsafeCast ty2))^"\n") ; raise e)
+						^(PrettyPrint.printType (unsafeCast ty2))^"\n") ; raise e)*)
 
 (* pat2apxSyncType : pattern -> apxSyncType *)
 fun pat2apxSyncType p = case Pattern.prj p of
@@ -160,7 +163,10 @@ and apxCheckObj (ctx, ob, ty) =
 	; apxCheckObj' (ctx, ob, ty) )
 and apxCheckObj' (ctx, ob, A) =
 	let val (ctxo, t, N, A') = apxInferObj (ctx, ob)
-	in apxUnify (A, A'); (ctxo, t, N) end
+		fun errmsg () = "Object " ^ PrettyPrint.printObj N ^ " has type " ^
+				PrettyPrint.printType (unsafeCast A') ^ "\n" ^
+				"but expected " ^ PrettyPrint.printType (unsafeCast A) ^ "\n"
+	in apxUnify (A, A', errmsg); (ctxo, t, N) end
 
 (* apxInferObj : context * obj -> context * bool * obj * apxAsyncType *)
 and apxInferObj (ctx, ob) = case Util.ObjAuxDefs.prj2 ob of
@@ -185,13 +191,15 @@ and apxInferObj (ctx, ob) = case Util.ObjAuxDefs.prj2 ob of
 	| Atomic (H, S) =>
 			let val (ctxm, t1, H', nImpl, A) = apxInferHead (ctx, H)
 				val S' = foldr App' S (List.tabulate (nImpl, fn _ => Util.blank ()))
-				val (ctxo, t2, S'', B) = apxInferSpine (ctxm, S', A)
 				fun atomRedex (INL h, sp) = Atomic' (h, sp)
 				  | atomRedex (INR h, sp) = Redex' (h, A, sp)
+				fun h2str sp = PrettyPrint.printObj $ atomRedex (H', sp)
+				val (ctxo, t2, S'', B) = apxInferSpine (ctxm, S', A, h2str)
 			in (ctxo, t1 orelse t2, atomRedex (H', S''), B) end
 	| Redex (N, A, S) =>
 			let val (ctxm, t1, N') = apxCheckObj (ctx, N, A)
-				val (ctxo, t2, S', B) = apxInferSpine (ctxm, S, A)
+				fun h2str sp = PrettyPrint.printObj $ Redex' (N', A, sp)
+				val (ctxo, t2, S', B) = apxInferSpine (ctxm, S, A, h2str)
 			in (ctxo, t1 orelse t2, Redex' (N', A, S'), B) end
 	| Constraint (N, A) =>
 			let val A' = apxCheckType (ctxDelLin ctx, A)
@@ -215,32 +223,47 @@ and apxInferHead (ctx, h) = case h of
 	| UCVar _ => raise Fail "Upper case variables shouldn't occur yet\n"
 	| X as LogicVar {ty, ...} => (ctx, true, INL X, 0, asyncTypeToApx ty)
 
-(* apxInferSpine : context * spine * apxAsyncType -> context * bool * spine * apxAsyncType *)
-and apxInferSpine (ctx, sp, ty) = case Spine.prj sp of
+(* apxInferSpine : context * spine * apxAsyncType * (spine -> string)
+	-> context * bool * spine * apxAsyncType *)
+and apxInferSpine (ctx, sp, ty, h2str) = case Spine.prj sp of
 	  Nil => (ctx, false, Nil', ty)
 	| App (N, S) =>
 			let val (_, _, N', A) = apxInferObj (ctxDelLin ctx, N)
 				val B = newApxTVar ()
-				val () = apxUnify (ty, ApxTPi' (A, B))
-				val (ctxo, t, S', tyo) = apxInferSpine (ctx, S, B)
+				fun errmsg () = "Object " ^ h2str Nil' ^ " has type " ^
+						PrettyPrint.printType (unsafeCast ty) ^ "\n" ^
+						"but is applied to " ^ PrettyPrint.printObj N' ^ " of type " ^
+						PrettyPrint.printType (unsafeCast A) ^ "\n"
+				val () = apxUnify (ty, ApxTPi' (A, B), errmsg)
+				val (ctxo, t, S', tyo) = apxInferSpine (ctx, S, B, fn s => h2str $ App' (N', s))
 			in (ctxo, t, App' (N', S'), tyo) end
 	| LinApp (N, S) =>
 			let val (ctxm, t1, N', A) = apxInferObj (ctx, N)
 				val B = newApxTVar ()
-				val () = apxUnify (ty, ApxLolli' (A, B))
-				val (ctxo, t2, S', tyo) = apxInferSpine (ctxm, S, B)
+				fun errmsg () = "Object " ^ h2str Nil' ^ " has type " ^
+						PrettyPrint.printType (unsafeCast ty) ^ "\n" ^
+						"but is linearly applied to " ^ PrettyPrint.printObj N' ^ " of type " ^
+						PrettyPrint.printType (unsafeCast A) ^ "\n"
+				val () = apxUnify (ty, ApxLolli' (A, B), errmsg)
+				val (ctxo, t2, S', tyo) = apxInferSpine (ctxm, S, B, fn s => h2str $ LinApp' (N', s))
 			in (ctxo, t1 orelse t2, LinApp' (N', S'), tyo) end
 	| ProjLeft S =>
 			let val A = newApxTVar ()
 				val B = newApxTVar ()
-				val () = apxUnify (ty, ApxAddProd' (A, B))
-				val (ctxo, t, S', tyo) = apxInferSpine (ctx, S, A)
+				fun errmsg () = "Object " ^ h2str Nil' ^ " has type " ^
+						PrettyPrint.printType (unsafeCast ty) ^ "\n" ^
+						"but is used as pair\n"
+				val () = apxUnify (ty, ApxAddProd' (A, B), errmsg)
+				val (ctxo, t, S', tyo) = apxInferSpine (ctx, S, A, fn s => h2str $ ProjLeft' s)
 			in (ctxo, t, ProjLeft' S', tyo) end
 	| ProjRight S =>
 			let val A = newApxTVar ()
 				val B = newApxTVar ()
-				val () = apxUnify (ty, ApxAddProd' (A, B))
-				val (ctxo, t, S', tyo) = apxInferSpine (ctx, S, B)
+				fun errmsg () = "Object " ^ h2str Nil' ^ " has type " ^
+						PrettyPrint.printType (unsafeCast ty) ^ "\n" ^
+						"but is used as pair\n"
+				val () = apxUnify (ty, ApxAddProd' (A, B), errmsg)
+				val (ctxo, t, S', tyo) = apxInferSpine (ctx, S, B, fn s => h2str $ ProjRight' s)
 			in (ctxo, t, ProjRight' S', tyo) end
 
 (* apxInferExp : context * expObj -> context * bool * expObj * apxSyncType *)

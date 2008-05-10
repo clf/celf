@@ -66,10 +66,10 @@ fun getSigDelta () = rev (!sigDelta) before sigDelta := []
 
 (* sigAddDecl : decl -> unit *)
 fun sigAddDecl dec =
-	( if isSome (peek (!sigTable, idFromDecl dec))
+	( if isSome (peek (!sigTable, idFromDecl dec)) andalso String.sub (idFromDecl dec, 0) <> #"-"
 		then raise Fail ("Error name clash: "^idFromDecl dec)
 		else ()
-	; sigTable := insert (!sigTable, idFromDecl dec, dec)
+	; sigTable := insert (!sigTable, idFromDecl dec, dec) (* stub "-..." bliver slettet *)
 	; sigDelta := dec :: !sigDelta )
 
 (* getImplLength : string -> int *)

@@ -147,11 +147,11 @@ isc_andr :
    is_atm IS1 (\u:pf B. \at:atm u. AT1 u at)
       -> is_atm (is_andr IS1)
             (\u:pf (and A B). \at:atm u. AT1 (ander u) (atm_ander at)).
-isc_imp :
+isc_imp' :
    ss_can SS2 CN2 -> is_atm IS1 (\u:pf B. \at:atm u. AT1 u at)
       -> is_atm (is_imp SS2 IS1)
             (\u:pf (imp A B). \at:atm u. AT1 (impe u D1) (atm_impe CN2 at)).
-isc_forall :
+isc_forall' :
    is_atm IS1 (\u:pf (A T1). \at:atm u. AT1 u at)
       -> is_atm (is_forall IS1)
             (\u:pf (forall (\t:i. A t)). \at:atm u.
@@ -200,11 +200,11 @@ or' : goal -> goal -> goal.
 false' : goal.
 exists' : (i -> goal) -> goal.
 == : p -> p -> goal.
-atom^ : p -> prog.
-and^ : prog -> prog -> prog.
-imp^ : goal -> prog -> prog.
-true^ : prog.
-forall^ : (i -> prog) -> prog.
+atom@ : p -> prog.
+and@ : prog -> prog -> prog.
+imp@ : goal -> prog -> prog.
+true@ : prog.
+forall@ : (i -> prog) -> prog.
 gl : o -> goal -> type.
 pg : o -> prog -> type.
 gl_atom : gl (atom P) (atom' P).
@@ -213,12 +213,12 @@ gl_imp : pg A2 D2 -> gl A1 G1 -> gl (imp A2 A1) (imp' D2 G1).
 gl_true : gl true true'.
 gl_forall :
    (Pi a:i. gl (A1 a) (G1 a)) -> gl (forall (\t:i. A1 t)) (forall' (\t:i. G1 t)).
-pg_atom : pg (atom P) (atom^ P).
-pg_and : pg A2 G2 -> pg A1 G1 -> pg (and A1 A2) (and^ G1 G2).
-pg_imp : gl A2 G2 -> pg A1 D1 -> pg (imp A2 A1) (imp^ G2 D1).
-pg_true : pg true true^.
+pg_atom : pg (atom P) (atom@ P).
+pg_and : pg A2 G2 -> pg A1 G1 -> pg (and A1 A2) (and@ G1 G2).
+pg_imp : gl A2 G2 -> pg A1 D1 -> pg (imp A2 A1) (imp@ G2 D1).
+pg_true : pg true true@.
 pg_forall :
-   (Pi a:i. pg (A1 a) (D1 a)) -> pg (forall (\t:i. A1 t)) (forall^ (\t:i. D1 t)).
+   (Pi a:i. pg (A1 a) (D1 a)) -> pg (forall (\t:i. A1 t)) (forall@ (\t:i. D1 t)).
 solve' : goal -> type.
 assume' : prog -> type.
 resolve : prog -> p -> goal -> type.
@@ -232,13 +232,13 @@ s'_orr : solve' G2 -> solve' (or' G1 G2).
 s'_exists : Pi T':i. solve' (G1 T') -> solve' (exists' (\t:i. G1 t)).
 s'_atom : solve' G -> resolve D P G -> assume' D -> solve' (atom' P).
 r_and :
-   resolve D2 P G2 -> resolve D1 P G1 -> resolve (and^ D1 D2) P (or' G1 G2).
-r_imp : resolve D1 P G1 -> resolve (imp^ G2 D1) P (and' G1 G2).
-r_true : resolve true^ P false'.
+   resolve D2 P G2 -> resolve D1 P G1 -> resolve (and@ D1 D2) P (or' G1 G2).
+r_imp : resolve D1 P G1 -> resolve (imp@ G2 D1) P (and' G1 G2).
+r_true : resolve true@ P false'.
 r_forall :
    (Pi a:i. resolve (D1 a) P (G1 a))
-      -> resolve (forall^ (\t:i. D1 t)) P (exists' (\t:i. G1 t)).
-r_atom : resolve (atom^ Q) P (== Q P).
+      -> resolve (forall@ (\t:i. D1 t)) P (exists' (\t:i. G1 t)).
+r_atom : resolve (atom@ Q) P (== Q P).
 s'_sound : solve' G -> gl A G -> solve A -> type.
 h'_sound : assume' D -> pg A D -> assume A -> type.
 r_sound : resolve D P G -> solve' G -> pg A D -> >> A P -> type.
@@ -274,44 +274,44 @@ rs'_forall :
 rs'_atom : r_sound r_atom s'_eqp pg_atom i_atom.
 
 r_total : Pi D:prog. resolve D P G -> type.
-rt_and : r_total D2 R2 -> r_total D1 R1 -> r_total (and^ D1 D2) (r_and R2 R1).
-rt_imp : r_total D1 R1 -> r_total (imp^ G2 D1) (r_imp R1).
-rt_true : r_total true^ r_true.
+rt_and : r_total D2 R2 -> r_total D1 R1 -> r_total (and@ D1 D2) (r_and R2 R1).
+rt_imp : r_total D1 R1 -> r_total (imp@ G2 D1) (r_imp R1).
+rt_true : r_total true@ r_true.
 rt_forall :
    (Pi a:i. r_total (D1 a) (R1 a))
-      -> r_total (forall^ (\t:i. D1 t)) (r_forall (\a:i. R1 a)).
-rt_atom : r_total (atom^ Q) r_atom.
+      -> r_total (forall@ (\t:i. D1 t)) (r_forall (\a:i. R1 a)).
+rt_atom : r_total (atom@ Q) r_atom.
 s'_comp : solve A -> gl A G -> solve' G -> type.
 h'_comp : assume A -> pg A D -> assume' D -> type.
 r_comp : >> A P -> pg A D -> resolve D P G -> solve' G -> type.
-s's_and :
+s's_and' :
    s'_comp S2 GL2 S'2 -> s'_comp S1 GL1 S'1
       -> s'_comp (s_and S2 S1) (gl_and GL2 GL1) (s'_and S'2 S'1).
-s's_imp :
+s's_imp' :
    (Pi h:assume A2. Pi h':assume' D2.
        h'_comp h PG2 h' -> s'_comp (S1 h) GL1 (S'1 h'))
       -> s'_comp (s_imp (\h:assume A2. S1 h)) (gl_imp PG2 GL1)
             (s'_imp (\h':assume' D2. S'1 h')).
-s's_true : s'_comp s_true gl_true s'_true.
-s's_forall :
+s's_true' : s'_comp s_true gl_true s'_true.
+s's_forall' :
    (Pi a:i. s'_comp (S1 a) (GL1 a) (S'1 a))
       -> s'_comp (s_forall (\a:i. S1 a)) (gl_forall (\a:i. GL1 a))
             (s'_forall (\a:i. S'1 a)).
-s's_atom :
+s's_atom' :
    r_comp I2 PG1 R2 S'3 -> r_total D R2 -> h'_comp H1 PG1 H'1
       -> s'_comp (s_atom I2 H1) gl_atom (s'_atom S'3 R2 H'1).
-rs'_andl :
+rs'_andl' :
    r_comp I1 PG1 R1 S'1
       -> r_comp (i_andl I1) (pg_and PG2 PG1) (r_and R2 R1) (s'_orl S'1).
-rs'_andr :
+rs'_andr' :
    r_comp I2 PG2 R2 S'2
       -> r_comp (i_andr I2) (pg_and PG2 PG1) (r_and R2 R1) (s'_orr S'2).
-rs'_imp :
+rs'_imp' :
    s'_comp S2 GL2 S'2 -> r_comp I1 PG1 R1 S'1
       -> r_comp (i_imp S2 I1) (pg_imp GL2 PG1) (r_imp R1) (s'_and S'2 S'1).
-rs'_forall :
+rs'_forall' :
    r_comp I1 (PG1 T') (R1 T') S'1
       -> r_comp (i_forall T' I1) (pg_forall (\a:i. PG1 a))
             (r_forall (\a:i. R1 a)) (s'_exists T' S'1).
-rs'_atom : r_comp i_atom pg_atom r_atom s'_eqp.
+rs'_atom' : r_comp i_atom pg_atom r_atom s'_eqp.
 

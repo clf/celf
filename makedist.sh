@@ -33,6 +33,8 @@ else
 	cp PrettyPrint.sig publish/ver$1/celf/
 	cp PrettyPrint.sml publish/ver$1/celf/
 	cp README publish/ver$1/celf/
+	cp RemDepend.sig publish/ver$1/celf/
+	cp RemDepend.sml publish/ver$1/celf/
 	cp Rnd-smlnj-mlton.sml publish/ver$1/celf/
 	cp Rnd.sig publish/ver$1/celf/
 	cp Signatur.sml publish/ver$1/celf/

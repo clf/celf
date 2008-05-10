@@ -142,13 +142,13 @@ nnil : notInCT crnil C.
 ncons :
    notInCT CT N -> className_neq N N'
       -> notInCT (crcons (class N' C1 CS1 MR1) CT NI') N.
-lookupMethod : methodTable -> (Pi M:methodName. methodDef M -> type).
+lookupMethod : methodTable -> Pi M:methodName. methodDef M -> type.
 lookupMethod_mrcons1 :
    lookupMethod (mrcons (method C MN1 BE) MT MU) MN1 (method C MN1 BE).
 lookupMethod_mrcons2 :
    methodName_neq MN1 MN2 -> lookupMethod MR MN1 MD
       -> lookupMethod (mrcons (method C MN2 BE) MR MU) MN1 MD.
-lookupClass : classTable -> (Pi C:className. classDef C -> type).
+lookupClass : classTable -> Pi C:className. classDef C -> type.
 lookupClass_crcons1 :
    lookupClass (crcons (class CN2 CN3 CNL MR) CT CTU) CN2 (class CN2 CN3 CNL MR).
 lookupClass_crcons2 :
@@ -159,7 +159,7 @@ s_refl : subtyping CT C C.
 s_super :
    subtyping CT D E -> lookupClass CT C (class C D CS1 MR1)
       -> className_neq C object -> subtyping CT C E.
-fields : classTable -> className -> (Pi N:nat. cnlist N -> type).
+fields : classTable -> className -> Pi N:nat. cnlist N -> type.
 f_obj : fields CT1 object z cnnil.
 f_class :
    cnappend CS2 CS1 CS3 PL1 -> fields CT D PRED1 CS2
@@ -211,7 +211,7 @@ override :
 ov1 : mtype CT M D CS C -> override CT M D CS C.
 ov2 : method_undefined CT M D -> override CT M D CS C.
 method_typing :
-   classTable -> (Pi M:methodName. methodDef M -> className -> type).
+   classTable -> Pi M:methodName. methodDef M -> className -> type.
 t_method :
    subtyping CT E0 C0 -> typing_bexp CT BE C E0 -> override CT M D CS C0
       -> lookupClass CT C (class C D FS MT)
@@ -221,7 +221,7 @@ mtt_nil : method_table_typing CT mrnil C.
 mtt_cons :
    method_table_typing CT MT C -> method_typing CT M MD C
       -> method_table_typing CT (mrcons MD MT MNI) C.
-class_typing : classTable -> (Pi C:className. classDef C -> type).
+class_typing : classTable -> Pi C:className. classDef C -> type.
 t_class :
    fields CT D N DS -> method_table_typing CT MT C -> subtyping CT D object
       -> class_typing CT C (class C D FS MT).
@@ -589,11 +589,11 @@ sub_mtype :
          -> sub_mtype WCT QMT1 (s_super SB LC NEQ) QMT3.
 narrowing_bexp :
    class_table_typing CT
-      -> (Pi E:exp -> bexp CS.
+      -> Pi E:exp -> bexp CS.
              (Pi X:exp. typing CT X C0 -> typing_bexp CT (E X) C D0)
                 -> subtyping CT C1 C0
                 -> (Pi X:exp. typing CT X C1 -> typing_bexp CT (E X) C D1)
-                -> subtyping CT D1 D0 -> type).
+                -> subtyping CT D1 D0 -> type.
 narrowing_exp :
    class_table_typing CT -> (Pi X:exp. typing CT X C0 -> typing CT (E X) D0)
       -> subtyping CT C1 C0 -> (Pi X:exp. typing CT X C1 -> typing CT (E X) D1)
@@ -942,7 +942,7 @@ ctyping_total_helper :
 - : ctyping_total_helper CTT (loc2 UNDEF) (nctct_nct UNDEF).
 ctyping_total :
    Pi CT:classTable.
-      class_table_typing CT -> (Pi C:className. notInCT_or_ctyping CT C -> type).
+      class_table_typing CT -> Pi C:className. notInCT_or_ctyping CT C -> type.
 - :
    ctyping_total_helper CTT LOC WO -> lc_total CT C LOC
       -> ctyping_total CT CTT C WO.
@@ -996,7 +996,7 @@ sb_total :
       -> sb_total CT C D CTT XMSB.
 mtype_to_mbody :
    Pi CS:cnlist N.
-      mtype CT M C1 CS C0 -> (Pi BE:bexp CS. mbody CT M C1 BE -> type).
+      mtype CT M C1 CS C0 -> Pi BE:bexp CS. mbody CT M C1 BE -> type.
 - : mtype_to_mbody CS (mt_class LM LC CNNEQ) BE1 (mb_class LM LC CNNEQ).
 - :
    mtype_to_mbody CS MTY BE MBY
@@ -1008,14 +1008,14 @@ mtype_inv :
 - : mtype_inv (t_new TPS FS) MTY MTY.
 mbody_inv :
    typing CT (new C1 ES) C2 -> mtype CT M C2 CS C0
-      -> (Pi BE:bexp CS. mbody CT M C1 BE -> type).
+      -> Pi BE:bexp CS. mbody CT M C1 BE -> type.
 - :
    mtype_to_mbody CS1 MTY2 BE MBY -> mtype_inv TP MTY1 MTY2
       -> mbody_inv TP MTY1 BE MBY.
 invoc_total :
    Pi ES:elist N.
       typing_list CT ES CS
-         -> (Pi BE:bexp CS. Pi E1:exp. invoc BE ES E1 E2 -> type).
+         -> Pi BE:bexp CS. Pi E1:exp. invoc BE ES E1 E2 -> type.
 - : invoc_total enil tl_nil (base (\this:exp. E1 this)) E invoc_base.
 - :
    invoc_total EL TPS (BE E2) E INV

@@ -84,7 +84,7 @@ fun reconstructDecl dec =
 			val dec = case dec of
 				  ConstDecl (id, _, kity) =>
 						let val imps = ImplicitVars.convUCVars2VarsImps (ImplicitVars.sort ())
-							val imps = map (Util.map2 PrettyPrint.remDepType) imps
+							val imps = map (Util.map2 RemDepend.remDepType) imps
 							val kity = mapKiTy (ImplicitVars.convUCVars2VarsKind imps)
 							                   (ImplicitVars.convUCVars2VarsType imps) kity
 							fun bindImps pi kity' =
@@ -97,9 +97,9 @@ fun reconstructDecl dec =
 			val dec = mapDecl Util.forceNormalizeKind
 			                  Util.forceNormalizeType
 			                  (Util.forceNormalizeObj o #1) dec
-			val dec = mapDecl PrettyPrint.remDepKind
-			                  PrettyPrint.remDepType
-			                  (PrettyPrint.remDepObj o #1) dec
+			val dec = mapDecl RemDepend.remDepKind
+			                  RemDepend.remDepType
+			                  (RemDepend.remDepObj o #1) dec
 			val () = case dec of
 				  ConstDecl (id, imps, kity) =>
 						(*let fun bindImps pi kity' =

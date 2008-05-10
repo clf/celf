@@ -23,12 +23,14 @@ Util.sig
 Util.sml
 celf.lex
 celf.grm
-ImplicitVars.sig
-ImplicitVars.sml
+RemDepend.sig
+RemDepend.sml
 PrettyPrint.sig
 PrettyPrint.sml
 PatternBind.sig
 PatternBind.sml
+ImplicitVars.sig
+ImplicitVars.sml
 ApproxTypes.sig
 ApproxTypes.sml
 Eta.sig

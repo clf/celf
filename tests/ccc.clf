@@ -145,7 +145,7 @@ etoc_comp :
        cong (\_e:term _A2. N' _e) (\_lc:conv (M x) (_E1 x). CVF' x _lc))
       -> etoc EPG CG CG' (\x:term _A1. CPG x)
       -> etoc EPF CF CF' (\x:term _A2. CPF x)
-      -> etoc (=@= EPF EPG) (ccomp CF CG) (ccomp CF' CG')
+      -> etoc (=@= EPF EPG) (ccomp CF (CG : conc _ M)) (ccomp (CF' : conc _ N') CG')
             (\x:term _A1. c_trans (CPF (M x)) (CVF' x (CPG x))).
 etoc_pair :
    etoc EPG CG CG' (\x:term _A1. CPG x) -> etoc EPF CF CF' (\x:term _A1. CPF x)
@@ -191,7 +191,7 @@ invcav_x : invcav av_x csnd (exp_addv EP) c_prr.
 invcav_y :
    invcav AV CP EP CVP
       -> cong (\_e:term _A1. M _e) (\_lc:conv (lfst (lpair MG Y)) MG. CC _lc)
-      -> invcav (av_y AV) (ccomp CP cfst) (exp_addv EP) (c_trans (CC c_prl) CVP).
+      -> invcav (av_y AV) (ccomp (CP : conc _ M) cfst) (exp_addv EP : exp _ (lpair MG Y)) (c_trans (CC (c_prl : conv (lfst (lpair MG Y)) _)) CVP).
 invca :
    abse G E F -> conc F (\_e:term _A1. M _e) -> exp G N -> conv (M N) E -> type.
 invca_var : invcav AV CP EP CVP -> invca (avar AV) CP EP CVP.

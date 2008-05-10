@@ -3,7 +3,7 @@ lam : (exp -> exp) -> exp.
 app : exp -> exp -> exp.
 exp' : type.
 1' : exp'.
-^' : exp' -> exp'.
+@' : exp' -> exp'.
 lam' : exp' -> exp'.
 app' : exp' -> exp' -> exp'.
 env : type.
@@ -18,13 +18,13 @@ tr_lam :
       -> trans K (lam' F) (lam (\e:exp. E e)).
 tr_app : trans K F2 E2 -> trans K F1 E1 -> trans K (app' F1 F2) (app E1 E2).
 tr_1 : vtrans W E -> trans (;' K W) 1' E.
-tr_^ : trans K F E -> trans (;' K W) (^' F) E.
+tr_@ : trans K F E -> trans (;' K W) (@' F) E.
 vtr_lam :
    trans K (lam' F) (lam (\e:exp. E e))
       -> vtrans (clo K (lam' F)) (lam (\e:exp. E e)).
 feval : env -> exp' -> val -> type.
 fev_1 : feval (;' K W) 1' W.
-fev_^ : feval K F W -> feval (;' K W') (^' F) W.
+fev_@ : feval K F W -> feval (;' K W') (@' F) W.
 fev_lam : feval K (lam' F) (clo K (lam' F)).
 fev_app :
    feval (;' K' W2) F1' W -> feval K F2 W2 -> feval K F1 (clo K' (lam' F1'))
@@ -39,7 +39,7 @@ mp_1 :
    map_eval ev_lam
       (tr_1 (vtr_lam (tr_lam (\w:val. \x:exp. \u:vtrans w x. C2 w x u)))) fev_1
       (vtr_lam (tr_lam (\w:val. \x:exp. \u:vtrans w x. C2 w x u))).
-mp_^ : map_eval D C1 D1' U1 -> map_eval D (tr_^ C1) (fev_^ D1') U1.
+mp_@ : map_eval D C1 D1' U1 -> map_eval D (tr_@ C1) (fev_@ D1') U1.
 mp_lam :
    map_eval ev_lam (tr_lam (\w:val. \x:exp. \u:vtrans w x. C1 w x u)) fev_lam
       (vtr_lam (tr_lam (\w:val. \x:exp. \u:vtrans w x. C1 w x u))).

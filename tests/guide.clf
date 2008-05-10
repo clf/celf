@@ -23,9 +23,9 @@ foralli : (Pi x:i. nd (A x)) -> nd (forall (\t:i. A t)).
 foralle : nd (forall (\t:i. A t)) -> (Pi T':i. nd (A T')).
 existsi : Pi T':i. nd (A T') -> nd (exists (\t:i. A t)).
 existse : nd (exists (\t:i. A t)) -> (Pi x:i. nd (A x) -> nd C) -> nd C.
-noti : (nd A -> nd false) -> nd (not A)
-   = \D:nd A -> nd false. impi (\d:nd A. D d).
-note : nd (not A) -> nd A -> nd false = \D:nd (not A). \E:nd A. impe D E.
+noti : Pi A. (nd A -> nd false) -> nd (not A)
+   = \A. \D:nd A -> nd false. impi (\d:nd A. D d).
+note : Pi A. nd (not A) -> nd A -> nd false = \A. \D:nd (not A). \E:nd A. impe D E.
 
 
 red : nd A -> nd A -> type.
@@ -70,12 +70,12 @@ tps_app :
 tpsa : eval E V -> of E T' -> of V T' -> type.
 % skolem tpsa#1 : Pi D:eval E V. Pi P:of E T'. of V T'.
 e0 : exp = app (lam (\x:exp. x)) (lam (\y:exp. y)).
-p0 : of e0 (arrow T1 T1)
-   = tp_app (tp_lam (\x:exp. \p:of x T1. p))
+p0 : Pi T1. of e0 (arrow T1 T1)
+   = \T1. tp_app (tp_lam (\x:exp. \p:of x T1. p))
         (tp_lam (\x:exp. \p:of x (arrow T1 T1). p)).
 d0 : eval e0 (lam (\e:exp. e)) = ev_app ev_lam ev_lam ev_lam.
-tps0 : tps d0 p0 (tp_lam (\x:exp. \p:of x T1. p))
-   = tps_app tps_lam tps_lam tps_lam.
+tps0 : Pi T1. tps d0 (p0 _) (tp_lam (\x:exp. \p:of x T1. p))
+   = \T1. tps_app tps_lam tps_lam tps_lam.
 cp : exp -> exp -> type.
 cp_app : cp E2 F2 -> cp E1 F1 -> cp (app E1 E2) (app F1 F2).
 cp_lam :

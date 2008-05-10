@@ -29,9 +29,9 @@ existsr : Pi T':i. conc (A T') -> conc (exists (\t:i. A t)).
 existsl : (Pi a:i. hyp (A a) -> conc C) -> hyp (exists (\t:i. A t)) -> conc C.
 thm : conc (and A B) -> conc (and B A) -> type.
 pf : thm (andr D1 D2) (andr D2 D1).
-d : conc (and true (imp A1 A1)) = andr truer (impr (\h:hyp A1. axiom h)).
-ex : thm d (andr (impr (\h:hyp A1. axiom h)) truer) = pf.
-ca : conc A -> (hyp A -> conc B) -> conc B -> type.
+d : Pi A1. conc (and true (imp A1 A1)) = \A1. andr truer (impr (\h:hyp A1. axiom h)).
+ex : Pi A1. thm (d _) (andr (impr (\h:hyp A1. axiom h)) truer) = \A1. pf.
+% ca : conc A -> (hyp A -> conc B) -> conc B -> type.
 # : type.
 neg : o -> type.
 pos : o -> type.
@@ -130,9 +130,9 @@ cal_orl :
 cal_notl : ca A (notl D1 H) (\h:hyp A. E h) (notl D1 H).
 cal_falsel : ca A (falsel H) (\h:hyp A. E h) (falsel H).
 cal_foralll :
-   (Pi h:hyp (A1 T'). ca A (D1 h) (\h1:hyp A. E h1) (D1' h))
-      -> ca A (foralll T' (\h:hyp (A1 T'). D1 h) H) (\h:hyp A. E h)
-            (foralll T' (\h:hyp (A1 T'). D1' h) H).
+   (Pi h. ca A (D1 h) (\h1:hyp A. E h1) (D1' h))
+      -> ca A (foralll T' (\h. D1 h) H) (\h:hyp A. E h)
+            (foralll T' (\h. D1' h) H).
 cal_existsl :
    (Pi a:i. Pi h:hyp (B1 a). ca A (D1 a h) (\h1:hyp A. E h1) (D1' a h))
       -> ca A (existsl (\a:i. \h:hyp (B1 a). D1 a h) H) (\h:hyp A. E h)
@@ -178,9 +178,9 @@ car_forallr :
    (Pi a:i. ca A D (\h:hyp A. E1 h a) (E1' a))
       -> ca A D (\h:hyp A. forallr (\a:i. E1 h a)) (forallr (\a:i. E1' a)).
 car_foralll :
-   (Pi h1:hyp (A1 T'). ca A D (\h:hyp A. E1 h h1) (E1' h1))
-      -> ca A D (\h:hyp A. foralll T' (\h1:hyp (A1 T'). E1 h h1) H)
-            (foralll T' (\h:hyp (A1 T'). E1' h) H).
+   (Pi h1. ca A D (\h:hyp A. E1 h h1) (E1' h1))
+      -> ca A D (\h:hyp A. foralll T' (\h1. E1 h h1) H)
+            (foralll T' (\h. E1' h) H).
 car_existsr :
    ca A D (\h:hyp A. E1 h) E1'
       -> ca A D (\h:hyp A. existsr T' (E1 h)) (existsr T' E1').
@@ -363,15 +363,15 @@ car_forallr' :
             (\n:neg A. forallr' (\a:i. \p:pos (B1 a). E1 n a p) P)
             (forallr' (\a:i. \p:pos (B1 a). F1 a p) P).
 car_foralll' :
-   (Pi n1:neg (A1 T'). ca' A (\p:pos A. D p) (\n:neg A. E1 n n1) (F1 n1))
+   (Pi n1. ca' A (\p:pos A. D p) (\n:neg A. E1 n n1) (F1 n1))
       -> ca' A (\p:pos A. D p)
-            (\n:neg A. foralll' T' (\n1:neg (A1 T'). E1 n n1) N)
-            (foralll' T' (\n:neg (A1 T'). F1 n) N).
+            (\n:neg A. foralll' T' (\n1. E1 n n1) N)
+            (foralll' T' (\n. F1 n) N).
 car_existsr' :
-   (Pi p1:pos (A1 T'). ca' A (\p:pos A. D p) (\n:neg A. E1 n p1) (F1 p1))
+   (Pi p1. ca' A (\p:pos A. D p) (\n:neg A. E1 n p1) (F1 p1))
       -> ca' A (\p:pos A. D p)
-            (\n:neg A. existsr' T' (\p:pos (A1 T'). E1 n p) P)
-            (existsr' T' (\p:pos (A1 T'). F1 p) P).
+            (\n:neg A. existsr' T' (\p. E1 n p) P)
+            (existsr' T' (\p. F1 p) P).
 car_existsl' :
    (Pi a:i. Pi n1:neg (B1 a).
        ca' A (\p:pos A. D p) (\n:neg A. E1 n a n1) (F1 a n1))
@@ -431,13 +431,13 @@ cal_forallr' :
       -> ca' A (\p:pos A. forallr' (\a:i. \p1:pos (B1 a). D1 p a p1) P)
             (\n:neg A. E n) (forallr' (\a:i. \p:pos (B1 a). F1 a p) P).
 cal_foralll' :
-   (Pi n1:neg (A1 T'). ca' A (\p:pos A. D1 p n1) (\n:neg A. E n) (F1 n1))
-      -> ca' A (\p:pos A. foralll' T' (\n:neg (A1 T'). D1 p n) N)
-            (\n:neg A. E n) (foralll' T' (\n:neg (A1 T'). F1 n) N).
+   (Pi n1. ca' A (\p:pos A. D1 p n1) (\n:neg A. E n) (F1 n1))
+      -> ca' A (\p:pos A. foralll' T' (\n. D1 p n) N)
+            (\n:neg A. E n) (foralll' T' (\n. F1 n) N).
 cal_existsr' :
-   (Pi p1:pos (A1 T'). ca' A (\p:pos A. D1 p p1) (\n:neg A. E n) (F1 p1))
-      -> ca' A (\p:pos A. existsr' T' (\p1:pos (A1 T'). D1 p p1) P)
-            (\n:neg A. E n) (existsr' T' (\p:pos (A1 T'). F1 p) P).
+   (Pi p1. ca' A (\p:pos A. D1 p p1) (\n:neg A. E n) (F1 p1))
+      -> ca' A (\p:pos A. existsr' T' (\p1. D1 p p1) P)
+            (\n:neg A. E n) (existsr' T' (\p. F1 p) P).
 cal_existsl' :
    (Pi a:i. Pi n1:neg (B1 a).
        ca' A (\p:pos A. D1 p a n1) (\n:neg A. E n) (F1 a n1))
@@ -468,25 +468,25 @@ foralll* :
 existsr* : Pi T':i. conc* (A T') -> conc* (exists (\t:i. A t)).
 existsl* :
    (Pi a:i. hyp (A a) -> conc* C) -> hyp (exists (\t:i. A t)) -> conc* C.
-@' : type.
-cut^ : (pos A -> @') -> (neg A -> @') -> @'.
-axiom^ : neg A -> pos A -> @'.
-andr^ : (pos A -> @') -> (pos B -> @') -> pos (and A B) -> @'.
-andl1^ : (neg A -> @') -> neg (and A B) -> @'.
-andl2^ : (neg B -> @') -> neg (and A B) -> @'.
-impr^ : (neg A -> pos B -> @') -> pos (imp A B) -> @'.
-impl^ : (pos A -> @') -> (neg B -> @') -> neg (imp A B) -> @'.
-orr1^ : (pos A -> @') -> pos (or A B) -> @'.
-orr2^ : (pos B -> @') -> pos (or A B) -> @'.
-orl^ : (neg A -> @') -> (neg B -> @') -> neg (or A B) -> @'.
-notr^ : (neg A -> @') -> pos (not A) -> @'.
-notl^ : (pos A -> @') -> neg (not A) -> @'.
-truer^ : pos true -> @'.
-falsel^ : neg false -> @'.
-forallr^ : (Pi a:i. pos (A a) -> @') -> pos (forall (\t:i. A t)) -> @'.
-foralll^ : Pi T':i. (neg (A T') -> @') -> neg (forall (\t:i. A t)) -> @'.
-existsr^ : Pi T':i. (pos (A T') -> @') -> pos (exists (\t:i. A t)) -> @'.
-existsl^ : (Pi a:i. neg (A a) -> @') -> neg (exists (\t:i. A t)) -> @'.
+@ : type.
+cut~ : (pos A -> @) -> (neg A -> @) -> @.
+axiom~ : neg A -> pos A -> @.
+andr~ : (pos A -> @) -> (pos B -> @) -> pos (and A B) -> @.
+andl1~ : (neg A -> @) -> neg (and A B) -> @.
+andl2~ : (neg B -> @) -> neg (and A B) -> @.
+impr~ : (neg A -> pos B -> @) -> pos (imp A B) -> @.
+impl~ : (pos A -> @) -> (neg B -> @) -> neg (imp A B) -> @.
+orr1~ : (pos A -> @) -> pos (or A B) -> @.
+orr2~ : (pos B -> @) -> pos (or A B) -> @.
+orl~ : (neg A -> @) -> (neg B -> @) -> neg (or A B) -> @.
+notr~ : (neg A -> @) -> pos (not A) -> @.
+notl~ : (pos A -> @) -> neg (not A) -> @.
+truer~ : pos true -> @.
+falsel~ : neg false -> @.
+forallr~ : (Pi a:i. pos (A a) -> @) -> pos (forall (\t:i. A t)) -> @.
+foralll~ : Pi T':i. (neg (A T') -> @) -> neg (forall (\t:i. A t)) -> @.
+existsr~ : Pi T':i. (pos (A T') -> @) -> pos (exists (\t:i. A t)) -> @.
+existsl~ : (Pi a:i. neg (A a) -> @) -> neg (exists (\t:i. A t)) -> @.
 ce : conc* C -> conc C -> type.
 ce_cut :
    ca A D1 (\h:hyp A. D2 h) D -> (Pi h1:hyp A. ce (D2* h1) (D2 h1)) -> ce D1* D1
@@ -521,69 +521,69 @@ ce_forallr :
    (Pi a:i. ce (D1* a) (D1 a))
       -> ce (forallr* (\a:i. D1* a)) (forallr (\a:i. D1 a)).
 ce_foralll :
-   (Pi h1:hyp (A1 T'). ce (D1* h1) (D1 h1))
-      -> ce (foralll* T' (\h:hyp (A1 T'). D1* h) H)
-            (foralll T' (\h:hyp (A1 T'). D1 h) H).
+   (Pi h1. ce (D1* h1) (D1 h1))
+      -> ce (foralll* T' (\h. D1* h) H)
+            (foralll T' (\h. D1 h) H).
 ce_existsr : ce D1* D1 -> ce (existsr* T' D1*) (existsr T' D1).
 ce_existsl :
    (Pi a:i. Pi h1:hyp (A1 a). ce (D1* a h1) (D1 a h1))
       -> ce (existsl* (\a:i. \h:hyp (A1 a). D1* a h) H)
             (existsl (\a:i. \h:hyp (A1 a). D1 a h) H).
-ce' : @' -> # -> type.
+ce' : @ -> # -> type.
 ce_cut' :
    ca' A (\p:pos A. D' p) (\n:neg A. E' n) F -> (Pi n:neg A. ce' (E n) (E' n))
       -> (Pi p:pos A. ce' (D p) (D' p))
-      -> ce' (cut^ (\p:pos A. D p) (\n:neg A. E n)) F.
-ce_axiom' : ce' (axiom^ N P) (axiom' N P).
+      -> ce' (cut~ (\p:pos A. D p) (\n:neg A. E n)) F.
+ce_axiom' : ce' (axiom~ N P) (axiom' N P).
 ce_andr' :
    (Pi p2:pos A1. ce' (D2 p2) (D2' p2)) -> (Pi p1:pos A2. ce' (D1 p1) (D1' p1))
-      -> ce' (andr^ (\p:pos A2. D1 p) (\p:pos A1. D2 p) P)
+      -> ce' (andr~ (\p:pos A2. D1 p) (\p:pos A1. D2 p) P)
             (andr' (\p:pos A2. D1' p) (\p:pos A1. D2' p) P).
 ce_andl1' :
    (Pi n1:neg A1. ce' (N1 n1) (N1' n1))
-      -> ce' (andl1^ (\n:neg A1. N1 n) N) (andl1' (\n:neg A1. N1' n) N).
+      -> ce' (andl1~ (\n:neg A1. N1 n) N) (andl1' (\n:neg A1. N1' n) N).
 ce_andl2' :
    (Pi n2:neg A1. ce' (N2 n2) (N2' n2))
-      -> ce' (andl2^ (\n:neg A1. N2 n) N) (andl2' (\n:neg A1. N2' n) N).
+      -> ce' (andl2~ (\n:neg A1. N2 n) N) (andl2' (\n:neg A1. N2' n) N).
 ce_impr' :
    (Pi n1:neg A1. Pi p2:pos A2. ce' (D1 n1 p2) (D1' n1 p2))
-      -> ce' (impr^ (\n:neg A1. \p:pos A2. D1 n p) P)
+      -> ce' (impr~ (\n:neg A1. \p:pos A2. D1 n p) P)
             (impr' (\n:neg A1. \p:pos A2. D1' n p) P).
 ce_impl' :
    (Pi n2:neg A1. ce' (D2 n2) (D2' n2)) -> (Pi p1:pos A2. ce' (D1 p1) (D1' p1))
-      -> ce' (impl^ (\p:pos A2. D1 p) (\n:neg A1. D2 n) N)
+      -> ce' (impl~ (\p:pos A2. D1 p) (\n:neg A1. D2 n) N)
             (impl' (\p:pos A2. D1' p) (\n:neg A1. D2' n) N).
 ce_orr1' :
    (Pi p1:pos A1. ce' (D1 p1) (D1' p1))
-      -> ce' (orr1^ (\p:pos A1. D1 p) P) (orr1' (\p:pos A1. D1' p) P).
+      -> ce' (orr1~ (\p:pos A1. D1 p) P) (orr1' (\p:pos A1. D1' p) P).
 ce_orr2' :
    (Pi p2:pos A1. ce' (D2 p2) (D2' p2))
-      -> ce' (orr2^ (\p:pos A1. D2 p) P) (orr2' (\p:pos A1. D2' p) P).
+      -> ce' (orr2~ (\p:pos A1. D2 p) P) (orr2' (\p:pos A1. D2' p) P).
 ce_orl' :
    (Pi n2:neg A1. ce' (D2 n2) (D2' n2)) -> (Pi n1:neg A2. ce' (D1 n1) (D1' n1))
-      -> ce' (orl^ (\n:neg A2. D1 n) (\n:neg A1. D2 n) N)
+      -> ce' (orl~ (\n:neg A2. D1 n) (\n:neg A1. D2 n) N)
             (orl' (\n:neg A2. D1' n) (\n:neg A1. D2' n) N).
 ce_notr' :
    (Pi n1:neg A1. ce' (D1 n1) (D1' n1))
-      -> ce' (notr^ (\n:neg A1. D1 n) P) (notr' (\n:neg A1. D1' n) P).
+      -> ce' (notr~ (\n:neg A1. D1 n) P) (notr' (\n:neg A1. D1' n) P).
 ce_norl' :
    (Pi p1:pos A1. ce' (D1 p1) (D1' p1))
-      -> ce' (notl^ (\p:pos A1. D1 p) N) (notl' (\p:pos A1. D1' p) N).
-ce_truer' : ce' (truer^ P) (truer' P).
-ce_falsel' : ce' (falsel^ N) (falsel' N).
+      -> ce' (notl~ (\p:pos A1. D1 p) N) (notl' (\p:pos A1. D1' p) N).
+ce_truer' : ce' (truer~ P) (truer' P).
+ce_falsel' : ce' (falsel~ N) (falsel' N).
 ce_forallr' :
    (Pi a:i. Pi p1:pos (A1 a). ce' (D1 a p1) (D1' a p1))
-      -> ce' (forallr^ (\a:i. \p:pos (A1 a). D1 a p) P)
+      -> ce' (forallr~ (\a:i. \p:pos (A1 a). D1 a p) P)
             (forallr' (\a:i. \p:pos (A1 a). D1' a p) P).
 ce_foralll' :
-   (Pi n1:neg (A1 T'). ce' (D1 n1) (D1' n1))
-      -> ce' (foralll^ T' (\n:neg (A1 T'). D1 n) N)
-            (foralll' T' (\n:neg (A1 T'). D1' n) N).
+   (Pi n1. ce' (D1 n1) (D1' n1))
+      -> ce' (foralll~ T' (\n. D1 n) N)
+            (foralll' T' (\n. D1' n) N).
 ce_existsr' :
-   (Pi p1:pos (A1 T'). ce' (D1 p1) (D1' p1))
-      -> ce' (existsr^ T' (\p:pos (A1 T'). D1 p) P)
-            (existsr' T' (\p:pos (A1 T'). D1' p) P).
+   (Pi p1. ce' (D1 p1) (D1' p1))
+      -> ce' (existsr~ T' (\p. D1 p) P)
+            (existsr' T' (\p. D1' p) P).
 ce_existsl' :
    (Pi a:i. Pi n1:neg (A1 a). ce' (D1 a n1) (D1' a n1))
-      -> ce' (existsl^ (\a:i. \n:neg (A1 a). D1 a n) N)
+      -> ce' (existsl~ (\a:i. \n:neg (A1 a). D1 a n) N)
             (existsl' (\a:i. \n:neg (A1 a). D1' a n) N).

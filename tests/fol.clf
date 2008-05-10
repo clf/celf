@@ -3,13 +3,13 @@ atm : type.
 => : o -> o -> o.
 &' : o -> o -> o.
 true : o.
-` : atm -> o.
-!^ : o -> type.
-!v : o -> type.
-trueI^ : !^ true.
-andI^ : !^ A -> !^ B -> !^ (&' A B).
-andEvL : !v (&' A B) -> !v A.
-andEvR : !v (&' A B) -> !v B.
-impI^ : (!v A -> !^ B) -> !^ (=> A B).
-impEv : !v (=> A B) -> !^ A -> !v B.
-close : !v (` P) -> !^ (` P).
+' : atm -> o.
+|A : o -> type.
+|V : o -> type.
+trueIA : |A true.
+andIA : |A A -> |A B -> |A (&' A B).
+andEVL : |V (&' A B) -> |V A.
+andEVR : |V (&' A B) -> |V B.
+impIA : (|V A -> |A B) -> |A (=> A B).
+impEV : |V (=> A B) -> |A A -> |V B.
+close : |V (' P) -> |A (' P).

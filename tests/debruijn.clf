@@ -17,7 +17,7 @@ val_pair : value E2 -> value E1 -> value (pair E1 E2).
 val_lam : value (lam (\e:exp. E e)).
 exp' : type.
 1' : exp'.
-^' : exp' -> exp'.
+@ : exp' -> exp'.
 z' : exp'.
 s' : exp' -> exp'.
 case' : exp' -> exp' -> exp' -> exp'.
@@ -62,9 +62,9 @@ tr_fix :
    (Pi f:exp'. Pi x:exp. trans K f x -> trans (+ K f) F (E x))
       -> trans K (fix' F) (fix (\e:exp. E e)).
 tr_1 : vtrans W E -> trans (;' K W) 1' E.
-tr_^ : trans K F E -> trans (;' K W) (^' F) E.
+tr_@ : trans K F E -> trans (;' K W) (@ F) E.
 tr_1+ : trans K F E -> trans (+ K F) 1' E.
-tr_^+ : trans K F E -> trans (+ K F') (^' F) E.
+tr_@+ : trans K F E -> trans (+ K F') (@ F) E.
 vtr_z : vtrans z* z.
 vtr_s : vtrans W V -> vtrans (s* W) (s V).
 vtr_pair : vtrans W2 V2 -> vtrans W1 V1 -> vtrans (pair* W1 W2) (pair V1 V2).
@@ -75,9 +75,9 @@ vtr_lam :
 
 feval : env -> exp' -> val -> type.
 fev_1 : feval (;' K W) 1' W.
-fev_^ : feval K F W -> feval (;' K W') (^' F) W.
+fev_@ : feval K F W -> feval (;' K W') (@ F) W.
 fev_1+ : feval K F W -> feval (+ K F) 1' W.
-fev_^+ : feval K F W -> feval (+ K F') (^' F) W.
+fev_@+ : feval K F W -> feval (+ K F') (@ F) W.
 fev_z : feval K z' z*.
 fev_s : feval K F W -> feval K (s' F) (s* W).
 fev_case_z : feval K F2 W -> feval K F1 z* -> feval K (case' F1 F2 F3) W.
@@ -125,9 +125,9 @@ vev_pair :
 vev_lam : val_eval val_lam ev_lam.
 map_eval : eval E V -> trans K F E -> feval K F W -> vtrans W V -> type.
 mp_1 : val_eval P D -> vtrans_val U1 P -> map_eval D (tr_1 U1) fev_1 U1.
-mp_^ : map_eval D C1 D1' U1 -> map_eval D (tr_^ C1) (fev_^ D1') U1.
+mp_@ : map_eval D C1 D1' U1 -> map_eval D (tr_@ C1) (fev_@ D1') U1.
 mp_1+ : map_eval D C1 D1' U1 -> map_eval D (tr_1+ C1) (fev_1+ D1') U1.
-mp_^+ : map_eval D C1 D1' U1 -> map_eval D (tr_^+ C1) (fev_^+ D1') U1.
+mp_@+ : map_eval D C1 D1' U1 -> map_eval D (tr_@+ C1) (fev_@+ D1') U1.
 mp_z : map_eval ev_z tr_z fev_z vtr_z.
 mp_s :
    map_eval D1 C1 D1' U1 -> map_eval (ev_s D1) (tr_s C1) (fev_s D1') (vtr_s U1).
@@ -177,53 +177,53 @@ mp_fix :
             (tr_fix (\f:exp'. \x:exp. \c:trans K1 f x. C1 f x c)) (fev_fix D1')
             U1.
 map_eval' : eval E V -> trans K F E -> feval K F W -> vtrans W V -> type.
-mp_1 : val_eval P D -> vtrans_val U1 P -> map_eval' D (tr_1 U1) fev_1 U1.
-mp_^ : map_eval' D C1 D1' U1 -> map_eval' D (tr_^ C1) (fev_^ D1') U1.
-mp_1+ : map_eval' D C1 D1' U1 -> map_eval' D (tr_1+ C1) (fev_1+ D1') U1.
-mp_^+ : map_eval' D C1 D1' U1 -> map_eval' D (tr_^+ C1) (fev_^+ D1') U1.
-mp_z : map_eval' ev_z tr_z fev_z vtr_z.
-mp_s :
+mp'_1 : val_eval P D -> vtrans_val U1 P -> map_eval' D (tr_1 U1) fev_1 U1.
+mp'_@ : map_eval' D C1 D1' U1 -> map_eval' D (tr_@ C1) (fev_@ D1') U1.
+mp'_1+ : map_eval' D C1 D1' U1 -> map_eval' D (tr_1+ C1) (fev_1+ D1') U1.
+mp'_@+ : map_eval' D C1 D1' U1 -> map_eval' D (tr_@+ C1) (fev_@+ D1') U1.
+mp'_z : map_eval' ev_z tr_z fev_z vtr_z.
+mp'_s :
    map_eval' D1 C1 D1' U1
       -> map_eval' (ev_s D1) (tr_s C1) (fev_s D1') (vtr_s U1).
-mp_case_z :
+mp'_case_z :
    map_eval' D2 C2 D2' U2 -> map_eval' D1 C1 D1' vtr_z
       -> map_eval' (ev_case_z D2 D1)
             (tr_case (\w:val. \x:exp. \u:vtrans w x. C3 w x u) C2 C1)
             (fev_case_z D2' D1') U2.
-mp_case_s :
+mp'_case_s :
    map_eval' D3 (C3 W1' V1' U1') D3' U3 -> map_eval' D1 C1 D1' (vtr_s U1')
       -> map_eval' (ev_case_s D3 D1)
             (tr_case (\w:val. \x:exp. \u:vtrans w x. C3 w x u) C2 C1)
             (fev_case_s D3' D1') U3.
-mp_pair :
+mp'_pair :
    map_eval' D2 C2 D2' U2 -> map_eval' D1 C1 D1' U1
       -> map_eval' (ev_pair D2 D1) (tr_pair C2 C1) (fev_pair D2' D1')
             (vtr_pair U2 U1).
-mp_fst :
+mp'_fst :
    map_eval' D1 C1 D1' (vtr_pair U2 U1)
       -> map_eval' (ev_fst D1) (tr_fst C1) (fev_fst D1') U1.
-mp_snd :
+mp'_snd :
    map_eval' D1 C1 D1' (vtr_pair U2 U1)
       -> map_eval' (ev_snd D1) (tr_snd C1) (fev_snd D1') U2.
-mp_lam :
+mp'_lam :
    map_eval' ev_lam (tr_lam (\w:val. \x:exp. \u:vtrans w x. C w x u)) fev_lam
       (vtr_lam (tr_lam (\w:val. \x:exp. \u:vtrans w x. C w x u))).
-mp_app :
+mp'_app :
    map_eval' D3 (C3 W2 V2 U2) D3' U3 -> map_eval' D2 C2 D2' U2
       -> map_eval' D1 C1 D1'
             (vtr_lam (tr_lam (\w:val. \x:exp. \u:vtrans w x. C3 w x u)))
       -> map_eval' (ev_app D3 D2 D1) (tr_app C2 C1) (fev_app D3' D2' D1') U3.
-mp_letv :
+mp'_letv :
    map_eval' D2 (C2 W1 V1 U1) D2' U2 -> map_eval' D1 C1 D1' U1
       -> map_eval' (ev_letv D2 D1)
             (tr_letv (\w:val. \x:exp. \u:vtrans w x. C2 w x u) C1)
             (fev_letv D2' D1') U2.
-mp_letn :
+mp'_letn :
    map_eval' D2 (C2 F1 E2 C1) D2' U2
       -> map_eval' (ev_letn D2)
             (tr_letn (\f:exp'. \x:exp. \c:trans K1 f x. C2 f x c) C1)
             (fev_letn D2') U2.
-mp_fix :
+mp'_fix :
    map_eval' D1
       (C1 (fix' F1) (fix (\e:exp. E1 e))
           (tr_fix (\f:exp'. \x:exp. \c:trans K1 f x. C1 f x c))) D1' U1

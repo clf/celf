@@ -31,8 +31,8 @@ expl_imp : Pi D:nd (imp A B). ==>E D (impi (\u:nd A. impe D u)).
 expl_not : Pi D:nd (not A). ==>E D (noti (\p:o. \u:nd A. note D p u)).
 expl_forall :
    Pi D:nd (forall (\x:i. A x)). ==>E D (foralli (\a:i. foralle D a)).
-dn : nd (imp A (not (not A)))
-   = impi (\u:nd A. noti (\p:o. \w:nd (not A). note w p u)).
+dn : Pi A. nd (imp A (not (not A)))
+   = \A. impi (\u:nd A. noti (\p:o. \w:nd (not A). note w p u)).
 hilnd : hil A -> nd A -> type.
 hnd_k : hilnd k (impi (\u:nd A. impi (\v:nd B. u))).
 hnd_s :
@@ -58,7 +58,7 @@ hnd_mp : hilnd H2 D2 -> hilnd H1 D1 -> hilnd (mp H1 H2) (impe D1 D2).
 hnd_ug :
    (Pi a:i. hilnd (H1 a) (D1 a))
       -> hilnd (ug (\a:i. H1 a)) (foralli (\a:i. D1 a)).
-id' :
+id' : Pi A1. Pi A2.
    hilnd (mp (mp s k) k)
       (impe
           (impe
@@ -69,7 +69,7 @@ id' :
                              impi (\w:nd A1. impe (impe u w) (impe v w)))))
               (impi (\u:nd A1. impi (\v:nd (imp A2 A1). u))))
           (impi (\u:nd A1. impi (\v:nd A2. u))))
-   = hnd_mp hnd_k (hnd_mp hnd_k hnd_s).
+   = \A1. \A2. hnd_mp hnd_k (hnd_mp hnd_k hnd_s).
 ded : (hil A -> hil B) -> hil (imp A B) -> type.
 ded_id : ded (\u:hil A. u) (mp (mp s k) k).
 ded_k : ded (\u:hil A. k) (mp k k).
