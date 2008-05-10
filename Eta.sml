@@ -32,7 +32,7 @@ type context = apxAsyncType context
 (* etaContract : exn -> Syntax.obj -> int *)
 fun etaContract e ob =
 	let datatype etaSpine = Ap | LAp | Pl | Pr
-		fun eq (x, y) = if x=y then x else raise e
+		fun eq (x : int, y) = if x=y then x else raise e
 		fun nbinds sp = length (List.filter (fn Ap => true | LAp => true | _ => false) sp)
 		fun etaC (ob, sp) = case etaShortcut ob of NONE => etaC' (ob, sp) | SOME k => k
 		and etaC' (ob, sp) = case Whnf.whnfObj ob of
@@ -230,7 +230,7 @@ and etaExpandExp (ctx, ex, ty) = case ExpObj.prj ex of
 			let fun eta' (Atomic (H, S)) =
 						let val (H', A) = etaExpandHead (ctx, H)
 						in Atomic' (H', etaExpandSpine (ctx, S, A)) end
-				  | eta' N = etaExpandObj (ctx, Obj.inj N, ApxTMonad' (ApproxTypes.pat2apxSyncType p))
+				  | eta' N = etaExpandObj (ctx, Obj.inj N, ApxTMonad' (Util.pat2apxSyncType p))
 				val p' = etaExpandPattern (ctx, p)
 				val N' = eta' (Obj.prj N)
 			in Let' (p', N', etaExpandExp (patBind asyncTypeToApx p' ctx, E, ty)) end

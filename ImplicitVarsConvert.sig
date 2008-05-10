@@ -17,19 +17,17 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-signature IMPLICITVARS =
+signature IMPLICITVARSCONVERT =
 sig
 
-type implicits = (string * Syntax.asyncType) list
+val logicVarsToUCVarsObj : Syntax.obj -> unit
+val logicVarsToUCVarsType : Syntax.asyncType -> unit
+val logicVarsToUCVarsKind : Syntax.kind -> unit
 
-val resetUCTable : unit -> unit
-val mapUCTable : (Syntax.asyncType -> Syntax.asyncType) -> unit
-val appUCTable : (Syntax.asyncType -> unit) -> unit
-val getUCTable : unit -> Syntax.asyncType SymbTable.Table
-val noUCVars : unit -> unit
-val newUCVar : Syntax.asyncType -> Syntax.head
-val apxUCLookup : string -> Syntax.apxAsyncType
-val ucLookup : string -> Syntax.asyncType
-val sort : unit -> implicits
+val convUCVars2VarsKind : ImplicitVars.implicits -> Syntax.kind -> Syntax.kind
+val convUCVars2VarsType : ImplicitVars.implicits -> Syntax.asyncType -> Syntax.asyncType
+val convUCVars2VarsImps : ImplicitVars.implicits -> ImplicitVars.implicits
+
+val convUCVars2LogicVarsType : Syntax.asyncType -> Syntax.asyncType * (string * Syntax.obj) list
 
 end

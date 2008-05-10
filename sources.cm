@@ -31,10 +31,12 @@ PatternBind.sig
 PatternBind.sml
 ImplicitVars.sig
 ImplicitVars.sml
-ApproxTypes.sig
-ApproxTypes.sml
 Eta.sig
 Eta.sml
+ImplicitVarsConvert.sig
+ImplicitVarsConvert.sml
+ApproxTypes.sig
+ApproxTypes.sml
 Unify.sig
 Unify.sml
 ExactTypes.sig

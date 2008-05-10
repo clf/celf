@@ -74,19 +74,20 @@ fun reconstructDecl dec =
 			                 ExactTypes.checkObjEC dec
 			val () = Unify.noConstrs ()
 			val () = if isQuery dec then () else
-					( appDecl ImplicitVars.logicVarsToUCVarsKind
-					          ImplicitVars.logicVarsToUCVarsType
-					          (ImplicitVars.logicVarsToUCVarsObj o Constraint') dec
+					( appDecl ImplicitVarsConvert.logicVarsToUCVarsKind
+					          ImplicitVarsConvert.logicVarsToUCVarsType
+					          (ImplicitVarsConvert.logicVarsToUCVarsObj o Constraint') dec
 					; ImplicitVars.appUCTable (Util.objAppType
 						(fn Atomic (LogicVar _, _) => raise Fail "stub: LogicVar here???\n"
 						  | _ => ())) )
 			val () = ImplicitVars.mapUCTable Util.forceNormalizeType
 			val dec = case dec of
 				  ConstDecl (id, _, kity) =>
-						let val imps = ImplicitVars.convUCVars2VarsImps (ImplicitVars.sort ())
+						let val imps = ImplicitVars.sort ()
+							val imps = ImplicitVarsConvert.convUCVars2VarsImps imps
 							val imps = map (Util.map2 RemDepend.remDepType) imps
-							val kity = mapKiTy (ImplicitVars.convUCVars2VarsKind imps)
-							                   (ImplicitVars.convUCVars2VarsType imps) kity
+							val kity = mapKiTy (ImplicitVarsConvert.convUCVars2VarsKind imps)
+							                   (ImplicitVarsConvert.convUCVars2VarsType imps) kity
 							fun bindImps pi kity' =
 									foldr (fn ((x, A), im) => pi (SOME x, A, im)) kity' imps
 							val kity = mapKiTy (bindImps KPi') (bindImps TPi') kity
@@ -131,7 +132,7 @@ fun reconstructDecl dec =
 							  | n2str NONE = "*"
 							val () = print ("Query ("^n2str d^", "^n2str e^", "^n2str l^", "
 								^Int.toString a^") "^PrettyPrint.printType ty^".\n")
-							val (ty, lvars) = ImplicitVars.convUCVars2LogicVarsType ty
+							val (ty, lvars) = ImplicitVarsConvert.convUCVars2LogicVarsType ty
 							fun printInst (x, ob) = print (" #"^x^" = "^PrettyPrint.printObj ob^"\n")
 							exception stopSearchExn
 							val solCount = ref 0

@@ -24,6 +24,8 @@ else
 	cp ExactTypes.sml publish/ver$1/celf/
 	cp ImplicitVars.sig publish/ver$1/celf/
 	cp ImplicitVars.sml publish/ver$1/celf/
+	cp ImplicitVarsConvert.sig publish/ver$1/celf/
+	cp ImplicitVarsConvert.sml publish/ver$1/celf/
 	cp OpSem.sig publish/ver$1/celf/
 	cp OpSem.sml publish/ver$1/celf/
 	cp PatternBind.sig publish/ver$1/celf/

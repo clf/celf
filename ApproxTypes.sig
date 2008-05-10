@@ -30,8 +30,6 @@ exception ExnApxUnifyType of string
 val occur : Syntax.typeLogicVar -> Syntax.apxAsyncType -> unit
 val apxUnifyType : Syntax.apxAsyncType * Syntax.apxAsyncType -> unit
 
-val pat2apxSyncType : Syntax.pattern -> Syntax.apxSyncType
-
 val apxCheckKind : context * Syntax.kind -> Syntax.kind
 val apxCheckType : context * Syntax.asyncType -> Syntax.asyncType
 val apxCheckTypeSpine : context * Syntax.typeSpine * Syntax.apxKind -> Syntax.typeSpine

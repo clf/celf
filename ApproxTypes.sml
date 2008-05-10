@@ -81,13 +81,6 @@ fun apxUnify (ty1, ty2, errmsg) = (apxUnifyType (ty1, ty2))
 			(PrettyPrint.printType (unsafeCast ty1))^"\nand: "
 						^(PrettyPrint.printType (unsafeCast ty2))^"\n") ; raise e)*)
 
-(* pat2apxSyncType : pattern -> apxSyncType *)
-fun pat2apxSyncType p = case Pattern.prj p of
-	  PTensor (p1, p2) => ApxTTensor' (pat2apxSyncType p1, pat2apxSyncType p2)
-	| POne => ApxTOne'
-	| PDepPair (x, A, p) => ApxExists' (asyncTypeToApx A, pat2apxSyncType p)
-	| PVar (x, A) => ApxAsync' (asyncTypeToApx A)
-
 val apxCount = ref 0
 
 (* apxCheckKind : context * kind -> kind *)
@@ -270,7 +263,7 @@ and apxInferSpine (ctx, sp, ty, h2str) = case Spine.prj sp of
 and apxInferExp (ctx, ex) = case ExpObj.prj ex of
 	  Let (p, N, E) =>
 			let val p' = apxCheckPattern (ctxDelLin ctx, p)
-				val (ctxm, t1, N') = apxCheckObj (ctx, N, ApxTMonad' (pat2apxSyncType p'))
+				val (ctxm, t1, N') = apxCheckObj (ctx, N, ApxTMonad' (Util.pat2apxSyncType p'))
 				val (ctxo', t2, E', S) = apxInferExp (patBind asyncTypeToApx p' ctxm, E)
 			in (patUnbind (p', ctxo', t2), t1 orelse t2, Let' (p', N', E'), S) end
 	| Mon M => (fn (ctxo, t, M', S) => (ctxo, t, Mon' M', S)) (apxInferMonadObj (ctx, M))
