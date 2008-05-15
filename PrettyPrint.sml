@@ -38,7 +38,7 @@ fun lookup (x::ctx) 1 = x
   | lookup [] n = Int.toString n (*raise Fail "Internal error: de Bruijn index out of range\n"*)
 
 fun add x ctx =
-	let fun eq x y = x=y
+	let fun eq (x : string) y = x=y
 (*		fun add' x = if List.exists (eq x) ctx then add' (x^"'") else (x, x::ctx)*)
 		fun add1 n x =
 			let val tryname = x ^ Int.toString n

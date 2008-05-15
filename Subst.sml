@@ -183,7 +183,7 @@ struct
 
 	fun patSub etaContract s' =
 		let exception ExnPatSub
-			fun add (n, l) = if List.exists (fn i => i=n) l then raise ExnPatSub else n::l
+			fun add (n : int, l) = if List.exists (fn i => i=n) l then raise ExnPatSub else n::l
 			fun ps (m, _, s as Shift n) = if m <= n then s else raise ExnPatSub
 			  | ps (m, l, Dot (Undef, s)) = Dot (Undef, ps (m, l, s))
 			  | ps (m, l, Dot (Idx n, s)) = Dot (Idx n, ps (Int.max (m, n), add (n, l), s))

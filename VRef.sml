@@ -32,6 +32,7 @@ fun ::= (r, x) =
 
 val !! = !
 
-val eq = op=
+(* val eq = op= *)
+fun eq (x, y : 'a ref) = x = y
 
 end
