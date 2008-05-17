@@ -145,8 +145,9 @@ fun splitExp (rOccur, ex) =
 				  (L as LogicVar {X, ty, ctx=ref G, cnstr=cs, tag, ...}) =>
 					if eq (X, rOccur) then
 						if isSome foundL then
-							raise ExnUnify "Double occurs check in let\n"
+							(*raise ExnUnify "Double occurs check in let\n"*)
 							(* stub: might set all lvars to {M} --asn *)
+							raise Fail "stub: set X to {M}"
 						else
 							pruneLetOccur (SOME L) E
 					else
@@ -397,20 +398,23 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 			unifyLetLet NONE ((p2, ob2', Mon' M2), (p1, ob1', expWhnfInj E1'))
 		| ((LogicVar L1, _), E1', (LogicVar L2, _), E2') =>
 			raise Fail "stub: postpone as constraint"
-		| (hS1, E1', (LogicVar L2, _), E2') =>
+		| (_ (* ob1' <> LVar *), E1', (LogicVar L2, _), E2') =>
 			let val E = Util.whnfLetSpine (Let' (p2, Atomic' ob2', expWhnfInj E2'))
-				val E2rest = matchHeadInLet (hS1, fn _ => fn e => e, 0, E, E, 0)
+				val E2rest = matchHeadInLet NONE (ob1', fn _ => fn e => e, 0, E, E, 0)
 			in unifyExp NONE (expWhnfInj E1', E2rest) end
-		| ((LogicVar L1, _), E1', hS2, E2') =>
+		| ((LogicVar L1, _), E1', _ (* ob2' <> LVar *), E2') =>
 			let val E = Util.whnfLetSpine (Let' (p1, Atomic' ob1', expWhnfInj E1'))
-				val E1rest = matchHeadInLet (hS2, fn _ => fn e => e, 0, E, E, 0)
+				val E1rest = matchHeadInLet NONE (ob2', fn _ => fn e => e, 0, E, E, 0)
 			in unifyExp NONE (E1rest, expWhnfInj E2') end
-		| (hS1, E1', hS2, E2') =>
+		| (_ (* ob1' <> LVar *), E1', _ (* ob2' <> LVar *), E2') => let exception ExnTryRev in
 			let val E = Util.whnfLetSpine (Let' (p2, Atomic' ob2', expWhnfInj E2'))
-				val E2rest = matchHeadInLet (hS1, fn _ => fn e => e, 0, E, E, 0)
-			in unifyExp dryRun (expWhnfInj E1', E2rest) (*stub: on failure check reverse?*) end
+				val E2rest = matchHeadInLet (SOME ExnTryRev) (ob1', fn _ => fn e => e, 0, E, E, 0)
+			in unifyExp dryRun (expWhnfInj E1', E2rest) end handle ExnTryRev =>
+			let val E = Util.whnfLetSpine (Let' (p1, Atomic' ob1', expWhnfInj E1'))
+				val E1rest = matchHeadInLet NONE (ob2', fn _ => fn e => e, 0, E, E, 0)
+			in unifyExp dryRun (E1rest, expWhnfInj E2') end end
 	end
-and matchHeadInLet (hS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, Whnf.whnfExp EsX) of
+and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, Whnf.whnfExp EsX) of
 	  (Let (p, N, E'), Let (_, NsX, EsX')) =>
 			let val nbp = nbinds p
 				fun hS' () = invAtomicP (Clos (Atomic' hS, Subst.shift nbp))
@@ -430,12 +434,13 @@ and matchHeadInLet (hS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, Whnf.whnfE
 					if !dryRun then (* unify success *)
 						e (Subst.shift nbp) (EClos (E', Subst.switchSub (nbp, nbe)))
 					else (* unify maybe *)
-						matchHeadInLet (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe + 1)
+						matchHeadInLet revExn (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe + 1)
 				| NONE => (* unify failure *)
-						matchHeadInLet (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe)
+						matchHeadInLet revExn (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe)
 			end
 	| (Mon _, Mon _) =>
 			if nMaybe = 0 then raise ExnUnify "Monadic objects not unifiable\n"
+			else if isSome revExn then raise valOf revExn
 			else if nMaybe = 1 then raise Fail "stub: should be able to let-float\n"
 			else raise Fail "stub: multiple options"
 	| _ => raise Fail "Internal error: matchHeadInLet\n"

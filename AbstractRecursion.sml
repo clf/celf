@@ -76,6 +76,7 @@ signature REC2 = sig
 structure T : TYP2
 val fold : (T.a -> 'a) -> (('a, 't) T.F -> 't) -> T.t -> 't
 val unfold : ('a -> T.a) -> ('t -> ('a, 't) T.F) -> 't -> T.t
+(*val refold : ('a -> 'b) -> ('ta -> ('a, 'ta) T.F) -> (('b, 'tb) T.F -> 'tb) -> 'ta -> 'tb*)
 end
 
 signature REC3 = sig
@@ -105,6 +106,7 @@ structure T = T
 open T
 fun fold f step x = step (Fmap (f, fold f step) (prj x))
 fun unfold f gen y = inj (Fmap (f, unfold f gen) (gen y))
+(* fun refold f gen step x = step (Fmap (f, refold f gen step) (gen x)) *)
 end
 
 functor Rec3(structure T : TYP3) : REC3 = struct
