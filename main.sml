@@ -43,6 +43,10 @@ fun parseArgs args = case args of
 		( print "printImpl := true\n"
 		; PrettyPrint.printImpl := true
 		; parseArgs args )
+	| "-pc"::args =>
+		( print "printLVarCtx := true\n"
+		; PrettyPrint.printLVarCtx := true
+		; parseArgs args )
 	| "-tu"::args =>
 		( print "outputUnify := true\n"
 		; Unify.outputUnify := true
@@ -66,6 +70,7 @@ fun parseArgs args = case args of
 				^" -h      : show this\n"
 				^" -d      : enable double checking\n"
 				^" -pi     : print implicit arguments\n"
+				^" -pc     : print logicvar contexts\n"
 				^" -ta     : trace approximate type reconstruction\n"
 				^" -te     : trace eta expansion\n"
 				^" -tt     : trace exact type reconstruction\n"
@@ -74,7 +79,7 @@ fun parseArgs args = case args of
 	| f::_ => f
 
 fun celfMain' args =
-	let val () = print "Celf ver 1.2. Copyright (C) 2008\n"
+	let val () = print "Celf ver 1.3. Copyright (C) 2008\n"
 		val filename = parseArgs args
 	in if filename = "" then OS.Process.success (* -h was given *) else
 	let val () = print ("Reading "^filename^":\n\n")

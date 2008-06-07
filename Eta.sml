@@ -17,6 +17,7 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+signature TLU_Eta = TOP_LEVEL_UTIL
 structure Eta :> ETA =
 struct
 
@@ -29,54 +30,62 @@ val traceEta = ref false
 
 type context = apxAsyncType context
 
-(* etaContract : exn -> Syntax.obj -> int *)
-fun etaContract e ob =
-	let datatype etaSpine = Ap | LAp | Pl | Pr
-		fun eq (x : int, y) = if x=y then x else raise e
-		fun nbinds sp = length (List.filter (fn Ap => true | LAp => true | _ => false) sp)
-		fun etaC (ob, sp) = case etaShortcut ob of NONE => etaC' (ob, sp) | SOME k => k
-		and etaC' (ob, sp) = case Whnf.whnfObj ob of
-			  NfLam (_, N) => etaC (N, Ap::sp)
-			| NfLinLam (_, N) => etaC (N, LAp::sp)
-			| NfAddPair (N1, N2) => eq (etaC (N1, Pl::sp), etaC (N2, Pr::sp))
-			| NfMonad E =>
+(* etaContract : exn -> obj -> apxAsyncType -> mode * int *)
+fun etaContract e ob ty =
+	let datatype etaSpine = Ap of apxAsyncType | LAp of apxAsyncType | Pl | Pr
+		fun eq (SOME (x : mode * int), SOME y) = if x=y then SOME x else raise e
+		  | eq (NONE, SOME y) = SOME y
+		  | eq (SOME x, NONE) = SOME x
+		  | eq (NONE, NONE) = NONE
+		fun nbinds sp = length (List.filter (fn (Ap _) => true | (LAp _) => true | _ => false) sp)
+		fun etaEqC (ob, ty, x) = ignore $ eq (etaC (ob, ty, []), SOME x)
+		and etaC (ob, ty, sp) = case etaShortcut ob of NONE => etaC' (ob, ty, sp) | SOME k => SOME k
+		and etaC' (ob, ty, sp) = case (Whnf.whnfObj ob, Util.apxTypePrjAbbrev ty) of
+			  (NfLam (_, N), ApxTPi (A, B)) => etaC (N, B, (Ap A)::sp)
+			| (NfLinLam (_, N), ApxLolli (A, B)) => etaC (N, B, (LAp A)::sp)
+			| (NfAddPair (N1, N2), ApxAddProd (A, B)) =>
+				eq (etaC (N1, A, Pl::sp), etaC (N2, B, Pr::sp))
+			| (NfMonad E, ApxTMonad S) =>
 				let fun expFmap f = ExpObj.Fmap ((fn x=>x, fn x=>x, fn x=>x), f)
 				in case expFmap Whnf.whnfExp (Whnf.whnfExp E) of
-					  Let (p, N, Mon M) => (etaP (p, M); etaC (Atomic' N, sp))
+					  Let (p, N, Mon M) => (etaP (p, M, S); etaC (Atomic' N, ApxTAtomic' "", sp))
 					| _ => raise e
 				end
-			| NfAtomic (Var n, S) =>
+			| (NfAtomic (Var (M, n), S), ApxTAtomic _) =>
 				let val nb = nbinds sp
 					val k = n - nb
 					val () = if k>0 then () else raise e
 					val () = etaSp (nb, S, rev sp)
-				in k end
-			| NfAtomic _ => raise e
-			| NfUnit => raise e (* Not complete? Pair could perhaps absorb one Unit. --asn *)
-		and etaP (p, m) = ignore (etaP' (1, p, m))
-		and etaP' (n, p, m) = case (Pattern.prj p, MonadObj.prj m) of
-			  (PTensor (p1, p2), Tensor (M1, M2)) => etaP' (n + etaP' (n, p1, M1), p2, M2)
-			| (POne, One) => 0
-			| (PDepPair (_, _, p), DepPair (N, M)) =>
-					if n = etaC (N, []) then etaP' (1+n, p, M) else raise e
-			| (PVar _, Norm N) => if n = etaC (N, []) then 1 else raise e
+				in SOME (M, k) end
+			| (NfAtomic _, ApxTAtomic _) => raise e
+			| (NfUnit, ApxTop) => NONE
+			| _ => raise e
+		and etaP (p, m, sty) = ignore (etaP' (1, p, m, sty))
+		and etaP' (n, p, m, sty) = case (Pattern.prj p, MonadObj.prj m, ApxSyncType.prj sty) of
+			  (PTensor (p1, p2), Tensor (M1, M2), ApxTTensor (S1, S2)) =>
+				etaP' (etaP' (n, p2, M2, S2), p1, M1, S1)
+			| (POne, One, ApxTOne) => n
+			| (PDepPair (_, _, p), DepPair (N, M), ApxExists (A, S)) =>
+				let val n' = etaP' (n, p, M, S)
+				in ( etaEqC (N, A, (INT, n')) ; n'+1 ) end
+			| (PVar _, Norm N, ApxAsync A) => ( etaEqC (N, A, (LIN, n)) ; n+1 )
 			| _ => raise e
 		and etaSp (m, Sp, sp) = case (Spine.prj Sp, sp) of
 			  (Nil, []) => ()
-			| (App (N, S), Ap::sp) =>
-				(etaSp (m-1, S, sp); if etaC (N, []) = m then () else raise e)
-			| (LinApp (N, S), LAp::sp) =>
-				(etaSp (m-1, S, sp); if etaC (N, []) = m then () else raise e)
+			| (App (N, S), (Ap ty)::sp) =>
+				(etaSp (m-1, S, sp); etaEqC (N, ty, (INT, m)))
+			| (LinApp (N, S), (LAp ty)::sp) =>
+				(etaSp (m-1, S, sp); etaEqC (N, ty, (LIN, m)))
 			| (ProjLeft S, Pl::sp) => etaSp (m, S, sp)
 			| (ProjRight S, Pr::sp) => etaSp (m, S, sp)
 			| _ => raise e
-	in etaC (ob, []) end
+	in case etaC (ob, ty, []) of SOME x => x | NONE => raise Subst.ExnUndef end
 	
 
 (* etaExpand : apxAsyncType * head * spine -> obj *)
 fun etaExpand (A, H, S) =
-	let (*fun Idx A n = EtaTag (etaExpand (A, Var n, A, Nil'), n)*)
-		fun Idx A n = etaExpand (A, Var n, Nil') (*Atomic' (Var n, Nil')*)
+	let fun IdxI A n = etaExpand (A, Var (INT, n), Nil')
+		fun IdxL A n = etaExpand (A, Var (LIN, n), Nil')
 		(*fun printResult ob = (print ("Eta> "^(PrettyPrint.printObj (Atomic' (H, AH, S)))^" : "^
 								(PrettyPrint.printType (asyncTypeFromApx A))^" = "^
 								(PrettyPrint.printObj ob)^"\n")
@@ -89,15 +98,15 @@ fun etaExpand (A, H, S) =
 			| ApxTOne => (POne', One')
 			| ApxExists (A, S) =>
 				let val (p, M) = etaSyncType (S, n)
-				in (PDepPair' ("", injectApxType A, p), DepPair' (Idx A (n + nbinds p), M)) end
-			| ApxAsync A => (PVar' ("", injectApxType A), Norm' (Idx A n))
+				in (PDepPair' ("", injectApxType A, p), DepPair' (IdxI A (n + nbinds p), M)) end
+			| ApxAsync A => (PVar' ("", injectApxType A), Norm' (IdxL A n))
 		fun addEtaSpine (n, Sf) =
 				Atomic' (Subst.shiftHead (H, n),
 						appendSpine (SClos (S, Subst.shift n), Sf (1, Nil')))
 		fun eta' (ty, n, Sf) = case Util.apxTypePrjAbbrev ty of
 			  ApxLolli (A, B) =>
-				LinLam' ("", eta' (B, n+1, fn (n, S) => Sf (n+1, LinApp' (Idx A n, S))))
-			| ApxTPi (A, B) => Lam' ("", eta' (B, n+1, fn (n, S) => Sf (n+1, App' (Idx A n, S))))
+				LinLam' ("", eta' (B, n+1, fn (n, S) => Sf (n+1, LinApp' (IdxL A n, S))))
+			| ApxTPi (A, B) => Lam' ("", eta' (B, n+1, fn (n, S) => Sf (n+1, App' (IdxI A n, S))))
 			| ApxAddProd (A, B) =>
 				AddPair' (eta' (A, n, fn (n, S) => Sf (n, ProjLeft' S)), 
 				         eta' (B, n, fn (n, S) => Sf (n, ProjRight' S)))
@@ -110,7 +119,7 @@ fun etaExpand (A, H, S) =
 			| ApxTLogicVar _ => raise Fail "Ambiguous typing\n"
 		val etaResult = eta' (A, 0, fn (n, S) => S)
 	in case H of
-		  Var n => if Util.isNil S then EtaTag (etaResult, n) else etaResult
+		  Var mn => if Util.isNil S then EtaTag (etaResult, mn) else etaResult
 		| _ => etaResult
 	end
 
@@ -121,7 +130,7 @@ fun etaExpandKind (ctx, ki) = case Kind.prj ki of
 	  Type => Type'
 	| KPi (x, A, K) =>
 			let val A' = etaExpandType (ctx, A)
-			in KPi' (x, A', etaExpandKind (ctxCondPushUN (x, asyncTypeToApx A', ctx), K)) end
+			in KPi' (x, A', etaExpandKind (ctxCondPushINT (x, asyncTypeToApx A', ctx), K)) end
 
 (* etaExpandType : context * asyncType -> asyncType *)
 and etaExpandType (ctx, ty) =
@@ -143,7 +152,7 @@ and etaExpandType' (ctx, ty) = case AsyncType.prj ty of
 	  Lolli (A, B) => Lolli' (etaExpandType (ctx, A), etaExpandType (ctx, B))
 	| TPi (x, A, B) =>
 			let val A' = etaExpandType (ctx, A)
-			in TPi' (x, A', etaExpandType (ctxCondPushUN (x, asyncTypeToApx A', ctx), B)) end
+			in TPi' (x, A', etaExpandType (ctxCondPushINT (x, asyncTypeToApx A', ctx), B)) end
 	| AddProd (A, B) => AddProd' (etaExpandType (ctx, A), etaExpandType (ctx, B))
 	| Top => Top'
 	| TMonad S => TMonad' (etaExpandSyncType (ctx, S))
@@ -163,7 +172,7 @@ and etaExpandSyncType (ctx, ty) = case SyncType.prj ty of
 	| TOne => TOne'
 	| Exists (x, A, S) =>
 			let val A' = etaExpandType (ctx, A)
-			in Exists' (x, A', etaExpandSyncType (ctxCondPushUN (x, asyncTypeToApx A', ctx), S)) end
+			in Exists' (x, A', etaExpandSyncType (ctxCondPushINT (x, asyncTypeToApx A', ctx), S)) end
 	| Async A => Async' (etaExpandType (ctx, A))
 
 (* etaExpandObj : context * obj * apxAsyncType -> obj *)
@@ -178,9 +187,9 @@ and etaExpandObj (ctx, ob, ty) =
 and etaExpandObj' (ctx, ob, ty) = case (Obj.prj ob, Util.apxTypePrjAbbrev ty) of
 	  (_, ApxTLogicVar _) => raise Fail "Ambiguous typing\n"
 	| (LinLam (x, N), ApxLolli (A, B)) =>
-			LinLam' (x, etaExpandObj (ctxPushUN (x, A, ctx), N, B))
+			LinLam' (x, etaExpandObj (ctxPushINT (x, A, ctx), N, B))
 	| (Lam (x, N), ApxTPi (A, B)) =>
-			Lam' (x, etaExpandObj (ctxPushUN (x, A, ctx), N, B))
+			Lam' (x, etaExpandObj (ctxPushINT (x, A, ctx), N, B))
 	| (AddPair (N1, N2), ApxAddProd (A, B)) =>
 			AddPair' (etaExpandObj (ctx, N1, A), etaExpandObj (ctx, N2, B))
 	| (Unit, ApxTop) => Unit'
@@ -195,7 +204,7 @@ and etaExpandObj' (ctx, ob, ty) = case (Obj.prj ob, Util.apxTypePrjAbbrev ty) of
 (* etaExpandHead : context * head -> head * apxAsyncType *)
 and etaExpandHead (ctx, h) = case h of
 	  Const c => (h, asyncTypeToApx (Signatur.sigLookupType c))
-	| Var n => (h, #2 (ctxLookupNum (ctx, n)))
+	| Var (_, n) => (h, #3 (ctxLookupNum (ctx, n)))
 	| UCVar x => (h, asyncTypeToApx (ImplicitVars.ucLookup x))
 	| LogicVar X =>
 			let val () = if Subst.isId (#s X) then () else raise Fail "Internal error eta lvar"
@@ -242,7 +251,7 @@ and etaExpandPattern (ctx, p) = case Pattern.prj p of
 	| POne => POne'
 	| PDepPair (x, A, p) =>
 			let val A' = etaExpandType (ctx, A)
-			in PDepPair' (x, A', etaExpandPattern (ctxPushUN (x, asyncTypeToApx A', ctx), p)) end
+			in PDepPair' (x, A', etaExpandPattern (ctxPushINT (x, asyncTypeToApx A', ctx), p)) end
 	| PVar (x, A) => PVar' (x, etaExpandType (ctx, A))
 
 (* etaExpandMonadObj : context * monadObj * apxSyncType -> monadObj *)

@@ -57,11 +57,11 @@ fun instantiate (r, rInst, cs, l) =
 (* lowerLVar : asyncType * spine * subst * context -> obj * obj objF *)
 fun lowerLVar (ty, sp, s, ctx) = case (Util.typePrjAbbrev ty, Spine.prj sp) of
 	  (Lolli (A, B), LinApp (N, S)) =>
-			let val (rInst, Y) = lowerLVar (B, S, Subst.dot (N, s), ctxPushLIN ("", A, ctx))
+			let val (rInst, Y) = lowerLVar (B, S, Subst.dot (LIN, N, s), ctxPushLIN ("", A, ctx))
 			in (LinLam' ("", rInst), Y) end
 	| (TPi (x, A, B), App (N, S)) =>
 			let val x' = getOpt (x, "")
-				val (rInst, Y) = lowerLVar (B, S, Subst.dot (N, s), ctxPushUN (x', A, ctx))
+				val (rInst, Y) = lowerLVar (B, S, Subst.dot (INT, N, s), ctxPushINT (x', A, ctx))
 			in (Lam' (x', rInst), Y) end
 	| (AddProd (A, B), ProjLeft S) =>
 			let val (rInst, Y) = lowerLVar (A, S, s, ctx)
@@ -100,6 +100,9 @@ fun whnf2obj (NfLinLam N) = LinLam N
 
 (* newMon (S, G) = M  :  G |- M : S *)
 (* newMon : syncType * context -> monadObj *)
+fun newMon _ = raise Fail "stub newMon"
+(*
+context split
 fun newMon (sTy, ctx) = case SyncType.prj sTy of
 	  TTensor (S1, S2) => Tensor' (newMon (S1, ctx), newMon (S2, ctx))
 	| TOne => One'
@@ -108,6 +111,7 @@ fun newMon (sTy, ctx) = case SyncType.prj sTy of
 			val S' = if isSome x then STClos (S, Subst.sub N) else S
 		in DepPair' (N, newMon (S', ctx)) end (* bugfix 27/11-07 --asn *)
 	| Async A => Norm' (newLVarCtx (SOME ctx) A)
+*)
 
 (* newMonA : asyncType * context -> expObj *)
 fun newMonA (A, ctx) = case AsyncType.prj A of
@@ -159,30 +163,37 @@ fun splitExp (rOccur, ex) =
 		| NONE => INL (pruneLetOccur NONE ex)
 	end
 
+(* pruneCtx : (asyncType -> asyncType) -> subst -> asyncType context -> asyncType context *)
+(* pruneCtx calculates G' such that
+   G' |- ss : G
+   for a strengthening substitution ss
+*)
+fun pruneCtx pruneType ss G =
+	let fun pruneCtx' ss [] = emptyCtx
+		  | pruneCtx' ss ((x, A, mode)::G) =
+				if Subst.hdDef ss then
+					let val si = Subst.invert (Subst.shift 1)
+						val ss' = Subst.comp (Subst.comp (Subst.shift 1, ss), si)
+						val A' = pruneType (TClos (A, ss'))
+					in ctxCons (x, A', mode) (pruneCtx' ss' G) end
+				else if mode = SOME LIN then (* and hd ss = Undef *)
+					raise Subst.ExnUndef
+				else (* mode <> LIN and hd ss = Undef *)
+					pruneCtx' (Subst.comp (Subst.shift 1, ss)) G
+	in pruneCtx' ss (ctx2list G) end
+
 exception ExnOccur
 (* objExists : obj option vref -> obj -> obj option *)
 (* typeExists : obj option vref -> asyncType -> asyncType option *)
 val (objExists, typeExists) =
-	let fun pruneCtx _ wi [] = emptyCtx
-		  | pruneCtx pruneType wi ((x, A, mode)::G) =
-				let val s = Subst.shift 1
-					val si = Subst.invert s
-				in if Subst.hdDef wi then
-					let val wi' = Subst.comp (Subst.comp (s, wi), si)
-						(*val A' = Util.objMapType (f (Subst.invert wi')) (TClos (A, wi'))*)
-						val A' = pruneType (TClos (A, wi'))
-					in ctxCons (x, A', mode) (pruneCtx pruneType wi' G) end
-				else if mode = LIN then (* and hd wi = Undef *)
-					raise Subst.ExnUndef
-				else (* mode <> LIN and hd wi = Undef *)
-					pruneCtx pruneType (Subst.comp (s, wi)) G
-				end
-		fun allowPrune nprune = not $ isSome nprune
+	let fun allowPrune nprune = not $ isSome nprune
 		fun xExists NONE f x = (SOME (f x) handle Subst.ExnUndef => NONE)
 		  | xExists (SOME (npR as ref np)) f x =
 				(SOME (f x) handle Subst.ExnUndef => (npR := np; NONE))
 		fun f nprune rOccur srig ob = case whnf2obj $ lowerObj $ Whnf.whnfObj ob of
-		  Atomic (LogicVar (Y as {X=rY, ty=A, s=sY, ctx=ref G, cnstr=cs, tag}), _ (* = Nil *)) =>
+		  Atomic (LogicVar {ctx=ref NONE, tag, ...}, _) =>
+				raise Fail ("Internal error: no context on $"^Word.toString tag)
+		| Atomic (LogicVar (Y as {X=rY, ty=A, s=sY, ctx=ref (SOME G), cnstr=cs, tag}), _) =>
 				if eq (rY, rOccur) then
 					(* X = H . S{X[p]} --> X = H . S{_}   if p is pattern
 					 * X = H . S_srig{X[s]} --> _         with H <> lvar and H <> var
@@ -191,7 +202,8 @@ val (objExists, typeExists) =
 					 * For all ground R, |R| >= |R[sY]|
 					 *)
 					if srig andalso allowPrune nprune then raise Subst.ExnUndef
-					else if isSome $ Subst.patSub Eta.etaContract sY then raise Subst.ExnUndef
+					else if isSome $ Subst.patSub Eta.etaContract sY (ctxMap asyncTypeToApx G)
+						then raise Subst.ExnUndef
 					else raise ExnOccur
 				else let
 					val needSubPrune = ref false
@@ -206,9 +218,9 @@ val (objExists, typeExists) =
 					val N' = if allowPrune nprune andalso needPrune then
 								let val wi = Subst.invert w
 									val pruneType = Util.objSRigMapType (f NONE rOccur) srig
-									val G' = Option.map (pruneCtx pruneType wi o ctx2list) G
+									val G' = pruneCtx pruneType wi G
 									val A' = pruneType (TClos (A, wi))
-									val Y'w = Clos (newLVarCtx G' A', w)
+									val Y'w = Clos (newLVarCtx (SOME G') A', w)
 									val () = instantiate (rY, Y'w, cs, tag)
 								in Obj.prj $ Clos (Y'w, sY') end
 							else Atomic (LogicVar (Y with's sY'), Nil')
@@ -226,6 +238,49 @@ val (objExists, typeExists) =
 		fun typeExistsP nprune rOccur ty =
 			xExists nprune (Util.objSRigMapType (f nprune rOccur) true) ty
 	in (objExistsP NONE, typeExistsP NONE) end
+
+(*
+fun lPrLookup (n, pl) = if n>0 then List.find (fn (m, _) => m=n) pl else NONE
+
+fun linPruneObj (ob, n, pl) = case lowerObj $ Whnf.whnfObj ob of
+	  NfLinLam (x, N) => map1 (fn N' => LinLam' (x, N')) $ linPruneObj (N, n+1, pl)
+	| NfLam (x, N) => map1 (fn N' => Lam' (x, N')) $ linPruneObj (N, n+1, pl)
+	| NfAddPair (N1, N2) =>
+	| NfUnit => (Unit', (true, #2 pl))
+	| NfMonad E => map1 Monad' $ linPruneExp (E, n, pl)
+	| NfAtomic (H, S) => linPruneSpine (S, n, linPruneHead (H, n, pl))
+and linPruneHead (H, n, pl) = case H of
+	  Var (INT, m) => (case lPrLookup (m-n, #2 pl) of
+		  NONE => pl
+		| SOME NONE => raise Subst.ExnUndef
+		| SOME (SOME ls) =>)
+	| LogicVar X =>
+	| _ => pl (* Const, UCVar, Var (LIN, _) *)
+and linPruneSpine (sp, n, pl) = case Spine.prj sp of
+	  Nil => (Nil', pl)
+	| App (N, S) => map1 (fn S' => App' (Clos (N, _), S')) $ linPruneSpine (S, n, pl)
+	| LinApp (N, S) => linPruneSpine (S, n, linPruneObj (N, n, pl))
+	| ProjLeft S => map1 ProjLeft' $ linPruneSpine (S, n, pl)
+	| ProjRight S => map1 ProjRight' $ linPruneSpine (S, n, pl)
+*)
+
+fun qsort [] a = a
+  | qsort (x::xs) a =
+		let val (l, g) = List.partition (fn y => y<x) xs
+		in qsort l (x :: qsort g a) end
+
+fun linPrune (ob, pl) =
+	let val pl' = qsort pl
+		open Subst
+		fun convSub [] = id
+		  | convSub (1::ps) = dot (INT, Atomic' (Var (LIN, 1), Nil'), comp (convSub ps, shift 1))
+		  | convSub (n::ps) = dot1 $ convSub (n-1 :: ps)
+		datatype lv = LV of obj * int | T | MULT of lv * lv | ADD of lv * lv
+(*		fun fo 
+		val u = ignore
+		val ff = {fki=u, faTy=u, ftyS=u, fsTy=u, fo=fo, fsp=fsp, fe=fe, fm=fm, fp=u}
+		*)
+	in 0 end
 
 fun unifyType (ty1, ty2) = case (Util.typePrjAbbrev ty1, Util.typePrjAbbrev ty2) of
 	  (Lolli (A1, B1), Lolli (A2, B2)) => (unifyType (A1, A2); unifyType (B1, B2))
@@ -257,17 +312,19 @@ and unifyObj dryRun (ob1, ob2) =
 	(* In the case of two equal LVars, the lowering of ob1 affects the whnf of ob2 *)
 	let val ob1' = lowerObj (Whnf.whnfObj ob1)
 		val ob2' = lowerObj (Whnf.whnfObj ob2)
-		fun invLam ap hS =
+		fun invLam' M ap hS =
 			redex (Clos (Atomic' hS, Subst.shift 1),
-					ap (Atomic' (Var 1, Nil'), Nil'))
+					ap (Atomic' (Var (M, 1), Nil'), Nil'))
+		fun invLam LIN hS = invLam' LIN LinApp' hS
+		  | invLam INT hS = invLam' INT App' hS
 		fun invPair p hS = redex (Atomic' hS, p Nil')
 	in case (ob1', ob2') of
 		  (NfLinLam (_, N1), NfLinLam (_, N2)) => unifyObj dryRun (N1, N2)
-		| (NfLinLam (_, N1), NfAtomic hS2) => unifyObj dryRun (N1, invLam LinApp' hS2)
-		| (NfAtomic hS1, NfLinLam (_, N2)) => unifyObj dryRun (invLam LinApp' hS1, N2)
+		| (NfLinLam (_, N1), NfAtomic hS2) => unifyObj dryRun (N1, invLam LIN hS2)
+		| (NfAtomic hS1, NfLinLam (_, N2)) => unifyObj dryRun (invLam LIN hS1, N2)
 		| (NfLam (_, N1), NfLam (_, N2)) => unifyObj dryRun (N1, N2)
-		| (NfLam (_, N1), NfAtomic hS2) => unifyObj dryRun (N1, invLam App' hS2)
-		| (NfAtomic hS1, NfLam (_, N2)) => unifyObj dryRun (invLam App' hS1, N2)
+		| (NfLam (_, N1), NfAtomic hS2) => unifyObj dryRun (N1, invLam INT hS2)
+		| (NfAtomic hS1, NfLam (_, N2)) => unifyObj dryRun (invLam INT hS1, N2)
 		| (NfAddPair (L1, N1), NfAddPair (L2, N2)) =>
 				( unifyObj dryRun (L1, L2)
 				; unifyObj dryRun (N1, N2) )
@@ -296,7 +353,7 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 	| (Var n1, Var n2) =>
 			if n1 <> n2 then raise ExnUnify "Vars differ\n"
 			else unifySpine dryRun (S1, S2)
-	| (LogicVar (X1 as {X=r1, ty=A1, s=s1, ctx=ref G1, cnstr=cs1, tag=tag1}),
+	| (LogicVar (X1 as {X=r1, ty=A1, s=s1, ctx=ref (SOME G1), cnstr=cs1, tag=tag1}),
 		LogicVar (X2 as {X=r2, s=s2, cnstr=cs2, ...})) =>
 			if eq (r1, r2) then
 				let val dryRunIntersect = ref true
@@ -306,35 +363,42 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 						  SOME () => if !dryRunIntersect then true
 								else raise ExnUnifyMaybe
 						| NONE => false
-					fun conv' (INL n, ob2) = conv (Atomic' (Var n, Nil'), ob2)
+					fun conv' (INL n, ob2) = conv (Atomic' (Var n, Nil'), ob2) (* stub eta --asn *)
 					  | conv' (INR ob1, ob2) = conv (ob1, ob2)
 				in case SOME (Subst.intersection conv' (s1, s2)) handle ExnUnifyMaybe => NONE of
 					  NONE => if isSome dryRun then (valOf dryRun) := false else
 							addConstraint (vref (Eqn (Atomic' hS1, Atomic' hS2)), [cs1])
-					| SOME s' => if Subst.isId s' then () else 
+					| SOME w => if Subst.isId w then () else 
 							if isSome dryRun then (valOf dryRun) := false else
-							let val si = Subst.invert s'
-								val G' = raise Fail "stub: reduce context (G1,si)"
-								(*val A' = case typeExists true (ref NONE) s' (TClos (A1, si)) of
-									SOME ty => ty | NONE => raise ExnUnify "Unification failed\n"*)
-								val A' = TClos (A1, si)
-							in instantiate (r1, Clos (newLVarCtx G' A', s'), cs1, tag1) end
+							let val wi = Subst.invert w
+								fun pruneType ty = case typeExists (vref NONE) ty of
+										  SOME ty' => ty'
+										| NONE => raise ExnUnify "pruneType in intersection"
+								val A' = pruneType $ TClos (A1, wi)
+								val G' = pruneCtx pruneType wi G1
+							in instantiate (r1, Clos (newLVarCtx (SOME G') A', w), cs1, tag1) end
 				end
 			else if isSome dryRun then (valOf dryRun) := false
-			else (case Subst.patSub Eta.etaContract s1 of
-				  SOME s' => unifyLVar (X1 with's s', Atomic' hS2)
+			else let val apxG1 = ctxMap asyncTypeToApx G1
+			in case Subst.patSub Eta.etaContract s1 apxG1 of
+				  SOME (p, s') => unifyLVar (X1 with's s', Atomic' hS2, p, s1)
 				| NONE =>
-					(case Subst.patSub Eta.etaContract s2 of
-					  SOME s' => unifyLVar (X2 with's s', Atomic' hS1)
-					| NONE => addConstraint (vref (Eqn (Atomic' hS1, Atomic' hS2)), [cs1, cs2])))
-	| (LogicVar (X as {s, cnstr=cs, ...}), _) =>
+					(case Subst.patSub Eta.etaContract s2 apxG1 of
+					  SOME (p, s') => unifyLVar (X2 with's s', Atomic' hS1, p, s2)
+					| NONE => addConstraint (vref (Eqn (Atomic' hS1, Atomic' hS2)), [cs1, cs2]))
+			end
+	| (LogicVar (X as {s, ctx=ref (SOME G), cnstr=cs, ...}), _) =>
 			if isSome dryRun then (valOf dryRun) := false else
-			(case Subst.patSub Eta.etaContract s of
-				  SOME s' => unifyLVar (X with's s', Atomic' hS2)
+			(case Subst.patSub Eta.etaContract s (ctxMap asyncTypeToApx G) of
+				  SOME (p, s') => unifyLVar (X with's s', Atomic' hS2, p, s)
 				| NONE => addConstraint (vref (Eqn (Atomic' hS1, Atomic' hS2)), [cs]))
+	| (LogicVar {ctx=ref NONE, tag, ...}, _) =>
+			raise Fail ("Internal error: no context on $"^Word.toString tag)
 	| (_, LogicVar _) => unifyHead dryRun (hS2, hS1)
 	| _ => raise ExnUnify "h1 h2"
-and unifyLVar (X as {X=r, s, cnstr=cs, tag, ...}, ob) =
+and unifyLVar (X as {cnstr=cs, ...}, ob, _::_, s) =
+		addConstraint (vref (Eqn (Atomic' (LogicVar (X with's s), Nil'), ob)), [cs])
+  | unifyLVar (X as {X=r, s, cnstr=cs, tag, ...}, ob, [], _) =
 	(case objExists r (Clos (ob, Subst.invert s)) of
 		  NONE => raise ExnUnify "Unification failed\n"
 		| SOME N => instantiate (r, N, cs, tag))
@@ -383,16 +447,16 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 					( unifyHead NONE ((L1, S), (L2, S))
 					; unifyMon NONE (M1, M2) )
 				| INR (e, M2, ectx, n) =>
-					(case Subst.patSub Eta.etaContract s of
+					(case Subst.patSub Eta.etaContract s (ctxMap asyncTypeToApx $ valOf G) of
 						  NONE => raise Fail "stub !!!"
-						| SOME s' =>
+						| SOME (p, s') =>
 							let val newM = EClos (newMonA (TClos (ty, Subst.shift n),
 													ectx $ valOf G), Subst.dotn n s')
 							in
 								( unifyExp NONE (Let' (PClos (p1, Subst.shift n), Monad' newM,
 										Mon' (MClos (M1, Subst.dotn (nbinds p1) (Subst.shift n)))),
 									Mon' M2)
-								; unifyLVar (X1 with's s', Monad' (e newM)) )
+								; unifyLVar (X1 with's s', Monad' (e newM), p, s) )
 							end))
 		| (_, E1', (LogicVar _, _), Mon M2) =>
 			unifyLetLet NONE ((p2, ob2', Mon' M2), (p1, ob1', expWhnfInj E1'))
@@ -422,7 +486,7 @@ and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, Whn
 							let val s' = Subst.dotn nbe s
 							in e s (Let' (PClos (p, s'), Clos (N, s'), E)) end
 				fun lVarSub 0 = Subst.shift nbp
-				  | lVarSub n = Subst.dot (Util.blank (), lVarSub (n-1))
+				  | lVarSub n = Subst.dot (raise Fail "stub lVarSub", Util.blank (), lVarSub (n-1))
 				fun isLVar (LogicVar _, _) = true
 				  | isLVar _ = false
 				fun EsX'' () = if isLVar NsX then EClos (EsX', lVarSub nbp) else EsX'

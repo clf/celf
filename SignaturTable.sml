@@ -17,6 +17,7 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+signature TLU_SignaturTable = TOP_LEVEL_UTIL
 structure SignaturTable :> SIGNATUR_TABLE =
 struct
 
@@ -38,8 +39,8 @@ fun pushAtom a x = candAtom := insert (!candAtom, a, x :: lookupAtom a)
 fun heads ty = case Util.typePrjAbbrev ty of
 	  Lolli (_, A) => heads A
 	| TPi (_, _, A) => heads A
-	| AddProd (A, B) => map (Util.map1 (fn lrs => L::lrs)) (heads A)
-						@ map (Util.map1 (fn lrs => R::lrs)) (heads B)
+	| AddProd (A, B) => map (map1 (fn lrs => L::lrs)) (heads A)
+						@ map (map1 (fn lrs => R::lrs)) (heads B)
 	| Top => []
 	| TMonad _ => [([], HdMonad)]
 	| TAtomic (a, _) => [([], HdAtom a)]

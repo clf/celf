@@ -44,10 +44,6 @@ structure MonadObjRec : REC2 where type ('a, 't) T.F = ('a, 't) Syntax.monadObjF
 structure PatternRec : REC2 where type ('a, 't) T.F = ('a, 't) Syntax.patternFF
 		and type T.t = Syntax.pattern and type T.a = Syntax.asyncType
 
-val map1 : ('a -> 'c) -> 'a * 'b -> 'c * 'b
-val map2 : ('b -> 'd) -> 'a * 'b -> 'a * 'd
-val map12 : ('a -> 'c) -> ('b -> 'd) -> 'a * 'b -> 'c * 'd
-
 val linApp : Syntax.obj * Syntax.obj -> Syntax.obj
 val app : Syntax.obj * Syntax.obj -> Syntax.obj
 val projLeft : Syntax.obj -> Syntax.obj

@@ -21,6 +21,8 @@ signature TLU_SYNTAX = TOP_LEVEL_UTIL
 signature SYNTAX_CORE1 =
 sig
 
+datatype subMode = ID | LIN2INT
+
 type kind
 type asyncType
 type typeSpine
@@ -37,11 +39,11 @@ type monadObj
 type pattern
 
 type subst
-datatype subObj = Ob of obj | Idx of int | Undef
+datatype subObj = Ob of Context.mode * obj | Idx of subMode * int | Undef
 
 datatype constr = Solved | Eqn of obj * obj | Exist of obj
 datatype head = Const of string
-	| Var of int
+	| Var of Context.mode * int
 	| UCVar of string
 	| LogicVar of {
 		X     : obj option VRef.vref,
@@ -172,16 +174,18 @@ structure Subst : sig
 	exception ExnUndef
 	val id : subst
 	val shift : int -> subst
-	val sub : obj -> subst
-	val dot : obj * subst -> subst
+	val subI : obj -> subst
+	val subL : obj -> subst
+	val dot : Context.mode * obj * subst -> subst
 	val dot1 : subst -> subst
 	val dotn : int -> subst -> subst
 	val comp : subst * subst -> subst
 	val shiftHead : head * int -> head
 	val switchSub : int * int -> subst
-	val intersection : ((int, obj) sum * obj -> bool) -> subst * subst -> subst
+	val intersection : ((Context.mode * int, obj) sum * obj -> bool) -> subst * subst -> subst
 	val invert : (*pat*)subst -> subst
-	val patSub : (exn -> obj -> int) -> subst -> (*pat*)subst option
+	val patSub : (exn -> obj -> apxAsyncType -> Context.mode * int) -> subst ->
+			apxAsyncType Context.context -> (int list * (*pat*)subst) option
 	val isId : subst -> bool
 	val substToStr : (obj -> string) -> subst -> string
 	val fold : (subObj * 'a -> 'a) -> (int -> 'a) -> subst -> 'a
@@ -324,7 +328,7 @@ val NfPClos : nfPattern * subst -> nfPattern
 val nfnbinds : nfPattern -> int
 
 
-val EtaTag : obj * int -> obj
+val EtaTag : obj * (Context.mode * int) -> obj
 
 
 
@@ -439,7 +443,7 @@ val unnormalizeObj : nfObj -> obj
 val unnormalizeExpObj : nfExpObj -> expObj
 val unnormalizePattern : nfPattern -> pattern
 
-val etaShortcut : obj -> int option
+val etaShortcut : obj -> (Context.mode * int) option
 
 structure Whnf : sig
 	val whnfObj : obj -> (spine, expObj, obj) nfObjFF

@@ -112,10 +112,6 @@ and foldNfExpObj fs x = NfExpObjRec.fold (foldNfSpine fs, foldNfMonadObj fs, fol
 and foldNfMonadObj fs x = NfMonadObjRec.fold (foldNfObj fs) (#fm fs) x
 and foldNfPattern fs x = NfPatternRec.fold (foldNfType fs) (#fp fs) x
 
-fun map1 f (a, b) = (f a, b)
-fun map2 f (a, b) = (a, f b)
-fun map12 f g (a, b) = (f a, g b)
-
 fun linApp (ob1, ob2) = Redex' (ob1, newApxTVar (), LinApp' (ob2, Nil'))
 fun app (ob1, ob2) = Redex' (ob1, newApxTVar (), App' (ob2, Nil'))
 fun projLeft ob = Redex' (ob, newApxTVar (), ProjLeft' Nil')

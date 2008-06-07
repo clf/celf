@@ -22,8 +22,9 @@ struct
 
 exception ExnCtx of string
 
-datatype mode = UN | LIN | NO
-type 'a context = (string * 'a * mode) list
+datatype mode = INT | LIN
+type cmode = mode option
+type 'a context = (string * 'a * cmode) list
 
 fun ctx2list ctx = ctx
 fun ctxCons e ctx = e::ctx
@@ -34,49 +35,50 @@ val emptyCtx = []
 
 (* ctxDelLin : context -> context *)
 fun ctxDelLin ctx =
-	let fun delLin' (entry as (_, _, UN)) = entry
-		  | delLin' (entry as (_, _, NO)) = entry
-		  | delLin' (x, A, LIN) = (x, A, NO)
+	let fun delLin' (entry as (_, _, SOME INT)) = entry
+		  | delLin' (entry as (_, _, NONE)) = entry
+		  | delLin' (x, A, SOME LIN) = (x, A, NONE)
 	in map delLin' ctx end
 
-fun use _ UN = UN
-  | use _ LIN = NO
-  | use y NO = raise Fail ("Linear variable "^y^" can't be used twice/here\n")
+fun use _ (SOME INT) = SOME INT
+  | use _ (SOME LIN) = NONE
+  | use y NONE = raise Fail ("Linear variable "^y^" can't be used twice/here\n")
 
-(* ctxLookupNum : 'a context * int -> 'a context * 'a *)
+(* ctxLookupNum : 'a context * int -> 'a context * mode * 'a *)
 fun ctxLookupNum (ctx, n) =
 	let fun ctxLookup' (i, ctxfront, []) = raise Fail "Internal error: End of context\n"
 		  | ctxLookup' (1, ctxfront, (x, A, f)::ctx) =
-				(List.revAppend (ctxfront, (x, A, use x f)::ctx), A)
+				(List.revAppend (ctxfront, (x, A, use x f)::ctx), getOpt (f, LIN), A)
 		  | ctxLookup' (i, ctxfront, c::ctx) = ctxLookup' (i-1, c::ctxfront, ctx)
 	in ctxLookup' (n, [], ctx) end
 
-(* ctxLookupName : 'a context * string -> (int * 'a * 'a context) option *)
+(* ctxLookupName : 'a context * string -> (int * mode * 'a * 'a context) option *)
 fun ctxLookupName (ctx, y) =
 	let fun ctxLookup' (i, ctx, []) = NONE
 		  | ctxLookup' (i, ctxfront, (x, A, f)::ctx) =
-				if x=y then SOME (i, A, List.revAppend (ctxfront, (x, A, use x f)::ctx))
+				if x=y then SOME (i, getOpt (f, LIN), A,
+									List.revAppend (ctxfront, (x, A, use x f)::ctx))
 				else ctxLookup' (i+1, (x, A, f)::ctxfront, ctx)
 	in ctxLookup' (1, [], ctx) end
 
-(* ctxPushUN : string * 'a * 'a context -> 'a context *)
-fun ctxPushUN (x, A, ctx) = (x, A, UN) :: ctx
+(* ctxPushINT : string * 'a * 'a context -> 'a context *)
+fun ctxPushINT (x, A, ctx) = (x, A, SOME INT) :: ctx
 
-(* ctxCondPushUN : string option * 'a * 'a context -> 'a context *)
-fun ctxCondPushUN (NONE, _, ctx) = ctx
-  | ctxCondPushUN (SOME x, A, ctx) = ctxPushUN (x, A, ctx)
+(* ctxCondPushINT : string option * 'a * 'a context -> 'a context *)
+fun ctxCondPushINT (NONE, _, ctx) = ctx
+  | ctxCondPushINT (SOME x, A, ctx) = ctxPushINT (x, A, ctx)
 
 (* ctxPushLIN : string * 'a * 'a context -> 'a context *)
-fun ctxPushLIN (x, A, ctx) = (x, A, LIN) :: ctx
+fun ctxPushLIN (x, A, ctx) = (x, A, SOME LIN) :: ctx
 
-(* ctxPopUN : 'a context -> 'a context *)
-fun ctxPopUN ((_, _, UN)::ctx) = ctx
-  | ctxPopUN _ = raise Fail "Internal error: ctxPopUN"
+(* ctxPopINT : 'a context -> 'a context *)
+fun ctxPopINT ((_, _, SOME INT)::ctx) = ctx
+  | ctxPopINT _ = raise Fail "Internal error: ctxPopINT"
 
 (* ctxPopLIN : bool * 'a context -> 'a context *)
-fun ctxPopLIN (_, (_, _, NO)::ctx) = ctx
-  | ctxPopLIN (true, (_, _, LIN)::ctx) = ctx
-  | ctxPopLIN (false, (x, _, LIN)::ctx) = raise ExnCtx (x^" doesn't occur\n")
+fun ctxPopLIN (_, (_, _, NONE)::ctx) = ctx
+  | ctxPopLIN (true, (_, _, SOME LIN)::ctx) = ctx
+  | ctxPopLIN (false, (x, _, SOME LIN)::ctx) = raise ExnCtx (x^" doesn't occur\n")
   | ctxPopLIN _ = raise Fail "Internal error: ctxPopLIN"
 
 (* ctxPopLINopt : bool * 'a context -> 'a context option *)
@@ -84,13 +86,13 @@ fun ctxPopLINopt tCtx = SOME (ctxPopLIN tCtx) handle ExnCtx _ => NONE
 
 fun addJoin (t1, t2) ((x, A, f1), (_, _, f2)) =
 	let val f = case (t1, f1, t2, f2) of
-					(_, UN, _, UN) => UN
-				  | (_, NO, _, NO) => NO
-				  | (_, LIN, _, LIN) => LIN
-				  | (_, NO, true, LIN) => NO
-				  | (_, NO, false, LIN) => raise ExnCtx "Contexts can't join\n"
-				  | (true, LIN, _, NO) => NO
-				  | (false, LIN, _, NO) => raise ExnCtx "Contexts can't join\n"
+					(_, SOME INT, _, SOME INT) => SOME INT
+				  | (_, NONE, _, NONE) => NONE
+				  | (_, SOME LIN, _, SOME LIN) => SOME LIN
+				  | (_, NONE, true, SOME LIN) => NONE
+				  | (_, NONE, false, SOME LIN) => raise ExnCtx "Contexts can't join\n"
+				  | (true, SOME LIN, _, NONE) => NONE
+				  | (false, SOME LIN, _, NONE) => raise ExnCtx "Contexts can't join\n"
 				  | _ => raise Fail "Internal error: context misalignment\n"
 	in (x, A, f) end
 

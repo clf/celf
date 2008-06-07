@@ -24,11 +24,24 @@ functor SubstFun (
 	sharing type Syn.subst = subst
 	) =
 struct
+	open Context
 	open Syn infix with's
-	fun Clos' (Ob N, t) = Ob (Clos (N, t))
-	  | Clos' (Idx n, Shift n') = Idx (n+n')
-	  | Clos' (Idx 1, Dot (N, _)) = N
-	  | Clos' (Idx n, Dot (_, t)) = Clos' (Idx (n-1), t)
+
+	fun assertLin b = if b then () else raise Fail "Linearity substitution mismatch"
+	fun isUndef Undef = true
+	  | isUndef _ = false
+
+	fun dom2lin (Ob (INT, N)) = Ob (LIN, N)
+	  | dom2lin (Ob (LIN, _)) = raise Fail "Linearity substitution mismatch"
+	  | dom2lin (Idx (ID, n)) = Idx (LIN2INT, n)
+	  | dom2lin (Idx (LIN2INT, _)) = raise Fail "Linearity substitution mismatch"
+	  | dom2lin Undef = Undef
+
+	fun Clos' (Ob (m, N), t) = Ob (m, Clos (N, t))
+	  | Clos' (Idx (M, n), Shift n') = Idx (M, n+n')
+	  | Clos' (Idx (ID, 1), Dot (N, _)) = N
+	  | Clos' (Idx (LIN2INT, 1), Dot (N, _)) = dom2lin N
+	  | Clos' (Idx (M, n), Dot (_, t)) = Clos' (Idx (M, n-1), t)
 	  | Clos' (Undef, _) = Undef
 
 	(* comp : subst * subst -> subst *)
@@ -40,7 +53,7 @@ struct
 
 	exception ExnUndef
 
-	fun dot1 s = Dot (Idx 1, comp (s, Shift 1))
+	fun dot1 s = Dot (Idx (ID, 1), comp (s, Shift 1))
 	fun dotn 0 s = s
 	  | dotn n s = dotn (n-1) (dot1 s)
 
@@ -48,11 +61,13 @@ struct
 	fun headSub (Const c, _) = INL (Const c)
 	  | headSub (UCVar v, _) = INL (UCVar v)
 	  | headSub (LogicVar X, s') = INL (LogicVar (X with's comp (#s X, s')))
-	  | headSub (Var n, Shift n') = INL (Var (n+n'))
-	  | headSub (Var 1, Dot (Idx n, s)) = INL (Var n)
-	  | headSub (Var 1, Dot (Ob N, s)) = INR N
-	  | headSub (Var 1, Dot (Undef, s)) = raise ExnUndef
-	  | headSub (Var n, Dot (_, s)) = headSub (Var (n-1), s)
+	  | headSub (Var (M, n), Shift n') = INL (Var (M, n+n'))
+	  | headSub (Var (M, 1), Dot (Idx (ID, n), s)) = INL (Var (M, n))
+	  | headSub (Var (LIN, 1), Dot (Idx (LIN2INT, n), s)) = INL (Var (INT, n))
+	  | headSub (Var (INT, 1), Dot (Idx (LIN2INT, n), s)) = raise Fail "Linearity mismatch"
+	  | headSub (Var (M, 1), Dot (Ob (M', N), s)) = (assertLin (M=M') ; INR N)
+	  | headSub (Var (_, 1), Dot (Undef, s)) = raise ExnUndef
+	  | headSub (Var (M, n), Dot (_, s)) = headSub (Var (M, n-1), s)
 
 	fun subKind (Type, _) = Type
 	  | subKind (KPi (NONE, A, K), s) = KPi (NONE, TClos (A, s), KClos(K, s))
@@ -116,36 +131,52 @@ struct
 	*)
 	fun switchSub (n1, n2) =
 		let fun switchSub' 0 = dotn n2 (Shift n1)
-			  | switchSub' k = Dot (Idx (n2+n1+1-k), switchSub' (k-1))
+			  | switchSub' k = Dot (Idx (ID, n2+n1+1-k), switchSub' (k-1))
 		in switchSub' n1 end
 
+	(* Input:
+	   G1 |- s1 : G2  and  G1 |- s2 : G2
+	   Output:
+	   G2 |- w : G3   w weakening substitution
+	   Constructs a subcontext G3 of G2 consisting of the parts of G2
+	   on which s1 and s2 agrees.
+	*)
 	fun intersection conv s1s2 =
-		let fun eq (Idx n, Idx m) = n=m
-			  | eq (Idx n, Ob N) = (conv (INL n, N) handle ExnUndef => false)
-			  | eq (Ob N, Idx n) = (conv (INL n, N) handle ExnUndef => false)
-			  | eq (Ob N1, Ob N2) = (conv (INR N1, N2) handle ExnUndef => false)
+		let fun modeMult ID m = m
+			  | modeMult LIN2INT LIN = INT
+			  | modeMult LIN2INT INT = raise Fail "Linearity mismatch in intersection"
+			fun eq (Idx (M1, n), Idx (M2, m)) = (assertLin (M1=M2) ; n=m)
+			  | eq (Idx (m, n), Ob (M, N)) =
+					(conv (INL (modeMult m M, n), N) handle ExnUndef => false)
+			  | eq (N1 as Ob _, N2 as Idx _) = eq (N2, N1)
+			  | eq (Ob (M1, N1), Ob (M2, N2)) =
+					( assertLin (M1=M2) ; conv (INR N1, N2) handle ExnUndef => false )
 			  | eq (Undef, _) = false (*raise Fail "Internal error intersection"*)
 			  | eq (_, Undef) = false (*raise Fail "Internal error intersection"*)
 			fun intersect (Dot (n1, s1), Dot (n2, s2)) =
 					if eq (n1, n2) then dot1 (intersect (s1, s2))
 					else comp (intersect (s1, s2), Shift 1)
-			  | intersect (s1 as Dot _, Shift n) = intersect (s1, Dot (Idx (n+1), Shift (n+1)))
-			  | intersect (Shift n, s2 as Dot _) = intersect (Dot (Idx (n+1), Shift (n+1)), s2)
+			  | intersect (s1 as Dot _, Shift n) =
+			  		intersect (s1, Dot (Idx (ID, n+1), Shift (n+1)))
+			  | intersect (Shift n, s2 as Dot _) =
+			  		intersect (Dot (Idx (ID, n+1), Shift (n+1)), s2)
 			  | intersect (Shift n1, Shift n2) =
 					if n1=n2 then id else raise Fail "Internal error: intersection\n"
 		in intersect s1s2 end
 
 	fun invert s =
-		let fun lookup (n, Shift _, p) = NONE
+		let fun lookup (_, Shift _, p) = NONE
 			  | lookup (_, Dot (Ob _, _), _) =
 					raise Fail "Internal error: invert called on non-pattern sub\n"
 			  | lookup (n, Dot (Undef, s'), p) = lookup (n+1, s', p)
-			  | lookup (n, Dot (Idx k, s'), p) =
+			  | lookup (_, Dot (Idx (LIN2INT, _), _), _) =
+					raise Fail "Internal error: invert called on non-pattern sub\n"
+			  | lookup (n, Dot (Idx (ID, k), s'), p) =
 					if k = p then SOME n else lookup (n+1, s', p)
 			fun invert'' (0, si) = si
 			  | invert'' (p, si) =
 					(case lookup (1, s, p) of
-						  SOME k => invert'' (p-1, Dot (Idx k, si))
+						  SOME k => invert'' (p-1, Dot (Idx (ID, k), si))
 						| NONE => invert'' (p-1, Dot (Undef, si)))
 			fun invert' (n, Shift p) = invert'' (p, Shift n)
 			  | invert' (n, Dot (_, s')) = invert' (n+1, s')
@@ -153,7 +184,7 @@ struct
 
 	fun isId s =
 		let fun isId' n (Shift m) = (n = m)
-			  | isId' n (Dot (Idx m, s)) = (n+1 = m) andalso isId' (n+1) s
+			  | isId' n (Dot (Idx (ID, m), s)) = (n+1 = m) andalso isId' (n+1) s
 			  | isId' _ _ = false
 		in isId' 0 s end
 
@@ -164,7 +195,7 @@ struct
 	  | fold f e (Dot (Idx n, s)) = f (dummyvar n, fold f e s)
 	  | fold f e (Shift n) = e n*)
 
-	fun map f (Dot (Ob ob, s)) = Dot (Ob $ f ob handle ExnUndef => Undef, map f s)
+	fun map f (Dot (Ob (M, ob), s)) = Dot (Ob (M, f ob) handle ExnUndef => Undef, map f s)
 	  | map f (Dot (Undef, s)) = Dot (Undef, map f s)
 	  | map f (Dot (Idx n, s)) = Dot (Idx n, map f s)
 	  | map f (Shift n) = Shift n
@@ -175,21 +206,51 @@ struct
 	  | hdDef (Shift _) = true
 
 	fun substToStr f s = if isId s then "" else
-			let fun toStr (Dot (Undef, s)) = "*."^(toStr s)
-				  | toStr (Dot (Ob ob, s)) = (f ob handle ExnUndef => "*")^"."^(toStr s)
-				  | toStr (Dot (Idx n, s)) = (Int.toString n)^"."^(toStr s)
+			let fun m2s LIN = "L"
+				  | m2s INT = "!"
+				fun cm2s ID = ""
+				  | cm2s LIN2INT = "!/L"
+				fun toStr (Dot (Undef, s)) = "*."^(toStr s)
+				  | toStr (Dot (Ob (M, ob), s)) =
+						(f ob handle ExnUndef => "*")^"/"^(m2s M)^"."^(toStr s)
+				  | toStr (Dot (Idx (M, n), s)) = (Int.toString n)^(cm2s M)^"."^(toStr s)
 				  | toStr (Shift n) = "^"^(Int.toString n)
 			in "["^(toStr s)^"]" end
 
-	fun patSub etaContract s' =
+	(* patSub Eta.etaContract s G1
+	 *    where G |- s : G1 can give three different results:
+	 * NONE
+	 *    s is not a pattern sub
+	 * SOME ([], s')
+	 *    s is equal to s' which is a pattern sub
+	 * SOME (p, s')
+	 *    s is equal to s' which is a pattern sub, but
+	 *    G  |- s : G1
+	 *    G' |- s' : G1
+	 *    G equals G' on the indices not in p
+	 *    n in p => G_n is INT and G'_n is LIN
+	 *)
+	fun modeInvDiv LIN INT = LIN2INT
+	  | modeInvDiv INT LIN = raise Fail "Linearity mismatch patSub"
+	  | modeInvDiv _ _ = ID
+	fun patSub etaContract s' domCtx =
 		let exception ExnPatSub
+			val p = ref []
+			val domCtx' = List.map #2 $ ctx2list domCtx
 			fun add (n : int, l) = if List.exists (fn i => i=n) l then raise ExnPatSub else n::l
-			fun ps (m, _, s as Shift n) = if m <= n then s else raise ExnPatSub
-			  | ps (m, l, Dot (Undef, s)) = Dot (Undef, ps (m, l, s))
-			  | ps (m, l, Dot (Idx n, s)) = Dot (Idx n, ps (Int.max (m, n), add (n, l), s))
-			  | ps (m, l, Dot (Ob N, s)) =
-					ps (m, l, Dot (Idx (etaContract ExnPatSub N) handle ExnUndef => Undef, s))
-		in SOME (ps (0, [], s')) handle ExnPatSub => NONE end
+			fun ps (m, _, s as Shift n, _) = if m <= n then s else raise ExnPatSub
+			  | ps (m, l, Dot (Undef, s), _::G) = Dot (Undef, ps (m, l, s, G))
+			  | ps (m, l, Dot (Idx (ID, n), s), _::G) =
+					Dot (Idx (ID, n), ps (Int.max (m, n), add (n, l), s, G))
+			  | ps (m, l, Dot (Idx (LIN2INT, n), s), G as _::_) =
+					( p := n :: !p
+					; ps (m, l, Dot (Idx (ID, n), s), G) )
+			  | ps (m, l, Dot (Ob (M, N), s), A::G) =
+					let val N' = Idx (map1 (modeInvDiv M) $ etaContract ExnPatSub N A)
+								handle ExnUndef => Undef
+					in ps (m, l, Dot (N', s), A::G) end
+			  | ps (_, _, Dot _, []) = raise Fail "Internal error: mismatch between ctx and sub"
+		in SOME $ (fn s => (!p, s)) $ ps (0, [], s', domCtx') handle ExnPatSub => NONE end
 
 	fun shift n = Shift n
 end

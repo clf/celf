@@ -36,8 +36,8 @@ and whnfObjP (Redex (N, _, S)) = whnfRedex (N, S)
 
 and whnfRedex (ob, sp) = case (Obj.prj ob, Spine.prj sp) of
 	  (N, Nil) => whnfObjP N
-	| (LinLam (_, N1), LinApp (N2, S)) => whnfRedex (Clos (N1, Subst.sub N2), S)
-	| (Lam (_, N1), App (N2, S)) => whnfRedex (Clos (N1, Subst.sub N2), S)
+	| (LinLam (_, N1), LinApp (N2, S)) => whnfRedex (Clos (N1, Subst.subL N2), S)
+	| (Lam (_, N1), App (N2, S)) => whnfRedex (Clos (N1, Subst.subI N2), S)
 	| (AddPair (N, _), ProjLeft S) => whnfRedex (N, S)
 	| (AddPair (_, N), ProjRight S) => whnfRedex (N, S)
 	| (Atomic (H, S1), S2) => NfAtomic (H, appendSpine (S1, Spine.inj S2))
@@ -65,8 +65,8 @@ and whnfLetRedex (p, M, E) = case (Pattern.prj p, MonadObj.prj M) of
 			   it doesn't matter since the types are not considered *)
 			whnfLetRedex (p1, M1, whnfLetRedex (p2, MClos (M2, Subst.shift (nbinds p1)), E))
 	| (POne, One) => E
-	| (PDepPair (x, _, p1), DepPair (N, M1)) => EClos (whnfLetRedex (p1, M1, E), Subst.sub N)
-	| (PVar (x, _), Norm N) => EClos (E, Subst.sub N)
+	| (PDepPair (x, _, p1), DepPair (N, M1)) => EClos (whnfLetRedex (p1, M1, E), Subst.subI N)
+	| (PVar (x, _), Norm N) => EClos (E, Subst.subL N)
 	| _ => raise Fail "Internal error: whnfLetRedex\n"
 
 

@@ -17,6 +17,7 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+signature TLU_Syntax = TOP_LEVEL_UTIL
 structure Syntax :> SYNTAX =
 struct
 
@@ -29,6 +30,8 @@ open VRef
 
 (*type 'a h = 'a HashCons.hash_consed*)
 
+datatype subMode = ID | LIN2INT
+
 datatype kind = FixKind of kind kindF | KClos of kind * subst
 and asyncType = FixAsyncType of asyncType asyncTypeF | TClos of asyncType * subst
 	| TLogicVar of typeLogicVar | Apx of apxAsyncType
@@ -36,18 +39,19 @@ and typeSpine = FixTypeSpine of typeSpine typeSpineF | TSClos of typeSpine * sub
 and syncType = FixSyncType of syncType syncTypeF | STClos of syncType * subst
 	| ApxS of apxSyncType
 
-and obj = FixObj of obj objF | Clos of obj * subst | EtaTag of obj * int | IntRedex of obj * spine
+and obj = FixObj of obj objF | Clos of obj * subst | EtaTag of obj * (Context.mode * int)
+	| IntRedex of obj * spine
 and spine = FixSpine of spine spineF | SClos of spine * subst
 and expObj = FixExpObj of expObj expObjF | EClos of expObj * subst
 and monadObj = FixMonadObj of monadObj monadObjF | MClos of monadObj * subst
 and pattern = FixPattern of pattern patternF * int | PClos of pattern * subst
 
 and subst = Dot of subObj * subst | Shift of int
-and subObj = Ob of obj | Idx of int | Undef
+and subObj = Ob of Context.mode * obj | Idx of subMode * int | Undef
 
 and constr = Solved | Eqn of obj * obj | Exist of obj
 and head = Const of string
-	| Var of int
+	| Var of Context.mode * int
 	| UCVar of string
 	| LogicVar of {
 		X     : obj option vref,
@@ -307,15 +311,19 @@ struct
 	structure Subst' = SubstFun (structure Syn = Syn1 datatype subst = datatype subst)
 	open Subst'
 	open Syn1
-	fun dot (EtaTag (_, n), s) = Dot (Idx n, s)
-	  | dot (Clos (Clos (N, s'), s''), s) = dot (Clos (N, comp (s', s'')), s)
-	  | dot (Clos (EtaTag (_, n), s'), s) = Dot (Clos' (Idx n, s'), s)
-	  | dot (ob, s) = Dot (Ob ob, s)
+	fun dot (M, EtaTag (_, mn), s) = Dot (Idx (map1 (modeInvDiv M) mn), s)
+	  | dot (M, Clos (Clos (N, s'), s''), s) = dot (M, Clos (N, comp (s', s'')), s)
+	  | dot (M, Clos (EtaTag (_, mn), s'), s) = Dot (Clos' (Idx (map1 (modeInvDiv M) mn), s'), s)
+	  | dot (M, ob, s) = Dot (Ob (M, ob), s)
 
-	fun sub ob = dot (ob, id)
+	fun subI ob = dot (INT, ob, id)
+	fun subL ob = dot (LIN, ob, id)
 end
 
-fun etaShortcut ob = case Subst.sub ob of Dot (Idx n, _) => SOME n | _ => NONE
+fun etaShortcut ob = case Subst.subL ob of
+	  Dot (Idx (ID, n), _) => SOME (Context.LIN, n)
+	| Dot (Idx (LIN2INT, n), _) => SOME (Context.INT, n)
+	| _ => NONE
 
 structure Signatur = SignaturFun (Syn1)
 
@@ -468,8 +476,8 @@ struct
 	  | prj (IntRedex (N, S)) = intRedex (N, S)
 	and intRedex (ob, sp) = case (prj ob, Spine.prj sp) of
 		  (N, Nil) => N
-		| (LinLam (_, N1), LinApp (N2, S)) => intRedex (Clos (N1, Subst.sub N2), S)
-		| (Lam (_, N1), App (N2, S)) => intRedex (Clos (N1, Subst.sub N2), S)
+		| (LinLam (_, N1), LinApp (N2, S)) => intRedex (Clos (N1, Subst.subL N2), S)
+		| (Lam (_, N1), App (N2, S)) => intRedex (Clos (N1, Subst.subI N2), S)
 		| (AddPair (N, _), ProjLeft S) => intRedex (N, S)
 		| (AddPair (_, N), ProjRight S) => intRedex (N, S)
 		| (Atomic (H, S1), S2) => Atomic (H, Spine.appendSpine (S1, Spine.inj S2))

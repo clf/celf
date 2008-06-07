@@ -33,15 +33,15 @@ fun isEnabled () = !enabled
 
 type context = nfAsyncType Context.context
 
-val sub = Subst.sub o unnormalizeObj
+val subI = Subst.subI o unnormalizeObj
 
 fun checkKind (ctx, ki) = case NfKind.prj ki of
 	  Type => ()
-	| KPi (x, A, K) => (checkType (ctx, A); checkKind (ctxCondPushUN (x, A, ctx), K))
+	| KPi (x, A, K) => (checkType (ctx, A); checkKind (ctxCondPushINT (x, A, ctx), K))
 
 and checkType (ctx, ty) = case Util.nfTypePrjAbbrev ty of
 	  Lolli (A, B) => (checkType (ctx, A); checkType (ctx, B))
-	| TPi (x, A, B) => (checkType (ctx, A); checkType (ctxCondPushUN (x, A, ctx), B))
+	| TPi (x, A, B) => (checkType (ctx, A); checkType (ctxCondPushINT (x, A, ctx), B))
 	| AddProd (A, B) => (checkType (ctx, A); checkType (ctx, B))
 	| Top => ()
 	| TMonad S => checkSyncType (ctx, S)
@@ -54,13 +54,13 @@ and checkTypeSpine (ctx, sp, ki) = case (NfTypeSpine.prj sp, NfKind.prj ki) of
 	| (TApp _, Type) => raise Fail "Wrong kind; cannot apply Type\n"
 	| (TApp (N, S), KPi (x, A, K)) =>
 			let val _ = checkObj (ctx, N, A)
-				val K' = if isSome x then NfKClos (K, sub N) else K 
+				val K' = if isSome x then NfKClos (K, subI N) else K 
 			in checkTypeSpine (ctx, S, K') end
 
 and checkSyncType (ctx, ty) = case NfSyncType.prj ty of
 	  TTensor (S1, S2) => (checkSyncType (ctx, S1); checkSyncType (ctx, S2))
 	| TOne => ()
-	| Exists (x, A, S) => (checkType (ctx, A); checkSyncType (ctxCondPushUN (x, A, ctx), S))
+	| Exists (x, A, S) => (checkType (ctx, A); checkSyncType (ctxCondPushINT (x, A, ctx), S))
 	| Async A => checkType (ctx, A)
 
 (* Invariant:
@@ -69,10 +69,10 @@ and checkSyncType (ctx, ty) = case NfSyncType.prj ty of
    otherwise Fail is raised 
 *)
 and checkObj (ctx, ob, ty) = case (NfObj.prj ob, Util.nfTypePrjAbbrev ty) of
-        (NfLam (x, N), TPi (x', A, B)) => (*checkObj (ctxPushUN (x, A, ctx), N, B)*)
+        (NfLam (x, N), TPi (x', A, B)) => (*checkObj (ctxPushINT (x, A, ctx), N, B)*)
 			let val B' = if isSome x' then B else NfTClos (B, Subst.shift 1)
-				val (ctxo, t) = checkObj (ctxPushUN (x, A, ctx), N, B')
-			in (ctxPopUN ctxo, t) end
+				val (ctxo, t) = checkObj (ctxPushINT (x, A, ctx), N, B')
+			in (ctxPopINT ctxo, t) end
       | (NfLinLam (x, N), Lolli (A, B)) => (*checkObj (ctxPushLIN (x, A, ctx), N, B)*)
 			let val (ctxo, t) = checkObj (ctxPushLIN (x, A, ctx), N, NfTClos (B, Subst.shift 1))
 			in (ctxPopLIN (t, ctxo), t) end
@@ -117,9 +117,10 @@ and inferAtomic (ctx, (H, S)) =
 *)
 and inferHead (ctx, hd) = case hd of
         Const c => (ctx, false, normalizeType (Signatur.sigLookupType c))
-     | Var n => 
+     | Var (m, n) => 
 	  let 
-	    val (ctx1, A) = ctxLookupNum (ctx, n)     (* think about shifting  --cs *)
+	    val (ctx1, m', A) = ctxLookupNum (ctx, n)     (* think about shifting  --cs *)
+	    val () = if m=m' then () else raise Fail "Linearity mismatch"
 	  in 
 	    (ctx1, false, NfTClos (A, Subst.shift n)) 
 	  end
@@ -137,7 +138,7 @@ and inferSpine (ctx, sp, ty) = case (NfSpine.prj sp, Util.nfTypePrjAbbrev ty) of
      | (App (N, S), TPi (x, A, B)) =>
 	 let
 	   val (_, _) = checkObj (ctxDelLin ctx, N, A)
-	   val B' = if isSome x then NfTClos (B, sub N) else B
+	   val B' = if isSome x then NfTClos (B, subI N) else B
 	   val (ctx1, tf1, ty) = inferSpine (ctx, S, B')
 	 in
 	   (ctx1, tf1, ty)
@@ -189,7 +190,7 @@ and checkMonad (ctx, mon, S) = case (NfMonadObj.prj mon, NfSyncType.prj S) of
      | (One, TOne) => (ctx, false) 
      | (DepPair (N, M), Exists (x, A, S)) => 
 			let val _ = checkObj (ctxDelLin ctx, N, A)
-				val S' = if isSome x then NfSTClos (S, sub N) else S
+				val S' = if isSome x then NfSTClos (S, subI N) else S
 			in checkMonad (ctx, M, S') end
      | (Norm N, Async A) => checkObj (ctx, N, A) 
      | _ => raise Fail "Type mismatch in checkMonad"
@@ -208,7 +209,7 @@ and checkPattern (ctx, pat, S) = case (NfPattern.prj pat, NfSyncType.prj S) of
 		let val S' = if isSome x then S else NfSTClos (S, Subst.shift 1)
 		in checkType (ctx, A1)
 		 ; Conv.convAsyncType (A1, A2)
-		 ; checkPattern (ctxPushUN (s, A2, ctx), P, S')
+		 ; checkPattern (ctxPushINT (s, A2, ctx), P, S')
 		end
      | (PVar (_, A1), Async A2) => 
 	 (checkType (ctx, A1); Conv.convAsyncType (A1, A2))

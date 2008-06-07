@@ -88,7 +88,7 @@ fun apxCheckKind (ctx, ki) = case Kind.prj ki of
 	  Type => Type'
 	| KPi (x, A, K) =>
 			let val A' = apxCheckType (ctx, A)
-			in KPi' (x, A', apxCheckKind (ctxCondPushUN (x, asyncTypeToApx A', ctx), K)) end
+			in KPi' (x, A', apxCheckKind (ctxCondPushINT (x, asyncTypeToApx A', ctx), K)) end
 
 (* apxCheckType : context * asyncType -> asyncType *)
 and apxCheckType (ctx, ty) =
@@ -110,7 +110,7 @@ and apxCheckType' (ctx, ty) = if isUnknown ty then ty else case AsyncType.prj ty
 	  Lolli (A, B) => Lolli' (apxCheckType (ctx, A), apxCheckType (ctx, B))
 	| TPi (x, A, B) =>
 			let val A' = apxCheckType (ctx, A)
-			in TPi' (x, A', apxCheckType (ctxCondPushUN (x, asyncTypeToApx A', ctx), B)) end
+			in TPi' (x, A', apxCheckType (ctxCondPushINT (x, asyncTypeToApx A', ctx), B)) end
 	| AddProd (A, B) => AddProd' (apxCheckType (ctx, A), apxCheckType (ctx, B))
 	| Top => Top'
 	| TMonad S => TMonad' (apxCheckSyncType (ctx, S))
@@ -142,7 +142,7 @@ and apxCheckSyncType (ctx, ty) = case SyncType.prj ty of
 	| TOne => TOne'
 	| Exists (x, A, S) =>
 			let val A' = apxCheckType (ctx, A)
-			in Exists' (x, A', apxCheckSyncType (ctxCondPushUN (x, asyncTypeToApx A', ctx), S)) end
+			in Exists' (x, A', apxCheckSyncType (ctxCondPushINT (x, asyncTypeToApx A', ctx), S)) end
 	| Async A => Async' (apxCheckType (ctx, A))
 
 (* apxCheckObj : context * obj * apxAsyncType -> context * bool * obj *)
@@ -172,8 +172,8 @@ and apxInferObj (ctx, ob) = case Util.ObjAuxDefs.prj2 ob of
 			in (ctxPopLIN (t, ctxo), t, LinLam' (x, N'), ApxLolli' (A, B)) end
 	| Lam (x, N) =>
 			let val A = newApxTVar()
-				val (ctxo, t, N', B) = apxInferObj (ctxPushUN (x, A, ctx), N)
-			in (ctxPopUN ctxo, t, Lam' (x, N'), ApxTPi' (A, B)) end
+				val (ctxo, t, N', B) = apxInferObj (ctxPushINT (x, A, ctx), N)
+			in (ctxPopINT ctxo, t, Lam' (x, N'), ApxTPi' (A, B)) end
 	| AddPair (N1, N2) =>
 			let val (ctxo1, t1, N1', A1) = apxInferObj (ctx, N1)
 				val (ctxo2, t2, N2', A2) = apxInferObj (ctx, N2)
@@ -204,7 +204,7 @@ and apxInferObj (ctx, ob) = case Util.ObjAuxDefs.prj2 ob of
 and apxInferHead (ctx, h) = case h of
 	  Const c => (* set Top flag to true in case of Top type *)
 			(case ctxLookupName (ctx, c) of
-				  SOME (n, A, ctxo) => (ctxo, true, INL (Var n), 0, A)
+				  SOME (n, M, A, ctxo) => (ctxo, true, INL (Var (M, n)), 0, A)
 				| NONE =>
 					if ucase c then
 						(ctx, true, INL (UCVar c), 0, ImplicitVars.apxUCLookup c)
@@ -274,7 +274,7 @@ and apxCheckPattern (ctx, p) = case Pattern.prj p of
 	| POne => POne'
 	| PDepPair (x, A, p) =>
 			let val A' = apxCheckType (ctx, A)
-			in PDepPair' (x, A', apxCheckPattern (ctxPushUN (x, asyncTypeToApx A', ctx), p)) end
+			in PDepPair' (x, A', apxCheckPattern (ctxPushINT (x, asyncTypeToApx A', ctx), p)) end
 	| PVar (x, A) => PVar' (x, apxCheckType (ctx, A))
 
 (* apxInferMonadObj : context * monadObj -> context * bool * monadObj * apxSyncType *)

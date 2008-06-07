@@ -17,6 +17,7 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+signature TLU_TypeRecon = TOP_LEVEL_UTIL
 structure TypeRecon :> TYPERECON =
 struct
 
@@ -58,10 +59,10 @@ fun reconstructDecl dec =
 		let val () = ImplicitVars.resetUCTable ()
 			val dec = mapDecl ApproxTypes.apxCheckKindEC
 			                  ApproxTypes.apxCheckTypeEC
-			                  (ApproxTypes.apxCheckObjEC o (Util.map2 asyncTypeToApx)) dec
+			                  (ApproxTypes.apxCheckObjEC o (map2 asyncTypeToApx)) dec
 			val dec = mapDecl Eta.etaExpandKindEC
 			                  Eta.etaExpandTypeEC
-			                  (Eta.etaExpandObjEC o (Util.map2 asyncTypeToApx)) dec
+			                  (Eta.etaExpandObjEC o (map2 asyncTypeToApx)) dec
 			val () = ImplicitVars.mapUCTable Eta.etaExpandTypeEC
 			val dec = mapDecl Util.removeApxKind
 			                  Util.removeApxType
@@ -76,7 +77,7 @@ fun reconstructDecl dec =
 			val () = if isQuery dec then () else
 					( appDecl ImplicitVarsConvert.logicVarsToUCVarsKind
 					          ImplicitVarsConvert.logicVarsToUCVarsType
-					          (ImplicitVarsConvert.logicVarsToUCVarsObj o Constraint') dec
+					          (ImplicitVarsConvert.logicVarsToUCVarsObj o #1) dec
 					; ImplicitVars.appUCTable (Util.objAppType
 						(fn Atomic (LogicVar _, _) => raise Fail "stub: LogicVar here???\n"
 						  | _ => ())) )
@@ -85,7 +86,7 @@ fun reconstructDecl dec =
 				  ConstDecl (id, _, kity) =>
 						let val imps = ImplicitVars.sort ()
 							val imps = ImplicitVarsConvert.convUCVars2VarsImps imps
-							val imps = map (Util.map2 RemDepend.remDepType) imps
+							val imps = map (map2 RemDepend.remDepType) imps
 							val kity = mapKiTy (ImplicitVarsConvert.convUCVars2VarsKind imps)
 							                   (ImplicitVarsConvert.convUCVars2VarsType imps) kity
 							fun bindImps pi kity' =

@@ -42,8 +42,8 @@ fun solve (ctx, ty, sc) = case Util.typePrjAbbrev ty of
 			let val x' = getOpt (x, "")
 				val hds = if isSome x then [] else heads A
 				val B' = if isSome x then B else TClos (B, Subst.shift 1)
-			in solve (ctxPushUN (x', (A, hds), ctx), B',
-				fn (N, ctxo) => sc (Lam' (x', N), Util.map1 ctxPopUN ctxo))
+			in solve (ctxPushINT (x', (A, hds), ctx), B',
+				fn (N, ctxo) => sc (Lam' (x', N), map1 ctxPopINT ctxo))
 			end
 	| AddProd (A, B) => solve (ctx, A,
 				fn (N1, (ctxo1, t1)) => solve (ctx, B,
@@ -66,11 +66,12 @@ and matchAtom (ctx, P, sc) =
 										sc (Atomic' (h, S), ctxo))
 		fun matchSig (c, lr, A) = BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
 		fun matchCtx ([], _) = ()
-		  | matchCtx ((_, _, NO)::G, k) = matchCtx (G, k+1)
-		  | matchCtx ((x, (A, hds), mode)::G, k) =
-		  		let val ctx' = if mode=UN then ctx else #1 (ctxLookupNum (ctx, k))
+		  | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
+		  | matchCtx ((x, (A, hds), SOME mode)::G, k) =
+		  		let val ctx' = if mode=INT then ctx else #1 (ctxLookupNum (ctx, k))
 					val A' = TClos (A, Subst.shift k)
-					val () = app (fn (lr, _) => BackTrack.backtrack (lFocus (ctx', lr, A', Var k)))
+					val h = Var (mode, k)
+					val () = app (fn (lr, _) => BackTrack.backtrack (lFocus (ctx', lr, A', h)))
 							(List.filter (fn (_, HdAtom a) => a=aP | _ => false) hds)
 				in matchCtx (G, k+1) end
 	in
@@ -86,14 +87,14 @@ and forwardChain (fcLim, ctx, S, sc) =
 						raise commitExn (Atomic' (h, S), ctxo))
 		fun matchSig (c, lr, A) = fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))
 		fun matchCtx ([], _) = []
-		  | matchCtx ((_, _, NO)::G, k) = matchCtx (G, k+1)
-		  | matchCtx ((x, (A, hds), mode)::G, k) =
-				let val ctx' = if mode=UN then ctx else #1 (ctxLookupNum (ctx, k))
+		  | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
+		  | matchCtx ((x, (A, hds), SOME mode)::G, k) =
+				let val ctx' = if mode=INT then ctx else #1 (ctxLookupNum (ctx, k))
 					val A' = TClos (A, Subst.shift k)
 				in List.mapPartial
 						(fn (_, HdAtom _) => NONE
 						  | (lr, HdMonad) => SOME (fn () =>
-							BackTrack.backtrackC (mlFocus (ctx', lr, A', Var k))))
+							BackTrack.backtrackC (mlFocus (ctx', lr, A', Var (mode, k)))))
 						hds
 					@ matchCtx (G, k+1)
 				end
@@ -135,7 +136,7 @@ and rightFocus (ctx, sty, sc) = case SyncType.prj sty of
 				fn (N, _) => rightFocus (ctx, S,
 				fn (M, ctxo) => sc (DepPair' (N, M), ctxo)))
 	| Exists (SOME x, A, S) => let val N = newLVarCtx (SOME (ctxDelLin (ctxMap #1 ctx))) A
-				in rightFocus (ctx, STClos (S, Subst.sub N),
+				in rightFocus (ctx, STClos (S, Subst.subI N),
 				fn (M, ctxo) => sc (DepPair' (N, M), ctxo)) end
 	| Async A => solve (ctx, A, fn (N, ctxo) => sc (Norm' N, ctxo))
 
@@ -152,7 +153,7 @@ and leftFocus (lr, ctx, P, ty, sc) = case Util.typePrjAbbrev ty of
 				fn (S, ctxo) => solve (ctxDelLin (#1 ctxo), A,
 				fn (N, _) => sc (App' (N, S), ctxo)))
 	| TPi (SOME x, A, B) => let val N = newLVarCtx (SOME (ctxDelLin (ctxMap #1 ctx))) A
-				in leftFocus (lr, ctx, P, TClos (B, Subst.sub N),
+				in leftFocus (lr, ctx, P, TClos (B, Subst.subI N),
 				fn (S, ctxo) => sc (App' (N, S), ctxo)) end
 	| AddProd (A, B) => (case lr of
 			  [] => raise Fail "LR-oracle is out of answers! Internal error!\n"
@@ -175,7 +176,7 @@ and monLeftFocus (lr, ctx, ty, sc) = case Util.typePrjAbbrev ty of
 				fn (N, _) => monLeftFocus (lr, ctx, B,
 				fn (S, ctxo) => sc (App' (N, S), ctxo)))
 	| TPi (SOME x, A, B) => let val N = newLVarCtx (SOME (ctxDelLin (ctxMap #1 ctx))) A
-				in monLeftFocus (lr, ctx, TClos (B, Subst.sub N),
+				in monLeftFocus (lr, ctx, TClos (B, Subst.subI N),
 				fn (S, ctxo) => sc (App' (N, S), ctxo)) end
 	| AddProd (A, B) => (case lr of
 			  [] => raise Fail "LR-oracle is out of answers! Internal error!\n"

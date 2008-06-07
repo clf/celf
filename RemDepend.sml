@@ -46,8 +46,8 @@ and rdType ty = case AsyncType.prj ty of
 	| TPi (x, A, B) => joinDep TClos TPi' x (rdType A) (rdType B)
 	| AddProd (A, B) => join2 AddProd' (rdType A) (rdType B)
 	| Top => (Top', empty)
-	| TMonad S => Util.map1 TMonad' (rdSyncType S)
-	| TAtomic (a, S) => Util.map1 (fn S' => TAtomic' (a, S')) (rdTypeSpine S)
+	| TMonad S => map1 TMonad' (rdSyncType S)
+	| TAtomic (a, S) => map1 (fn S' => TAtomic' (a, S')) (rdTypeSpine S)
 	| TAbbrev (a, ty) => (TAbbrev' (a, ty), empty)
 and rdTypeSpine sp = case TypeSpine.prj sp of
 	  TNil => (TNil', empty)
@@ -57,52 +57,52 @@ and rdSyncType sty = case SyncType.prj sty of
 	| TOne => (TOne', empty)
 	| Exists (x, A, S) =>
 			joinDep STClos Exists' x (rdType A) (rdSyncType S)
-		(*join2 (fn (A', S') => Exists' (x, A', S')) (rdType A) (Util.map2 decr (rdSyncType S))*)
-	| Async A => Util.map1 Async' (rdType A)
+		(*join2 (fn (A', S') => Exists' (x, A', S')) (rdType A) (map2 decr (rdSyncType S))*)
+	| Async A => map1 Async' (rdType A)
 and rdObj ob = case Obj.prj ob of
-	  LinLam (x, N) => Util.map12 (fn N' => LinLam' (x, N')) decr (rdObj N)
-	| Lam (x, N) => Util.map12 (fn N' => Lam' (x, N')) decr (rdObj N)
+	  LinLam (x, N) => map12 (fn N' => LinLam' (x, N')) decr (rdObj N)
+	| Lam (x, N) => map12 (fn N' => Lam' (x, N')) decr (rdObj N)
 	| AddPair (N1, N2) => join2 AddPair' (rdObj N1) (rdObj N2)
 	| Unit => (Unit', empty)
-	| Monad E => Util.map1 Monad' (rdExp E)
+	| Monad E => map1 Monad' (rdExp E)
 	| Atomic (H, S) => join2 (fn (H', S') => Atomic' (H', S')) (rdHead H) (rdSpine S)
 	| Redex (N, A, S) => join2 (fn (N', S') => Redex' (N', A, S')) (rdObj N) (rdSpine S)
 	| Constraint (N, A) => join2 Constraint' (rdObj N) (rdType A)
 and rdHead h = case h of
 	  Const c => (Const c, empty)
-	| Var n => (Var n, occur n)
+	| Var n => (Var n, occur $ #2 n)
 	| UCVar v => (UCVar v, empty)
 	| LogicVar (X as {ctx, s, ty, ...}) =>
 			let val ctxL = length $ Context.ctx2list $ valOf $ !ctx
 				val subL = Subst.fold (fn (_, n) => n+1) (fn _ => 0) s
 				fun occurSubOb Undef = empty
-				  | occurSubOb (Ob ob) = (#2 (rdObj ob) handle Subst.ExnUndef => empty)
-				  | occurSubOb (Idx n) = occur n
-				val occurSub = Subst.fold (union o (Util.map1 occurSubOb))
+				  | occurSubOb (Ob (_, ob)) = (#2 (rdObj ob) handle Subst.ExnUndef => empty)
+				  | occurSubOb (Idx (_, n)) = occur n
+				val occurSub = Subst.fold (union o (map1 occurSubOb))
 							(fn m => occurFromTo (m+1) (ctxL-subL+m)) s
 			in (LogicVar (X with'ty (#1 (rdType ty))), occurSub) end
 and rdSpine sp = case Spine.prj sp of
 	  Nil => (Nil', empty)
 	| App (N, S) => join2 App' (rdObj N) (rdSpine S)
 	| LinApp (N, S) => join2 LinApp' (rdObj N) (rdSpine S)
-	| ProjLeft S => Util.map1 ProjLeft' (rdSpine S)
-	| ProjRight S => Util.map1 ProjRight' (rdSpine S)
+	| ProjLeft S => map1 ProjLeft' (rdSpine S)
+	| ProjRight S => map1 ProjRight' (rdSpine S)
 and rdExp e = case ExpObj.prj e of
 	  Let (p, N, E) =>
 			join2 (fn (p', (N', E')) => Let' (p', N', E')) (rdPattern p)
-				(join2 (fn x => x) (rdObj N) (Util.map2 (decrn (nbinds p)) (rdExp E)))
-	| Mon M => Util.map1 Mon' (rdMonadObj M)
+				(join2 (fn x => x) (rdObj N) (map2 (decrn (nbinds p)) (rdExp E)))
+	| Mon M => map1 Mon' (rdMonadObj M)
 and rdMonadObj m = case MonadObj.prj m of
 	  Tensor (M1, M2) => join2 Tensor' (rdMonadObj M1) (rdMonadObj M2)
 	| One => (One', empty)
 	| DepPair (N, M) => join2 DepPair' (rdObj N) (rdMonadObj M)
-	| Norm N => Util.map1 Norm' (rdObj N)
+	| Norm N => map1 Norm' (rdObj N)
 and rdPattern p = case Pattern.prj p of
 	  PTensor (p1, p2) => join2 PTensor' (rdPattern p1) (rdPattern p2)
 	| POne => (POne', empty)
 	| PDepPair (x, A, p) =>
-			join2 (fn (A', p') => PDepPair' (x, A', p')) (rdType A) (Util.map2 decr (rdPattern p))
-	| PVar (x, A) => Util.map1 (fn A' => PVar' (x, A')) (rdType A)
+			join2 (fn (A', p') => PDepPair' (x, A', p')) (rdType A) (map2 decr (rdPattern p))
+	| PVar (x, A) => map1 (fn A' => PVar' (x, A')) (rdType A)
 
 val remDepKind = #1 o rdKind
 val remDepType = #1 o rdType

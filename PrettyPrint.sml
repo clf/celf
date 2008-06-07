@@ -24,6 +24,7 @@ struct
 open Syntax
 
 val printImpl = ref false
+val printLVarCtx = ref false
 
 fun join' [] = []
   | join' [x] = x
@@ -105,14 +106,21 @@ and pObj ctx pa ob = case Obj.prj ob of
 	| Constraint (N, A) => pObj ctx pa N
 and pHead ctx h = case h of
 	  Const c => [c] (*@ join (map (pObj ctx false) impl)*)
-	| Var n => [lookup ctx n] (*[Int.toString n]*)
+	| Var (M, n) => [lookup ctx n (*, case M of Context.INT => "!" | Context.LIN => "L"*)]
 	| UCVar v => ["#"^v]
 	| LogicVar {ty, s, ctx=ref G, tag, ...} =>
-		["$", Word.toString tag]
-		(*@ ["<"] @ pContext ctx G @ [", "] @ pType ctx false (TClos (ty, s)) @ [">"]*)
+		["$", Word.toString tag] @
+		(if !printLVarCtx then
+			["<"] @ pContext ctx G @ [", "] @ pType ctx false (TClos (ty, s)) @ [">"] else [])
 		@ [Subst.substToStr (String.concat o (pObj ctx true)) s]
 and pContext ctx NONE = ["--"]
-  | pContext ctx (SOME G) = join (map (pType ctx false o #2) (Context.ctx2list G))
+  | pContext ctx (SOME G) =
+		join $ map (fn (_, A, m) => pType ctx false A
+					@ [case m of
+						  NONE => " NO"
+						| SOME Context.INT => " I"
+						| SOME Context.LIN => " L"])
+				(Context.ctx2list G)
 and pSpineSkip ctx sp n = if n=0 then pSpine ctx sp else case Spine.prj sp of
 	  App (N, S) =>
 		(if !printImpl then [" <"] @ pObj ctx false N @ [">"] else [])

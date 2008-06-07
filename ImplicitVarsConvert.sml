@@ -28,13 +28,13 @@ open Context
 (* ctx |- B : Type
    ctx |- X : B *)
 fun raiseLVar' (ctx, B, S, n) =
-	let fun Idx A n = Eta.etaExpand (asyncTypeToApx A, Var n, Nil')
+	let fun Idx A M n = Eta.etaExpand (asyncTypeToApx A, Var (M, n), Nil')
 		fun sh ty = TClos (ty, Subst.shift 1)
 	in case ctx of
 		  [] => Atomic' (ImplicitVars.newUCVar B, S)
-		| (x, A, UN)::ctx => raiseLVar' (ctx, TPi' (SOME x, A, B), App' (Idx A n, S), n+1)
-		| (x, A, LIN)::ctx => raiseLVar' (ctx, Lolli' (A, sh B), LinApp' (Idx A n, S), n+1)
-		| (x, A, NO)::ctx => raiseLVar' (ctx, sh B, S, n+1)
+		| (x, A, SOME INT)::ctx => raiseLVar' (ctx, TPi' (SOME x, A, B), App' (Idx A INT n, S), n+1)
+		| (x, A, SOME LIN)::ctx => raiseLVar' (ctx, Lolli' (A, sh B), LinApp' (Idx A LIN n, S), n+1)
+		| (x, A, NONE)::ctx => raiseLVar' (ctx, sh B, S, n+1)
 	end
 
 fun raiseLVar (Atomic (LogicVar {X, ty, ctx, tag, ...}, ())) = (case (!!X, !ctx) of
@@ -104,7 +104,7 @@ and uc2xPattern lookup n p = case Pattern.prj p of
 
 fun ctx2Lookup ctx =
 	let fun l [] n (x : string) = raise Fail "Internal error: UCVar not in implicits\n"
-		  | l ((y, _)::ys) n x = if x=y then Var n else l ys (n+1) x
+		  | l ((y, _)::ys) n x = if x=y then Var (INT, n) else l ys (n+1) x
 	in l ctx end
 
 (* convUCVars2VarsKind : implicits -> kind -> kind *)
