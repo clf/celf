@@ -462,6 +462,7 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 			unifyLetLet NONE ((p2, ob2', Mon' M2), (p1, ob1', expWhnfInj E1'))
 		| ((LogicVar L1, _), E1', (LogicVar L2, _), E2') =>
 			raise Fail "stub: postpone as constraint"
+			(* or search E1' and E2' for heads that can be moved to front *)
 		| (_ (* ob1' <> LVar *), E1', (LogicVar L2, _), E2') =>
 			let val E = Util.whnfLetSpine (Let' (p2, Atomic' ob2', expWhnfInj E2'))
 				val E2rest = matchHeadInLet NONE (ob1', fn _ => fn e => e, 0, E, E, 0)
