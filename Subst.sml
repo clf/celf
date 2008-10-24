@@ -247,7 +247,7 @@ struct
 					; ps (m, l, Dot (Idx (ID, n), s), G) )
 			  | ps (m, l, Dot (Ob (M, N), s), A::G) =
 					let val N' = Idx (map1 (modeInvDiv M) $ etaContract ExnPatSub N A)
-								handle ExnUndef => Undef
+								handle ExnUndef => if M=INT then Undef else raise Fail "stub:lintop"
 					in ps (m, l, Dot (N', s), A::G) end
 			  | ps (_, _, Dot _, []) = raise Fail "Internal error: mismatch between ctx and sub"
 		in SOME $ (fn s => (!p, s)) $ ps (0, [], s', domCtx') handle ExnPatSub => NONE end
