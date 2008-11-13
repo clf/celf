@@ -145,7 +145,7 @@ struct
 		let fun modeMult ID m = m
 			  | modeMult LIN2INT LIN = INT
 			  | modeMult LIN2INT INT = raise Fail "Linearity mismatch in intersection"
-			fun eq (Idx (M1, n), Idx (M2, m)) = (assertLin (M1=M2) ; n=m)
+			fun eq (Idx (M1, n), Idx (M2, m)) = (assertLin (M1=M2 orelse n<>m) ; n=m)
 			  | eq (Idx (m, n), Ob (M, N)) =
 					(conv (INL (modeMult m M, n), N) handle ExnUndef => false)
 			  | eq (N1 as Ob _, N2 as Idx _) = eq (N2, N1)

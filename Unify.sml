@@ -163,12 +163,13 @@ fun splitExp (rOccur, ex) =
 		| NONE => INL (pruneLetOccur NONE ex)
 	end
 
-(* pruneCtx : (asyncType -> asyncType) -> subst -> asyncType context -> asyncType context *)
+(* pruneCtx : exn -> (asyncType -> asyncType) -> subst -> asyncType context -> asyncType context *)
 (* pruneCtx calculates G' such that
    G' |- ss : G
    for a strengthening substitution ss
+   raises e if ss is not well-typed due to linearity
 *)
-fun pruneCtx pruneType ss G =
+fun pruneCtx e pruneType ss G =
 	let fun pruneCtx' ss [] = emptyCtx
 		  | pruneCtx' ss ((x, A, mode)::G) =
 				if Subst.hdDef ss then
@@ -177,7 +178,7 @@ fun pruneCtx pruneType ss G =
 						val A' = pruneType (TClos (A, ss'))
 					in ctxCons (x, A', mode) (pruneCtx' ss' G) end
 				else if mode = SOME LIN then (* and hd ss = Undef *)
-					raise Subst.ExnUndef
+					raise e
 				else (* mode <> LIN and hd ss = Undef *)
 					pruneCtx' (Subst.comp (Subst.shift 1, ss)) G
 	in pruneCtx' ss (ctx2list G) end
@@ -218,7 +219,7 @@ val (objExists, typeExists) =
 					val N' = if allowPrune nprune andalso needPrune then
 								let val wi = Subst.invert w
 									val pruneType = Util.objSRigMapType (f NONE rOccur) srig
-									val G' = pruneCtx pruneType wi G
+									val G' = pruneCtx Subst.ExnUndef pruneType wi G
 									val A' = pruneType (TClos (A, wi))
 									val Y'w = Clos (newLVarCtx (SOME G') A', w)
 									val () = instantiate (rY, Y'w, cs, tag)
@@ -375,7 +376,7 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 										  SOME ty' => ty'
 										| NONE => raise ExnUnify "pruneType in intersection"
 								val A' = pruneType $ TClos (A1, wi)
-								val G' = pruneCtx pruneType wi G1
+								val G' = pruneCtx (ExnUnify "intersect:pruneCtx") pruneType wi G1
 							in instantiate (r1, Clos (newLVarCtx (SOME G') A', w), cs1, tag1) end
 				end
 			else if isSome dryRun then (valOf dryRun) := false
@@ -409,6 +410,8 @@ and unifySpine dryRun (sp1, sp2) = case (Spine.prj sp1, Spine.prj sp2) of
 	| (LinApp (N1, S1), LinApp (N2, S2)) => (unifyObj dryRun (N1, N2); unifySpine dryRun (S1, S2))
 	| (ProjLeft S1, ProjLeft S2) => unifySpine dryRun (S1, S2)
 	| (ProjRight S1, ProjRight S2) => unifySpine dryRun (S1, S2)
+	| (ProjLeft _, ProjRight _) => raise ExnUnify "Projections differ\n"
+	| (ProjRight _, ProjLeft _) => raise ExnUnify "Projections differ\n"
 	| _ => raise Fail "Internal error: unifySpine\n"
 and unifyExp dryRun (e1, e2) = case (Whnf.whnfExp e1, Whnf.whnfExp e2) of
 	  (Mon M1, Mon M2) => unifyMon dryRun (M1, M2)
