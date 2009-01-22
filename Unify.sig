@@ -29,7 +29,7 @@ val noConstrs : unit -> unit
 val addConstraint : Syntax.constr VRef.vref * Syntax.constr VRef.vref list VRef.vref list -> unit
 val instantiate : Syntax.obj option VRef.vref * Syntax.obj * Syntax.constr VRef.vref list VRef.vref * word -> unit
 
-val pruneCtx : (Syntax.asyncType -> Syntax.asyncType) -> Syntax.subst
+val pruneCtx : exn -> (Syntax.asyncType -> Syntax.asyncType) -> Syntax.subst
 		-> Syntax.asyncType Context.context -> Syntax.asyncType Context.context
 
 exception ExnOccur
