@@ -219,7 +219,8 @@ val (objExists, typeExists) =
 					val N' = if allowPrune nprune andalso needPrune then
 								let val wi = Subst.invert w
 									val pruneType = Util.objSRigMapType (f NONE rOccur) srig
-									val G' = pruneCtx Subst.ExnUndef pruneType wi G
+									(*val G' = pruneCtx Subst.ExnUndef pruneType wi G*)
+									val G' = pruneCtx (Fail "pruning lin") pruneType wi G
 									val A' = pruneType (TClos (A, wi))
 									val Y'w = Clos (newLVarCtx (SOME G') A', w)
 									val () = instantiate (rY, Y'w, cs, tag)
@@ -376,7 +377,8 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 										  SOME ty' => ty'
 										| NONE => raise ExnUnify "pruneType in intersection"
 								val A' = pruneType $ TClos (A1, wi)
-								val G' = pruneCtx (ExnUnify "intersect:pruneCtx") pruneType wi G1
+							(*val G' = pruneCtx (ExnUnify "intersect:pruneCtx") pruneType wi G1*)
+								val G' = pruneCtx (Fail "intersect:pruneCtx") pruneType wi G1
 							in instantiate (r1, Clos (newLVarCtx (SOME G') A', w), cs1, tag1) end
 				end
 			else if isSome dryRun then (valOf dryRun) := false

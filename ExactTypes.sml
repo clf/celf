@@ -129,7 +129,7 @@ and inferHead (ctx, h) = case h of
 	| UCVar x =>
 			(ctx, TClos (ImplicitVars.ucLookup x, Subst.shift $ length $ ctx2list ctx))
 	| LogicVar {X, ty, s, ctx=rctx, ...} =>
-			let val calcCtx = Unify.pruneCtx (fn A => A)
+			let val calcCtx = Unify.pruneCtx (Fail "inferHead:pruning lin") (fn A => A)
 				val lvarCtx = calcCtx (Subst.invert s) $ ctxDelLin ctx
 				val () = case !rctx of
 						  NONE => rctx := SOME lvarCtx
