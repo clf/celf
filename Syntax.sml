@@ -39,7 +39,7 @@ and ('x, 'ix, 'p) patternFF
 	= PDepTensor of 'p * 'p
 	| POne
 	| PDown of 'x
-	| PAff of 'x
+	| PAffi of 'x
 	| PBang of 'ix
 withtype 'p patternF = (string, string, 'p) patternFF
 and 'p tpatternF = (unit, string option, 'p) patternFF
@@ -48,7 +48,7 @@ datatype ('x, 'ix, 'p) patternF
 	= PDepTensor of 'p * 'p
 	| POne
 	| PDown of 'x
-	| PAff of 'x
+	| PAffi of 'x
 	| PBang of 'ix
 datatype ('x, 'ix) pattern = FixPattern of ('x, 'ix, ('x, 'ix) pattern) patternF * int
 type opattern = (string, string) pattern
@@ -106,7 +106,7 @@ and ('aTy, 'sTy) syncTypeFF
 	= LExists of tpattern * 'sTy * 'sTy
 	| TOne
 	| TDown of 'aTy
-	| TAff of 'aTy
+	| TAffi of 'aTy
 	| TBang of 'aTy
 and ('aTy, 'sp, 'e, 'o) objFF
 	(*= LinLam of string * 'o
@@ -142,7 +142,7 @@ and ('o, 'm) monadObjFF
 	= DepPair of 'm * 'm
 	| One
 	| Down of 'o
-	| Aff of 'o
+	| Affi of 'o
 	| Bang of 'o
 	(*= Tensor of 'm * 'm
 	| One
@@ -222,7 +222,7 @@ datatype ('aTy, 'sTy) apxSyncTypeFF
 	| ApxTOne
 	(*| ApxExists of 'aTy * 'sTy*)
 	| ApxTDown of 'aTy
-	| ApxTAff of 'aTy
+	| ApxTAffi of 'aTy
 	| ApxTBang of 'aTy
 type 'ki apxKindF = (apxAsyncType, 'ki) apxKindFF
 type 'aTy apxAsyncTypeF = (apxSyncType, 'aTy) apxAsyncTypeFF
@@ -246,9 +246,9 @@ struct
 	structure Subst' = SubstFun (structure Syn = Syn1 datatype subst = datatype subst)
 	open Subst'
 	open Syn1
-	fun dot (M, EtaTag (_, mn), s) = Dot (Idx (map1 (modeInvDiv M) mn), s)
+	fun dot (M, EtaTag (_, (m, n)), s) = Dot (Idx (modeDiv m M, n), s)
 	  | dot (M, Clos (Clos (N, s'), s''), s) = dot (M, Clos (N, comp (s', s'')), s)
-	  | dot (M, Clos (EtaTag (_, mn), s'), s) = Dot (Clos' (Idx (map1 (modeInvDiv M) mn), s'), s)
+	  | dot (M, Clos (EtaTag (_, (m, n)), s'), s) = Dot (Clos' (Idx (modeDiv m M, n), s'), s)
 	  | dot (M, ob, s) = Dot (Ob (M, ob), s)
 
 	fun subI ob = dot (INT, ob, id)
@@ -293,14 +293,14 @@ struct
 	fun pbinds (PDepTensor (p1, p2)) = nbinds p1 + nbinds p2
 	  | pbinds POne = 0
 	  | pbinds (PDown _) = 1
-	  | pbinds (PAff _) = 1
+	  | pbinds (PAffi _) = 1
 	  | pbinds (PBang _) = 1
 	fun inj a = FixPattern (a, pbinds a)
 	fun prj (FixPattern (a, _)) = a
 	fun Fmap f (PDepTensor (p1, p2)) = PDepTensor (f p1, f p2)
 	  | Fmap f POne = POne
 	  | Fmap f (PDown x) = PDown x
-	  | Fmap f (PAff x) = PAff x
+	  | Fmap f (PAffi x) = PAffi x
 	  | Fmap f (PBang x) = PBang x
 end
 
@@ -381,7 +381,7 @@ struct
 	fun Fmap' h (g, f) (LExists (p, S1, S2)) = LExists (h p, f S1, f S2)
 	  | Fmap' _ (g, f) TOne = TOne
 	  | Fmap' _ (g, f) (TDown A) = TDown (g A)
-	  | Fmap' _ (g, f) (TAff A) = TAff (g A)
+	  | Fmap' _ (g, f) (TAffi A) = TAffi (g A)
 	  | Fmap' _ (g, f) (TBang A) = TBang (g A)
 	fun Fmap gf a = Fmap' (fn x => x) gf a
 	fun inj a = FixSyncType a
@@ -428,13 +428,13 @@ struct
 	fun Fmap (g, f) (DepPair (M1, M2)) = DepPair (f M1, f M2)
 	  | Fmap (g, f) One = One
 	  | Fmap (g, f) (Down N) = Down (g N)
-	  | Fmap (g, f) (Aff N) = Aff (g N)
+	  | Fmap (g, f) (Affi N) = Affi (g N)
 	  | Fmap (g, f) (Bang N) = Bang (g N)
 	fun dotMonad (M, s) = case prj M of
 		  DepPair (M1, M2) => dotMonad (M2, dotMonad (M1, s))
 		| One => s
 		| Down N => Subst1.dot (Context.LIN, N, s)
-		| Aff N => Subst1.dot (Context.AFF, N, s)
+		| Affi N => Subst1.dot (Context.AFF, N, s)
 		| Bang N => Subst1.dot (Context.INT, N, s)
 	fun subM m = dotMonad (m, Subst1.id)
 end
@@ -542,7 +542,7 @@ val TApp' = TypeSpine.inj o TApp
 val LExists' = SyncType.inj o LExists
 val TOne' = SyncType.inj TOne
 val TDown' = SyncType.inj o TDown
-val TAff' = SyncType.inj o TAff
+val TAffi' = SyncType.inj o TAffi
 val TBang' = SyncType.inj o TBang
 val LLam' = Obj.inj o LLam
 val AddPair' = Obj.inj o AddPair
@@ -560,12 +560,12 @@ val Mon' = ExpObj.inj o Mon
 val DepPair' = MonadObj.inj o DepPair
 val One' = MonadObj.inj One
 val Down' = MonadObj.inj o Down
-val Aff' = MonadObj.inj o Aff
+val Affi' = MonadObj.inj o Affi
 val Bang' = MonadObj.inj o Bang
 fun PDepTensor' x = Pattern.inj $ PDepTensor x
 val POne' = (*Pattern.inj POne*) FixPattern (POne, 0)
 fun PDown' x = Pattern.inj $ PDown x
-fun PAff' x = Pattern.inj $ PAff x
+fun PAffi' x = Pattern.inj $ PAffi x
 fun PBang' x = Pattern.inj $ PBang x
 
 val appendSpine = Spine.appendSpine
@@ -647,7 +647,7 @@ struct
 	val LExists' = NfSyncType.inj o LExists
 	val TOne' = NfSyncType.inj TOne
 	val TDown' = NfSyncType.inj o TDown
-	val TAff' = NfSyncType.inj o TAff
+	val TAffi' = NfSyncType.inj o TAffi
 	val TBang' = NfSyncType.inj o TBang
 	val Nil' = NfSpine.inj Nil
 	val LApp' = NfSpine.inj o LApp
@@ -656,7 +656,7 @@ struct
 	val DepPair' = NfMonadObj.inj o DepPair
 	val One' = NfMonadObj.inj One
 	val Down' = NfMonadObj.inj o Down
-	val Aff' = NfMonadObj.inj o Aff
+	val Affi' = NfMonadObj.inj o Affi
 	val Bang' = NfMonadObj.inj o Bang
 end
 
@@ -695,23 +695,23 @@ struct
 		  LExists (p, S1, S2) => ApxTTensor (S1, S2)
 		| TOne => ApxTOne
 		| TDown A => ApxTDown A
-		| TAff A => ApxTAff A
+		| TAffi A => ApxTAffi A
 		| TBang A => ApxTBang A
 	fun s2p (ApxTTensor x) = PDepTensor x
 	  | s2p ApxTOne = POne
 	  | s2p (ApxTDown x) = PDown ()
-	  | s2p (ApxTAff x) = PAff ()
+	  | s2p (ApxTAffi x) = PAffi ()
 	  | s2p (ApxTBang x) = PBang (SOME "")
 	fun syncType2TPattern s = TPatternRec.unfold (s2p o prj) s
 	fun inj (ApxTTensor (S1, S2)) = SyncType.inj (LExists (syncType2TPattern S1, S1, S2))
 	  | inj ApxTOne = SyncType.inj TOne
 	  | inj (ApxTDown A) = SyncType.inj (TDown A)
-	  | inj (ApxTAff A) = SyncType.inj (TAff A)
+	  | inj (ApxTAffi A) = SyncType.inj (TAffi A)
 	  | inj (ApxTBang A) = SyncType.inj (TBang A)
 	fun Fmap (g, f) (ApxTTensor (S1, S2)) = ApxTTensor (f S1, f S2)
 	  | Fmap (g, f) ApxTOne = ApxTOne
 	  | Fmap (g, f) (ApxTDown A) = ApxTDown (g A)
-	  | Fmap (g, f) (ApxTAff A) = ApxTAff (g A)
+	  | Fmap (g, f) (ApxTAffi A) = ApxTAffi (g A)
 	  | Fmap (g, f) (ApxTBang A) = ApxTBang (g A)
 end
 (* structure ApxAsyncType : TYP2 where type ('a, 't) F = ('a, 't) apxAsyncTypeFF
@@ -755,7 +755,7 @@ val ApxTLogicVar' = ApxAsyncType.inj o ApxTLogicVar
 val ApxTTensor' = ApxSyncType.inj o ApxTTensor
 val ApxTOne' = ApxSyncType.inj ApxTOne
 val ApxTDown' = ApxSyncType.inj o ApxTDown
-val ApxTAff' = ApxSyncType.inj o ApxTAff
+val ApxTAffi' = ApxSyncType.inj o ApxTAffi
 val ApxTBang' = ApxSyncType.inj o ApxTBang
 
 structure ApxKindRec = Rec2 (structure T = ApxKind)

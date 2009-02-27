@@ -38,7 +38,7 @@ fun raiseLVar' (ctx, B, S, n) =
 		| (x, A, SOME INT)::ctx =>
 			raiseLVar' (ctx, TLPi' (PBang' (SOME x), TBang' A, B), LApp' (Bang' $ Idx A INT n, S), n+1)
 		| (x, A, SOME AFF)::ctx =>
-			raiseLVar' (ctx, TLPi' (PAff' (), TAff' A, B), LApp' (Aff' $ Idx A AFF n, S), n+1)
+			raiseLVar' (ctx, TLPi' (PAffi' (), TAffi' A, B), LApp' (Affi' $ Idx A AFF n, S), n+1)
 		| (x, A, SOME LIN)::ctx =>
 			raiseLVar' (ctx, TLPi' (PDown' (), TDown' A, B), LApp' (Down' $ Idx A LIN n, S), n+1)
 		| (x, A, NONE)::ctx => raiseLVar' (ctx, invsh B, S, n+1)
@@ -77,7 +77,7 @@ and uc2xSyncType lookup n sty = case SyncType.prj sty of
 	  LExists (p, S1, S2) => LExists' (p, uc2xSyncType lookup n S1, uc2xSyncType lookup (n + nbinds p) S2)
 	| TOne => TOne'
 	| TDown A => TDown' (uc2xType lookup n A)
-	| TAff A => TAff' (uc2xType lookup n A)
+	| TAffi A => TAffi' (uc2xType lookup n A)
 	| TBang A => TBang' (uc2xType lookup n A)
 and uc2xObj lookup n ob = case Obj.prj ob of
 	  LLam (p, N) => LLam' (p, uc2xObj lookup (n + nbinds p) N)

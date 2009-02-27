@@ -204,7 +204,6 @@ val asyncTypeFromApx = removeApxType o injectApxType
 val syncTypeFromApx = removeApxSyncType o injectApxSyncType
 
 (* pat2apxSyncType : pattern -> apxSyncType *)
-fun pat2apxSyncType _ = raise Fail "stub2"
 (*
 fun pat2apxSyncType p = case Pattern.prj p of
 	  PTensor (p1, p2) => ApxTTensor' (pat2apxSyncType p1, pat2apxSyncType p2)

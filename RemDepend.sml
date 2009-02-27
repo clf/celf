@@ -48,7 +48,7 @@ fun rdPat p occ = case Pattern.prj p of
 		in PDepTensor' (rdPat p1 occ1, rdPat p2 occ2) end
 	| POne => (assertEmpty occ; POne')
 	| PDown () => (assertEmpty occ; PDown' ())
-	| PAff () => (assertEmpty occ; PAff' ())
+	| PAffi () => (assertEmpty occ; PAffi' ())
 	| PBang NONE => (assertEmpty occ; PBang' NONE)
 	| PBang (SOME x) => if depend occ then p else PBang' NONE
 fun joinDepP c p (a1, occ1) (a2, occ2) =
@@ -71,7 +71,7 @@ and rdSyncType sty = case SyncType.prj sty of
 	  LExists (p, S1, S2) => joinDepP LExists' p (rdSyncType S1) (rdSyncType S2)
 	| TOne => (TOne', empty)
 	| TDown A => map1 TDown' (rdType A)
-	| TAff A => map1 TAff' (rdType A)
+	| TAffi A => map1 TAffi' (rdType A)
 	| TBang A => map1 TBang' (rdType A)
 and rdObj ob = case Obj.prj ob of
 	  LLam (p, N) => map12 (fn N' => LLam' (p, N')) (decrn $ nbinds p) (rdObj N)
@@ -111,7 +111,7 @@ and rdMonadObj m = case MonadObj.prj m of
 	  DepPair (M1, M2) => join2 DepPair' (rdMonadObj M1) (rdMonadObj M2)
 	| One => (One', empty)
 	| Down N => map1 Down' (rdObj N)
-	| Aff N => map1 Aff' (rdObj N)
+	| Affi N => map1 Affi' (rdObj N)
 	| Bang N => map1 Bang' (rdObj N)
 (*
 and rdPattern p = case Pattern.prj p of

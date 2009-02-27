@@ -150,14 +150,14 @@ MonadObj :
 	| ONE                                       ( Syntax.One' )
 (*	| Obj %prec DOT                             ( Syntax.Norm'(Obj) ) *)
 	| Obj %prec APP                             ( Syntax.Down'(Obj) )
-	| AFF Obj                                   ( Syntax.Aff'(Obj) )
+	| AFF Obj                                   ( Syntax.Affi'(Obj) )
 	| BANG Obj                                  ( Syntax.Bang'(Obj) )
 
 OPattern :
 	  ONE                            ( Syntax.POne' )
 	| LBRACKET OPatternPair RBRACKET ( Syntax.PDepTensor' OPatternPair )
 	| ID                             ( Syntax.PDown' ID )
-	| AFF ID                         ( Syntax.PAff' ID )
+	| AFF ID                         ( Syntax.PAffi' ID )
 	| BANG ID                        ( Syntax.PBang' ID )
 	| LPAREN OPattern RPAREN         ( OPattern )
 
@@ -169,7 +169,7 @@ TPattern :
 	  ONE                            ( Syntax.POne' )
 	| LBRACKET TPatternPair RBRACKET ( Syntax.PDepTensor' TPatternPair )
 	| UNDERSCORE                     ( Syntax.PDown' () )
-	| AFF UNDERSCORE                 ( Syntax.PAff' () )
+	| AFF UNDERSCORE                 ( Syntax.PAffi' () )
 	| BANG UNDERSCORE                ( Syntax.PBang' NONE )
 	| BANG ID                        ( Syntax.PBang' (SOME ID) )
 	| LPAREN TPattern RPAREN         ( TPattern )

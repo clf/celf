@@ -29,7 +29,7 @@ fun tpatBind f (p, sty) ctx = case (Pattern.prj p, SyncType.prj sty) of
 	  (PDepTensor (p1, p2), LExists (_, S1, S2)) => tpatBind f (p2, S2) (tpatBind f (p1, S1) ctx)
 	| (POne, TOne) => ctx
 	| (PDown (), TDown A) => ctxPushNO (f A, ctx)
-	| (PAff (), TAff A) => ctxPushNO (f A, ctx)
+	| (PAffi (), TAffi A) => ctxPushNO (f A, ctx)
 	| (PBang NONE, TBang A) => ctxPushNO (f A, ctx)
 	| (PBang (SOME x), TBang A) => ctxPush (x, INT, f A, ctx)
 	| _ => raise Fail "Internal error: patternBind\n"
@@ -37,7 +37,7 @@ fun opatBind f (p, sty) ctx = case (Pattern.prj p, SyncType.prj sty) of
 	  (PDepTensor (p1, p2), LExists (_, S1, S2)) => opatBind f (p2, S2) (opatBind f (p1, S1) ctx)
 	| (POne, TOne) => ctx
 	| (PDown x, TDown A) => ctxPush (x, LIN, f A, ctx)
-	| (PAff x, TAff A) => ctxPush (x, AFF, f A, ctx)
+	| (PAffi x, TAffi A) => ctxPush (x, AFF, f A, ctx)
 	| (PBang x, TBang A) => ctxPush (x, INT, f A, ctx)
 	| _ => raise Fail "Internal error: patternBind\n"
 
@@ -46,7 +46,7 @@ fun tpatBindApx (p, sty) ctx = case (Pattern.prj p, ApxSyncType.prj sty) of
 	  (PDepTensor (p1, p2), ApxTTensor (S1, S2)) => tpatBindApx (p2, S2) (tpatBindApx (p1, S1) ctx)
 	| (POne, ApxTOne) => ctx
 	| (PDown (), ApxTDown A) => ctxPushNO (A, ctx)
-	| (PAff (), ApxTAff A) => ctxPushNO (A, ctx)
+	| (PAffi (), ApxTAffi A) => ctxPushNO (A, ctx)
 	| (PBang NONE, ApxTBang A) => ctxPushNO (A, ctx)
 	| (PBang (SOME x), ApxTBang A) => ctxPush (x, INT, A, ctx)
 	| _ => raise Fail "Internal error: patternBind\n"
@@ -54,7 +54,7 @@ fun opatBindApx (p, sty) ctx = case (Pattern.prj p, ApxSyncType.prj sty) of
 	  (PDepTensor (p1, p2), ApxTTensor (S1, S2)) => opatBindApx (p2, S2) (opatBindApx (p1, S1) ctx)
 	| (POne, ApxTOne) => ctx
 	| (PDown x, ApxTDown A) => ctxPush (x, LIN, A, ctx)
-	| (PAff x, ApxTAff A) => ctxPush (x, AFF, A, ctx)
+	| (PAffi x, ApxTAffi A) => ctxPush (x, AFF, A, ctx)
 	| (PBang x, ApxTBang A) => ctxPush (x, INT, A, ctx)
 	| _ => raise Fail "Internal error: patternBind\n"
 
@@ -66,7 +66,7 @@ fun patUnbind (p, ctx) = case Pattern.prj p of
 	  PDepTensor (p1, p2) => patUnbind (p1, patUnbind (p2, ctx))
 	| POne => ctx
 	| PDown x => ctxPop ctx
-	| PAff x => ctxPop ctx
+	| PAffi x => ctxPop ctx
 	| PBang x => ctxPop ctx
 
 (* patUnbindOpt : opattern * 'a context -> 'a context option *)

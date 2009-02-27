@@ -88,7 +88,7 @@ datatype ('aTy, 'sTy) syncTypeFF
 	= LExists of tpattern * 'sTy * 'sTy
 	| TOne
 	| TDown of 'aTy
-	| TAff of 'aTy
+	| TAffi of 'aTy
 	| TBang of 'aTy
 datatype ('aTy, 'sp, 'e, 'o) objFF
 	(*= LinLam of string * 'o
@@ -124,7 +124,7 @@ datatype ('o, 'm) monadObjFF
 	= DepPair of 'm * 'm
 	| One
 	| Down of 'o
-	| Aff of 'o
+	| Affi of 'o
 	| Bang of 'o
 	(*= Tensor of 'm * 'm
 	| One
@@ -139,7 +139,7 @@ datatype ('x, 'ix, 'p) patternF
 	= PDepTensor of 'p * 'p
 	| POne
 	| PDown of 'x
-	| PAff of 'x
+	| PAffi of 'x
 	| PBang of 'ix
 
 type 'ki kindF = (asyncType, 'ki) kindFF 
@@ -248,7 +248,7 @@ structure Subst : sig
 	val intersection : ((Context.mode * int, nfObj) sum * nfObj -> bool) -> subst * subst -> subst
 	val invert : (*pat*)subst -> subst
 	val patSub : (exn -> nfObj -> apxAsyncType -> Context.mode * int) -> subst ->
-			apxAsyncType Context.context -> (int list * (*pat*)subst) option
+			apxAsyncType Context.context -> ((subMode * int) list * (*pat*)subst) option
 	val isId : subst -> bool
 	val isWeaken : subst -> bool
 	val substToStr : (nfObj -> string) -> subst -> string
@@ -269,7 +269,7 @@ val TApp' : obj * typeSpine -> typeSpine
 val LExists' : tpattern * syncType * syncType -> syncType
 val TOne' : syncType
 val TDown' : asyncType -> syncType
-val TAff' : asyncType -> syncType
+val TAffi' : asyncType -> syncType
 val TBang' : asyncType -> syncType
 val LLam' : opattern * obj -> obj
 val AddPair' : obj * obj -> obj
@@ -287,12 +287,12 @@ val Mon' : monadObj -> expObj
 val DepPair' : monadObj * monadObj -> monadObj
 val One' : monadObj
 val Down' : obj -> monadObj
-val Aff' : obj -> monadObj
+val Affi' : obj -> monadObj
 val Bang' : obj -> monadObj
 val PDepTensor' : ('x, 'ix) pattern * ('x, 'ix) pattern -> ('x, 'ix) pattern
 val POne' : ('x, 'ix) pattern
 val PDown' : 'x -> ('x, 'ix) pattern
-val PAff' : 'x -> ('x, 'ix) pattern
+val PAffi' : 'x -> ('x, 'ix) pattern
 val PBang' : 'ix -> ('x, 'ix) pattern
 
 val appendSpine : spine * spine -> spine
@@ -337,7 +337,7 @@ datatype ('aTy, 'sTy) apxSyncTypeFF
 	| ApxTOne
 	(*| ApxExists of 'aTy * 'sTy*)
 	| ApxTDown of 'aTy
-	| ApxTAff of 'aTy
+	| ApxTAffi of 'aTy
 	| ApxTBang of 'aTy
 type 'ki apxKindF = (apxAsyncType, 'ki) apxKindFF
 type 'aTy apxAsyncTypeF = (apxSyncType, 'aTy) apxAsyncTypeFF
@@ -354,7 +354,7 @@ val ApxTLogicVar' : typeLogicVar -> apxAsyncType
 val ApxTTensor' : apxSyncType * apxSyncType -> apxSyncType
 val ApxTOne' : apxSyncType
 val ApxTDown' : apxAsyncType -> apxSyncType
-val ApxTAff' : apxAsyncType -> apxSyncType
+val ApxTAffi' : apxAsyncType -> apxSyncType
 val ApxTBang' : apxAsyncType -> apxSyncType
 
 
@@ -380,7 +380,7 @@ structure NfInj : sig
 	val LExists' : tpattern * nfSyncType * nfSyncType -> nfSyncType
 	val TOne' : nfSyncType
 	val TDown' : nfAsyncType -> nfSyncType
-	val TAff' : nfAsyncType -> nfSyncType
+	val TAffi' : nfAsyncType -> nfSyncType
 	val TBang' : nfAsyncType -> nfSyncType
 	val Nil' : nfSpine
 	val LApp' : nfMonadObj * nfSpine -> nfSpine
@@ -389,7 +389,7 @@ structure NfInj : sig
 	val DepPair' : nfMonadObj * nfMonadObj -> nfMonadObj
 	val One' : nfMonadObj
 	val Down' : nfObj -> nfMonadObj
-	val Aff' : nfObj -> nfMonadObj
+	val Affi' : nfObj -> nfMonadObj
 	val Bang' : nfObj -> nfMonadObj
 end
 

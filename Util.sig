@@ -75,6 +75,6 @@ val removeApxObj : Syntax.obj -> Syntax.obj
 val asyncTypeFromApx : Syntax.apxAsyncType -> Syntax.asyncType
 val syncTypeFromApx : Syntax.apxSyncType -> Syntax.syncType
 
-val pat2apxSyncType : Syntax.opattern -> Syntax.apxSyncType
+(*val pat2apxSyncType : Syntax.opattern -> Syntax.apxSyncType*)
 
 end

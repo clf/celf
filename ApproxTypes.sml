@@ -61,7 +61,7 @@ and apxUnifySyncType (ty1, ty2) = case (ApxSyncType.prj ty1, ApxSyncType.prj ty2
 			(apxUnifySyncType (S1, S2); apxUnifySyncType (T1, T2))
 	| (ApxTOne, ApxTOne) => ()
 	| (ApxTDown A1, ApxTDown A2) => apxUnifyType (A1, A2)
-	| (ApxTAff A1, ApxTAff A2) => apxUnifyType (A1, A2)
+	| (ApxTAffi A1, ApxTAffi A2) => apxUnifyType (A1, A2)
 	| (ApxTBang A1, ApxTBang A2) => apxUnifyType (A1, A2)
 	| (S1, S2) => raise ExnApxUnifyType
 			(PrettyPrint.printType (unsafeCast (ApxTMonad' ty1))^"\nand: "
@@ -80,7 +80,7 @@ fun apxInferPattern p = case Pattern.prj p of
 	  PDepTensor (p1, p2) => ApxTTensor' (apxInferPattern p1, apxInferPattern p2)
 	| POne => ApxTOne'
 	| PDown _ => ApxTDown' $ newApxTVar ()
-	| PAff _ => ApxTAff' $ newApxTVar ()
+	| PAffi _ => ApxTAffi' $ newApxTVar ()
 	| PBang _ => ApxTBang' $ newApxTVar ()
 
 (* apxCheckKind : context * kind -> kind *)
@@ -147,7 +147,7 @@ and apxCheckSyncType (ctx, ty) = case SyncType.prj ty of
 			in LExists' (p, A', apxCheckSyncType (tpatBindApx (p, syncTypeToApx A') ctx, S)) end
 	| TOne => TOne'
 	| TDown A => TDown' (apxCheckType (ctx, A))
-	| TAff A => TAff' (apxCheckType (ctx, A))
+	| TAffi A => TAffi' (apxCheckType (ctx, A))
 	| TBang A => TBang' (apxCheckType (ctx, A))
 
 (* apxCheckObj : context * obj * apxAsyncType -> context * obj *)
@@ -271,7 +271,7 @@ and apxInferMonadObj (ctx, mob) = case MonadObj.prj mob of
 			in (ctxo, DepPair' (M1', M2'), ApxTTensor' (S1, S2)) end
 	| One => (ctx, One', ApxTOne')
 	| Down N => (fn (ctxo, N', A) => (ctxo, Down' N', ApxTDown' A)) (apxInferObj (ctx, N))
-	| Aff N => (fn (ctxo, N', A) => (ctxJoinAffLin (ctxo, ctx), Aff' N', ApxTAff' A))
+	| Affi N => (fn (ctxo, N', A) => (ctxJoinAffLin (ctxo, ctx), Affi' N', ApxTAffi' A))
 			(apxInferObj (ctxAffPart ctx, N))
 	| Bang N => (fn (_, N', A) => (ctx, Bang' N', ApxTBang' A)) (apxInferObj (ctxIntPart ctx, N))
 

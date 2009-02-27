@@ -58,7 +58,7 @@ and convSyncType (st1, st2) = case (NfSyncType.prj st1, NfSyncType.prj st2) of
 	  (LExists (_, S1, T1), LExists (_, S2, T2)) => (convSyncType (S1, S2); convSyncType (T1, T2))
 	| (TOne, TOne) => ()
 	| (TDown A1, TDown A2) => convAsyncType (A1, A2)
-	| (TAff A1, TAff A2) => convAsyncType (A1, A2)
+	| (TAffi A1, TAffi A2) => convAsyncType (A1, A2)
 	| (TBang A1, TBang A2) => convAsyncType (A1, A2)
 	| _ => raise ExnConv "Convertibility: SyncTypes differ"
 
@@ -110,7 +110,7 @@ and convMonadObj (M1, M2) = case (NfMonadObj.prj M1, NfMonadObj.prj M2) of
 		(convMonadObj (M11, M21); convMonadObj (M12, M22))
 	| (One, One) => ()
 	| (Down N1, Down N2) => convObj (N1, N2)
-	| (Aff N1, Aff N2) => convObj (N1, N2)
+	| (Affi N1, Affi N2) => convObj (N1, N2)
 	| (Bang N1, Bang N2) => convObj (N1, N2)
 	| _ => raise ExnConv "Convertibility failed"
 

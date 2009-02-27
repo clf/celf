@@ -57,7 +57,7 @@ and checkSyncType (ctx, ty) = case NfSyncType.prj ty of
 	  LExists (p, S1, S2) => (checkSyncType (ctx, S1); checkSyncType (tpatBindNf (p, S1) ctx, S2))
 	| TOne => ()
 	| TDown A => checkType (ctx, A)
-	| TAff A => checkType (ctx, A)
+	| TAffi A => checkType (ctx, A)
 	| TBang A => checkType (ctx, A)
 
 (* Invariant:
@@ -144,7 +144,7 @@ and checkMonad (ctx, mon, S) = case (NfMonadObj.prj mon, NfSyncType.prj S) of
 		in checkMonad (ctx1, M2, NfSTClos (S2, Subst.subM M1)) end
      | (One, TOne) => ctx
      | (Down N, TDown A) => checkObj (ctx, N, A)
-     | (Aff N, TAff A) => ctxJoinAffLin (checkObj (ctxAffPart ctx, N, A), ctx)
+     | (Affi N, TAffi A) => ctxJoinAffLin (checkObj (ctxAffPart ctx, N, A), ctx)
      | (Bang N, TBang A) => let val _ = checkObj (ctxIntPart ctx, N, A) in ctx end
      | _ => raise Fail "Type mismatch in checkMonad"
 
@@ -158,7 +158,7 @@ and checkPattern (pat, S) = case (Pattern.prj pat, NfSyncType.prj S) of
 		(checkPattern (P1, S1); checkPattern (P2, S2))
 	| (POne, TOne) => ()
 	| (PDown _, TDown A2) => ()
-	| (PAff _, TAff A2) => ()
+	| (PAffi _, TAffi A2) => ()
 	| (PBang _, TBang A2) => ()
 	| _ => raise Fail "Type mismatch in checkPattern"
 

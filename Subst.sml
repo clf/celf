@@ -91,7 +91,7 @@ struct
 	  (*| subSyncType (Exists (NONE, A, S), s) = Exists (NONE, TClos (A, s), STClos (S, s))
 	  | subSyncType (Exists (SOME x, A, S), s) = Exists (SOME x, TClos (A, s), STClos (S, dot1 s))*)
 	  | subSyncType (TDown A, s) = TDown (TClos (A, s))
-	  | subSyncType (TAff A, s) = TAff (TClos (A, s))
+	  | subSyncType (TAffi A, s) = TAffi (TClos (A, s))
 	  | subSyncType (TBang A, s) = TBang (TClos (A, s))
 	
 	fun subObj _ (LLam (p, N), s) = LLam (p, Clos (N, dotn (nbinds p) s))
@@ -116,7 +116,7 @@ struct
 	fun subMonadObj (DepPair (M1, M2), s) = DepPair (MClos (M1, s), MClos (M2, s))
 	  | subMonadObj (One, s) = One
 	  | subMonadObj (Down N, s) = Down (Clos (N, s))
-	  | subMonadObj (Aff N, s) = Aff (Clos (N, s))
+	  | subMonadObj (Affi N, s) = Affi (Clos (N, s))
 	  | subMonadObj (Bang N, s) = Bang (Clos (N, s))
 (*	fun subPattern (PTensor (p1, p2), s) = PTensor (PClos (p1, s), PClos (p2, s))
 	  | subPattern (POne, s) = POne
@@ -165,8 +165,8 @@ struct
 			  | eq (N1 as Ob _, N2 as Idx _) = eq (N2, N1)
 			  | eq (Ob (M1, N1), Ob (M2, N2)) =
 					( assertLin (M1=M2) ; conv (INR N1, N2) handle ExnUndef => false )
-			  | eq (Undef, _) = false (*raise Fail "Internal error intersection"*)
-			  | eq (_, Undef) = false (*raise Fail "Internal error intersection"*)
+			  | eq (Undef, _) = false
+			  | eq (_, Undef) = false
 			fun intersect (Dot (n1, s1), Dot (n2, s2)) =
 					if eq (n1, n2) then dot1 (intersect (s1, s2))
 					else comp (intersect (s1, s2), Shift 1)
@@ -210,10 +210,6 @@ struct
 
 	fun fold f e (Dot (ob, s)) = f (ob, fold f e s)
 	  | fold f e (Shift n) = e n
-(*	fun fold f e (Dot (Undef, s)) = f (dummy, fold f e s)
-	  | fold f e (Dot (Ob ob, s)) = f (ob, fold f e s)
-	  | fold f e (Dot (Idx n, s)) = f (dummyvar n, fold f e s)
-	  | fold f e (Shift n) = e n*)
 
 	fun map f (Dot (Ob (M, ob), s)) = Dot (Ob (M, f ob) handle ExnUndef => Undef, map f s)
 	  | map f (Dot (Undef, s)) = Dot (Undef, map f s)
@@ -240,6 +236,17 @@ struct
 				  | toStr (Shift n) = "^"^(Int.toString n)
 			in "["^(toStr s)^"]" end
 
+	fun modeDiv INT INT = ID (* modeDiv also used in Syntax.sml *)
+	  | modeDiv INT AFF = INT4AFF
+	  | modeDiv INT LIN = INT4LIN
+	  | modeDiv AFF INT = raise Fail "Linearity mismatch patSub"
+	  | modeDiv AFF AFF = ID
+	  | modeDiv AFF LIN = AFF4LIN
+	  | modeDiv LIN INT = raise Fail "Linearity mismatch patSub"
+	  | modeDiv LIN AFF = raise Fail "Linearity mismatch patSub"
+	  | modeDiv LIN LIN = ID
+	fun modeInvDiv m1 m2 = modeDiv m2 m1
+
 	(* patSub Eta.etaContract s G1
 	 *    where G |- s : G1 can give three different results:
 	 * NONE
@@ -251,13 +258,11 @@ struct
 	 *    G  |- s : G1
 	 *    G' |- s' : G1
 	 *    G equals G' on the indices not in p
-	 *    n in p => G_n is INT and G'_n is LIN
+	 *    (INT4LIN, n) in p => G_n is INT and G'_n is LIN
+	 *    (INT4AFF, n) in p => G_n is INT and G'_n is AFF
+	 *    (AFF4LIN, n) in p => G_n is AFF and G'_n is LIN
 	 *)
-	fun modeInvDiv LIN INT = INT4LIN (* modeInvDiv also used in Syntax.sml *)
-	  | modeInvDiv INT LIN = raise Fail "Linearity mismatch patSub"
-	  | modeInvDiv _ _ = ID
-	fun patSub etaContract s' domCtx = raise Fail "stub2 patSub"
-	(*
+	fun patSub etaContract s' domCtx = (* domCtx may not be necessary after top died? --asn *)
 		let exception ExnPatSub
 			val p = ref []
 			val domCtx' = List.map #2 $ ctx2list domCtx
@@ -266,16 +271,15 @@ struct
 			  | ps (m, l, Dot (Undef, s), _::G) = Dot (Undef, ps (m, l, s, G))
 			  | ps (m, l, Dot (Idx (ID, n), s), _::G) =
 					Dot (Idx (ID, n), ps (Int.max (m, n), add (n, l), s, G))
-			  | ps (m, l, Dot (Idx (INT4LIN, n), s), G as _::_) =
-					( p := n :: !p
+			  | ps (m, l, Dot (Idx (M, n), s), G as _::_) =
+					( p := (M, n) :: !p
 					; ps (m, l, Dot (Idx (ID, n), s), G) )
 			  | ps (m, l, Dot (Ob (M, N), s), A::G) =
 					let val N' = Idx (map1 (modeInvDiv M) $ etaContract ExnPatSub N A)
-								handle ExnUndef => if M=INT then Undef else raise Fail "stub:lintop"
+								handle ExnUndef => Undef
 					in ps (m, l, Dot (N', s), A::G) end
 			  | ps (_, _, Dot _, []) = raise Fail "Internal error: mismatch between ctx and sub"
 		in SOME $ (fn s => (!p, s)) $ ps (0, [], s', domCtx') handle ExnPatSub => NONE end
-*)
 
 	fun shift n = Shift n
 end

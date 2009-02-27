@@ -34,12 +34,12 @@ val u2s = unif2sync
 
 fun syncType2tpatNoDep s =
 	let fun s2p S = case SyncType.prj S of LExists (_, S1, S2) => PDepTensor (S1, S2)
-			| TOne => POne | TDown _ => PDown () | TAff _ => PAff () | TBang _ => PBang NONE
+			| TOne => POne | TDown _ => PDown () | TAffi _ => PAffi () | TBang _ => PBang NONE
 	in TPatternRec.unfold s2p s end
 fun lolli (S, B) =
 	let val S' = u2s S
 	in Neg $ TLPi' (syncType2tpatNoDep S', S', u2a B) end
-fun affLolli (A, B) = Neg $ TLPi' (PAff' (), TAff' $ u2a A, u2a B)
+fun affLolli (A, B) = Neg $ TLPi' (PAffi' (), TAffi' $ u2a A, u2a B)
 fun arrow (A, B) = Neg $ TLPi' (PBang' NONE, TBang' $ u2a A, u2a B)
 fun addProd (A, B) = Neg $ AddProd' (u2a A, u2a B)
 fun tPi (x, A, B) = Neg $ TLPi' (PBang' $ SOME x, TBang' $ u2a A, u2a B)
@@ -53,7 +53,7 @@ val one = Pos TOne'
 fun exists (x, A, B) = Pos $ LExists' (PBang' $ SOME x, TBang' $ u2a A, u2s B)
 fun exists' (x, B) = Pos $ LExists' (PBang' $ SOME x, TBang' $ newTVar (), u2s B)
 fun lexists (p, S, B) = Pos $ LExists' (p, u2s S, u2s B)
-fun aff A = Pos $ TAff' $ unif2async A
+fun aff A = Pos $ TAffi' $ unif2async A
 fun bang A = Pos $ TBang' $ unif2async A
 
 fun app (ob, mob) = Redex' (ob, newApxTVar (), LApp' (mob, Nil'))
@@ -65,7 +65,7 @@ fun headToObj h = Atomic' (h, Nil')
 fun patternO2Tf (PDepTensor p1p2) = PDepTensor p1p2
   | patternO2Tf POne = POne
   | patternO2Tf (PDown _) = PDown ()
-  | patternO2Tf (PAff _) = PAff ()
+  | patternO2Tf (PAffi _) = PAffi ()
   | patternO2Tf (PBang x) = PBang (SOME x)
 fun patternO2T p = OPatternRec.fold (Pattern.inj o patternO2Tf) p
 fun lamConstr (p, S, N) = Constraint' (LLam' (p, N), TLPi' (patternO2T p, u2s S, newTVar ()))
@@ -73,7 +73,7 @@ fun lamConstr (p, S, N) = Constraint' (LLam' (p, N), TLPi' (patternO2T p, u2s S,
 fun pat2aty (PDepTensor s1s2) = ApxTTensor' s1s2
   | pat2aty POne = ApxTOne'
   | pat2aty (PDown _) = ApxTDown' $ newApxTVar ()
-  | pat2aty (PAff _) = ApxTAff' $ newApxTVar ()
+  | pat2aty (PAffi _) = ApxTAffi' $ newApxTVar ()
   | pat2aty (PBang _) = ApxTBang' $ newApxTVar ()
 fun pattern2apxType p = OPatternRec.fold pat2aty p
 fun letredex (p, N, E) = LetRedex' (p, pattern2apxType p, N, E)

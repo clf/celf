@@ -66,7 +66,7 @@ and checkSyncType (ctx, ty) = case SyncType.prj ty of
 	  LExists (p, S1, S2) => (checkSyncType (ctx, S1); checkSyncType (tpatBind (fn x=>x) (p, S1) ctx, S2))
 	| TOne => ()
 	| TDown A => checkType (ctx, A)
-	| TAff A => checkType (ctx, A)
+	| TAffi A => checkType (ctx, A)
 	| TBang A => checkType (ctx, A)
 
 (* checkObj : context * obj * asyncType -> context *)
@@ -179,7 +179,7 @@ and checkMonadObj (ctx, mob, ty) = case (MonadObj.prj mob, SyncType.prj ty) of
 			in checkMonadObj (ctxm, M2, STClos (S2, Subst.subM $ normalizeMonadObj M1)) end
 	| (One, TOne) => ctx
 	| (Down N, TDown A) => checkObj (ctx, N, A)
-	| (Aff N, TAff A) => ctxJoinAffLin (checkObj (ctxAffPart ctx, N, A), ctx)
+	| (Affi N, TAffi A) => ctxJoinAffLin (checkObj (ctxAffPart ctx, N, A), ctx)
 	| (Bang N, TBang A) => (ignore $ checkObj (ctxIntPart ctx, N, A) ; ctx)
 	| _ => raise Fail "Internal error match: checkMonadObj\n"
 

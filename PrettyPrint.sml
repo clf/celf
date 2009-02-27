@@ -64,7 +64,7 @@ and pType ctx pa ty = if isUnknown ty then ["???"] else case AsyncType.prj ty of
 		| (PBang (SOME x), TBang A) =>
 			let val (x', ctx') = add x ctx
 			in ["Pi "^x'^": "] @ pType ctx false A @ [". "] @ pType ctx' false B end
-		| (PAff (), TAff A) =>
+		| (PAffi (), TAffi A) =>
 			pType ctx true A @ [" -@ "] @ pType (addNoOccur ctx) false B
 		| _ =>
 			let val (pP, ctx', d) = pTPattern ctx p
@@ -97,7 +97,7 @@ and pSyncType ctx pa sty = case SyncType.prj sty of
 			end)
 	| TOne => ["1"]
 	| TDown A => pType ctx pa A
-	| TAff A => ["@"] @ pType ctx true A
+	| TAffi A => ["@"] @ pType ctx true A
 	| TBang A => ["!"] @ pType ctx true A
 and pObj ctx pa ob = case Obj.prj ob of
 	  LLam (p, N) =>
@@ -153,7 +153,7 @@ and pMonadObj ctx pa m = case MonadObj.prj m of
 	  DepPair (M1, M2) => ["["] @ pMonadObj ctx false M1 @ [", "] @ pMonadObj ctx false M2 @ ["]"]
 	| One => ["1"]
 	| Down N => pObj ctx pa N
-	| Aff N => ["@"] @ pObj ctx true N
+	| Affi N => ["@"] @ pObj ctx true N
 	| Bang N => ["!"] @ pObj ctx true N
 and pOPattern bctx p = case Pattern.prj p of
 	  PDepTensor (p1, p2) =>
@@ -162,7 +162,7 @@ and pOPattern bctx p = case Pattern.prj p of
 			in (["["] @ pP1 @ [", "] @ pP2 @ ["]"], bctx'') end
 	| POne => (["1"], bctx)
 	| PDown x => map1 (fn x => [x]) (add x bctx)
-	| PAff x => map1 (fn x => ["@"^x]) (add x bctx)
+	| PAffi x => map1 (fn x => ["@"^x]) (add x bctx)
 	| PBang x => map1 (fn x => ["!"^x]) (add x bctx)
 and pTPattern bctx p = case Pattern.prj p of
 	  PDepTensor (p1, p2) =>
@@ -171,7 +171,7 @@ and pTPattern bctx p = case Pattern.prj p of
 			in (["["] @ pP1 @ [", "] @ pP2 @ ["]"], bctx'', d1 orelse d2) end
 	| POne => (["1"], bctx, false)
 	| PDown () => (["_"], addNoOccur bctx, false)
-	| PAff () => (["@_"], addNoOccur bctx, false)
+	| PAffi () => (["@_"], addNoOccur bctx, false)
 	| PBang NONE => (["!_"], addNoOccur bctx, false)
 	| PBang (SOME x) => let val (x', bctx') = add x bctx in (["!"^x'], bctx', true) end
 (*and pPattern ctx bctx pa p = case Pattern.prj p of

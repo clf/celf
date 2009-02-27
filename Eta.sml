@@ -31,55 +31,48 @@ val traceEta = ref false
 type context = apxAsyncType context
 
 (* etaContract : exn -> nfObj -> apxAsyncType -> mode * int *)
-fun etaContract e ob ty = raise Fail "stub2 etaContract" (*
+(* etaContract e ob ty = (m, n)
+ * ob == Var (m, n) : ty
+ * or raise e if ob is not an eta-expanded var *)
 fun etaContract e ob ty =
-	let datatype etaSpine = Ap of apxAsyncType | LAp of apxAsyncType | Pl | Pr
-		fun eq (SOME (x : mode * int), SOME y) = if x=y then SOME x else raise e
-		  | eq (NONE, SOME y) = SOME y
-		  | eq (SOME x, NONE) = SOME x
-		  | eq (NONE, NONE) = NONE
-		fun nbinds sp = length (List.filter (fn (Ap _) => true | (LAp _) => true | _ => false) sp)
-		fun etaEqC (ob, ty, x) = ignore $ eq (etaC (ob, ty, []), SOME x)
-		and etaC (ob, ty, sp) = case etaShortcut ob of NONE => etaC' (ob, ty, sp) | SOME k => SOME k
+	let datatype etaSpine = LAp of opattern * apxSyncType | Pl | Pr
+		fun nbindsSp sp = foldl (fn (LAp (p, _), n) => n + nbinds p | (_, n) => n) 0 sp
+		fun eq ((x : mode * int), y) = if x=y then x else raise e
+		fun etaEqC (ob, ty, x) = ignore $ eq (etaC (ob, ty, []), x)
+		and etaC (ob, ty, sp) = case etaShortcut ob of NONE => etaC' (ob, ty, sp) | SOME k => k
 		and etaC' (ob, ty, sp) = case (NfObj.prj ob, Util.apxTypePrjAbbrev ty) of
-			  (NfLam (_, N), ApxTPi (A, B)) => etaC (N, B, (Ap A)::sp)
-			| (NfLinLam (_, N), ApxLolli (A, B)) => etaC (N, B, (LAp A)::sp)
+			  (NfLLam (p, N), ApxLolli (A, B)) => etaC (N, B, (LAp (p, A))::sp)
 			| (NfAddPair (N1, N2), ApxAddProd (A, B)) =>
 				eq (etaC (N1, A, Pl::sp), etaC (N2, B, Pr::sp))
 			| (NfMonad E, ApxTMonad S) =>
 				(case Util.NfExpObjAuxDefs.prj2 E of
-					  NfLet (p, N, NfMon M) => (etaP (p, M, S); etaC (NfAtomic' N, ApxTAtomic' "", sp))
+					  NfLet (p, N, NfMon M) =>
+						(etaP (nbinds p, p, M, S); etaC (NfAtomic' N, ApxTAtomic' "", sp))
 					| _ => raise e)
 			| (NfAtomic (Var (M, n), S), ApxTAtomic _) =>
-				let val nb = nbinds sp
+				let val nb = nbindsSp sp
 					val k = n - nb
 					val () = if k>0 then () else raise e
 					val () = etaSp (nb, S, rev sp)
-				in SOME (M, k) end
+				in (M, k) end
 			| (NfAtomic _, ApxTAtomic _) => raise e
-			| (NfUnit, ApxTop) => NONEsdf
 			| _ => raise e
-		and etaP (p, m, sty) = ignore (etaP' (1, p, m, sty))
-		and etaP' (n, p, m, sty) = case (Pattern.prj p, NfMonadObj.prj m, ApxSyncType.prj sty) of
-			  (PTensor (p1, p2), Tensor (M1, M2), ApxTTensor (S1, S2)) =>
-				etaP' (etaP' (n, p2, M2, S2), p1, M1, S1)
-			| (POne, One, ApxTOne) => n
-			| (PDepPair (_, p), DepPair (N, M), ApxExists (A, S)) =>
-				let val n' = etaP' (n, p, M, S)
-				in ( etaEqC (N, A, (INT, n')) ; n'+1 ) end
-			| (PVar _, Norm N, ApxAsync A) => ( etaEqC (N, A, (LIN, n)) ; n+1 )
+		and etaP (n, p, m, sty) = case (Pattern.prj p, NfMonadObj.prj m, ApxSyncType.prj sty) of
+			  (PDepTensor (p1, p2), DepPair (M1, M2), ApxTTensor (S1, S2)) =>
+				(etaP (n, p1, M1, S1); etaP (n - nbinds p1, p2, M2, S2))
+			| (POne, One, ApxTOne) => ()
+			| (PDown _, Down N, ApxTDown A) => etaEqC (N, A, (LIN, n))
+			| (PAffi _, Affi N, ApxTAffi A) => etaEqC (N, A, (AFF, n))
+			| (PBang _, Bang N, ApxTBang A) => etaEqC (N, A, (INT, n))
 			| _ => raise e
 		and etaSp (m, Sp, sp) = case (NfSpine.prj Sp, sp) of
 			  (Nil, []) => ()
-			| (App (N, S), (Ap ty)::sp) =>
-				(etaSp (m-1, S, sp); etaEqC (N, ty, (INT, m)))
-			| (LinApp (N, S), (LAp ty)::sp) =>
-				(etaSp (m-1, S, sp); etaEqC (N, ty, (LIN, m)))
+			| (LApp (M, S), (LAp (p, ty))::sp) =>
+				(etaSp (m - nbinds p, S, sp); etaP (m, p, M, ty))
 			| (ProjLeft S, Pl::sp) => etaSp (m, S, sp)
 			| (ProjRight S, Pr::sp) => etaSp (m, S, sp)
 			| _ => raise e
-	in case etaC (ob, ty, []) of SOME x => x | NONE => raise Subst.ExnUndef end
-	*)
+	in etaC (ob, ty, []) end
 
 (* etaExpand : apxAsyncType * head * spine -> obj *)
 fun etaExpand (A, H, S) =
@@ -95,7 +88,7 @@ fun etaExpand (A, H, S) =
 				in (PDepTensor' (p1, p2), fn n => DepPair' (Mf1 (n + nbinds p2), Mf2 n)) end
 			| ApxTOne => (POne', fn _ => One')
 			| ApxTDown A => (PDown' "", fn n => Down' (Idx LIN A n))
-			| ApxTAff A => (PAff' "", fn n => Aff' (Idx AFF A n))
+			| ApxTAffi A => (PAffi' "", fn n => Affi' (Idx AFF A n))
 			| ApxTBang A => (PBang' "", fn n => Bang' (Idx INT A n))
 		fun addEtaSpine (n, Sf) =
 				(Subst.shiftHead (H, n),
@@ -169,7 +162,7 @@ and etaExpandSyncType (ctx, ty) = case SyncType.prj ty of
 			in LExists' (p, S1', etaExpandSyncType (tpatBindApx (p, syncTypeToApx S1') ctx, S2)) end
 	| TOne => TOne'
 	| TDown A => TDown' (etaExpandType (ctx, A))
-	| TAff A => TAff' (etaExpandType (ctx, A))
+	| TAffi A => TAffi' (etaExpandType (ctx, A))
 	| TBang A => TBang' (etaExpandType (ctx, A))
 
 (* etaExpandObj : context * obj * apxAsyncType -> obj *)
@@ -247,7 +240,7 @@ and etaExpandMonadObj (ctx, mob, ty) = case (MonadObj.prj mob, ApxSyncType.prj t
 			DepPair' (etaExpandMonadObj (ctx, M1, S1), etaExpandMonadObj (ctx, M2, S2))
 	| (One, ApxTOne) => One'
 	| (Down N, ApxTDown A) => Down' (etaExpandObj (ctx, N, A))
-	| (Aff N, ApxTAff A) => Aff' (etaExpandObj (ctx, N, A))
+	| (Affi N, ApxTAffi A) => Affi' (etaExpandObj (ctx, N, A))
 	| (Bang N, ApxTBang A) => Bang' (etaExpandObj (ctx, N, A))
 	| _ => raise Fail "Internal error etaExpandMonadObj: Match"
 
