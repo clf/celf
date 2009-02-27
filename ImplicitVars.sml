@@ -64,7 +64,8 @@ fun sort () =
 			let val ucs = ref []
 				fun collect t = Util.objAppType
 							(fn Atomic (UCVar x, ()) => ucs := x::(!ucs)
-							  | Atomic (LogicVar {ty, s, ...}, ()) => collect (TClos (ty, s))
+							  | Atomic (LogicVar {ty, s, ...}, ()) =>
+									collect (TClos (ty, s))
 							  | _ => ()) t
 				val () = collect ty
 			in !ucs end

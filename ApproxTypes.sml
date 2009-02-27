@@ -44,19 +44,13 @@ fun occur X = foldApxType {fki = ignore, fsTy = ignore, faTy =
 
 (* apxUnifyType : apxAsyncType * apxAsyncType -> unit *)
 fun apxUnifyType (ty1, ty2) = case (Util.apxTypePrjAbbrev ty1, Util.apxTypePrjAbbrev ty2) of
-(*	  (ApxTLogicVar (ref (SOME A1)), A2) => apxUnifyType (A1, ApxAsyncType.inj A2)
-	| (A1, ApxTLogicVar (ref (SOME A2))) => apxUnifyType (ApxAsyncType.inj A1, A2)*)
-	  (ApxLolli (A1, B1), ApxLolli (A2, B2)) => (apxUnifyType (A1, A2); apxUnifyType (B1, B2))
-	| (ApxTPi (A1, B1), ApxTPi (A2, B2)) => (apxUnifyType (A1, A2); apxUnifyType (B1, B2))
+	  (ApxLolli (A1, B1), ApxLolli (A2, B2)) => (apxUnifySyncType (A1, A2); apxUnifyType (B1, B2))
 	| (ApxAddProd (A1, B1), ApxAddProd (A2, B2)) => (apxUnifyType (A1, A2); apxUnifyType (B1, B2))
-	| (ApxTop, ApxTop) => ()
 	| (ApxTMonad S1, ApxTMonad S2) => apxUnifySyncType (S1, S2)
 	| (ApxTAtomic a1, ApxTAtomic a2) =>
 			if a1 = a2 then () else raise ExnApxUnifyType (a1^" and "^a2^" differ")
 	| (ApxTLogicVar X, A as ApxTLogicVar X') =>
 			if eqLVar (X, X') then () else updLVar (X, ApxAsyncType.inj A)
-	(*| (ApxTLogicVar X, A) => let val A' = ApxAsyncType.inj A in (occur X A'; updLVar (X, A')) end
-	| (A, ApxTLogicVar X) => let val A' = ApxAsyncType.inj A in (occur X A'; updLVar (X, A')) end*)
 	| (ApxTLogicVar X, _) => (occur X ty2; updLVar (X, ty2))
 	| (_, ApxTLogicVar X) => (occur X ty1; updLVar (X, ty1))
 	| (A1, A2) => raise ExnApxUnifyType
@@ -66,8 +60,9 @@ and apxUnifySyncType (ty1, ty2) = case (ApxSyncType.prj ty1, ApxSyncType.prj ty2
 	  (ApxTTensor (S1, T1), ApxTTensor (S2, T2)) =>
 			(apxUnifySyncType (S1, S2); apxUnifySyncType (T1, T2))
 	| (ApxTOne, ApxTOne) => ()
-	| (ApxExists (A1, S1), ApxExists (A2, S2)) => (apxUnifyType (A1, A2); apxUnifySyncType (S1, S2))
-	| (ApxAsync A1, ApxAsync A2) => apxUnifyType (A1, A2)
+	| (ApxTDown A1, ApxTDown A2) => apxUnifyType (A1, A2)
+	| (ApxTAff A1, ApxTAff A2) => apxUnifyType (A1, A2)
+	| (ApxTBang A1, ApxTBang A2) => apxUnifyType (A1, A2)
 	| (S1, S2) => raise ExnApxUnifyType
 			(PrettyPrint.printType (unsafeCast (ApxTMonad' ty1))^"\nand: "
 						^PrettyPrint.printType (unsafeCast (ApxTMonad' ty2)))
@@ -77,11 +72,16 @@ fun apxUnify (ty1, ty2, errmsg) = (apxUnifyType (ty1, ty2))
 			( print ("ExnApxUnify: "^s^"\n")
 			; print $ errmsg ()
 			; raise e)
-		(*handle (e as ExnApxUnifyType s) => (print ("ExnApxUnify: "^
-			(PrettyPrint.printType (unsafeCast ty1))^"\nand: "
-						^(PrettyPrint.printType (unsafeCast ty2))^"\n") ; raise e)*)
 
 val apxCount = ref 0
+
+(* apxInferPattern : pattern -> apxSyncType *)
+fun apxInferPattern p = case Pattern.prj p of
+	  PDepTensor (p1, p2) => ApxTTensor' (apxInferPattern p1, apxInferPattern p2)
+	| POne => ApxTOne'
+	| PDown _ => ApxTDown' $ newApxTVar ()
+	| PAff _ => ApxTAff' $ newApxTVar ()
+	| PBang _ => ApxTBang' $ newApxTVar ()
 
 (* apxCheckKind : context * kind -> kind *)
 fun apxCheckKind (ctx, ki) = case Kind.prj ki of
@@ -107,12 +107,13 @@ and apxCheckType (ctx, ty) =
 		in ty' end
 	else apxCheckType' (ctx, ty)
 and apxCheckType' (ctx, ty) = if isUnknown ty then ty else case AsyncType.prj ty of
-	  Lolli (A, B) => Lolli' (apxCheckType (ctx, A), apxCheckType (ctx, B))
-	| TPi (x, A, B) =>
-			let val A' = apxCheckType (ctx, A)
-			in TPi' (x, A', apxCheckType (ctxCondPushINT (x, asyncTypeToApx A', ctx), B)) end
+	  TLPi (p, A, B) =>
+			let val A' = apxCheckSyncType (ctx, A)
+				fun errmsg () = "stub2"
+				val () = apxUnify (ApxTMonad' $ syncTypeToApx A',
+						ApxTMonad' $ apxInferPattern p, errmsg)
+			in TLPi' (p, A', apxCheckType (tpatBindApx (p, syncTypeToApx A') ctx, B)) end
 	| AddProd (A, B) => AddProd' (apxCheckType (ctx, A), apxCheckType (ctx, B))
-	| Top => Top'
 	| TMonad S => TMonad' (apxCheckSyncType (ctx, S))
 	| TAtomic (a, S) =>
 		(case Signatur.sigGetTypeAbbrev a of
@@ -122,7 +123,7 @@ and apxCheckType' (ctx, ty) = if isUnknown ty then ty else case AsyncType.prj ty
 			| NONE =>
 				let val K = kindToApx (Signatur.sigLookupKind a)
 					val nImpl = Signatur.getImplLength a
-					val S' = foldr TApp' S (List.tabulate (nImpl, fn _ => Util.blank ()))
+					val S' = foldr TApp' S (List.tabulate (nImpl, fn _ => Parse.blank ()))
 				in TAtomic' (a, apxCheckTypeSpine (ctx, S', K)) end)
 	| TAbbrev _ => raise Fail "Internal error: TAbbrev cannot occur yet\n"
 
@@ -133,19 +134,23 @@ and apxCheckTypeSpine (ctx, sp, ki) = case (TypeSpine.prj sp, ApxKind.prj ki) of
 	| (TNil, ApxKPi _) => raise Fail "Wrong kind; expected Type\n"
 	| (TApp _, ApxType) => raise Fail "Wrong kind; cannot apply Type\n"
 	| (TApp (N, S), ApxKPi (A, K)) =>
-			let val (_, _, N') = apxCheckObj (ctx, N, A)
+			let val (_, N') = apxCheckObj (ctx, N, A)
 			in TApp' (N', apxCheckTypeSpine (ctx, S, K)) end
 
 (* apxCheckSyncType : context * syncType -> syncType *)
 and apxCheckSyncType (ctx, ty) = case SyncType.prj ty of
-	  TTensor (S1, S2) => TTensor' (apxCheckSyncType (ctx, S1), apxCheckSyncType (ctx, S2))
+	  LExists (p, A, S) =>
+			let val A' = apxCheckSyncType (ctx, A)
+				fun errmsg () = "stub2"
+				val () = apxUnify (ApxTMonad' $ syncTypeToApx A',
+						ApxTMonad' $ apxInferPattern p, errmsg)
+			in LExists' (p, A', apxCheckSyncType (tpatBindApx (p, syncTypeToApx A') ctx, S)) end
 	| TOne => TOne'
-	| Exists (x, A, S) =>
-			let val A' = apxCheckType (ctx, A)
-			in Exists' (x, A', apxCheckSyncType (ctxCondPushINT (x, asyncTypeToApx A', ctx), S)) end
-	| Async A => Async' (apxCheckType (ctx, A))
+	| TDown A => TDown' (apxCheckType (ctx, A))
+	| TAff A => TAff' (apxCheckType (ctx, A))
+	| TBang A => TBang' (apxCheckType (ctx, A))
 
-(* apxCheckObj : context * obj * apxAsyncType -> context * bool * obj *)
+(* apxCheckObj : context * obj * apxAsyncType -> context * obj *)
 and apxCheckObj (ctx, ob, ty) =
 	( if !traceApx then
 		( print "ApxChecking: "
@@ -155,91 +160,75 @@ and apxCheckObj (ctx, ob, ty) =
 	  else ()
 	; apxCheckObj' (ctx, ob, ty) )
 and apxCheckObj' (ctx, ob, A) =
-	let val (ctxo, t, N, A') = apxInferObj (ctx, ob)
+	let val (ctxo, N, A') = apxInferObj (ctx, ob)
 		fun errmsg () = "Object " ^ PrettyPrint.printObj N ^ " has type " ^
 				PrettyPrint.printType (unsafeCast A') ^ "\n" ^
 				"but expected " ^ PrettyPrint.printType (unsafeCast A) ^ "\n"
-	in apxUnify (A, A', errmsg); (ctxo, t, N) end
+	in apxUnify (A, A', errmsg); (ctxo, N) end
 
-(* apxInferObj : context * obj -> context * bool * obj * apxAsyncType *)
+(* apxInferObj : context * obj -> context * obj * apxAsyncType *)
 and apxInferObj (ctx, ob) = case Util.ObjAuxDefs.prj2 ob of
 	  Redex (Redex (N, A, S1), _, S2) => apxInferObj (ctx, Redex' (N, A, appendSpine (S1, S2)))
 	| Redex (Atomic (H, S1), _, S2) => apxInferObj (ctx, Atomic' (H, appendSpine (S1, S2)))
 	| _ => case Obj.prj ob of
-	  LinLam (x, N) =>
-			let val A = newApxTVar()
-				val (ctxo, t, N', B) = apxInferObj (ctxPushLIN (x, A, ctx), N)
-			in (ctxPopLIN (t, ctxo), t, LinLam' (x, N'), ApxLolli' (A, B)) end
-	| Lam (x, N) =>
-			let val A = newApxTVar()
-				val (ctxo, t, N', B) = apxInferObj (ctxPushINT (x, A, ctx), N)
-			in (ctxPopINT ctxo, t, Lam' (x, N'), ApxTPi' (A, B)) end
+	  LLam (p, N) =>
+			let val A = apxInferPattern p
+				val (ctxo, N', B) = apxInferObj (opatBindApx (p, A) ctx, N)
+			in (patUnbind (p, ctxo), LLam' (p, N'), ApxLolli' (A, B)) end
 	| AddPair (N1, N2) =>
-			let val (ctxo1, t1, N1', A1) = apxInferObj (ctx, N1)
-				val (ctxo2, t2, N2', A2) = apxInferObj (ctx, N2)
-			in (ctxAddJoin (t1, t2) (ctxo1, ctxo2), t1 andalso t2, 
-				AddPair' (N1', N2'), ApxAddProd' (A1, A2)) end
-	| Unit => (ctx, true, Unit', ApxTop')
-	| Monad E => (fn (c, t, e, s) => (c, t, Monad' e, ApxTMonad' s)) (apxInferExp (ctx, E))
+			let val (ctxo1, N1', A1) = apxInferObj (ctx, N1)
+				val (ctxo2, N2', A2) = apxInferObj (ctx, N2)
+			in (ctxAddJoin (ctxo1, ctxo2), AddPair' (N1', N2'), ApxAddProd' (A1, A2)) end
+	| Monad E => (fn (c, e, s) => (c, Monad' e, ApxTMonad' s)) (apxInferExp (ctx, E))
 	| Atomic (H, S) =>
-			let val (ctxm, t1, H', nImpl, A) = apxInferHead (ctx, H)
-				val S' = foldr App' S (List.tabulate (nImpl, fn _ => Util.blank ()))
+			let val (ctxm, H', nImpl, A) = apxInferHead (ctx, H)
+				val S' = foldr LApp' S (List.tabulate (nImpl, fn _ => Bang' $ Parse.blank ()))
 				fun atomRedex (INL h, sp) = Atomic' (h, sp)
 				  | atomRedex (INR h, sp) = Redex' (h, A, sp)
 				fun h2str sp = PrettyPrint.printObj $ atomRedex (H', sp)
-				val (ctxo, t2, S'', B) = apxInferSpine (ctxm, S', A, h2str)
-			in (ctxo, t1 orelse t2, atomRedex (H', S''), B) end
+				val (ctxo, S'', B) = apxInferSpine (ctxm, S', A, h2str)
+			in (ctxo, atomRedex (H', S''), B) end
 	| Redex (N, A, S) =>
-			let val (ctxm, t1, N') = apxCheckObj (ctx, N, A)
+			let val (ctxm, N') = apxCheckObj (ctx, N, A)
 				fun h2str sp = PrettyPrint.printObj $ Redex' (N', A, sp)
-				val (ctxo, t2, S', B) = apxInferSpine (ctxm, S, A, h2str)
-			in (ctxo, t1 orelse t2, Redex' (N', A, S'), B) end
+				val (ctxo, S', B) = apxInferSpine (ctxm, S, A, h2str)
+			in (ctxo, Redex' (N', A, S'), B) end
 	| Constraint (N, A) =>
-			let val A' = apxCheckType (ctxDelLin ctx, A)
+			let val A' = apxCheckType (ctxIntPart ctx, A)
 				val apxA' = asyncTypeToApx A'
-				val (ctxo, t, N') = apxCheckObj (ctx, N, apxA')
-			in (ctxo, t, Constraint' (N', A'), apxA') end
+				val (ctxo, N') = apxCheckObj (ctx, N, apxA')
+			in (ctxo, Constraint' (N', A'), apxA') end
 
-(* apxInferHead : context * head -> context * bool * (head, obj) sum * int * apxAsyncType *)
+(* apxInferHead : context * head -> context * (head, obj) sum * int * apxAsyncType *)
 and apxInferHead (ctx, h) = case h of
-	  Const c => (* set Top flag to true in case of Top type *)
+	  Const c =>
 			(case ctxLookupName (ctx, c) of
-				  SOME (n, M, A, ctxo) => (ctxo, true, INL (Var (M, n)), 0, A)
+				  SOME (n, M, A, ctxo) => (ctxo, INL (Var (M, n)), 0, A)
 				| NONE =>
 					if ucase c then
-						(ctx, true, INL (UCVar c), 0, ImplicitVars.apxUCLookup c)
+						(ctx, INL (UCVar c), 0, ImplicitVars.apxUCLookup c)
 					else (case Signatur.sigGetObjAbbrev c of
-						  SOME (ob, ty) => (ctx, true, INR ob, 0, asyncTypeToApx ty)
-						| NONE => (ctx, true, INL (Const c), Signatur.getImplLength c,
+						  SOME (ob, ty) => (ctx, INR ob, 0, asyncTypeToApx ty)
+						| NONE => (ctx, INL (Const c), Signatur.getImplLength c,
 							asyncTypeToApx (Signatur.sigLookupType c))))
 	| Var _ => raise Fail "de Bruijn indices shouldn't occur yet\n"
 	| UCVar _ => raise Fail "Upper case variables shouldn't occur yet\n"
-	| X as LogicVar {ty, ...} => (ctx, true, INL X, 0, asyncTypeToApx ty)
+	| X as LogicVar {ty, ...} => (ctx, INL X, 0, asyncTypeToApx ty)
 
 (* apxInferSpine : context * spine * apxAsyncType * (spine -> string)
-	-> context * bool * spine * apxAsyncType *)
+	-> context * spine * apxAsyncType *)
 and apxInferSpine (ctx, sp, ty, h2str) = case Spine.prj sp of
-	  Nil => (ctx, false, Nil', ty)
-	| App (N, S) =>
-			let val (_, _, N', A) = apxInferObj (ctxDelLin ctx, N)
+	  Nil => (ctx, Nil', ty)
+	| LApp (M, S) =>
+			let val (ctxm, M', A) = apxInferMonadObj (ctx, M)
 				val B = newApxTVar ()
 				fun errmsg () = "Object " ^ h2str Nil' ^ " has type " ^
 						PrettyPrint.printType (unsafeCast ty) ^ "\n" ^
-						"but is applied to " ^ PrettyPrint.printObj N' ^ " of type " ^
-						PrettyPrint.printType (unsafeCast A) ^ "\n"
-				val () = apxUnify (ty, ApxTPi' (A, B), errmsg)
-				val (ctxo, t, S', tyo) = apxInferSpine (ctx, S, B, fn s => h2str $ App' (N', s))
-			in (ctxo, t, App' (N', S'), tyo) end
-	| LinApp (N, S) =>
-			let val (ctxm, t1, N', A) = apxInferObj (ctx, N)
-				val B = newApxTVar ()
-				fun errmsg () = "Object " ^ h2str Nil' ^ " has type " ^
-						PrettyPrint.printType (unsafeCast ty) ^ "\n" ^
-						"but is linearly applied to " ^ PrettyPrint.printObj N' ^ " of type " ^
-						PrettyPrint.printType (unsafeCast A) ^ "\n"
+						"but is applied to " ^ PrettyPrint.printMonadObj M' ^ " of type " ^
+						PrettyPrint.printSyncType (unsafeCastS A) ^ "\n"
 				val () = apxUnify (ty, ApxLolli' (A, B), errmsg)
-				val (ctxo, t2, S', tyo) = apxInferSpine (ctxm, S, B, fn s => h2str $ LinApp' (N', s))
-			in (ctxo, t1 orelse t2, LinApp' (N', S'), tyo) end
+				val (ctxo, S', tyo) = apxInferSpine (ctxm, S, B, fn s => h2str $ LApp' (M', s))
+			in (ctxo, LApp' (M', S'), tyo) end
 	| ProjLeft S =>
 			let val A = newApxTVar ()
 				val B = newApxTVar ()
@@ -247,8 +236,8 @@ and apxInferSpine (ctx, sp, ty, h2str) = case Spine.prj sp of
 						PrettyPrint.printType (unsafeCast ty) ^ "\n" ^
 						"but is used as pair\n"
 				val () = apxUnify (ty, ApxAddProd' (A, B), errmsg)
-				val (ctxo, t, S', tyo) = apxInferSpine (ctx, S, A, fn s => h2str $ ProjLeft' s)
-			in (ctxo, t, ProjLeft' S', tyo) end
+				val (ctxo, S', tyo) = apxInferSpine (ctx, S, A, fn s => h2str $ ProjLeft' s)
+			in (ctxo, ProjLeft' S', tyo) end
 	| ProjRight S =>
 			let val A = newApxTVar ()
 				val B = newApxTVar ()
@@ -256,44 +245,40 @@ and apxInferSpine (ctx, sp, ty, h2str) = case Spine.prj sp of
 						PrettyPrint.printType (unsafeCast ty) ^ "\n" ^
 						"but is used as pair\n"
 				val () = apxUnify (ty, ApxAddProd' (A, B), errmsg)
-				val (ctxo, t, S', tyo) = apxInferSpine (ctx, S, B, fn s => h2str $ ProjRight' s)
-			in (ctxo, t, ProjRight' S', tyo) end
+				val (ctxo, S', tyo) = apxInferSpine (ctx, S, B, fn s => h2str $ ProjRight' s)
+			in (ctxo, ProjRight' S', tyo) end
 
-(* apxInferExp : context * expObj -> context * bool * expObj * apxSyncType *)
-and apxInferExp (ctx, ex) = case ExpObj.prj ex of
-	  Let (p, N, E) =>
-			let val p' = apxCheckPattern (ctxDelLin ctx, p)
-				val (ctxm, t1, N') = apxCheckObj (ctx, N, ApxTMonad' (Util.pat2apxSyncType p'))
-				val (ctxo', t2, E', S) = apxInferExp (patBind asyncTypeToApx p' ctxm, E)
-			in (patUnbind (p', ctxo', t2), t1 orelse t2, Let' (p', N', E'), S) end
-	| Mon M => (fn (ctxo, t, M', S) => (ctxo, t, Mon' M', S)) (apxInferMonadObj (ctx, M))
+(* apxInferExp : context * expObj -> context * expObj * apxSyncType *)
+and apxInferExp (ctx, ex) =
+	let fun letRed (p, S, ob, E) = case Obj.prj ob of
+			Atomic hS => Let' (p, hS, E) | _ => LetRedex' (p, S, ob, E)
+	in case ExpObj.prj ex of
+	  LetRedex (p, sty, N, E) =>
+			let fun errmsg () = "stub2"
+				val () = apxUnify (ApxTMonad' sty, ApxTMonad' $ apxInferPattern p, errmsg)
+				val (ctxm, N') = apxCheckObj (ctx, N, ApxTMonad' sty)
+				val (ctxo', E', S) = apxInferExp (opatBindApx (p, sty) ctxm, E)
+			in (patUnbind (p, ctxo'), letRed (p, sty, N', E'), S) end
+	| Let (p, hS, E) => apxInferExp (ctx, LetRedex' (p, apxInferPattern p, Atomic' hS, E))
+	| Mon M => (fn (ctxo, M', S) => (ctxo, Mon' M', S)) (apxInferMonadObj (ctx, M))
+	end
 
-(* apxCheckPattern : context * pattern -> pattern *)
-and apxCheckPattern (ctx, p) = case Pattern.prj p of
-	  PTensor (p1, p2) => PTensor' (apxCheckPattern (ctx, p1), apxCheckPattern (ctx, p2))
-	| POne => POne'
-	| PDepPair (x, A, p) =>
-			let val A' = apxCheckType (ctx, A)
-			in PDepPair' (x, A', apxCheckPattern (ctxPushINT (x, asyncTypeToApx A', ctx), p)) end
-	| PVar (x, A) => PVar' (x, apxCheckType (ctx, A))
-
-(* apxInferMonadObj : context * monadObj -> context * bool * monadObj * apxSyncType *)
+(* apxInferMonadObj : context * monadObj -> context * monadObj * apxSyncType *)
 and apxInferMonadObj (ctx, mob) = case MonadObj.prj mob of
-	  Tensor (M1, M2) =>
-			let val (ctxm, t1, M1', S1) = apxInferMonadObj (ctx, M1)
-				val (ctxo, t2, M2', S2) = apxInferMonadObj (ctxm, M2)
-			in (ctxo, t1 orelse t2, Tensor' (M1', M2'), ApxTTensor' (S1, S2)) end
-	| One => (ctx, false, One', ApxTOne')
-	| DepPair (N, M) =>
-			let val (_, _, N', A) = apxInferObj (ctxDelLin ctx, N)
-				val (ctxo, t, M', S) = apxInferMonadObj (ctx, M)
-			in (ctxo, t, DepPair' (N', M'), ApxExists' (A, S)) end
-	| Norm N => (fn (ctxo, t, N', A) => (ctxo, t, Norm' N', ApxAsync' A)) (apxInferObj (ctx, N))
+	  DepPair (M1, M2) =>
+			let val (ctxm, M1', S1) = apxInferMonadObj (ctx, M1)
+				val (ctxo, M2', S2) = apxInferMonadObj (ctxm, M2)
+			in (ctxo, DepPair' (M1', M2'), ApxTTensor' (S1, S2)) end
+	| One => (ctx, One', ApxTOne')
+	| Down N => (fn (ctxo, N', A) => (ctxo, Down' N', ApxTDown' A)) (apxInferObj (ctx, N))
+	| Aff N => (fn (ctxo, N', A) => (ctxJoinAffLin (ctxo, ctx), Aff' N', ApxTAff' A))
+			(apxInferObj (ctxAffPart ctx, N))
+	| Bang N => (fn (_, N', A) => (ctx, Bang' N', ApxTBang' A)) (apxInferObj (ctxIntPart ctx, N))
 
 
 fun apxCheckKindEC ki = apxCheckKind (emptyCtx, ki)
 fun apxCheckTypeEC ty = apxCheckType (emptyCtx, ty)
-fun apxCheckObjEC (ob, ty) = #3 (apxCheckObj (emptyCtx, ob, ty))
+fun apxCheckObjEC (ob, ty) = #2 (apxCheckObj (emptyCtx, ob, ty))
 (*
 fun apxCheckObjEC (ob, ty) = case (Obj.prj o #3 o apxInferObj) (emptyCtx, Constraint' (ob, ty)) of
 		  Constraint obty => obty

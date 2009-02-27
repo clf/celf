@@ -20,8 +20,23 @@
 signature PATTERNBIND =
 sig
 
-val patBind : (Syntax.asyncType -> 'a) -> Syntax.pattern -> 'a Context.context -> 'a Context.context
-val patUnbind : Syntax.pattern * 'a Context.context * bool -> 'a Context.context
-val patUnbindOpt : Syntax.pattern * 'a Context.context * bool -> 'a Context.context option
+(*val tpatBind : Syntax.tpattern * Syntax.syncType -> Syntax.asyncType Context.context
+		-> Syntax.asyncType Context.context
+val opatBind : Syntax.opattern * Syntax.syncType -> Syntax.asyncType Context.context
+		-> Syntax.asyncType Context.context*)
+val tpatBind : (Syntax.asyncType -> 'a) -> Syntax.tpattern * Syntax.syncType
+		-> 'a Context.context -> 'a Context.context
+val opatBind : (Syntax.asyncType -> 'a) -> Syntax.opattern * Syntax.syncType
+		-> 'a Context.context -> 'a Context.context
+val tpatBindApx : Syntax.tpattern * Syntax.apxSyncType -> Syntax.apxAsyncType Context.context
+		-> Syntax.apxAsyncType Context.context
+val opatBindApx : Syntax.opattern * Syntax.apxSyncType -> Syntax.apxAsyncType Context.context
+		-> Syntax.apxAsyncType Context.context
+val tpatBindNf : Syntax.tpattern * Syntax.nfSyncType -> Syntax.nfAsyncType Context.context
+		-> Syntax.nfAsyncType Context.context
+val opatBindNf : Syntax.opattern * Syntax.nfSyncType -> Syntax.nfAsyncType Context.context
+		-> Syntax.nfAsyncType Context.context
+val patUnbind : Syntax.opattern * 'a Context.context -> 'a Context.context
+val patUnbindOpt : Syntax.opattern * 'a Context.context -> 'a Context.context option
 
 end

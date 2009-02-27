@@ -36,6 +36,7 @@ fun keyword (s,p) =
 	(case s of
 		"type" => Tokens.TYPE(p,p)
 	  | "Pi" => Tokens.PI(p,p)
+	  | "LPi" => Tokens.LPI(p,p)
 	  | "#1" => Tokens.PROJLEFT(p,p)
 	  (*| "pi_1" => Tokens.PROJLEFT(p,p) -- retired *)
 	  | "#2" => Tokens.PROJRIGHT(p,p)
@@ -45,6 +46,7 @@ fun keyword (s,p) =
 	  (*| "one" => Tokens.ONE(p,p) -- retired *)
 	  (*| "1" => Tokens.ONE(p,p) -- handled by number parsing *)
 	  | "Exists" => Tokens.EXISTS(p,p)
+	  | "LExists" => Tokens.LEXISTS(p,p)
 	  | "let" => Tokens.LET(p,p)
 	  | "in" => Tokens.IN(p,p)
 	  | "#query" => Tokens.QUERY(p,p)
@@ -68,14 +70,10 @@ ws = [\ \t];
 "{" => (Tokens.LCURLY(getpos yypos,getpos yypos));
 "}" => (Tokens.RCURLY(getpos yypos,getpos yypos));
 "*" => (Tokens.TENSOR(getpos yypos,getpos yypos));
-\\"^" => (Tokens.LINLAMBDA(getpos yypos,getpos yypos));
 \\ => (Tokens.LAMBDA(getpos yypos,getpos yypos));
-"<>" => (Tokens.UNIT(getpos yypos,getpos yypos));
-"<T>" => (Tokens.TOP(getpos yypos,getpos yypos));
 "<" => (Tokens.LANGLE(getpos yypos,getpos yypos));
 ">" => (Tokens.RANGLE(getpos yypos,getpos yypos));
 "," => (Tokens.COMMA(getpos yypos,getpos yypos));
-"^" => (Tokens.LINAPP(getpos yypos,getpos yypos));
 "=" => (Tokens.EQUAL(getpos yypos,getpos yypos));
 "[" => (Tokens.LBRACKET(getpos yypos,getpos yypos));
 "]" => (Tokens.RBRACKET(getpos yypos,getpos yypos));
@@ -83,6 +81,10 @@ ws = [\ \t];
 ")" => (Tokens.RPAREN(getpos yypos,getpos yypos));
 "->" => (Tokens.ARROW(getpos yypos,getpos yypos));
 "<-" => (Tokens.BACKARROW(getpos yypos,getpos yypos));
+"@" => (Tokens.AFF(getpos yypos,getpos yypos));
+"!" => (Tokens.BANG(getpos yypos,getpos yypos));
+"-@" => (Tokens.AFFLOLLI(getpos yypos,getpos yypos));
+"@-" => (Tokens.BACKAFFLOLLI(getpos yypos,getpos yypos));
 [0-9]+ => (number (yytext,getpos yypos));
 [-a-zA-Z0-9<>=/|_'*#+@&~;$?]+ => (keyword (yytext,getpos yypos));
 . => (let val (l,c) = getpos(yypos) in

@@ -31,9 +31,9 @@ val checkKind : context * Syntax.nfKind -> unit
 val checkType : context * Syntax.nfAsyncType -> unit
 val checkTypeSpine : context * Syntax.nfTypeSpine * Syntax.nfKind -> unit
 val checkSyncType : context * Syntax.nfSyncType -> unit
-val checkObj : context * Syntax.nfObj * Syntax.nfAsyncType -> context * bool
-val inferSpine : context * Syntax.nfSpine * Syntax.nfAsyncType -> context * bool * Syntax.nfAsyncType
-val inferHead : context * Syntax.nfHead -> context * bool * Syntax.nfAsyncType
+val checkObj : context * Syntax.nfObj * Syntax.nfAsyncType -> context
+val inferSpine : context * Syntax.nfSpine * Syntax.nfAsyncType -> context * Syntax.nfAsyncType
+val inferHead : context * Syntax.nfHead -> context * Syntax.nfAsyncType
 
 val checkKindEC : Syntax.kind -> unit
 val checkTypeEC : Syntax.asyncType -> unit

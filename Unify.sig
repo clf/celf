@@ -27,15 +27,15 @@ exception ExnUnify of string
 val resetConstrs : unit -> unit
 val noConstrs : unit -> unit
 val addConstraint : Syntax.constr VRef.vref * Syntax.constr VRef.vref list VRef.vref list -> unit
-val instantiate : Syntax.obj option VRef.vref * Syntax.obj * Syntax.constr VRef.vref list VRef.vref * word -> unit
+val instantiate : Syntax.nfObj option VRef.vref * Syntax.nfObj * Syntax.constr VRef.vref list VRef.vref * word -> unit
 
-val pruneCtx : exn -> (Syntax.asyncType -> Syntax.asyncType) -> Syntax.subst
-		-> Syntax.asyncType Context.context -> Syntax.asyncType Context.context
+val pruneCtx : exn -> (Syntax.nfAsyncType -> Syntax.nfAsyncType) -> Syntax.subst
+		-> Syntax.nfAsyncType Context.context -> Syntax.nfAsyncType Context.context
 
 exception ExnOccur
 
-val objExists : Syntax.obj option VRef.vref -> Syntax.obj -> Syntax.obj option
-val typeExists : Syntax.obj option VRef.vref -> Syntax.asyncType -> Syntax.asyncType option
+val objExists : Syntax.nfObj option VRef.vref -> Syntax.nfObj -> Syntax.nfObj option
+val typeExists : Syntax.nfObj option VRef.vref -> Syntax.nfAsyncType -> Syntax.nfAsyncType option
 
 val unify : Syntax.asyncType * Syntax.asyncType * (unit -> string) -> unit
 val unifiable : Syntax.asyncType * Syntax.asyncType -> bool

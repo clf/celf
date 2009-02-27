@@ -21,6 +21,7 @@ signature UTIL =
 sig
 
 structure ObjAuxDefs : AUX_DEFS where type 'a T.F = 'a Syntax.objF and type T.t = Syntax.obj
+structure NfExpObjAuxDefs : AUX_DEFS where type 'a T.F = 'a Syntax.nfExpObjF and type T.t = Syntax.nfExpObj
 
 structure KindRec : REC2 where type ('a, 't) T.F = ('a, 't) Syntax.kindFF
 		and type T.t = Syntax.kind and type T.a = Syntax.asyncType
@@ -35,28 +36,15 @@ structure ObjRec : REC4 where type ('a, 'b, 'c, 't) T.F = ('a, 'b, 'c, 't) Synta
 		and type T.t = Syntax.obj and type T.a = Syntax.asyncType
 		and type T.b = Syntax.spine and type T.c = Syntax.expObj
 structure SpineRec : REC2 where type ('a, 't) T.F = ('a, 't) Syntax.spineFF
-		and type T.t = Syntax.spine and type T.a = Syntax.obj
+		and type T.t = Syntax.spine and type T.a = Syntax.monadObj
 structure ExpObjRec : REC4 where type ('a, 'b, 'c, 't) T.F = ('a, 'b, 'c, 't) Syntax.expObjFF
 		and type T.t = Syntax.expObj and type T.a = Syntax.obj
-		and type T.b = Syntax.monadObj and type T.c = Syntax.pattern
+		and type T.b = Syntax.spine and type T.c = Syntax.monadObj
 structure MonadObjRec : REC2 where type ('a, 't) T.F = ('a, 't) Syntax.monadObjFF
 		and type T.t = Syntax.monadObj and type T.a = Syntax.obj
-structure PatternRec : REC2 where type ('a, 't) T.F = ('a, 't) Syntax.patternFF
-		and type T.t = Syntax.pattern and type T.a = Syntax.asyncType
-
-val linApp : Syntax.obj * Syntax.obj -> Syntax.obj
-val app : Syntax.obj * Syntax.obj -> Syntax.obj
-val projLeft : Syntax.obj -> Syntax.obj
-val projRight : Syntax.obj -> Syntax.obj
-val blank : unit -> Syntax.obj
-val headToObj : Syntax.head -> Syntax.obj
-
-val linLamConstr : string * Syntax.asyncType * Syntax.obj -> Syntax.obj
-val lamConstr : string * Syntax.asyncType * Syntax.obj -> Syntax.obj
 
 val typePrjAbbrev : Syntax.asyncType -> Syntax.asyncType Syntax.asyncTypeF
 val nfTypePrjAbbrev : Syntax.nfAsyncType -> Syntax.nfAsyncType Syntax.nfAsyncTypeF
-
 val apxTypePrjAbbrev : Syntax.apxAsyncType -> Syntax.apxAsyncType Syntax.apxAsyncTypeF
 
 val isNil : Syntax.spine -> bool
@@ -70,9 +58,9 @@ val objMapType : (Syntax.obj -> Syntax.obj Syntax.objF) -> Syntax.asyncType -> S
 val objMapObj : (Syntax.obj -> Syntax.obj Syntax.objF) -> Syntax.obj -> Syntax.obj
 
 (* boolean flag indicates a strong rigid context *)
-val objSRigMapKind : (bool -> Syntax.obj -> Syntax.obj Syntax.objF) -> bool -> Syntax.kind -> Syntax.kind
-val objSRigMapType : (bool -> Syntax.obj -> Syntax.obj Syntax.objF) -> bool -> Syntax.asyncType -> Syntax.asyncType
-val objSRigMapObj : (bool -> Syntax.obj -> Syntax.obj Syntax.objF) -> bool -> Syntax.obj -> Syntax.obj
+val objSRigMapKind : (bool -> Syntax.nfObj -> Syntax.nfObj Syntax.nfObjF) -> bool -> Syntax.nfKind -> Syntax.nfKind
+val objSRigMapType : (bool -> Syntax.nfObj -> Syntax.nfObj Syntax.nfObjF) -> bool -> Syntax.nfAsyncType -> Syntax.nfAsyncType
+val objSRigMapObj : (bool -> Syntax.nfObj -> Syntax.nfObj Syntax.nfObjF) -> bool -> Syntax.nfObj -> Syntax.nfObj
 
 val forceNormalizeKind : Syntax.kind -> Syntax.kind
 val forceNormalizeType : Syntax.asyncType -> Syntax.asyncType
@@ -87,6 +75,6 @@ val removeApxObj : Syntax.obj -> Syntax.obj
 val asyncTypeFromApx : Syntax.apxAsyncType -> Syntax.asyncType
 val syncTypeFromApx : Syntax.apxSyncType -> Syntax.syncType
 
-val pat2apxSyncType : Syntax.pattern -> Syntax.apxSyncType
+val pat2apxSyncType : Syntax.opattern -> Syntax.apxSyncType
 
 end

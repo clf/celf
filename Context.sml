@@ -22,7 +22,9 @@ struct
 
 exception ExnCtx of string
 
-datatype mode = INT | LIN
+(*datatype mode = INT | AFF | LIN
+datatype cmode = NOINT | NOAFF | M of mode*)
+datatype mode = INT | AFF | LIN
 type cmode = mode option
 type 'a context = (string * 'a * cmode) list
 
@@ -33,21 +35,30 @@ fun ctxMap f ctx = map (fn (x, A, t) => (x, f A, t)) ctx
 
 val emptyCtx = []
 
-(* ctxDelLin : context -> context *)
-fun ctxDelLin ctx =
-	let fun delLin' (entry as (_, _, SOME INT)) = entry
-		  | delLin' (entry as (_, _, NONE)) = entry
-		  | delLin' (x, A, SOME LIN) = (x, A, NONE)
-	in map delLin' ctx end
+(* ctxIntPart : context -> context *)
+fun ctxIntPart ctx =
+	let fun d (entry as (_, _, NONE)) = entry
+		  | d (entry as (_, _, SOME INT)) = entry
+		  | d (x, A, SOME AFF) = (x, A, NONE)
+		  | d (x, A, SOME LIN) = (x, A, NONE)
+	in map d ctx end
+(* ctxAffPart : context -> context *)
+fun ctxAffPart ctx =
+	let fun d (entry as (_, _, NONE)) = entry
+		  | d (entry as (_, _, SOME INT)) = entry
+		  | d (entry as (_, _, SOME AFF)) = entry
+		  | d (x, A, SOME LIN) = (x, A, NONE)
+	in map d ctx end
 
 fun use _ (SOME INT) = SOME INT
+  | use _ (SOME AFF) = NONE
   | use _ (SOME LIN) = NONE
-  | use y NONE = raise Fail ("Linear variable "^y^" can't be used twice/here\n")
+  | use y NONE = raise Fail ("Linear/affine variable "^y^" can't be used twice/here\n")
 
 (* ctxLookupNum : 'a context * int -> 'a context * mode * 'a *)
 fun ctxLookupNum (ctx, n) =
 	let fun ctxLookup' (i, ctxfront, []) = raise Fail "Internal error: End of context\n"
-		  | ctxLookup' (1, ctxfront, (x, A, f)::ctx) =
+		  | ctxLookup' (1, ctxfront, (x, A, f)::ctx) = (* getOpt = valOf because of "use" *)
 				(List.revAppend (ctxfront, (x, A, use x f)::ctx), getOpt (f, LIN), A)
 		  | ctxLookup' (i, ctxfront, c::ctx) = ctxLookup' (i-1, c::ctxfront, ctx)
 	in ctxLookup' (n, [], ctx) end
@@ -55,54 +66,65 @@ fun ctxLookupNum (ctx, n) =
 (* ctxLookupName : 'a context * string -> (int * mode * 'a * 'a context) option *)
 fun ctxLookupName (ctx, y) =
 	let fun ctxLookup' (i, ctx, []) = NONE
-		  | ctxLookup' (i, ctxfront, (x, A, f)::ctx) =
+		  | ctxLookup' (i, ctxfront, (x, A, f)::ctx) = (* getOpt = valOf because of "use" *)
 				if x=y then SOME (i, getOpt (f, LIN), A,
 									List.revAppend (ctxfront, (x, A, use x f)::ctx))
 				else ctxLookup' (i+1, (x, A, f)::ctxfront, ctx)
 	in ctxLookup' (1, [], ctx) end
 
-(* ctxPushINT : string * 'a * 'a context -> 'a context *)
-fun ctxPushINT (x, A, ctx) = (x, A, SOME INT) :: ctx
+(* ctxPush : string * mode * 'a * 'a context -> 'a context *)
+fun ctxPush (x, m, A, ctx) = (x, A, SOME m) :: ctx
+
+(* ctxPushNO : 'a * 'a context -> 'a context *)
+fun ctxPushNO (A, ctx) = ("", A, NONE) :: ctx
 
 (* ctxCondPushINT : string option * 'a * 'a context -> 'a context *)
 fun ctxCondPushINT (NONE, _, ctx) = ctx
-  | ctxCondPushINT (SOME x, A, ctx) = ctxPushINT (x, A, ctx)
+  | ctxCondPushINT (SOME x, A, ctx) = ctxPush (x, INT, A, ctx)
 
-(* ctxPushLIN : string * 'a * 'a context -> 'a context *)
-fun ctxPushLIN (x, A, ctx) = (x, A, SOME LIN) :: ctx
+(* ctxPop : 'a context -> 'a context *)
+fun ctxPop ((_, _, NONE)::ctx) = ctx
+  | ctxPop ((_, _, SOME INT)::ctx) = ctx
+  | ctxPop ((_, _, SOME AFF)::ctx) = ctx
+  | ctxPop ((x, _, SOME LIN)::ctx) = raise ExnCtx (x^" doesn't occur\n")
+  | ctxPop [] = raise Fail "Internal error ctxPop: empty context"
 
-(* ctxPopINT : 'a context -> 'a context *)
-fun ctxPopINT ((_, _, SOME INT)::ctx) = ctx
-  | ctxPopINT _ = raise Fail "Internal error: ctxPopINT"
+(* ctxPopLINopt : 'a context -> 'a context option *)
+fun ctxPopLINopt ctx = SOME (ctxPop ctx) handle ExnCtx _ => NONE
 
-(* ctxPopLIN : bool * 'a context -> 'a context *)
-fun ctxPopLIN (_, (_, _, NONE)::ctx) = ctx
-  | ctxPopLIN (true, (_, _, SOME LIN)::ctx) = ctx
-  | ctxPopLIN (false, (x, _, SOME LIN)::ctx) = raise ExnCtx (x^" doesn't occur\n")
-  | ctxPopLIN _ = raise Fail "Internal error: ctxPopLIN"
-
-(* ctxPopLINopt : bool * 'a context -> 'a context option *)
-fun ctxPopLINopt tCtx = SOME (ctxPopLIN tCtx) handle ExnCtx _ => NONE
-
-fun addJoin (t1, t2) ((x, A, f1), (_, _, f2)) =
-	let val f = case (t1, f1, t2, f2) of
-					(_, SOME INT, _, SOME INT) => SOME INT
-				  | (_, NONE, _, NONE) => NONE
-				  | (_, SOME LIN, _, SOME LIN) => SOME LIN
-				  | (_, NONE, true, SOME LIN) => NONE
-				  | (_, NONE, false, SOME LIN) => raise ExnCtx "Contexts can't join\n"
-				  | (true, SOME LIN, _, NONE) => NONE
-				  | (false, SOME LIN, _, NONE) => raise ExnCtx "Contexts can't join\n"
-				  | _ => raise Fail "Internal error: context misalignment\n"
+fun addJoin ((x, A, f1), (_, _, f2)) =
+	let val f = case (f1, f2) of
+				  (NONE, NONE) => NONE
+				| (NONE, SOME LIN) => raise ExnCtx "Contexts can't join\n"
+				| (SOME LIN, NONE) => raise ExnCtx "Contexts can't join\n"
+				| (NONE, SOME AFF) => NONE
+				| (SOME AFF, NONE) => NONE
+				| (SOME INT, SOME INT) => SOME INT
+				| (SOME AFF, SOME AFF) => SOME AFF
+				| (SOME LIN, SOME LIN) => SOME LIN
+				| _ => raise Fail "Internal error: context misalignment\n"
 	in (x, A, f) end
 
 fun mapEq f ([], []) = []
   | mapEq f (x::xs, y::ys) = f (x, y) :: mapEq f (xs, ys)
   | mapEq _ _ = raise Fail "Unequal lengths"
-(* ctxAddJoin : bool * bool -> 'a context * 'a context -> 'a context *)
-fun ctxAddJoin topFlags ctxs = (*ListPair.*)mapEq (addJoin topFlags) ctxs
+(* ctxAddJoin : 'a context * 'a context -> 'a context *)
+fun ctxAddJoin ctxs = (*ListPair.*)mapEq addJoin ctxs
 
-(* ctxAddJoinOpt : bool * bool -> 'a context * 'a context -> 'a context option *)
-fun ctxAddJoinOpt topFlags ctxs = SOME (ctxAddJoin topFlags ctxs) handle ExnCtx _ => NONE
+(* ctxAddJoinOpt : 'a context * 'a context -> 'a context option *)
+fun ctxAddJoinOpt ctxs = SOME (ctxAddJoin ctxs) handle ExnCtx _ => NONE
+
+fun joinAffLin ((x, A, f1), (_, _, f2)) =
+	let val f = case (f1, f2) of
+				  (NONE, NONE) => NONE
+				| (NONE, SOME LIN) => SOME LIN
+				| (NONE, SOME AFF) => NONE
+				| (SOME AFF, SOME AFF) => SOME AFF
+				| (SOME INT, SOME INT) => SOME INT
+				| _ => raise Fail "Internal error joinAffLin: context misalignment\n"
+	in (x, A, f) end
+
+(* ctxJoinAffLin : 'a context * 'a context -> 'a context *)
+fun ctxJoinAffLin ctxs = (*ListPair.*)mapEq joinAffLin ctxs
 
 end

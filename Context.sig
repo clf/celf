@@ -22,7 +22,9 @@ sig
 
 exception ExnCtx of string
 
-datatype mode = INT | LIN
+(*datatype mode = INT | AFF | LIN
+datatype cmode = NOINT | NOAFF | M of mode*)
+datatype mode = INT | AFF | LIN
 type cmode = mode option
 type 'a context
 
@@ -32,19 +34,21 @@ val ctxMap : ('a -> 'b) -> 'a context -> 'b context
 
 val emptyCtx : 'a context
 
-val ctxDelLin : 'a context -> 'a context
+val ctxIntPart : 'a context -> 'a context
+val ctxAffPart : 'a context -> 'a context
 
 val ctxLookupNum : 'a context * int -> 'a context * mode * 'a
 val ctxLookupName : 'a context * string -> (int * mode * 'a * 'a context) option
 
-val ctxPushINT : string * 'a * 'a context -> 'a context
+val ctxPush : string * mode * 'a * 'a context -> 'a context
+val ctxPushNO : 'a * 'a context -> 'a context
 val ctxCondPushINT : string option * 'a * 'a context -> 'a context
-val ctxPushLIN : string * 'a * 'a context -> 'a context
-val ctxPopINT : 'a context -> 'a context
-val ctxPopLIN : bool * 'a context -> 'a context
-val ctxPopLINopt : bool * 'a context -> 'a context option
+val ctxPop : 'a context -> 'a context
+val ctxPopLINopt : 'a context -> 'a context option
 
-val ctxAddJoin : bool * bool -> 'a context * 'a context -> 'a context
-val ctxAddJoinOpt : bool * bool -> 'a context * 'a context -> 'a context option
+val ctxAddJoin : 'a context * 'a context -> 'a context
+val ctxAddJoinOpt : 'a context * 'a context -> 'a context option
+
+val ctxJoinAffLin : 'a context * 'a context -> 'a context
 
 end

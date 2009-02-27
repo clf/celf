@@ -44,10 +44,8 @@ and checkType (ctx, ty) =
 	  else ()
 	; checkType' (ctx, ty) )
 and checkType' (ctx, ty) = case AsyncType.prj ty of
-	  Lolli (A, B) => (checkType (ctx, A); checkType (ctx, B))
-	| TPi (x, A, B) => (checkType (ctx, A); checkType (ctxCondPushINT (x, A, ctx), B))
+	  TLPi (p, S, B) => (checkSyncType (ctx, S); checkType (tpatBind (fn x=>x) (p, S) ctx, B))
 	| AddProd (A, B) => (checkType (ctx, A); checkType (ctx, B))
-	| Top => ()
 	| TMonad S => checkSyncType (ctx, S)
 	| TAtomic (a, S) => checkTypeSpine (ctx, S, Signatur.sigLookupKind a)
 	| TAbbrev aA => ()
@@ -60,17 +58,18 @@ and checkTypeSpine (ctx, sp, ki) = case (TypeSpine.prj sp, Kind.prj ki) of
 	| (TApp _, Type) => raise Fail "Wrong kind; cannot apply Type\n"
 	| (TApp (N, S), KPi (x, A, K)) =>
 			let val _ = checkObj (ctx, N, A)
-				val K' = if isSome x then KClos (K, Subst.subI N) else K 
+				val K' = if isSome x then KClos (K, Subst.subI $ normalizeObj N) else K 
 			in checkTypeSpine (ctx, S, K') end
 
 (* checkSyncType : context * syncType -> unit *)
 and checkSyncType (ctx, ty) = case SyncType.prj ty of
-	  TTensor (S1, S2) => (checkSyncType (ctx, S1); checkSyncType (ctx, S2))
+	  LExists (p, S1, S2) => (checkSyncType (ctx, S1); checkSyncType (tpatBind (fn x=>x) (p, S1) ctx, S2))
 	| TOne => ()
-	| Exists (x, A, S) => (checkType (ctx, A); checkSyncType (ctxCondPushINT (x, A, ctx), S))
-	| Async A => checkType (ctx, A)
+	| TDown A => checkType (ctx, A)
+	| TAff A => checkType (ctx, A)
+	| TBang A => checkType (ctx, A)
 
-(* checkObj : context * obj * asyncType -> context * bool *)
+(* checkObj : context * obj * asyncType -> context *)
 and checkObj (ctx, ob, ty) =
 	( if !traceExact then
 		( print "Checking: "
@@ -79,39 +78,30 @@ and checkObj (ctx, ob, ty) =
 	  else ()
 	; checkObj' (ctx, ob, ty) )
 and checkObj' (ctx, ob, ty) = case (Obj.prj ob, Util.typePrjAbbrev ty) of
-	  (LinLam (x, N), Lolli (A, B)) =>
-			let val (ctxo, t) = checkObj (ctxPushLIN (x, A, ctx), N, TClos (B, Subst.shift 1))
-			in (ctxPopLIN (t, ctxo), t) end
-	| (Lam (x, N), TPi (x', A, B)) =>
-			let val B' = if isSome x' then B else TClos (B, Subst.shift 1)
-				val (ctxo, t) = checkObj (ctxPushINT (x, A, ctx), N, B')
-			in (ctxPopINT ctxo, t) end
+	  (LLam (p, N), TLPi (_, S, B)) => patUnbind (p, checkObj (opatBind (fn x=>x) (p, S) ctx, N, B))
 	| (AddPair (N1, N2), AddProd (A, B)) =>
-			let val (ctxo1, t1) = checkObj (ctx, N1, A)
-				val (ctxo2, t2) = checkObj (ctx, N2, B)
-			in (ctxAddJoin (t1, t2) (ctxo1, ctxo2), t1 andalso t2) end
-	| (Unit, Top) => (ctx, true)
+			ctxAddJoin (checkObj (ctx, N1, A), checkObj (ctx, N2, B))
 	| (Monad E, TMonad S) => checkExp (ctx, E, S)
 	| (Atomic (H, S), A) =>
 			let val (ctxm, B) = inferHead (ctx, H)
-				val (ctxo, t, A') = inferSpine (ctxm, S, B)
+				val (ctxo, A') = inferSpine (ctxm, S, B)
 				fun errmsg () = "Object "^(PrettyPrint.printObj ob)
 							^" has type:\n"^(PrettyPrint.printType A')
 							^"\nbut expected:\n"^(PrettyPrint.printType ty)
 				val () = unify (AsyncType.inj A, A', errmsg)
-			in (ctxo, t) end
+			in ctxo end
 	| (Redex (N, B, S), A) =>
 			let val B' = Util.asyncTypeFromApx B
-				val () = checkType (ctx, B')
-				val (ctxm, t1) = checkObj (ctx, N, B')
-				val (ctxo, t2, A') = inferSpine (ctxm, S, B')
+				val () = checkType (ctxIntPart ctx, B')
+				val ctxm = checkObj (ctx, N, B')
+				val (ctxo, A') = inferSpine (ctxm, S, B')
 				fun errmsg () = "Object "^(PrettyPrint.printObj ob)
 							^" has type:\n"^(PrettyPrint.printType A')
 							^"\nbut expected:\n"^(PrettyPrint.printType ty)
 				val () = unify (AsyncType.inj A, A', errmsg)
-			in (ctxo, t1 orelse t2) end
+			in ctxo end
 	| (Constraint (N, A'), A) =>
-			let val () = checkType (ctxDelLin ctx, A')
+			let val () = checkType (ctxIntPart ctx, A')
 				fun errmsg () = "Object "^(PrettyPrint.printObj N)
 							^" has ascribed type:\n"^(PrettyPrint.printType A')
 							^"\nbut expected:\n"^(PrettyPrint.printType ty)
@@ -129,8 +119,11 @@ and inferHead (ctx, h) = case h of
 	| UCVar x =>
 			(ctx, TClos (ImplicitVars.ucLookup x, Subst.shift $ length $ ctx2list ctx))
 	| LogicVar {X, ty, s, ctx=rctx, ...} =>
-			let val calcCtx = Unify.pruneCtx (Fail "inferHead:pruning lin") (fn A => A)
-				val lvarCtx = calcCtx (Subst.invert s) $ ctxDelLin ctx
+			let val calcCtx' = Unify.pruneCtx (Fail "inferHead:pruning lin") (fn A => A)
+				fun calcCtx si c = ctxMap unnormalizeType $ calcCtx' si $ ctxMap normalizeType c
+				val lvarCtx = calcCtx (Subst.invert s) $ ctxIntPart ctx
+				val () = if Subst.isWeaken s then ()
+							else raise Fail "inferHead:unexpected substitution"
 				val () = case !rctx of
 						  NONE => rctx := SOME lvarCtx
 						| SOME prevCtx => raise Fail "Internal error: double ctx instantiation"
@@ -138,7 +131,7 @@ and inferHead (ctx, h) = case h of
 							ListPair.appEq ApproxTypes.apxUnifyType
 								(map (asyncTypeToApx o #2) (ctx2list prevCtx),
 								 map (asyncTypeToApx o #2) (ctx2list lvarCtx)) *)
-				val () = checkType (lvarCtx, ty)
+				val () = checkType ((*ctxIntPart*) lvarCtx, ty)
 				val weakenSub = foldr (fn ((_, _, NONE), w) => Subst.comp (w, Subst.shift 1)
 				                        | ((_, _, SOME _), w) => Subst.dot1 w)
 				                Subst.id (ctx2list lvarCtx)
@@ -147,55 +140,47 @@ and inferHead (ctx, h) = case h of
 								val G = SOME $ calcCtx ss lvarCtx
 								val ty' = TClos (ty, ss)
 								open VRef infix ::=
-							in X ::= SOME $ Clos (newLVarCtx G ty', weakenSub) end
+							in X ::= SOME $ normalizeObj $ Clos (newLVarCtx G ty', weakenSub) end
 			in (ctx, TClos (ty, s)) end
 
-(* inferSpine : context * spine * asyncType -> context * bool * asyncType *)
+(* inferSpine : context * spine * asyncType -> context * asyncType *)
 and inferSpine (ctx, sp, ty) = case (Spine.prj sp, Util.typePrjAbbrev ty) of
-	  (Nil, A) => (ctx, false, ty)
-	| (App (N, S), TPi (x, A, B)) =>
-			let val _ = checkObj (ctxDelLin ctx, N, A)
-				val B' = if isSome x then TClos (B, Subst.subI N) else B
-			in inferSpine (ctx, S, B') end
-	| (LinApp (N, S), Lolli (A, B)) =>
-			let val (ctxm, t1) = checkObj (ctx, N, A)
-				val (ctxo, t2, tyo) = inferSpine (ctxm, S, B)
-			in (ctxo, t1 orelse t2, tyo) end
-	| (ProjLeft S, AddProd (A, B)) => inferSpine (ctx, S, A)
-	| (ProjRight S, AddProd (A, B)) => inferSpine (ctx, S, B)
+	  (Nil, A) => (ctx, ty)
+	| (LApp (M, S), TLPi (_, A, B)) =>
+			let val ctxm = checkMonadObj (ctx, M, A)
+			in inferSpine (ctxm, S, TClos (B, Subst.subM $ normalizeMonadObj M)) end
+	| (ProjLeft S, AddProd (A, _)) => inferSpine (ctx, S, A)
+	| (ProjRight S, AddProd (_, B)) => inferSpine (ctx, S, B)
 	| _ => raise Fail "Internal error match: inferSpine\n"
 
-(* checkExp : context * expObj * syncType -> context * bool *)
+(* checkExp : context * expObj * syncType -> context *)
 and checkExp (ctx, ex, ty) = case ExpObj.prj ex of
-	  Let (p, N, E) =>
-			let val S0 = checkPattern (ctxDelLin ctx, p)
-				val (ctxm, t1) = checkObj (ctx, N, TMonad' S0)
-				val ctxm' = patBind (fn x=>x) p ctxm
-				val (ctxo', t2) = checkExp (ctxm', E, STClos (ty, Subst.shift (nbinds p)))
-			in (patUnbind (p, ctxo', t2), t1 orelse t2) end
+	  LetRedex (p, S, N, E) =>
+			let val S' = Util.syncTypeFromApx S
+				val () = checkSyncType (ctxIntPart ctx, S')
+				val ctxm = checkObj (ctx, N, TMonad' S')
+				val ctxm' = opatBind (fn x=>x) (p, S') ctxm
+				val ctxo' = checkExp (ctxm', E, STClos (ty, Subst.shift (nbinds p)))
+			in patUnbind (p, ctxo') end
+	| Let (p, (H, S), E) =>
+			let val (ctxm1, B) = inferHead (ctx, H)
+				val (ctxm2, A) = inferSpine (ctxm1, S, B)
+				val sty = case Util.typePrjAbbrev A of TMonad sty => sty
+						| _ => raise Fail "Internal error: checkExp"
+				val ctxm2' = opatBind (fn x=>x) (p, sty) ctxm2
+				val ctxo' = checkExp (ctxm2', E, STClos (ty, Subst.shift (nbinds p)))
+			in patUnbind (p, ctxo') end
 	| Mon M => checkMonadObj (ctx, M, ty)
 
-(* checkPattern : context * pattern -> syncType *)
-and checkPattern (ctx, p) = case Pattern.prj p of
-	  PTensor (p1, p2) => TTensor' (checkPattern (ctx, p1), checkPattern (ctx, p2))
-	| POne => TOne'
-	| PDepPair (x, A, p) =>
-			( checkType (ctx, A)
-			; Exists' (SOME x, A, checkPattern (ctxPushINT (x, A, ctx), p)) )
-	| PVar (x, A) => (checkType (ctx, A); Async' A)
-
-(* checkMonadObj : context * monadObj * syncType -> context * bool *)
+(* checkMonadObj : context * monadObj * syncType -> context *)
 and checkMonadObj (ctx, mob, ty) = case (MonadObj.prj mob, SyncType.prj ty) of
-	  (Tensor (M1, M2), TTensor (S1, S2)) =>
-			let val (ctxm, t1) = checkMonadObj (ctx, M1, S1)
-				val (ctxo, t2) = checkMonadObj (ctxm, M2, S2)
-			in (ctxo, t1 orelse t2) end
-	| (One, TOne) => (ctx, false)
-	| (DepPair (N, M), Exists (x, A, S)) =>
-			let val _ = checkObj (ctxDelLin ctx, N, A)
-				val S' = if isSome x then STClos (S, Subst.subI N) else S
-			in checkMonadObj (ctx, M, S') end
-	| (Norm N, Async A) => checkObj (ctx, N, A)
+	  (DepPair (M1, M2), LExists (p, S1, S2)) =>
+			let val ctxm = checkMonadObj (ctx, M1, S1)
+			in checkMonadObj (ctxm, M2, STClos (S2, Subst.subM $ normalizeMonadObj M1)) end
+	| (One, TOne) => ctx
+	| (Down N, TDown A) => checkObj (ctx, N, A)
+	| (Aff N, TAff A) => ctxJoinAffLin (checkObj (ctxAffPart ctx, N, A), ctx)
+	| (Bang N, TBang A) => (ignore $ checkObj (ctxIntPart ctx, N, A) ; ctx)
 	| _ => raise Fail "Internal error match: checkMonadObj\n"
 
 

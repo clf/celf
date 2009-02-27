@@ -74,6 +74,8 @@ end
 
 signature REC2 = sig
 structure T : TYP2
+val Fmap1 : ('a1 -> 'a2) -> ('a1, 't) T.F -> ('a2, 't) T.F
+val Fmapt : ('t1 -> 't2) -> ('a, 't1) T.F -> ('a, 't2) T.F
 val fold : (T.a -> 'a) -> (('a, 't) T.F -> 't) -> T.t -> 't
 val unfold : ('a -> T.a) -> ('t -> ('a, 't) T.F) -> 't -> T.t
 (*val refold : ('a -> 'b) -> ('ta -> ('a, 'ta) T.F) -> (('b, 'tb) T.F -> 'tb) -> 'ta -> 'tb*)
@@ -81,12 +83,19 @@ end
 
 signature REC3 = sig
 structure T : TYP3
+val Fmap1 : ('a1 -> 'a2) -> ('a1, 'b, 't) T.F -> ('a2, 'b, 't) T.F
+val Fmap2 : ('b1 -> 'b2) -> ('a, 'b1, 't) T.F -> ('a, 'b2, 't) T.F
+val Fmapt : ('t1 -> 't2) -> ('a, 'b, 't1) T.F -> ('a, 'b, 't2) T.F
 val fold : (T.a -> 'a) * (T.b -> 'b) -> (('a, 'b, 't) T.F -> 't) -> T.t -> 't
 val unfold : ('a -> T.a) * ('b -> T.b) -> ('t -> ('a, 'b, 't) T.F) -> 't -> T.t
 end
 
 signature REC4 = sig
 structure T : TYP4
+val Fmap1 : ('a1 -> 'a2) -> ('a1, 'b, 'c, 't) T.F -> ('a2, 'b, 'c, 't) T.F
+val Fmap2 : ('b1 -> 'b2) -> ('a, 'b1, 'c, 't) T.F -> ('a, 'b2, 'c, 't) T.F
+val Fmap3 : ('c1 -> 'c2) -> ('a, 'b, 'c1, 't) T.F -> ('a, 'b, 'c2, 't) T.F
+val Fmapt : ('t1 -> 't2) -> ('a, 'b, 'c, 't1) T.F -> ('a, 'b, 'c, 't2) T.F
 val fold : (T.a -> 'a) * (T.b -> 'b) * (T.c -> 'c) -> (('a, 'b, 'c, 't) T.F -> 't) -> T.t -> 't
 val unfold : ('a -> T.a) * ('b -> T.b) * ('c -> T.c) -> ('t -> ('a, 'b, 'c, 't) T.F) -> 't -> T.t
 end
@@ -104,6 +113,8 @@ end
 functor Rec2(structure T : TYP2) : REC2 = struct
 structure T = T
 open T
+fun Fmap1 f = T.Fmap (f, fn x=>x)
+fun Fmapt f = T.Fmap (fn x=>x, f)
 fun fold f step x = step (Fmap (f, fold f step) (prj x))
 fun unfold f gen y = inj (Fmap (f, unfold f gen) (gen y))
 (* fun refold f gen step x = step (Fmap (f, refold f gen step) (gen x)) *)
@@ -112,6 +123,9 @@ end
 functor Rec3(structure T : TYP3) : REC3 = struct
 structure T = T
 open T
+fun Fmap1 f = T.Fmap ((f, fn x=>x), fn x=>x)
+fun Fmap2 f = T.Fmap ((fn x=>x, f), fn x=>x)
+fun Fmapt f = T.Fmap ((fn x=>x, fn x=>x), f)
 fun fold f step x = step (Fmap (f, fold f step) (prj x))
 fun unfold f gen y = inj (Fmap (f, unfold f gen) (gen y))
 end
@@ -119,6 +133,10 @@ end
 functor Rec4(structure T : TYP4) : REC4 = struct
 structure T = T
 open T
+fun Fmap1 f = T.Fmap ((f, fn x=>x, fn x=>x), fn x=>x)
+fun Fmap2 f = T.Fmap ((fn x=>x, f, fn x=>x), fn x=>x)
+fun Fmap3 f = T.Fmap ((fn x=>x, fn x=>x, f), fn x=>x)
+fun Fmapt f = T.Fmap ((fn x=>x, fn x=>x, fn x=>x), f)
 fun fold f step x = step (Fmap (f, fold f step) (prj x))
 fun unfold f gen y = inj (Fmap (f, unfold f gen) (gen y))
 end

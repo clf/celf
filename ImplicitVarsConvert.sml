@@ -17,6 +17,7 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+signature TLU_ImplicitVarsConvert = TOP_LEVEL_UTIL
 structure ImplicitVarsConvert :> IMPLICITVARSCONVERT =
 struct
 
@@ -26,23 +27,27 @@ open SymbTable
 open Context
 
 (* ctx |- B : Type
-   ctx |- X : B *)
+ * ctx |- X : B
+ *)
 fun raiseLVar' (ctx, B, S, n) =
 	let fun Idx A M n = Eta.etaExpand (asyncTypeToApx A, Var (M, n), Nil')
-		fun sh ty = TClos (ty, Subst.shift 1)
+		val si = Subst.invert $ Subst.shift 1
+		fun invsh ty = TClos (ty, si)
 	in case ctx of
 		  [] => Atomic' (ImplicitVars.newUCVar B, S)
-		| (x, A, SOME INT)::ctx => raiseLVar' (ctx, TPi' (SOME x, A, B), App' (Idx A INT n, S), n+1)
-		| (x, A, SOME LIN)::ctx => raiseLVar' (ctx, Lolli' (A, sh B), LinApp' (Idx A LIN n, S), n+1)
-		| (x, A, NONE)::ctx => raiseLVar' (ctx, sh B, S, n+1)
+		| (x, A, SOME INT)::ctx =>
+			raiseLVar' (ctx, TLPi' (PBang' (SOME x), TBang' A, B), LApp' (Bang' $ Idx A INT n, S), n+1)
+		| (x, A, SOME AFF)::ctx =>
+			raiseLVar' (ctx, TLPi' (PAff' (), TAff' A, B), LApp' (Aff' $ Idx A AFF n, S), n+1)
+		| (x, A, SOME LIN)::ctx =>
+			raiseLVar' (ctx, TLPi' (PDown' (), TDown' A, B), LApp' (Down' $ Idx A LIN n, S), n+1)
+		| (x, A, NONE)::ctx => raiseLVar' (ctx, invsh B, S, n+1)
 	end
 
 fun raiseLVar (Atomic (LogicVar {X, ty, ctx, tag, ...}, ())) = (case (!!X, !ctx) of
 	  (SOME _, _) => () (* this can never occur?? --asn *)
 	| (NONE, NONE) => raise Fail ("Internal error: no context on $"^(Word.toString tag)^"\n")
-	| (NONE, SOME ctx) => X ::= SOME (raiseLVar' (ctx2list ctx, ty, Nil', 1)) )
-	(*| (NONE, SOME ctx) => X ::= SOME (raiseLVar' (ctx2list ctx, TClos (ty, s), Nil', 1))*)
-						(* stub: bug??? ctx |- A : Type or ctx |- A[s] : Type ??? --asn *)
+	| (NONE, SOME ctx) => X ::= SOME $ normalizeObj $ raiseLVar' (ctx2list ctx, ty, Nil', 1) )
   | raiseLVar _ = ()
 
 (* logicVarsToUCVarsObj : obj -> unit *)
@@ -62,24 +67,21 @@ fun uc2xKind lookup n ki = case Kind.prj ki of
 	  Type => Type'
 	| KPi (x, A, K) => KPi' (x, uc2xType lookup n A, uc2xKind lookup (depInc x n) K)
 and uc2xType lookup n ty = case AsyncType.prj ty of
-	  Lolli (A, B) => Lolli' (uc2xType lookup n A, uc2xType lookup n B)
-	| TPi (x, A, B) => TPi' (x, uc2xType lookup n A, uc2xType lookup (depInc x n) B)
+	  TLPi (p, A, B) => TLPi' (p, uc2xSyncType lookup n A, uc2xType lookup (n + nbinds p) B)
 	| AddProd (A, B) => AddProd' (uc2xType lookup n A, uc2xType lookup n B)
-	| Top => Top'
 	| TMonad S => TMonad' (uc2xSyncType lookup n S)
 	| TAtomic (a, S) => TAtomic' (a, uc2xTypeSpine lookup n S)
 	| TAbbrev aA => TAbbrev' aA
 and uc2xTypeSpine lookup n sp = Util.TypeSpineRec.unfold (uc2xObj lookup n) TypeSpine.prj sp
 and uc2xSyncType lookup n sty = case SyncType.prj sty of
-	  TTensor (S1, S2) => TTensor' (uc2xSyncType lookup n S1, uc2xSyncType lookup n S2)
+	  LExists (p, S1, S2) => LExists' (p, uc2xSyncType lookup n S1, uc2xSyncType lookup (n + nbinds p) S2)
 	| TOne => TOne'
-	| Exists (x, A, S) => Exists' (x, uc2xType lookup n A, uc2xSyncType lookup (depInc x n) S)
-	| Async A => Async' (uc2xType lookup n A)
+	| TDown A => TDown' (uc2xType lookup n A)
+	| TAff A => TAff' (uc2xType lookup n A)
+	| TBang A => TBang' (uc2xType lookup n A)
 and uc2xObj lookup n ob = case Obj.prj ob of
-	  LinLam (x, N) => LinLam' (x, uc2xObj lookup (n+1) N)
-	| Lam (x, N) => Lam' (x, uc2xObj lookup (n+1) N)
+	  LLam (p, N) => LLam' (p, uc2xObj lookup (n + nbinds p) N)
 	| AddPair (N1, N2) => AddPair' (uc2xObj lookup n N1, uc2xObj lookup n N2)
-	| Unit => Unit'
 	| Monad E => Monad' (uc2xExp lookup n E)
 	| Atomic (H, S) => Atomic' (uc2xHead lookup n H, uc2xSpine lookup n S)
 	| Redex (N, A, S) => Redex' (uc2xObj lookup n N, A, uc2xSpine lookup n S)
@@ -88,18 +90,15 @@ and uc2xHead lookup n h = case h of
 	  Const c => Const c
 	| UCVar v => lookup n v
 	| LogicVar X =>
-		LogicVar (X with'ty uc2xType lookup n (#ty X) with's Subst.map (uc2xObj lookup n) (#s X))
+		LogicVar (X with'ty uc2xType lookup (Subst.fold (fn (_,k) => k+1) (fn k => n-k) (#s X)) (#ty X)
+			with's Subst.map (normalizeObj o uc2xObj lookup n o unnormalizeObj) (#s X))
 	| Var vn => Var vn
-and uc2xSpine lookup n sp = Util.SpineRec.unfold (uc2xObj lookup n) Spine.prj sp
+and uc2xSpine lookup n sp = Util.SpineRec.unfold (uc2xMonadObj lookup n) Spine.prj sp
 and uc2xExp lookup n e = case ExpObj.prj e of
-	  Let (p, N, E) => Let' (uc2xPattern lookup n p, uc2xObj lookup n N, uc2xExp lookup (n + nbinds p) E)
+	  LetRedex (p, S, N, E) => LetRedex' (p, S, uc2xObj lookup n N, uc2xExp lookup (n + nbinds p) E)
+	| Let (p, (H, S), E) => Let' (p, (uc2xHead lookup n H, uc2xSpine lookup n S), uc2xExp lookup (n + nbinds p) E)
 	| Mon M => Mon' (uc2xMonadObj lookup n M)
 and uc2xMonadObj lookup n m = Util.MonadObjRec.unfold (uc2xObj lookup n) MonadObj.prj m
-and uc2xPattern lookup n p = case Pattern.prj p of
-	  PTensor (p1, p2) => PTensor' (uc2xPattern lookup n p1, uc2xPattern lookup n p2)
-	| POne => POne'
-	| PDepPair (x, A, p) => PDepPair' (x, uc2xType lookup n A, uc2xPattern lookup (n+1) p)
-	| PVar (x, A) => PVar' (x, uc2xType lookup n A)
 
 
 fun ctx2Lookup ctx =
@@ -121,10 +120,13 @@ fun convUCVars2VarsImps imp =
 
 (* convUCVars2LogicVarsType : asyncType -> asyncType * (string * obj) list *)
 fun convUCVars2LogicVarsType ty =
-	let val table = mapTable (fn A => newLVarCtx (SOME emptyCtx) A) (ImplicitVars.getUCTable ())
-		fun uc2lvar n x = case Obj.prj (Clos (valOf (peek (table, x)), Subst.shift n)) of
+	let val table = ref $ mapTable (fn A => newLVarCtx (SOME emptyCtx) A) (ImplicitVars.getUCTable ())
+		fun uc2lvar n x = case Obj.prj (Clos (valOf (peek (!table, x)), Subst.shift n)) of
 			  Atomic (X as LogicVar _, _) => X
 			| _ => raise Fail "Internal error: uc2lvar\n"
-	in (uc2xType uc2lvar 0 ty, toList table) end
+		val imps = ImplicitVars.sort ()
+		fun convX x = table := insert (!table, x, uc2xObj uc2lvar 0 $ valOf $ peek (!table, x))
+		val () = app (convX o #1) imps
+	in (uc2xType uc2lvar 0 ty, toList $ !table) end
 
 end

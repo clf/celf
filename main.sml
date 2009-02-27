@@ -74,12 +74,23 @@ fun parseArgs args = case args of
 				^" -ta     : trace approximate type reconstruction\n"
 				^" -te     : trace eta expansion\n"
 				^" -tt     : trace exact type reconstruction\n"
-				^" -tu     : trace unifications\n")
+				^" -tu     : trace unifications\n"
+				^" -hquery : show help on queries\n")
+		; "" )
+	| "-hquery"::_ =>
+		( print ("Query format:\n"
+				^"#query d e l a ty.\n"
+				^" d  : bound on number of let-bindings before aborting\n"
+				^"      forward-chaining, * means no bound\n"
+				^" e  : expected number of solutions, * means don't know\n"
+				^" l  : number of solutions to look for, * means infinite\n"
+				^" a  : number of times to execute the query\n"
+				^" ty : type to search for proof of\n")
 		; "" )
 	| f::_ => f
 
 fun celfMain' args =
-	let val () = print "Celf ver 1.3. Copyright (C) 2008\n"
+	let val () = print "Celf ver 2.0. Copyright (C) 2009\n"
 		val filename = parseArgs args
 	in if filename = "" then OS.Process.success (* -h was given *) else
 	let val () = print ("Reading "^filename^":\n\n")

@@ -21,6 +21,8 @@ Signatur.sml
 Syntax.sml
 Util.sig
 Util.sml
+Parse.sig
+Parse.sml
 celf.lex
 celf.grm
 RemDepend.sig

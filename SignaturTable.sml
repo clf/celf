@@ -37,11 +37,9 @@ fun pushAtom a x = candAtom := insert (!candAtom, a, x :: lookupAtom a)
 
 (* heads : asyncType -> (lr list * headType) list *)
 fun heads ty = case Util.typePrjAbbrev ty of
-	  Lolli (_, A) => heads A
-	| TPi (_, _, A) => heads A
+	  TLPi (_, _, A) => heads A
 	| AddProd (A, B) => map (map1 (fn lrs => L::lrs)) (heads A)
 						@ map (map1 (fn lrs => R::lrs)) (heads B)
-	| Top => []
 	| TMonad _ => [([], HdMonad)]
 	| TAtomic (a, _) => [([], HdAtom a)]
 	| _ => raise Fail "Internal error heads: TAbbrev\n"

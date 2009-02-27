@@ -31,16 +31,19 @@ struct
 	fun isUndef Undef = true
 	  | isUndef _ = false
 
-	fun dom2lin (Ob (INT, N)) = Ob (LIN, N)
-	  | dom2lin (Ob (LIN, _)) = raise Fail "Linearity substitution mismatch"
-	  | dom2lin (Idx (ID, n)) = Idx (LIN2INT, n)
-	  | dom2lin (Idx (LIN2INT, _)) = raise Fail "Linearity substitution mismatch"
-	  | dom2lin Undef = Undef
+	fun domMult ID N = N
+	  | domMult INT4LIN (Ob (INT, N)) = Ob (LIN, N)
+	  | domMult AFF4LIN (Ob (AFF, N)) = Ob (LIN, N)
+	  | domMult INT4AFF (Ob (INT, N)) = Ob (AFF, N)
+	  | domMult _ (Ob (_, _)) = raise Fail "Linearity substitution mismatch"
+	  | domMult M (Idx (ID, n)) = Idx (M, n)
+	  | domMult AFF4LIN (Idx (INT4AFF, n)) = Idx (INT4LIN, n)
+	  | domMult _ (Idx (_, _)) = raise Fail "Linearity substitution mismatch"
+	  | domMult _ Undef = Undef
 
-	fun Clos' (Ob (m, N), t) = Ob (m, Clos (N, t))
+	fun Clos' (Ob (m, N), t) = Ob (m, NfClos (N, t))
 	  | Clos' (Idx (M, n), Shift n') = Idx (M, n+n')
-	  | Clos' (Idx (ID, 1), Dot (N, _)) = N
-	  | Clos' (Idx (LIN2INT, 1), Dot (N, _)) = dom2lin N
+	  | Clos' (Idx (M, 1), Dot (N, _)) = domMult M N
 	  | Clos' (Idx (M, n), Dot (_, t)) = Clos' (Idx (M, n-1), t)
 	  | Clos' (Undef, _) = Undef
 
@@ -63,8 +66,10 @@ struct
 	  | headSub (LogicVar X, s') = INL (LogicVar (X with's comp (#s X, s')))
 	  | headSub (Var (M, n), Shift n') = INL (Var (M, n+n'))
 	  | headSub (Var (M, 1), Dot (Idx (ID, n), s)) = INL (Var (M, n))
-	  | headSub (Var (LIN, 1), Dot (Idx (LIN2INT, n), s)) = INL (Var (INT, n))
-	  | headSub (Var (INT, 1), Dot (Idx (LIN2INT, n), s)) = raise Fail "Linearity mismatch"
+	  | headSub (Var (LIN, 1), Dot (Idx (INT4LIN, n), s)) = INL (Var (INT, n))
+	  | headSub (Var (LIN, 1), Dot (Idx (AFF4LIN, n), s)) = INL (Var (AFF, n))
+	  | headSub (Var (AFF, 1), Dot (Idx (INT4AFF, n), s)) = INL (Var (INT, n))
+	  | headSub (Var (_, 1), Dot (Idx (_, n), s)) = raise Fail "Linearity mismatch"
 	  | headSub (Var (M, 1), Dot (Ob (M', N), s)) = (assertLin (M=M') ; INR N)
 	  | headSub (Var (_, 1), Dot (Undef, s)) = raise ExnUndef
 	  | headSub (Var (M, n), Dot (_, s)) = headSub (Var (M, n-1), s)
@@ -72,26 +77,25 @@ struct
 	fun subKind (Type, _) = Type
 	  | subKind (KPi (NONE, A, K), s) = KPi (NONE, TClos (A, s), KClos(K, s))
 	  | subKind (KPi (SOME x, A, K), s) = KPi (SOME x, TClos (A, s), KClos(K, dot1 s))
-	fun subType (Lolli (A, B), s) = Lolli (TClos (A, s), TClos (B, s))
-	  | subType (TPi (NONE, A, B), s) = TPi (NONE, TClos (A, s), TClos (B, s))
-	  | subType (TPi (SOME x, A, B), s) = TPi (SOME x, TClos (A, s), TClos (B, dot1 s))
+	fun subType (TLPi (p, S, A), s) = TLPi (p, STClos (S, s), TClos (A, dotn (nbinds p) s))
+	  (*| subType (TPi (NONE, A, B), s) = TPi (NONE, TClos (A, s), TClos (B, s))
+	  | subType (TPi (SOME x, A, B), s) = TPi (SOME x, TClos (A, s), TClos (B, dot1 s))*)
 	  | subType (AddProd (A, B), s) = AddProd (TClos (A, s), TClos (B, s))
-	  | subType (Top, _) = Top
 	  | subType (TMonad S, s) = TMonad (STClos (S, s))
 	  | subType (TAtomic (a, S), s) = TAtomic (a, TSClos (S, s))
 	  | subType (ty as TAbbrev _, s) = ty
 	fun subTypeSpine (TNil, _) = TNil
 	  | subTypeSpine (TApp (N, S), s) = TApp (Clos (N, s), TSClos (S, s))
-	fun subSyncType (TTensor (S1, S2), s) = TTensor (STClos (S1, s), STClos (S2, s))
+	fun subSyncType (LExists (p, S1, S2), s) = LExists (p, STClos (S1, s), STClos (S2, dotn (nbinds p) s))
 	  | subSyncType (TOne, _) = TOne
-	  | subSyncType (Exists (NONE, A, S), s) = Exists (NONE, TClos (A, s), STClos (S, s))
-	  | subSyncType (Exists (SOME x, A, S), s) = Exists (SOME x, TClos (A, s), STClos (S, dot1 s))
-	  | subSyncType (Async A, s) = Async (TClos (A, s))
+	  (*| subSyncType (Exists (NONE, A, S), s) = Exists (NONE, TClos (A, s), STClos (S, s))
+	  | subSyncType (Exists (SOME x, A, S), s) = Exists (SOME x, TClos (A, s), STClos (S, dot1 s))*)
+	  | subSyncType (TDown A, s) = TDown (TClos (A, s))
+	  | subSyncType (TAff A, s) = TAff (TClos (A, s))
+	  | subSyncType (TBang A, s) = TBang (TClos (A, s))
 	
-	fun subObj _ (LinLam (x, N), s) = LinLam (x, Clos (N, dot1 s))
-	  | subObj _ (Lam (x, N), s) = Lam (x, Clos (N, dot1 s))
+	fun subObj _ (LLam (p, N), s) = LLam (p, Clos (N, dotn (nbinds p) s))
 	  | subObj _ (AddPair (N1, N2), s) = AddPair (Clos (N1, s), Clos (N2, s))
-	  | subObj _ (Unit, _) = Unit
 	  | subObj _ (Monad E, s) = Monad (EClos (E, s))
 	  | subObj redex (Atomic (H, S), s) = (case headSub (H, s) of
 			  INL H' => Atomic (H', SClos (S, s))
@@ -99,20 +103,25 @@ struct
 	  | subObj _ (Redex (N, A, S), s) = Redex (Clos (N, s), A, SClos (S, s))
 	  | subObj _ (Constraint (N, A), s) = Constraint (Clos (N, s), TClos (A, s))
 	fun subSpine (Nil, _) = Nil
-	  | subSpine (App (N, S), s) = App (Clos (N, s), SClos (S, s))
-	  | subSpine (LinApp (N, S), s) = LinApp (Clos (N, s), SClos (S, s))
+	  | subSpine (LApp (M, S), s) = LApp (MClos (M, s), SClos (S, s))
 	  | subSpine (ProjLeft S, s) = ProjLeft (SClos (S, s))
 	  | subSpine (ProjRight S, s) = ProjRight (SClos (S, s))
-	fun subExpObj (Let (p, N, E), s) = Let (PClos (p, s), Clos (N, s), EClos (E, dotn (nbinds p) s))
-	  | subExpObj (Mon M, s) = Mon (MClos (M, s))
-	fun subMonadObj (Tensor (M1, M2), s) = Tensor (MClos (M1, s), MClos (M2, s))
+	(*fun subExpObj (Let (p, N, E), s) = Let (PClos (p, s), Clos (N, s), EClos (E, dotn (nbinds p) s))*)
+	fun subExpObj _ (LetRedex (p, S, N, E), s) =
+			LetRedex (p, S, Clos (N, s), EClos (E, dotn (nbinds p) s))
+	  | subExpObj letredex (Let (p, (H, S), E), s) = (case headSub (H, s) of
+			  INL H' => Let (p, (H', SClos (S, s)), EClos (E, dotn (nbinds p) s))
+			| INR N => letredex (p, (N, SClos (S, s)), EClos (E, dotn (nbinds p) s)))
+	  | subExpObj _ (Mon M, s) = Mon (MClos (M, s))
+	fun subMonadObj (DepPair (M1, M2), s) = DepPair (MClos (M1, s), MClos (M2, s))
 	  | subMonadObj (One, s) = One
-	  | subMonadObj (DepPair (N, M), s) = DepPair (Clos (N, s), MClos (M, s))
-	  | subMonadObj (Norm N, s) = Norm (Clos (N, s))
-	fun subPattern (PTensor (p1, p2), s) = PTensor (PClos (p1, s), PClos (p2, s))
+	  | subMonadObj (Down N, s) = Down (Clos (N, s))
+	  | subMonadObj (Aff N, s) = Aff (Clos (N, s))
+	  | subMonadObj (Bang N, s) = Bang (Clos (N, s))
+(*	fun subPattern (PTensor (p1, p2), s) = PTensor (PClos (p1, s), PClos (p2, s))
 	  | subPattern (POne, s) = POne
 	  | subPattern (PDepPair (x, A, p), s) = PDepPair (x, TClos (A, s), PClos (p, dot1 s))
-	  | subPattern (PVar (x, A), s) = PVar (x, TClos (A, s))
+	  | subPattern (PVar (x, A), s) = PVar (x, TClos (A, s))*)
 	
 	fun leftOf (INL l) = l
 	  | leftOf (INR _) = raise Option.Option
@@ -128,6 +137,9 @@ struct
 	   and G1' = k-prefix of G1
 	   G1, G2 |- switchSub' k : G2, G1'
 	   G1, G2 |- switchSub (n1,n2) : G2, G1
+	   or:
+	   let {p2} = N2 in let {p1} = N1[^|p2|] in E ==
+	   let {p1} = N1 in let {p2} = N2[^|p1|] in E[switchSub(|p1|,|p2|)
 	*)
 	fun switchSub (n1, n2) =
 		let fun switchSub' 0 = dotn n2 (Shift n1)
@@ -143,8 +155,10 @@ struct
 	*)
 	fun intersection conv s1s2 =
 		let fun modeMult ID m = m
-			  | modeMult LIN2INT LIN = INT
-			  | modeMult LIN2INT INT = raise Fail "Linearity mismatch in intersection"
+			  | modeMult INT4LIN LIN = INT
+			  | modeMult INT4AFF AFF = INT
+			  | modeMult AFF4LIN LIN = AFF
+			  | modeMult _ _ = raise Fail "Linearity mismatch in intersection"
 			fun eq (Idx (M1, n), Idx (M2, m)) = (assertLin (M1=M2 orelse n<>m) ; n=m)
 			  | eq (Idx (m, n), Ob (M, N)) =
 					(conv (INL (modeMult m M, n), N) handle ExnUndef => false)
@@ -169,10 +183,10 @@ struct
 			  | lookup (_, Dot (Ob _, _), _) =
 					raise Fail "Internal error: invert called on non-pattern sub\n"
 			  | lookup (n, Dot (Undef, s'), p) = lookup (n+1, s', p)
-			  | lookup (_, Dot (Idx (LIN2INT, _), _), _) =
-					raise Fail "Internal error: invert called on non-pattern sub\n"
 			  | lookup (n, Dot (Idx (ID, k), s'), p) =
 					if k = p then SOME n else lookup (n+1, s', p)
+			  | lookup (_, Dot (Idx (_, _), _), _) =
+					raise Fail "Internal error: invert called on non-pattern sub\n"
 			fun invert'' (0, si) = si
 			  | invert'' (p, si) =
 					(case lookup (1, s, p) of
@@ -187,6 +201,12 @@ struct
 			  | isId' n (Dot (Idx (ID, m), s)) = (n+1 = m) andalso isId' (n+1) s
 			  | isId' _ _ = false
 		in isId' 0 s end
+
+	fun isWeaken s =
+		let fun isWeaken' n (Shift m) = (n <= m)
+			  | isWeaken' n (Dot (Idx (ID, m), s)) = (n+1 <= m) andalso isWeaken' m s
+			  | isWeaken' _ _ = false
+		in isWeaken' 0 s end
 
 	fun fold f e (Dot (ob, s)) = f (ob, fold f e s)
 	  | fold f e (Shift n) = e n
@@ -207,9 +227,12 @@ struct
 
 	fun substToStr f s = if isId s then "" else
 			let fun m2s LIN = "L"
+				  | m2s AFF = "@"
 				  | m2s INT = "!"
 				fun cm2s ID = ""
-				  | cm2s LIN2INT = "!/L"
+				  | cm2s INT4LIN = "!/L"
+				  | cm2s INT4AFF = "!/@"
+				  | cm2s AFF4LIN = "@/L"
 				fun toStr (Dot (Undef, s)) = "*."^(toStr s)
 				  | toStr (Dot (Ob (M, ob), s)) =
 						(f ob handle ExnUndef => "*")^"/"^(m2s M)^"."^(toStr s)
@@ -230,10 +253,11 @@ struct
 	 *    G equals G' on the indices not in p
 	 *    n in p => G_n is INT and G'_n is LIN
 	 *)
-	fun modeInvDiv LIN INT = LIN2INT
+	fun modeInvDiv LIN INT = INT4LIN (* modeInvDiv also used in Syntax.sml *)
 	  | modeInvDiv INT LIN = raise Fail "Linearity mismatch patSub"
 	  | modeInvDiv _ _ = ID
-	fun patSub etaContract s' domCtx =
+	fun patSub etaContract s' domCtx = raise Fail "stub2 patSub"
+	(*
 		let exception ExnPatSub
 			val p = ref []
 			val domCtx' = List.map #2 $ ctx2list domCtx
@@ -242,7 +266,7 @@ struct
 			  | ps (m, l, Dot (Undef, s), _::G) = Dot (Undef, ps (m, l, s, G))
 			  | ps (m, l, Dot (Idx (ID, n), s), _::G) =
 					Dot (Idx (ID, n), ps (Int.max (m, n), add (n, l), s, G))
-			  | ps (m, l, Dot (Idx (LIN2INT, n), s), G as _::_) =
+			  | ps (m, l, Dot (Idx (INT4LIN, n), s), G as _::_) =
 					( p := n :: !p
 					; ps (m, l, Dot (Idx (ID, n), s), G) )
 			  | ps (m, l, Dot (Ob (M, N), s), A::G) =
@@ -251,6 +275,7 @@ struct
 					in ps (m, l, Dot (N', s), A::G) end
 			  | ps (_, _, Dot _, []) = raise Fail "Internal error: mismatch between ctx and sub"
 		in SOME $ (fn s => (!p, s)) $ ps (0, [], s', domCtx') handle ExnPatSub => NONE end
+*)
 
 	fun shift n = Shift n
 end

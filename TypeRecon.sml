@@ -91,7 +91,8 @@ fun reconstructDecl dec =
 							                   (ImplicitVarsConvert.convUCVars2VarsType imps) kity
 							fun bindImps pi kity' =
 									foldr (fn ((x, A), im) => pi (SOME x, A, im)) kity' imps
-							val kity = mapKiTy (bindImps KPi') (bindImps TPi') kity
+							fun tPi (sx, A, B) = TLPi' (PBang' sx, TBang' A, B)
+							val kity = mapKiTy (bindImps KPi') (bindImps tPi) kity
 						in ConstDecl (id, length imps, kity) end
 				| TypeAbbrev _ => (ImplicitVars.noUCVars () ; dec)
 				| ObjAbbrev _ => (ImplicitVars.noUCVars () ; dec)

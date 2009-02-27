@@ -23,6 +23,8 @@ struct
 structure Syn = Syn
 open Syn
 
+fun whnfObj _ = raise Fail "stub2"
+(*
 fun whnfObj N = whnfObjP (Obj.prj N)
 
 and whnfObjP (Redex (N, _, S)) = whnfRedex (N, S)
@@ -44,20 +46,25 @@ and whnfRedex (ob, sp) = case (Obj.prj ob, Spine.prj sp) of
 	| (Redex (N, A, S1), S2) => whnfRedex (N, appendSpine (S1, Spine.inj S2))
 	| (Constraint (N, A), S) => whnfRedex (N, Spine.inj S)
 	| _ => raise Fail "Internal error: whnfRedex\n"
+*)
 
 
+fun whnfExp _ = raise Fail "stub2"
+(*
 fun whnfExp e = whnfExpP (ExpObj.prj e)
-and whnfExpP (Mon M) = Mon M
-  | whnfExpP (Let (p, N, E)) =
+and whnfExpP (Mon M) = NfMon M
+  | whnfExpP (LetRedex (p, _, N, E)) =
 		(case whnfObj N of
 			  NfMonad E' =>
 				(case ExpObj.prj E' of
 					  Mon M => whnfExp (whnfLetRedex (p, M, E))
 					| Let (q, N', E'') =>
 							whnfExpP (Let (q, N',
-								Let' (PClos (p, Subst.shift (nbinds q)), Monad' E'',
+								Let' (p, Monad' E'',
 								EClos (E, Subst.dotn (nbinds p) (Subst.shift (nbinds q)))))))
-			| NfAtomic hS => Let (p, hS, E)
+								(*Let' (PClos (p, Subst.shift (nbinds q)), Monad' E'',
+								EClos (E, Subst.dotn (nbinds p) (Subst.shift (nbinds q))))*)
+			| NfAtomic hS => NfLet (p, hS, E)
 			| _ => raise Fail "Internal error: whnfMonObj\n")
 and whnfLetRedex (p, M, E) = case (Pattern.prj p, MonadObj.prj M) of
 	  (PTensor (p1, p2), Tensor (M1, M2)) =>
@@ -65,9 +72,10 @@ and whnfLetRedex (p, M, E) = case (Pattern.prj p, MonadObj.prj M) of
 			   it doesn't matter since the types are not considered *)
 			whnfLetRedex (p1, M1, whnfLetRedex (p2, MClos (M2, Subst.shift (nbinds p1)), E))
 	| (POne, One) => E
-	| (PDepPair (x, _, p1), DepPair (N, M1)) => EClos (whnfLetRedex (p1, M1, E), Subst.subI N)
-	| (PVar (x, _), Norm N) => EClos (E, Subst.subL N)
+	| (PDepPair (x, p1), DepPair (N, M1)) => EClos (whnfLetRedex (p1, M1, E), Subst.subI N)
+	| (PVar x, Norm N) => EClos (E, Subst.subL N)
 	| _ => raise Fail "Internal error: whnfLetRedex\n"
+*)
 
 
 (*

@@ -25,7 +25,9 @@ val printLVarCtx : bool ref
 
 val printKind : Syntax.kind -> string
 val printType : Syntax.asyncType -> string
+val printSyncType : Syntax.syncType -> string
 val printObj : Syntax.obj -> string
+val printMonadObj : Syntax.monadObj -> string
 
 val printPreType : Syntax.asyncType -> string
 val printPreObj : Syntax.obj -> string

@@ -19,6 +19,8 @@ Signatur.sml
 Syntax.sml
 Util.sig
 Util.sml
+Parse.sig
+Parse.sml
 celf.grm.sig
 celf.lex.sml
 celf.grm.sml
