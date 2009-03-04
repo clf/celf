@@ -44,7 +44,7 @@ and checkType (ctx, ty) =
 	  else ()
 	; checkType' (ctx, ty) )
 and checkType' (ctx, ty) = case AsyncType.prj ty of
-	  TLPi (p, S, B) => (checkSyncType (ctx, S); checkType (tpatBind (fn x=>x) (p, S) ctx, B))
+	  TLPi (p, S, B) => (checkSyncType (ctx, S); checkType (tpatBind (p, S) ctx, B))
 	| AddProd (A, B) => (checkType (ctx, A); checkType (ctx, B))
 	| TMonad S => checkSyncType (ctx, S)
 	| TAtomic (a, S) => checkTypeSpine (ctx, S, Signatur.sigLookupKind a)
@@ -63,7 +63,7 @@ and checkTypeSpine (ctx, sp, ki) = case (TypeSpine.prj sp, Kind.prj ki) of
 
 (* checkSyncType : context * syncType -> unit *)
 and checkSyncType (ctx, ty) = case SyncType.prj ty of
-	  LExists (p, S1, S2) => (checkSyncType (ctx, S1); checkSyncType (tpatBind (fn x=>x) (p, S1) ctx, S2))
+	  LExists (p, S1, S2) => (checkSyncType (ctx, S1); checkSyncType (tpatBind (p, S1) ctx, S2))
 	| TOne => ()
 	| TDown A => checkType (ctx, A)
 	| TAffi A => checkType (ctx, A)
@@ -78,7 +78,7 @@ and checkObj (ctx, ob, ty) =
 	  else ()
 	; checkObj' (ctx, ob, ty) )
 and checkObj' (ctx, ob, ty) = case (Obj.prj ob, Util.typePrjAbbrev ty) of
-	  (LLam (p, N), TLPi (_, S, B)) => patUnbind (p, checkObj (opatBind (fn x=>x) (p, S) ctx, N, B))
+	  (LLam (p, N), TLPi (_, S, B)) => patUnbind (p, checkObj (opatBind (p, S) ctx, N, B))
 	| (AddPair (N1, N2), AddProd (A, B)) =>
 			ctxAddJoin (checkObj (ctx, N1, A), checkObj (ctx, N2, B))
 	| (Monad E, TMonad S) => checkExp (ctx, E, S)
@@ -159,7 +159,7 @@ and checkExp (ctx, ex, ty) = case ExpObj.prj ex of
 			let val S' = Util.syncTypeFromApx S
 				val () = checkSyncType (ctxIntPart ctx, S')
 				val ctxm = checkObj (ctx, N, TMonad' S')
-				val ctxm' = opatBind (fn x=>x) (p, S') ctxm
+				val ctxm' = opatBind (p, S') ctxm
 				val ctxo' = checkExp (ctxm', E, STClos (ty, Subst.shift (nbinds p)))
 			in patUnbind (p, ctxo') end
 	| Let (p, (H, S), E) =>
@@ -167,7 +167,7 @@ and checkExp (ctx, ex, ty) = case ExpObj.prj ex of
 				val (ctxm2, A) = inferSpine (ctxm1, S, B)
 				val sty = case Util.typePrjAbbrev A of TMonad sty => sty
 						| _ => raise Fail "Internal error: checkExp"
-				val ctxm2' = opatBind (fn x=>x) (p, sty) ctxm2
+				val ctxm2' = opatBind (p, sty) ctxm2
 				val ctxo' = checkExp (ctxm2', E, STClos (ty, Subst.shift (nbinds p)))
 			in patUnbind (p, ctxo') end
 	| Mon M => checkMonadObj (ctx, M, ty)
@@ -181,6 +181,7 @@ and checkMonadObj (ctx, mob, ty) = case (MonadObj.prj mob, SyncType.prj ty) of
 	| (Down N, TDown A) => checkObj (ctx, N, A)
 	| (Affi N, TAffi A) => ctxJoinAffLin (checkObj (ctxAffPart ctx, N, A), ctx)
 	| (Bang N, TBang A) => (ignore $ checkObj (ctxIntPart ctx, N, A) ; ctx)
+	| (MonUndef, _) => raise Fail "Internal error: checkMonadObj: MonUndef\n"
 	| _ => raise Fail "Internal error match: checkMonadObj\n"
 
 

@@ -29,6 +29,7 @@ type cmode = mode option
 type 'a context
 
 val ctx2list : 'a context -> (string * 'a * cmode) list
+val list2ctx : (string * 'a * cmode) list -> 'a context
 val ctxCons : (string * 'a * cmode) -> 'a context -> 'a context
 val ctxMap : ('a -> 'b) -> 'a context -> 'b context
 
@@ -49,6 +50,7 @@ val ctxPopLINopt : 'a context -> 'a context option
 val ctxAddJoin : 'a context * 'a context -> 'a context
 val ctxAddJoinOpt : 'a context * 'a context -> 'a context option
 
+(* if  AffPart(G1)=G1  then  ctxJoinAffLin (G1, G2) = G1+LinPart(G2) *)
 val ctxJoinAffLin : 'a context * 'a context -> 'a context
 
 end

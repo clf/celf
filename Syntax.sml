@@ -144,6 +144,7 @@ and ('o, 'm) monadObjFF
 	| Down of 'o
 	| Affi of 'o
 	| Bang of 'o
+	| MonUndef
 	(*= Tensor of 'm * 'm
 	| One
 	| DepPair of 'o * 'm
@@ -430,12 +431,14 @@ struct
 	  | Fmap (g, f) (Down N) = Down (g N)
 	  | Fmap (g, f) (Affi N) = Affi (g N)
 	  | Fmap (g, f) (Bang N) = Bang (g N)
+	  | Fmap _ MonUndef = MonUndef
 	fun dotMonad (M, s) = case prj M of
 		  DepPair (M1, M2) => dotMonad (M2, dotMonad (M1, s))
 		| One => s
 		| Down N => Subst1.dot (Context.LIN, N, s)
 		| Affi N => Subst1.dot (Context.AFF, N, s)
 		| Bang N => Subst1.dot (Context.INT, N, s)
+		| MonUndef => Dot (Undef, s)
 	fun subM m = dotMonad (m, Subst1.id)
 end
 (* structure Obj : TYP4 where type ('a, 'b, 'c, 't) F = ('a, 'b, 'c, 't) objFF
@@ -562,6 +565,7 @@ val One' = MonadObj.inj One
 val Down' = MonadObj.inj o Down
 val Affi' = MonadObj.inj o Affi
 val Bang' = MonadObj.inj o Bang
+val MonUndef' = MonadObj.inj MonUndef
 fun PDepTensor' x = Pattern.inj $ PDepTensor x
 val POne' = (*Pattern.inj POne*) FixPattern (POne, 0)
 fun PDown' x = Pattern.inj $ PDown x
@@ -658,6 +662,7 @@ struct
 	val Down' = NfMonadObj.inj o Down
 	val Affi' = NfMonadObj.inj o Affi
 	val Bang' = NfMonadObj.inj o Bang
+	val MonUndef' = NfMonadObj.inj MonUndef
 end
 
 val NfLLam' = NfObj.inj o NfLLam

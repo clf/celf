@@ -274,6 +274,7 @@ and apxInferMonadObj (ctx, mob) = case MonadObj.prj mob of
 	| Affi N => (fn (ctxo, N', A) => (ctxJoinAffLin (ctxo, ctx), Affi' N', ApxTAffi' A))
 			(apxInferObj (ctxAffPart ctx, N))
 	| Bang N => (fn (_, N', A) => (ctx, Bang' N', ApxTBang' A)) (apxInferObj (ctxIntPart ctx, N))
+	| MonUndef => raise Fail "Internal error: apxInferMonadObj: MonUndef"
 
 
 fun apxCheckKindEC ki = apxCheckKind (emptyCtx, ki)

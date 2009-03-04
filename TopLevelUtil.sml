@@ -8,5 +8,8 @@ fun f $ x = f x
 fun map1 f (a, b) = (f a, b)
 fun map2 f (a, b) = (a, f b)
 fun map12 f g (a, b) = (f a, g b)
+fun listPairMapEq f ([], []) = []
+  | listPairMapEq f (x::xs, y::ys) = f (x, y) :: listPairMapEq f (xs, ys)
+  | listPairMapEq _ _ = raise Fail "Unequal lengths"
 
 signature TOP_LEVEL_UTIL = sig end

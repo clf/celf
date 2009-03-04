@@ -17,6 +17,7 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+signature TLU_Context = TOP_LEVEL_UTIL
 structure Context :> CONTEXT =
 struct
 
@@ -29,6 +30,7 @@ type cmode = mode option
 type 'a context = (string * 'a * cmode) list
 
 fun ctx2list ctx = ctx
+fun list2ctx ctx = ctx
 fun ctxCons e ctx = e::ctx
 
 fun ctxMap f ctx = map (fn (x, A, t) => (x, f A, t)) ctx
@@ -105,11 +107,8 @@ fun addJoin ((x, A, f1), (_, _, f2)) =
 				| _ => raise Fail "Internal error: context misalignment\n"
 	in (x, A, f) end
 
-fun mapEq f ([], []) = []
-  | mapEq f (x::xs, y::ys) = f (x, y) :: mapEq f (xs, ys)
-  | mapEq _ _ = raise Fail "Unequal lengths"
 (* ctxAddJoin : 'a context * 'a context -> 'a context *)
-fun ctxAddJoin ctxs = (*ListPair.*)mapEq addJoin ctxs
+fun ctxAddJoin ctxs = listPairMapEq addJoin ctxs
 
 (* ctxAddJoinOpt : 'a context * 'a context -> 'a context option *)
 fun ctxAddJoinOpt ctxs = SOME (ctxAddJoin ctxs) handle ExnCtx _ => NONE
@@ -121,10 +120,12 @@ fun joinAffLin ((x, A, f1), (_, _, f2)) =
 				| (NONE, SOME AFF) => NONE
 				| (SOME AFF, SOME AFF) => SOME AFF
 				| (SOME INT, SOME INT) => SOME INT
+				| (SOME AFF, NONE) => SOME AFF
 				| _ => raise Fail "Internal error joinAffLin: context misalignment\n"
 	in (x, A, f) end
 
 (* ctxJoinAffLin : 'a context * 'a context -> 'a context *)
-fun ctxJoinAffLin ctxs = (*ListPair.*)mapEq joinAffLin ctxs
+(* if  AffPart(G1)=G1  then  ctxJoinAffLin (G1, G2) = G1+LinPart(G2) *)
+fun ctxJoinAffLin ctxs = listPairMapEq joinAffLin ctxs
 
 end

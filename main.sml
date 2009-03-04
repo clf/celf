@@ -63,6 +63,10 @@ fun parseArgs args = case args of
 		( print "traceExact := true\n"
 		; ExactTypes.traceExact := true
 		; parseArgs args )
+	| "-tp"::args =>
+		( print "traceSolve := true\n"
+		; OpSem.traceSolve := true
+		; parseArgs args )
 	| "-h"::_ =>
 		( print ("Commandline: celf <options> <filename>\n"
 				^"Available options:\n"
@@ -75,6 +79,7 @@ fun parseArgs args = case args of
 				^" -te     : trace eta expansion\n"
 				^" -tt     : trace exact type reconstruction\n"
 				^" -tu     : trace unifications\n"
+				^" -tp     : trace proof search\n"
 				^" -hquery : show help on queries\n")
 		; "" )
 	| "-hquery"::_ =>

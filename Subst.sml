@@ -118,6 +118,7 @@ struct
 	  | subMonadObj (Down N, s) = Down (Clos (N, s))
 	  | subMonadObj (Affi N, s) = Affi (Clos (N, s))
 	  | subMonadObj (Bang N, s) = Bang (Clos (N, s))
+	  | subMonadObj (MonUndef, _) = MonUndef
 (*	fun subPattern (PTensor (p1, p2), s) = PTensor (PClos (p1, s), PClos (p2, s))
 	  | subPattern (POne, s) = POne
 	  | subPattern (PDepPair (x, A, p), s) = PDepPair (x, TClos (A, s), PClos (p, dot1 s))
@@ -229,9 +230,9 @@ struct
 				  | cm2s INT4LIN = "!/L"
 				  | cm2s INT4AFF = "!/@"
 				  | cm2s AFF4LIN = "@/L"
-				fun toStr (Dot (Undef, s)) = "*."^(toStr s)
+				fun toStr (Dot (Undef, s)) = "_."^(toStr s)
 				  | toStr (Dot (Ob (M, ob), s)) =
-						(f ob handle ExnUndef => "*")^"/"^(m2s M)^"."^(toStr s)
+						(f ob handle ExnUndef => "_")^"/"^(m2s M)^"."^(toStr s)
 				  | toStr (Dot (Idx (M, n), s)) = (Int.toString n)^(cm2s M)^"."^(toStr s)
 				  | toStr (Shift n) = "^"^(Int.toString n)
 			in "["^(toStr s)^"]" end

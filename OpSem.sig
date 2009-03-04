@@ -20,11 +20,13 @@
 signature OPSEM =
 sig
 
-type context
-
+val traceSolve : bool ref
 val fcLimit : int option ref
 
-val solve : context * Syntax.asyncType * (Syntax.obj * context -> unit) -> unit
+type context
+type lcontext
+
+val solve : (lcontext * context) * Syntax.asyncType * (Syntax.obj * context -> unit) -> unit
 
 val solveEC : Syntax.asyncType * (Syntax.obj -> unit) -> unit
 

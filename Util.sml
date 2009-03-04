@@ -212,5 +212,25 @@ fun pat2apxSyncType p = case Pattern.prj p of
 	| PVar (x, A) => ApxAsync' (asyncTypeToApx A)
 *)
 
+fun pConv _ _ (PDepTensor pp) = PDepTensor' pp
+  | pConv _ _ POne = POne'
+  | pConv f _ (PDown x) = PDown' (f x)
+  | pConv f _ (PAffi x) = PAffi' (f x)
+  | pConv _ f (PBang x) = PBang' (f x)
+fun patternO2T p = OPatternRec.fold (pConv (fn _ => ()) SOME) p
+fun patternT2O p = TPatternRec.fold (pConv (fn () => "") (fn x => getOpt (x, ""))) p
+
+fun patternAddDep (p1, p2) = case (Pattern.prj p1, Pattern.prj p2) of
+	  (PDepTensor (p11, p12), PDepTensor (p21, p22)) =>
+		PDepTensor' (patternAddDep (p11, p21), patternAddDep (p12, p22))
+	| (POne, POne) => POne'
+	| (PDown (), PDown ()) => PDown' ()
+	| (PAffi (), PAffi ()) => PAffi' ()
+	| (PBang NONE, PBang NONE) => PBang' NONE
+	| (PBang (SOME x), PBang NONE) => PBang' (SOME x)
+	| (PBang NONE, PBang (SOME x)) => PBang' (SOME x)
+	| (PBang (SOME x), PBang (SOME _)) => PBang' (SOME x)
+	| _ => raise Fail "Internal error: patternAddDep pattern mismatch"
+
 
 end

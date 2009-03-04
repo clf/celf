@@ -146,6 +146,7 @@ and checkMonad (ctx, mon, S) = case (NfMonadObj.prj mon, NfSyncType.prj S) of
      | (Down N, TDown A) => checkObj (ctx, N, A)
      | (Affi N, TAffi A) => ctxJoinAffLin (checkObj (ctxAffPart ctx, N, A), ctx)
      | (Bang N, TBang A) => let val _ = checkObj (ctxIntPart ctx, N, A) in ctx end
+	 | (MonUndef, _) => raise Fail "Internal error: checkMonad: MonUndef"
      | _ => raise Fail "Type mismatch in checkMonad"
 
 (* Invariant:

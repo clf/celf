@@ -77,4 +77,9 @@ val syncTypeFromApx : Syntax.apxSyncType -> Syntax.syncType
 
 (*val pat2apxSyncType : Syntax.opattern -> Syntax.apxSyncType*)
 
+val patternO2T : Syntax.opattern -> Syntax.tpattern
+val patternT2O : Syntax.tpattern -> Syntax.opattern
+
+val patternAddDep : Syntax.tpattern * Syntax.tpattern -> Syntax.tpattern
+
 end

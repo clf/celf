@@ -67,13 +67,7 @@ fun instantiate (r, rInst, cs, l) =
  *)
 fun lowerLVar (ty, sp, s, ctx) = case (Util.nfTypePrjAbbrev ty, NfSpine.prj sp) of
 	  (TLPi (p, A, B), LApp (M, S)) =>
-			let fun f (PDepTensor pp) = PDepTensor' pp
-				  | f POne = POne'
-				  | f (PDown ()) = PDown' ""
-				  | f (PAffi ()) = PAffi' ""
-				  | f (PBang NONE) = PBang' ""
-				  | f (PBang (SOME x)) = PBang' x
-				val p' = TPatternRec.fold f p
+			let val p' = Util.patternT2O p
 				val (rInst, Y) = lowerLVar (B, S, Subst.dotMonad (M, s), opatBindNf (p', A) ctx)
 			in (NfLLam' (p', rInst), Y) end
 	| (AddProd (A, B), ProjLeft S) =>
@@ -118,14 +112,19 @@ fun newMon _ = raise Fail "stub newMon"
 (*
 context split
 fun newMon (sTy, ctx) = case SyncType.prj sTy of
-	  TTensor (S1, S2) => Tensor' (newMon (S1, ctx), newMon (S2, ctx))
+	  LExists (p, S1, S2) =>
+		let fun splitCtx G =
+				if List.all (fn (_, _, m) => m = SOME INT orelse m = NONE) $ ctx2list G
+				then (G, G)
+				else raise Fail "stub: need context split"
+			val (ctx1, ctx2) = splitCtx ctx
+			val M1 = newMon (S1, ctx1)
+		in DeepPair' (M1, newMon (STClos (S2, Subst.subM M1), ctx2)) end
 	| TOne => One'
-	| Exists (x, A, S) =>
-		let val N = newLVarCtx (SOME ctx) A
-			val S' = if isSome x then STClos (S, Subst.sub N) else S
-		in DepPair' (N, newMon (S', ctx)) end (* bugfix 27/11-07 --asn *)
-	| Async A => Norm' (newLVarCtx (SOME ctx) A)
-*)
+	| TDown A => Down' (newLVarCtx (SOME ctx) A)
+	| TAffi A => Affi' (newLVarCtx (SOME ctx) A)  -- only aff and int
+	| TBang A => Bang' (newLVarCtx (SOME ctx) A)  -- only int
+	*)
 
 (* newMonA : nfAsyncType * context -> nfExpObj *)
 fun newMonA (A, ctx) = case NfAsyncType.prj A of
@@ -447,6 +446,8 @@ and unifyMon dryRun (m1, m2) = case (NfMonadObj.prj m1, NfMonadObj.prj m2) of
 	| (Down N1, Down N2) => unifyObj dryRun (N1, N2)
 	| (Affi N1, Affi N2) => unifyObj dryRun (N1, N2)
 	| (Bang N1, Bang N2) => unifyObj dryRun (N1, N2)
+	| (MonUndef, _) => raise Fail "Internal error: unifyMon: MonUndef\n"
+	| (_, MonUndef) => raise Fail "Internal error: unifyMon: MonUndef\n"
 	| _ => raise Fail "Internal error: unifyMon\n"
 and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) = raise Fail "stub2 unifyLetLet"
 	(* In the case of two equal LVars, the lowering of ob1 affects the whnf of ob2 *)

@@ -155,6 +155,7 @@ and pMonadObj ctx pa m = case MonadObj.prj m of
 	| Down N => pObj ctx pa N
 	| Affi N => ["@"] @ pObj ctx true N
 	| Bang N => ["!"] @ pObj ctx true N
+	| MonUndef => ["_"]
 and pOPattern bctx p = case Pattern.prj p of
 	  PDepTensor (p1, p2) =>
 			let val (pP1, bctx') = pOPattern bctx p1

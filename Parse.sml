@@ -62,13 +62,7 @@ fun projRight ob = Redex' (ob, newApxTVar (), ProjRight' Nil')
 fun blank () = newLVar (newTVar ())
 fun headToObj h = Atomic' (h, Nil')
 
-fun patternO2Tf (PDepTensor p1p2) = PDepTensor p1p2
-  | patternO2Tf POne = POne
-  | patternO2Tf (PDown _) = PDown ()
-  | patternO2Tf (PAffi _) = PAffi ()
-  | patternO2Tf (PBang x) = PBang (SOME x)
-fun patternO2T p = OPatternRec.fold (Pattern.inj o patternO2Tf) p
-fun lamConstr (p, S, N) = Constraint' (LLam' (p, N), TLPi' (patternO2T p, u2s S, newTVar ()))
+fun lamConstr (p, S, N) = Constraint' (LLam' (p, N), TLPi' (Util.patternO2T p, u2s S, newTVar ()))
 
 fun pat2aty (PDepTensor s1s2) = ApxTTensor' s1s2
   | pat2aty POne = ApxTOne'

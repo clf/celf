@@ -112,6 +112,8 @@ and convMonadObj (M1, M2) = case (NfMonadObj.prj M1, NfMonadObj.prj M2) of
 	| (Down N1, Down N2) => convObj (N1, N2)
 	| (Affi N1, Affi N2) => convObj (N1, N2)
 	| (Bang N1, Bang N2) => convObj (N1, N2)
+	| (MonUndef, _) => raise Fail "Internal error: convMonadObj: MonUndef"
+	| (_, MonUndef) => raise Fail "Internal error: convMonadObj: MonUndef"
 	| _ => raise ExnConv "Convertibility failed"
 
 

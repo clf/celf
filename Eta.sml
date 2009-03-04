@@ -64,7 +64,7 @@ fun etaContract e ob ty =
 			| (PDown _, Down N, ApxTDown A) => etaEqC (N, A, (LIN, n))
 			| (PAffi _, Affi N, ApxTAffi A) => etaEqC (N, A, (AFF, n))
 			| (PBang _, Bang N, ApxTBang A) => etaEqC (N, A, (INT, n))
-			| _ => raise e
+			| _ => raise e (* MonUndef => raise e *)
 		and etaSp (m, Sp, sp) = case (NfSpine.prj Sp, sp) of
 			  (Nil, []) => ()
 			| (LApp (M, S), (LAp (p, ty))::sp) =>
@@ -242,7 +242,7 @@ and etaExpandMonadObj (ctx, mob, ty) = case (MonadObj.prj mob, ApxSyncType.prj t
 	| (Down N, ApxTDown A) => Down' (etaExpandObj (ctx, N, A))
 	| (Affi N, ApxTAffi A) => Affi' (etaExpandObj (ctx, N, A))
 	| (Bang N, ApxTBang A) => Bang' (etaExpandObj (ctx, N, A))
-	| _ => raise Fail "Internal error etaExpandMonadObj: Match"
+	| _ => raise Fail "Internal error etaExpandMonadObj: Match" (* includes MonUndef *)
 
 fun etaExpandKindEC ki = etaExpandKind (emptyCtx, ki)
 fun etaExpandTypeEC ty = etaExpandType (emptyCtx, ty)

@@ -126,6 +126,7 @@ datatype ('o, 'm) monadObjFF
 	| Down of 'o
 	| Affi of 'o
 	| Bang of 'o
+	| MonUndef
 	(*= Tensor of 'm * 'm
 	| One
 	| DepPair of 'o * 'm
@@ -289,6 +290,7 @@ val One' : monadObj
 val Down' : obj -> monadObj
 val Affi' : obj -> monadObj
 val Bang' : obj -> monadObj
+val MonUndef' : monadObj
 val PDepTensor' : ('x, 'ix) pattern * ('x, 'ix) pattern -> ('x, 'ix) pattern
 val POne' : ('x, 'ix) pattern
 val PDown' : 'x -> ('x, 'ix) pattern
@@ -391,6 +393,7 @@ structure NfInj : sig
 	val Down' : nfObj -> nfMonadObj
 	val Affi' : nfObj -> nfMonadObj
 	val Bang' : nfObj -> nfMonadObj
+	val MonUndef' : nfMonadObj
 end
 
 val NfLLam' : opattern * nfObj -> nfObj
