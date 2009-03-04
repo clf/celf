@@ -76,11 +76,11 @@ fun cannotConsumeLin sty = case SyncType.prj sty of
 
 fun multSplit sty2 =
 	if cannotConsumeLin sty2 then
-		(fn (l, ctx) => (l, ctx),
-		 fn (_, ctxm) => ([], ctxm))
+		{ fst = fn (l, ctx) => (l, ctx),
+		  snd = fn (_, ctxm) => ([], ctxm) }
 	else
-		(fn (_, ctx) => ([], ctx),
-		 fn (l, ctxm) => linIntersect (l, ctxm))
+		{ fst = fn (_, ctx) => ([], ctx),
+		  snd = fn (l, ctxm) => linIntersect (l, ctxm) }
 
 
 fun genMon (ctx : context, p, sty) =
@@ -208,7 +208,7 @@ and rightFocus (ctx, m, sty, sc) =
 	; rightFocus' (ctx, m, sty, sc) )
 and rightFocus' ((l, ctx), m, sty, sc) = case (MonadObj.prj m, SyncType.prj sty) of
 	  (DepPair (m1, m2), LExists (p, S1, S2)) =>
-		let val (fst, snd) = multSplit S2
+		let val {fst, snd} = multSplit S2
 		in rightFocus (fst (l, ctx), m1, S1, fn (M1, ctxm) =>
 			rightFocus (snd (l, ctxm), m2,
 				STClos (S2, Subst.subM $ normalizeMonadObj M1), (* M1=m1 on free vars in S2 *)
@@ -234,7 +234,7 @@ and leftFocus (lr, ctx, P, ty, sc) =
 and leftFocus' (lr, (l, ctx), P, ty, sc) = case Util.typePrjAbbrev ty of
 	  TLPi (p, A, B) =>
 		let val m = genMon (ctx, SOME p, A)
-			val (fst, snd) = multSplit A
+			val {fst, snd} = multSplit A
 		in leftFocus (lr, fst (l, ctx), P, TClos (B, Subst.subM $ normalizeMonadObj m),
 			fn (S, ctxm) => rightFocus (snd (l, ctxm), m, A,
 			fn (M, ctxo) => sc (LApp' (M, S), ctxo)))
