@@ -36,7 +36,7 @@ fun keyword (s,p) =
 	(case s of
 		"type" => Tokens.TYPE(p,p)
 	  | "Pi" => Tokens.PI(p,p)
-	  | "LPi" => Tokens.LPI(p,p)
+	  | "PI" => Tokens.LPI(p,p)
 	  | "#1" => Tokens.PROJLEFT(p,p)
 	  (*| "pi_1" => Tokens.PROJLEFT(p,p) -- retired *)
 	  | "#2" => Tokens.PROJRIGHT(p,p)
@@ -46,7 +46,7 @@ fun keyword (s,p) =
 	  (*| "one" => Tokens.ONE(p,p) -- retired *)
 	  (*| "1" => Tokens.ONE(p,p) -- handled by number parsing *)
 	  | "Exists" => Tokens.EXISTS(p,p)
-	  | "LExists" => Tokens.LEXISTS(p,p)
+	  | "EXISTS" => Tokens.LEXISTS(p,p)
 	  | "let" => Tokens.LET(p,p)
 	  | "in" => Tokens.IN(p,p)
 	  | "#query" => Tokens.QUERY(p,p)
