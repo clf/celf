@@ -69,7 +69,7 @@ fun sigAddDecl dec =
 	( if isSome (peek (!sigTable, idFromDecl dec)) andalso String.sub (idFromDecl dec, 0) <> #"-"
 		then raise Fail ("Error name clash: "^idFromDecl dec)
 		else ()
-	; sigTable := insert (!sigTable, idFromDecl dec, dec) (* stub "-..." bliver slettet *)
+	; sigTable := insert (!sigTable, idFromDecl dec, dec) (* FIXME "-..." is erased *)
 	; sigDelta := dec :: !sigDelta )
 
 (* getImplLength : string -> int *)

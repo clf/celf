@@ -79,7 +79,7 @@ fun reconstructDecl dec =
 					          ImplicitVarsConvert.logicVarsToUCVarsType
 					          (ImplicitVarsConvert.logicVarsToUCVarsObj o #1) dec
 					; ImplicitVars.appUCTable (Util.objAppType
-						(fn Atomic (LogicVar _, _) => raise Fail "stub: LogicVar here???\n"
+						(fn Atomic (LogicVar _, _) => raise Fail "FIXME: LogicVar here???\n"
 						  | _ => ())) )
 			val () = ImplicitVars.mapUCTable Util.forceNormalizeType
 			val dec = case dec of

@@ -108,7 +108,7 @@ fun whnf2obj (NfLinLam N) = LinLam N
 
 (* newMon (S, G) = M  :  G |- M : S *)
 (* newMon : nfSyncType * context -> nfMonadObj *)
-fun newMon _ = raise Fail "stub newMon"
+fun newMon _ = raise Fail "FIXME newMon"
 (*
 context split
 fun newMon (sTy, ctx) = case SyncType.prj sTy of
@@ -116,7 +116,7 @@ fun newMon (sTy, ctx) = case SyncType.prj sTy of
 		let fun splitCtx G =
 				if List.all (fn (_, _, m) => m = SOME INT orelse m = NONE) $ ctx2list G
 				then (G, G)
-				else raise Fail "stub: need context split"
+				else raise Fail "FIXME: need context split"
 			val (ctx1, ctx2) = splitCtx ctx
 			val M1 = newMon (S1, ctx1)
 		in DeepPair' (M1, newMon (STClos (S2, Subst.subM M1), ctx2)) end
@@ -142,7 +142,7 @@ fun newMonA (A, ctx) = case NfAsyncType.prj A of
  *   splitExp (X, E) = INL (X[s], M)
  * otherwise ExnUnify is raised.
  *)
-fun splitExp (rOccur, ex) = raise Fail "stub2 splitExp"
+fun splitExp (rOccur, ex) = raise Fail "FIXME2 splitExp"
 (*
 fun splitExp (rOccur, ex) =
 	let fun splitExp' ex = case NfExpObj.prj ex of
@@ -165,8 +165,8 @@ fun splitExp (rOccur, ex) =
 					if eq (X, rOccur) then
 						if isSome foundL then
 							(*raise ExnUnify "Double occurs check in let\n"*)
-							(* stub: might set all lvars to {M} --asn *)
-							raise Fail "stub: set X to {M}"
+							(* FIXME: might set all lvars to {M} *)
+							raise Fail "FIXME: set X to {M}"
 						else
 							pruneLetOccur (SOME L) E
 					else
@@ -348,8 +348,8 @@ and unifyObj dryRun (ob1, ob2) =
 				( unifyObj dryRun (invPair ProjLeft' hS1, L2)
 				; unifyObj dryRun (invPair ProjRight' hS1, N2) )
 		| (NfMonad E1, NfMonad E2) => unifyExp dryRun (E1, E2)
-		| (NfAtomic _, NfMonad E2) => raise Fail "stub !!!"
-		| (NfMonad E1, NfAtomic _) => raise Fail "stub !!!"
+		| (NfAtomic _, NfMonad E2) => raise Fail "FIXME !!!"
+		| (NfMonad E1, NfAtomic _) => raise Fail "FIXME !!!"
 		| (NfAtomic hS1, NfAtomic hS2) => unifyHead dryRun (hS1, hS2)
 		| (N1, N2) => raise Fail "Internal error: unifyObj\n"
 	end
@@ -373,7 +373,7 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 						  SOME () => if !dryRunIntersect then true
 								else raise ExnUnifyMaybe
 						| NONE => false
-					fun conv' (INL n, ob2) = conv (NfAtomic' (Var n, NfInj.Nil'), ob2) (* stub eta --asn *)
+					fun conv' (INL n, ob2) = conv (NfAtomic' (Var n, NfInj.Nil'), ob2) (* FIXME eta *)
 					  | conv' (INR ob1, ob2) = conv (ob1, ob2)
 				in case SOME (Subst.intersection conv' (s1, s2)) handle ExnUnifyMaybe => NONE of
 					  NONE => if isSome dryRun then (valOf dryRun) := false else
@@ -435,7 +435,7 @@ and unifyExp dryRun (e1, e2) = case (NfExpObj.prj e1, NfExpObj.prj e2) of
 			end
 and unifyLetMon dryRun ((p, hS, E), M) = case lowerAtomic hS of
 	  (LogicVar {X, ty, s, ctx=ref G, cnstr=cs, tag}, _ (*=Nil*)) =>
-			if isSome dryRun then (valOf dryRun) := false else (* stub? *)
+			if isSome dryRun then (valOf dryRun) := false else (* FIXME? *)
 			( instantiate (X, NfMonad' (newMonA (ty, valOf G)), cs, tag)
 			; unifyExp NONE (NfLet' (p, hS, E), NfMon' M) )
 	| _ => raise ExnUnify "let = mon\n"
@@ -449,7 +449,7 @@ and unifyMon dryRun (m1, m2) = case (NfMonadObj.prj m1, NfMonadObj.prj m2) of
 	| (MonUndef, _) => raise Fail "Internal error: unifyMon: MonUndef\n"
 	| (_, MonUndef) => raise Fail "Internal error: unifyMon: MonUndef\n"
 	| _ => raise Fail "Internal error: unifyMon\n"
-and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) = raise Fail "stub2 unifyLetLet"
+and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) = raise Fail "FIXME2 unifyLetLet"
 	(* In the case of two equal LVars, the lowering of ob1 affects the whnf of ob2 *)
 	(*
 	let val ob1' = lowerAtomic ob1
@@ -463,7 +463,7 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) = raise Fail "stub2 unifyL
 					; unifyMon NONE (M1, M2) )
 				| INR (e, M2, ectx, n) =>
 					(case Subst.patSub Eta.etaContract s (ctxMap asyncTypeToApx $ valOf G) of
-						  NONE => raise Fail "stub !!!"
+						  NONE => raise Fail "FIXME !!!"
 						| SOME (p, s') =>
 							let val newM = EClos (newMonA (TClos (ty, Subst.shift n),
 													ectx $ valOf G), Subst.dotn n s')
@@ -476,7 +476,7 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) = raise Fail "stub2 unifyL
 		| (_, E1', (LogicVar _, _), Mon M2) =>
 			unifyLetLet NONE ((p2, ob2', Mon' M2), (p1, ob1', expWhnfInj E1'))
 		| ((LogicVar L1, _), E1', (LogicVar L2, _), E2') =>
-			raise Fail "stub: postpone as constraint"
+			raise Fail "FIXME: postpone as constraint"
 			(* or search E1' and E2' for heads that can be moved to front *)
 		| (_ (* ob1' <> LVar *), E1', (LogicVar L2, _), E2') =>
 			let val E = Util.whnfLetSpine (Let' (p2, Atomic' ob2', expWhnfInj E2'))
@@ -494,7 +494,7 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) = raise Fail "stub2 unifyL
 				val E1rest = matchHeadInLet NONE (ob2', fn _ => fn e => e, 0, E, E, 0)
 			in unifyExp dryRun (E1rest, expWhnfInj E2') end end
 	end*)
-and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = raise Fail "stub2 matchHeadInLet"
+and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = raise Fail "FIXME2 matchHeadInLet"
 (*and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, NfExpObj.prj EsX) of
 	  (Let (p, N, E'), Let (_, NsX, EsX')) =>
 			let val nbp = nbinds p
@@ -503,7 +503,7 @@ and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = raise Fail "stub2 match
 							let val s' = Subst.dotn nbe s
 							in e s (Let' (PClos (p, s'), Clos (N, s'), E)) end
 				fun lVarSub 0 = Subst.shift nbp
-				  | lVarSub n = Subst.dot (raise Fail "stub lVarSub", Util.blank (), lVarSub (n-1))
+				  | lVarSub n = Subst.dot (raise Fail "FIXME lVarSub", Util.blank (), lVarSub (n-1))
 				fun isLVar (LogicVar _, _) = true
 				  | isLVar _ = false
 				fun EsX'' () = if isLVar NsX then EClos (EsX', lVarSub nbp) else EsX'
@@ -522,8 +522,8 @@ and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = raise Fail "stub2 match
 	| (Mon _, Mon _) =>
 			if nMaybe = 0 then raise ExnUnify "Monadic objects not unifiable\n"
 			else if isSome revExn then raise valOf revExn
-			else if nMaybe = 1 then raise Fail "stub: should be able to let-float\n"
-			else raise Fail "stub: multiple options"
+			else if nMaybe = 1 then raise Fail "FIXME: should be able to let-float\n"
+			else raise Fail "FIXME: multiple options"
 	| _ => raise Fail "Internal error: matchHeadInLet\n"
 *)
 

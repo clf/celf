@@ -28,6 +28,8 @@ else
 	cp ImplicitVarsConvert.sml publish/ver$1/celf/
 	cp OpSem.sig publish/ver$1/celf/
 	cp OpSem.sml publish/ver$1/celf/
+	cp Parse.sig publish/ver$1/celf/
+	cp Parse.sml publish/ver$1/celf/
 	cp PatternBind.sig publish/ver$1/celf/
 	cp PatternBind.sml publish/ver$1/celf/
 	cp PermuteList.sig publish/ver$1/celf/
@@ -58,8 +60,6 @@ else
 	cp Util.sml publish/ver$1/celf/
 	cp VRef.sig publish/ver$1/celf/
 	cp VRef.sml publish/ver$1/celf/
-	cp Whnf.sig publish/ver$1/celf/
-	cp Whnf.sml publish/ver$1/celf/
 	cp celf.grm publish/ver$1/celf/
 	cp celf.lex publish/ver$1/celf/
 	cp celf.mlb publish/ver$1/celf/

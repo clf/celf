@@ -204,13 +204,12 @@ val asyncTypeFromApx = removeApxType o injectApxType
 val syncTypeFromApx = removeApxSyncType o injectApxSyncType
 
 (* pat2apxSyncType : pattern -> apxSyncType *)
-(*
 fun pat2apxSyncType p = case Pattern.prj p of
-	  PTensor (p1, p2) => ApxTTensor' (pat2apxSyncType p1, pat2apxSyncType p2)
+	  PDepTensor (p1, p2) => ApxTTensor' (pat2apxSyncType p1, pat2apxSyncType p2)
 	| POne => ApxTOne'
-	| PDepPair (x, A, p) => ApxExists' (asyncTypeToApx A, pat2apxSyncType p)
-	| PVar (x, A) => ApxAsync' (asyncTypeToApx A)
-*)
+	| PDown _ => ApxTDown' $ newApxTVar ()
+	| PAffi _ => ApxTAffi' $ newApxTVar ()
+	| PBang _ => ApxTBang' $ newApxTVar ()
 
 fun pConv _ _ (PDepTensor pp) = PDepTensor' pp
   | pConv _ _ POne = POne'

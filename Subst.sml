@@ -263,7 +263,7 @@ struct
 	 *    (INT4AFF, n) in p => G_n is INT and G'_n is AFF
 	 *    (AFF4LIN, n) in p => G_n is AFF and G'_n is LIN
 	 *)
-	fun patSub etaContract s' domCtx = (* domCtx may not be necessary after top died? --asn *)
+	fun patSub etaContract s' domCtx = (* FIXME: domCtx may not be necessary after top died? *)
 		let exception ExnPatSub
 			val p = ref []
 			val domCtx' = List.map #2 $ ctx2list domCtx

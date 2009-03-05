@@ -37,7 +37,6 @@ val apxCheckSyncType : context * Syntax.syncType -> Syntax.syncType
 val apxCheckObj : context * Syntax.obj * Syntax.apxAsyncType -> context * Syntax.obj
 val apxInferObj : context * Syntax.obj -> context * Syntax.obj * Syntax.apxAsyncType
 val apxInferExp : context * Syntax.expObj -> context * Syntax.expObj * Syntax.apxSyncType
-val apxInferPattern : ('x, 'ix) Syntax.pattern -> Syntax.apxSyncType
 val apxInferMonadObj : context * Syntax.monadObj -> context * Syntax.monadObj * Syntax.apxSyncType
 
 val apxCheckKindEC : Syntax.kind -> Syntax.kind

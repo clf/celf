@@ -64,12 +64,6 @@ fun headToObj h = Atomic' (h, Nil')
 
 fun lamConstr (p, S, N) = Constraint' (LLam' (p, N), TLPi' (Util.patternO2T p, u2s S, newTVar ()))
 
-fun pat2aty (PDepTensor s1s2) = ApxTTensor' s1s2
-  | pat2aty POne = ApxTOne'
-  | pat2aty (PDown _) = ApxTDown' $ newApxTVar ()
-  | pat2aty (PAffi _) = ApxTAffi' $ newApxTVar ()
-  | pat2aty (PBang _) = ApxTBang' $ newApxTVar ()
-fun pattern2apxType p = OPatternRec.fold pat2aty p
-fun letredex (p, N, E) = LetRedex' (p, pattern2apxType p, N, E)
+fun letredex (p, N, E) = LetRedex' (p, Util.pat2apxSyncType p, N, E)
 
 end

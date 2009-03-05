@@ -76,12 +76,6 @@ fun apxUnify (ty1, ty2, errmsg) = (apxUnifyType (ty1, ty2))
 val apxCount = ref 0
 
 (* apxInferPattern : pattern -> apxSyncType *)
-fun apxInferPattern p = case Pattern.prj p of
-	  PDepTensor (p1, p2) => ApxTTensor' (apxInferPattern p1, apxInferPattern p2)
-	| POne => ApxTOne'
-	| PDown _ => ApxTDown' $ newApxTVar ()
-	| PAffi _ => ApxTAffi' $ newApxTVar ()
-	| PBang _ => ApxTBang' $ newApxTVar ()
 
 (* apxCheckKind : context * kind -> kind *)
 fun apxCheckKind (ctx, ki) = case Kind.prj ki of
@@ -107,12 +101,13 @@ and apxCheckType (ctx, ty) =
 		in ty' end
 	else apxCheckType' (ctx, ty)
 and apxCheckType' (ctx, ty) = if isUnknown ty then ty else case AsyncType.prj ty of
-	  TLPi (p, A, B) =>
-			let val A' = apxCheckSyncType (ctx, A)
-				fun errmsg () = "stub2"
-				val () = apxUnify (ApxTMonad' $ syncTypeToApx A',
-						ApxTMonad' $ apxInferPattern p, errmsg)
-			in TLPi' (p, A', apxCheckType (tpatBindApx (p, syncTypeToApx A') ctx, B)) end
+	  TLPi (p, S, B) =>
+			let val S' = apxCheckSyncType (ctx, S)
+				fun errmsg () = "Pattern does not match type in " ^
+						PrettyPrint.printType (TLPi' (p, S, B)) ^ "\n"
+				val () = apxUnify (ApxTMonad' $ syncTypeToApx S',
+						ApxTMonad' $ Util.pat2apxSyncType p, errmsg)
+			in TLPi' (p, S', apxCheckType (tpatBindApx (p, syncTypeToApx S') ctx, B)) end
 	| AddProd (A, B) => AddProd' (apxCheckType (ctx, A), apxCheckType (ctx, B))
 	| TMonad S => TMonad' (apxCheckSyncType (ctx, S))
 	| TAtomic (a, S) =>
@@ -139,12 +134,13 @@ and apxCheckTypeSpine (ctx, sp, ki) = case (TypeSpine.prj sp, ApxKind.prj ki) of
 
 (* apxCheckSyncType : context * syncType -> syncType *)
 and apxCheckSyncType (ctx, ty) = case SyncType.prj ty of
-	  LExists (p, A, S) =>
-			let val A' = apxCheckSyncType (ctx, A)
-				fun errmsg () = "stub2"
-				val () = apxUnify (ApxTMonad' $ syncTypeToApx A',
-						ApxTMonad' $ apxInferPattern p, errmsg)
-			in LExists' (p, A', apxCheckSyncType (tpatBindApx (p, syncTypeToApx A') ctx, S)) end
+	  LExists (p, S1, S2) =>
+			let val S1' = apxCheckSyncType (ctx, S1)
+				fun errmsg () = "Pattern does not match type in " ^
+						PrettyPrint.printSyncType (LExists' (p, S1, S2)) ^ "\n"
+				val () = apxUnify (ApxTMonad' $ syncTypeToApx S1',
+						ApxTMonad' $ Util.pat2apxSyncType p, errmsg)
+			in LExists' (p, S1', apxCheckSyncType (tpatBindApx (p, syncTypeToApx S1') ctx, S2)) end
 	| TOne => TOne'
 	| TDown A => TDown' (apxCheckType (ctx, A))
 	| TAffi A => TAffi' (apxCheckType (ctx, A))
@@ -172,7 +168,7 @@ and apxInferObj (ctx, ob) = case Util.ObjAuxDefs.prj2 ob of
 	| Redex (Atomic (H, S1), _, S2) => apxInferObj (ctx, Atomic' (H, appendSpine (S1, S2)))
 	| _ => case Obj.prj ob of
 	  LLam (p, N) =>
-			let val A = apxInferPattern p
+			let val A = Util.pat2apxSyncType p
 				val (ctxo, N', B) = apxInferObj (opatBindApx (p, A) ctx, N)
 			in (patUnbind (p, ctxo), LLam' (p, N'), ApxLolli' (A, B)) end
 	| AddPair (N1, N2) =>
@@ -254,12 +250,10 @@ and apxInferExp (ctx, ex) =
 			Atomic hS => Let' (p, hS, E) | _ => LetRedex' (p, S, ob, E)
 	in case ExpObj.prj ex of
 	  LetRedex (p, sty, N, E) =>
-			let fun errmsg () = "stub2"
-				val () = apxUnify (ApxTMonad' sty, ApxTMonad' $ apxInferPattern p, errmsg)
-				val (ctxm, N') = apxCheckObj (ctx, N, ApxTMonad' sty)
+			let val (ctxm, N') = apxCheckObj (ctx, N, ApxTMonad' sty)
 				val (ctxo', E', S) = apxInferExp (opatBindApx (p, sty) ctxm, E)
 			in (patUnbind (p, ctxo'), letRed (p, sty, N', E'), S) end
-	| Let (p, hS, E) => apxInferExp (ctx, LetRedex' (p, apxInferPattern p, Atomic' hS, E))
+	| Let (p, hS, E) => apxInferExp (ctx, LetRedex' (p, Util.pat2apxSyncType p, Atomic' hS, E))
 	| Mon M => (fn (ctxo, M', S) => (ctxo, Mon' M', S)) (apxInferMonadObj (ctx, M))
 	end
 
