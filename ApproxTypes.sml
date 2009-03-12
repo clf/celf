@@ -64,8 +64,8 @@ and apxUnifySyncType (ty1, ty2) = case (ApxSyncType.prj ty1, ApxSyncType.prj ty2
 	| (ApxTAffi A1, ApxTAffi A2) => apxUnifyType (A1, A2)
 	| (ApxTBang A1, ApxTBang A2) => apxUnifyType (A1, A2)
 	| (S1, S2) => raise ExnApxUnifyType
-			(PrettyPrint.printType (unsafeCast (ApxTMonad' ty1))^"\nand: "
-						^PrettyPrint.printType (unsafeCast (ApxTMonad' ty2)))
+			(PrettyPrint.printSyncType (unsafeCastS ty1)^"\nand: "
+						^PrettyPrint.printSyncType (unsafeCastS ty2))
 
 fun apxUnify (ty1, ty2, errmsg) = (apxUnifyType (ty1, ty2))
 		handle (e as ExnApxUnifyType s) =>
