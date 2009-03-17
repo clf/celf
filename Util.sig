@@ -43,6 +43,26 @@ structure ExpObjRec : REC4 where type ('a, 'b, 'c, 't) T.F = ('a, 'b, 'c, 't) Sy
 structure MonadObjRec : REC2 where type ('a, 't) T.F = ('a, 't) Syntax.monadObjFF
 		and type T.t = Syntax.monadObj and type T.a = Syntax.obj
 
+structure NfKindRec : REC2 where type ('a, 't) T.F = ('a, 't) Syntax.kindFF
+		and type T.t = Syntax.nfKind and type T.a = Syntax.nfAsyncType
+structure NfAsyncTypeRec : REC3 where type ('a, 'b, 't) T.F = ('a, 'b, 't) Syntax.asyncTypeFF
+		and type T.t = Syntax.nfAsyncType and type T.a = Syntax.nfTypeSpine
+		and type T.b = Syntax.nfSyncType
+structure NfTypeSpineRec : REC2 where type ('a, 't) T.F = ('a, 't) Syntax.typeSpineFF
+		and type T.t = Syntax.nfTypeSpine and type T.a = Syntax.nfObj
+structure NfSyncTypeRec : REC2 where type ('a, 't) T.F = ('a, 't) Syntax.syncTypeFF
+		and type T.t = Syntax.nfSyncType and type T.a = Syntax.nfAsyncType
+structure NfObjRec : REC3 where type ('a, 'b, 't) T.F = ('a, 'b, 't) Syntax.nfObjFF
+		and type T.t = Syntax.nfObj and type T.a = Syntax.nfSpine
+		and type T.b = Syntax.nfExpObj
+structure NfSpineRec : REC2 where type ('a, 't) T.F = ('a, 't) Syntax.spineFF
+		and type T.t = Syntax.nfSpine and type T.a = Syntax.nfMonadObj
+structure NfExpObjRec : REC3 where type ('a, 'b, 't) T.F = ('a, 'b, 't) Syntax.nfExpObjFF
+		and type T.t = Syntax.nfExpObj and type T.a = Syntax.nfSpine
+		and type T.b = Syntax.nfMonadObj
+structure NfMonadObjRec : REC2 where type ('a, 't) T.F = ('a, 't) Syntax.monadObjFF
+		and type T.t = Syntax.nfMonadObj and type T.a = Syntax.nfObj
+
 val typePrjAbbrev : Syntax.asyncType -> Syntax.asyncType Syntax.asyncTypeF
 val nfTypePrjAbbrev : Syntax.nfAsyncType -> Syntax.nfAsyncType Syntax.nfAsyncTypeF
 val apxTypePrjAbbrev : Syntax.apxAsyncType -> Syntax.apxAsyncType Syntax.apxAsyncTypeF

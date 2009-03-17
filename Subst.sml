@@ -248,7 +248,7 @@ struct
 	  | modeDiv LIN LIN = ID
 	fun modeInvDiv m1 m2 = modeDiv m2 m1
 
-	(* patSub Eta.etaContract s G1
+	(* patSub Unify.checkExistObj Eta.etaContract s G1
 	 *    where G |- s : G1 can give three different results:
 	 * NONE
 	 *    s is not a pattern sub
@@ -263,8 +263,11 @@ struct
 	 *    (INT4AFF, n) in p => G_n is INT and G'_n is AFF
 	 *    (AFF4LIN, n) in p => G_n is AFF and G'_n is LIN
 	 *)
-	fun patSub etaContract s' domCtx = (* FIXME: domCtx may not be necessary after top died? *)
+	fun patSub checkExists etaContract s' domCtx = (* FIXME: domCtx may not be necessary after top died? *)
 		let exception ExnPatSub
+			fun etaContr N A = case checkExists N of
+				  (_, false) => raise ExnPatSub
+				| (N', true) => etaContract ExnPatSub N' A
 			val p = ref []
 			val domCtx' = List.map #2 $ ctx2list domCtx
 			fun add (n : int, l) = if List.exists (fn i => i=n) l then raise ExnPatSub else n::l
@@ -276,7 +279,7 @@ struct
 					( p := (M, n) :: !p
 					; ps (m, l, Dot (Idx (ID, n), s), G) )
 			  | ps (m, l, Dot (Ob (M, N), s), A::G) =
-					let val N' = Idx (map1 (modeInvDiv M) $ etaContract ExnPatSub N A)
+					let val N' = Idx (map1 (modeInvDiv M) $ etaContr N A)
 								handle ExnUndef => Undef
 					in ps (m, l, Dot (N', s), A::G) end
 			  | ps (_, _, Dot _, []) = raise Fail "Internal error: mismatch between ctx and sub"

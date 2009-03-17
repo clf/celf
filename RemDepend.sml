@@ -89,7 +89,7 @@ and rdHead h = case h of
 				val subL = Subst.fold (fn (_, n) => n+1) (fn _ => 0) s
 				fun occurSubOb Undef = empty
 				  | occurSubOb (Ob (_, ob)) = (#2 $ rdObj $ unnormalizeObj ob
-							handle Subst.ExnUndef => empty)
+						handle Subst.ExnUndef => (*empty*) raise Fail "Internal error: rdHead")
 				  | occurSubOb (Idx (_, n)) = occur n
 				val occurSub = Subst.fold (union o (map1 occurSubOb))
 							(fn m => occurFromTo (m+1) (ctxL-subL+m)) s
@@ -113,7 +113,7 @@ and rdMonadObj m = case MonadObj.prj m of
 	| Down N => map1 Down' (rdObj N)
 	| Affi N => map1 Affi' (rdObj N)
 	| Bang N => map1 Bang' (rdObj N)
-	| MonUndef => (MonUndef', empty)
+	| MonUndef => raise Fail "Internal error: rdMonadObj: MonUndef"
 (*
 and rdPattern p = case Pattern.prj p of
 	  PTensor (p1, p2) => join2 PTensor' (rdPattern p1) (rdPattern p2)

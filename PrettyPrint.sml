@@ -153,8 +153,8 @@ and pMonadObj ctx pa m = case MonadObj.prj m of
 	  DepPair (M1, M2) => ["["] @ pMonadObj ctx false M1 @ [", "] @ pMonadObj ctx false M2 @ ["]"]
 	| One => ["1"]
 	| Down N => pObj ctx pa N
-	| Affi N => ["@"] @ pObj ctx true N
-	| Bang N => ["!"] @ pObj ctx true N
+	| Affi N => (["@"] @ pObj ctx true N handle Subst.ExnUndef => ["_"])
+	| Bang N => (["!"] @ pObj ctx true N handle Subst.ExnUndef => ["_"])
 	| MonUndef => ["_"]
 and pOPattern bctx p = case Pattern.prj p of
 	  PDepTensor (p1, p2) =>

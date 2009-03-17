@@ -53,7 +53,8 @@ type subst
 datatype subObj = Ob of Context.mode * nfObj | Idx of subMode * int | Undef
 
 datatype constr = Solved | Eqn of nfObj * nfObj | Exist of nfObj
-datatype 'aTy headF = Const of string
+datatype 'aTy headF
+	= Const of string
 	| Var of Context.mode * int
 	| UCVar of string
 	| LogicVar of {
@@ -237,7 +238,7 @@ structure Subst : sig
 	val id : subst
 	val shift : int -> subst
 	val subI : nfObj -> subst
-	val subL : nfObj -> subst
+	(*val subL : nfObj -> subst*)
 	val subM : nfMonadObj -> subst
 	(*val dot : Context.mode * nfObj * subst -> subst*)
 	val dotMonad : nfMonadObj * subst -> subst
@@ -248,8 +249,8 @@ structure Subst : sig
 	val switchSub : int * int -> subst
 	val intersection : ((Context.mode * int, nfObj) sum * nfObj -> bool) -> subst * subst -> subst
 	val invert : (*pat*)subst -> subst
-	val patSub : (exn -> nfObj -> apxAsyncType -> Context.mode * int) -> subst ->
-			apxAsyncType Context.context -> ((subMode * int) list * (*pat*)subst) option
+	val patSub : (nfObj -> nfObj * bool) -> (exn -> nfObj -> apxAsyncType -> Context.mode * int) ->
+			subst -> apxAsyncType Context.context -> ((subMode * int) list * (*pat*)subst) option
 	val isId : subst -> bool
 	val isWeaken : subst -> bool
 	val substToStr : (nfObj -> string) -> subst -> string

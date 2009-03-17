@@ -125,6 +125,27 @@ and unfoldNfSpine fs x = NfSpineRec.unfold (unfoldNfMonadObj fs) (#fsp fs) x
 and unfoldNfExpObj fs x = NfExpObjRec.unfold (unfoldNfSpine fs, unfoldNfMonadObj fs) (#fe fs) x
 and unfoldNfMonadObj fs x = NfMonadObjRec.unfold (unfoldNfObj fs) (#fm fs) x
 
+(*
+type ('o, 'sp, 'e, 'm) nfFoldObjFuns = {
+	fo   : ('sp, 'e, 'o) nfObjFF -> 'o,
+	fsp  : ('m, 'sp) spineFF -> 'sp,
+	fe   : ('sp, 'm, 'e) nfExpObjFF -> 'e,
+	fm   : ('o, 'm) monadObjFF -> 'm }
+
+type ('o, 'sp, 'e, 'm) nfUnfoldObjFuns = {
+	fo   : 'o -> ('sp, 'e, 'o) nfObjFF,
+	fsp  : 'sp -> ('m, 'sp) spineFF,
+	fe   : 'e -> ('sp, 'm, 'e) nfExpObjFF,
+	fm   : 'm -> ('o, 'm) monadObjFF }
+
+fun refoldNfObj ((u, f) : ('o, 'sp, 'e, 'm) nfUnfoldObjFuns * ('o, 'sp, 'e, 'm) nfFoldObjFuns) x =
+		NfObjRec.refold (refoldNfSpine (u, f), refoldNfExpObj (u, f)) (#fo u) (#fo f) x
+and refoldNfSpine (u, f) x = NfSpineRec.refold (refoldNfMonadObj (u, f)) (#fsp u) (#fsp f) x
+and refoldNfExpObj (u, f) x =
+		NfExpObjRec.refold (refoldNfSpine (u, f), refoldNfMonadObj (u, f)) (#fe u) (#fe f) x
+and refoldNfMonadObj (u, f) x = NfMonadObjRec.refold (refoldNfObj (u, f)) (#fm u) (#fm f) x
+*)
+
 (* typePrjAbbrev : asyncType -> asyncType asyncTypeF *)
 fun typePrjAbbrev ty = case AsyncType.prj ty of
 	  TAbbrev (a, ty) => typePrjAbbrev ty
@@ -146,8 +167,11 @@ fun isNil S = case Spine.prj S of Nil => true | _ => false
 (* objAppKind : ((unit, unit, unit, unit) objFF -> unit) -> kind -> unit *)
 (* objAppType : ((unit, unit, unit, unit) objFF -> unit) -> asyncType -> unit *)
 (* objAppObj  : ((unit, unit, unit, unit) objFF -> unit) -> obj -> unit *)
-fun ffsApp f = let val u = ignore in
-		{fki=u, faTy=u, ftyS=u, fsTy=u, fo=f, fsp=u, fe=u, fm=u} end
+fun ffsApp f =
+	let val u = ignore
+		fun fe (Let (_, h, _)) = f (Atomic h)
+		  | fe _ = ()
+	in {fki=u, faTy=u, ftyS=u, fsTy=u, fo=f, fsp=u, fe=fe, fm=u} end
 fun objAppKind f = foldKind (ffsApp f)
 fun objAppType f = foldType (ffsApp f)
 fun objAppObj f = foldObj (ffsApp f)
@@ -156,8 +180,14 @@ fun objAppObj f = foldObj (ffsApp f)
 (* objMapType : (obj -> obj objF) -> asyncType -> asyncType *)
 (* objMapSyncType : (obj -> obj objF) -> syncType -> syncType *)
 (* objMapObj : (obj -> obj objF) -> obj -> obj *)
-fun uffsMap f = {fki=Kind.prj, faTy=AsyncType.prj, ftyS=TypeSpine.prj, fsTy=SyncType.prj,
-		fo=f, fsp=Spine.prj, fe=ExpObj.prj, fm=MonadObj.prj}
+fun uffsMap f =
+	let fun fe e = case ExpObj.prj e of
+			  Let (p, hS, E) => (case f $ Atomic' hS of
+					  Atomic hS' => Let (p, hS', E)
+					| N => raise Fail "Internal error: objMap")
+			| E => E
+	in {fki=Kind.prj, faTy=AsyncType.prj, ftyS=TypeSpine.prj, fsTy=SyncType.prj,
+		fo=f, fsp=Spine.prj, fe=fe, fm=MonadObj.prj} end
 fun objMapKind f = unfoldKind (uffsMap f)
 fun objMapType f = unfoldType (uffsMap f)
 fun objMapSyncType f = unfoldSyncType (uffsMap f)
@@ -170,7 +200,7 @@ fun objMapObj f = unfoldObj (uffsMap f)
 fun pair r y = (r, y)
 fun sr2 fmap prj (r, x) = fmap (pair r, pair r) (prj x)
 fun sr3 fmap prj (r, x) = fmap ((pair r, pair r), pair r) (prj x)
-fun sr4 fmap prj (r, x) = fmap ((pair r, pair r, pair r), pair r) (prj x)
+(*fun sr4 fmap prj (r, x) = fmap ((pair r, pair r, pair r), pair r) (prj x)*)
 fun sr3' fmap prj (r, x) = fmap ((pair r, pair r), pair r) (prj r x)
 fun checkSRig (NfAtomic (v as Var _, (_, S))) = (NfAtomic (v, (false, S)))
   | checkSRig (NfAtomic (v as LogicVar _, (_, S))) = (NfAtomic (v, (false, S)))

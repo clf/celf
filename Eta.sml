@@ -31,7 +31,8 @@ val traceEta = ref false
 type context = apxAsyncType context
 
 (* etaContract : exn -> nfObj -> apxAsyncType -> mode * int *)
-(* etaContract e ob ty = (m, n)
+(* assumes that ob does not contain _
+ * etaContract e ob ty = (m, n)
  * ob == Var (m, n) : ty
  * or raise e if ob is not an eta-expanded var *)
 fun etaContract e ob ty =
@@ -64,7 +65,7 @@ fun etaContract e ob ty =
 			| (PDown _, Down N, ApxTDown A) => etaEqC (N, A, (LIN, n))
 			| (PAffi _, Affi N, ApxTAffi A) => etaEqC (N, A, (AFF, n))
 			| (PBang _, Bang N, ApxTBang A) => etaEqC (N, A, (INT, n))
-			| _ => raise e (* MonUndef => raise e *)
+			| _ => raise e
 		and etaSp (m, Sp, sp) = case (NfSpine.prj Sp, sp) of
 			  (Nil, []) => ()
 			| (LApp (M, S), (LAp (p, ty))::sp) =>

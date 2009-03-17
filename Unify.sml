@@ -98,6 +98,9 @@ fun lowerAtomic (N as (LogicVar {X, ty, s, ctx=ref ctx, cnstr=cs, tag}, S)) =
 fun lowerObj (NfAtomic hS) = NfAtomic (lowerAtomic hS)
   | lowerObj N = N
 
+fun lowerExp (NfLet (p, hS, E)) = NfLet (p, lowerAtomic hS, E)
+  | lowerExp E = E
+
 (*
 fun whnf2obj (NfLinLam N) = LinLam N
   | whnf2obj (NfLam N) = Lam N
@@ -200,19 +203,98 @@ fun pruneCtx e pruneType ss G =
 	in pruneCtx' ss (ctx2list G) end
 
 exception ExnOccur
+fun patSub rOccur s G = Subst.patSub (checkExistObj rOccur) Eta.etaContract s G
+and checkExistObj rOccur ob =
+	let val nestedUndef = ref false
+		val undefined = NfClos (normalizeObj (EtaTag (Atomic' (Var (INT, 1), Nil'), (INT, 1))),
+							Subst.invert (Subst.shift 1))
+		fun catch f x =
+			let val nu = !nestedUndef
+			in SOME (f x) handle Subst.ExnUndef => (nestedUndef := nu; NONE) end
+		fun ctrlBind p (lv : bool) [] = [(p, lv)]
+		  | ctrlBind p lv ((p', lv')::lvCtrlCtx) =
+				if lv = lv' then (p+p', lv)::lvCtrlCtx
+				else (p, lv)::(p', lv')::lvCtrlCtx
+		fun isLvarCtrl n [] = false
+		  | isLvarCtrl n ((p, lv)::lvCtrlCtx) =
+				if n <= p then lv else isLvarCtrl (n-p) lvCtrlCtx
+		fun chHead lvCtrlCtx (h as Const _) = (h, false)
+		  | chHead lvCtrlCtx (h as UCVar _) = (h, false)
+		  | chHead lvCtrlCtx (h as Var (_, n)) = (h, isLvarCtrl n lvCtrlCtx)
+		  | chHead lvCtrlCtx (LogicVar {ctx=ref NONE, tag, ...}) =
+				raise Fail ("Internal error: no context on $"^Word.toString tag)
+		  | chHead lvCtrlCtx (LogicVar (Y as {X=rY, s=sY, ctx=ref (SOME G), ...})) =
+				if eq (rY, rOccur) then (* X = H . S{X[p]} --> X = H . S{_}  if p is pattern *)
+					if isSome $ patSub rOccur sY (ctxMap nfAsyncTypeToApx G) then
+						raise Subst.ExnUndef
+					else raise ExnOccur
+				else
+					let val sY' = Subst.map (chOb true lvCtrlCtx) sY
+						val () = Subst.fold (fn (Undef, ()) => nestedUndef := true | _ => ())
+								(fn _ => ()) sY'
+					in (LogicVar (Y with's sY'), true) end
+		and chOb lvArg lvCtrlCtx x = case lowerObj $ NfObj.prj x of
+			  NfLLam (p, N) => NfLLam' (p, (chOb lvArg (ctrlBind (nbinds p) lvArg lvCtrlCtx) N)) 
+			| NfAddPair (N1, N2) =>
+				let val ch = if lvArg then catch (chOb lvArg lvCtrlCtx)
+						else SOME o chOb lvArg lvCtrlCtx
+				in case (ch N1, ch N2) of
+					  (NONE, NONE) => raise Subst.ExnUndef
+					| (SOME x, NONE) => (nestedUndef:=true; NfAddPair' (x, undefined))
+					| (NONE, SOME x) => (nestedUndef:=true; NfAddPair' (undefined, x))
+					| (SOME x1, SOME x2) => NfAddPair' (x1, x2)
+				end
+			| NfMonad E => NfMonad' (chEx lvArg lvCtrlCtx E)
+			| NfAtomic (H, S) =>
+				let val (H', lv) = chHead lvCtrlCtx H
+				in NfAtomic' (H', chSp lv lvCtrlCtx S) end
+		and chSp lvArg lvCtrlCtx x = Util.NfSpineRec.map (chMo lvArg lvCtrlCtx) x
+		and chEx lvArg lvCtrlCtx x = case NfExpObj.prj x of
+			  NfLet (p, hS, E) =>
+				let val (H, S) = lowerAtomic hS
+					val (H', lv) = chHead lvCtrlCtx H
+				in NfLet' (p, (H', chSp lv lvCtrlCtx S),
+						chEx lvArg (ctrlBind (nbinds p) lv lvCtrlCtx) E)
+				end
+			| NfMon M => NfMon' (chMo lvArg lvCtrlCtx M)
+		and chMo false lvCtrlCtx x = Util.NfMonadObjRec.map (chOb false lvCtrlCtx) x
+		  | chMo true lvCtrlCtx x = Util.NfMonadObjRec.fold (catch (chOb true lvCtrlCtx))
+			(fn Down NONE => raise Subst.ExnUndef
+			  | Affi NONE => (nestedUndef:=true; NfInj.Affi' undefined)
+			  | Bang NONE => (nestedUndef:=true; NfInj.Bang' undefined)
+			  | M => NfMonadObj.inj (Util.NfMonadObjRec.Fmap1 valOf M)) x
+		val ob' = chOb true [] ob
+	in (ob', not $ !nestedUndef) end
+
 (* objExists : nfObj option vref -> nfObj -> nfObj option *)
 (* typeExists : nfObj option vref -> nfAsyncType -> nfAsyncType option *)
 val (objExists, typeExists) =
-	let datatype pruning = AllowPrune | DisallowPrune of bool ref (* need pruning => set to true *)
-		fun allowPrune AllowPrune = true
-		  | allowPrune (DisallowPrune _) = false
-		fun xExists AllowPrune f x = (SOME (f x) handle Subst.ExnUndef => NONE)
-		  | xExists (DisallowPrune (npR as ref np)) f x =
-				(SOME (f x) handle Subst.ExnUndef => (npR := np; NONE))
-		fun f nprune rOccur srig ob = case lowerObj $ NfObj.prj ob of
-		  NfAtomic (LogicVar {ctx=ref NONE, tag, ...}, _) =>
+	let open Util
+		fun pair r x = (r, x)
+		(* FIXME: Remove occurs check from pruneType? *)
+		fun pruneType rOccur x = NfAsyncTypeRec.map (pruneTypeSpine rOccur, pruneSyncType rOccur) x
+		and pruneTypeSpine rOccur x = NfTypeSpineRec.map (pruneObj rOccur true) x
+		and pruneSyncType rOccur x = NfSyncTypeRec.map (pruneType rOccur) x
+		and pruneSpine rOccur (srig, x) = NfSpineRec.map (pruneMonad rOccur srig) x
+		and pruneMonad rOccur srig x = NfMonadObjRec.map (pruneObj rOccur srig) x
+		and pruneMonad' rOccur (srig, x) = pruneMonad rOccur srig x
+		and pruneObj rOccur srig x = NfObjRec.unfold (pruneSpine rOccur, pruneExp rOccur)
+			(fn (srig, ob) => case lowerObj $ NfObj.prj ob of
+				  NfAtomic hS => NfAtomic $ pruneAtomic rOccur srig hS
+				| N => NfObj.Fmap ((pair srig, pair srig), pair srig) N)
+			(srig, x)
+		and pruneExp rOccur (srig, x) = NfExpObjRec.unfold (pruneSpine rOccur, pruneMonad' rOccur)
+			(fn (srig, ex) => case lowerExp $ NfExpObj.prj ex of
+				  NfLet (p, hS, E) => NfLet (p, pruneAtomic rOccur srig hS, (srig, E))
+				| NfMon M => NfMon (srig, M))
+			(srig, x)
+		and pruneAtomic rOccur srig (v as Var _, S) = (v, (false, S))
+		  | pruneAtomic rOccur srig (c as Const _, S) = (c, (srig, S))
+		  | pruneAtomic rOccur srig (c as UCVar _, S) = (c, (srig, S))
+		  | pruneAtomic rOccur srig (LogicVar {ctx=ref NONE, tag, ...}, _) =
 				raise Fail ("Internal error: no context on $"^Word.toString tag)
-		| NfAtomic (LogicVar (Y as {X=rY, ty=A, s=sY, ctx=ref (SOME G), cnstr=cs, tag}), _) =>
+		  | pruneAtomic rOccur srig
+			(LogicVar (Y as {X=rY, ty=A, s=sY, ctx=ref (SOME G), cnstr=cs, tag}), _) =
 				if eq (rY, rOccur) then
 					(* X = H . S{X[p]} --> X = H . S{_}   if p is pattern
 					 * X = H . S_srig{X[s]} --> _         with H <> lvar and H <> var
@@ -220,44 +302,37 @@ val (objExists, typeExists) =
 					 * be in a strongly rigid context or have sY preserve size, i.e.:
 					 * For all ground R, |R| >= |R[sY]|
 					 *)
-					if srig andalso allowPrune nprune then raise Subst.ExnUndef
-					else if isSome $ Subst.patSub Eta.etaContract sY (ctxMap nfAsyncTypeToApx G)
+					if srig then raise Subst.ExnUndef
+					else if isSome $ patSub rOccur sY (ctxMap nfAsyncTypeToApx G)
 						then raise Subst.ExnUndef
 					else raise ExnOccur
 				else let
-					val needSubPrune = ref false
-					val subPrune = DisallowPrune needSubPrune
-					fun getOptUndef (SOME ob) = ob
-					  | getOptUndef NONE = raise Subst.ExnUndef
-					val sY' = Subst.map (getOptUndef o objExistsP subPrune rOccur) sY
+					val noNestedUndef = ref true
+					fun f (ob, nnu) = ( noNestedUndef := (!noNestedUndef andalso nnu) ; ob )
+					val sY' = Subst.map (f o checkExistObj rOccur) sY
+					val Y' = LogicVar (Y with's sY')
 					val w = Subst.fold (* calculate weakening substitution *)
 								(fn (Undef, w) => Subst.comp (w, Subst.shift 1)
 								  | (_, w) => Subst.dot1 w)
 								(fn _ => Subst.id) sY'
-					val needPrune = not $ Subst.isId w
-					val N' = if allowPrune nprune andalso needPrune then
-								let val wi = Subst.invert w
-									val pruneType = Util.objSRigMapType (f AllowPrune rOccur) srig
-									val G' = pruneCtx Subst.ExnUndef pruneType wi G
-									val A' = pruneType (NfTClos (A, wi))
-									val Y'w = NfClos (newNfLVarCtx (SOME G') A', w)
-									val () = instantiate (rY, Y'w, cs, tag)
-								in NfObj.prj $ NfClos (Y'w, sY') end
-							else NfAtomic (LogicVar (Y with's sY'), NfInj.Nil')
-					val () = if allowPrune nprune andalso !needSubPrune then
-								case N' of NfAtomic (LogicVar {cnstr, ...}, _) =>
-									addConstraint (vref (Exist (NfObj.inj N')), [cnstr])
-								| _ => raise Fail "Internal error: no lvar"
-							else ()
-					val () = case nprune of AllowPrune => () | DisallowPrune p =>
-							p := (!p orelse needPrune orelse !needSubPrune)
-				in N' end
-		| N => N
-		and objExistsP nprune rOccur ob =
-			xExists nprune (Util.objSRigMapObj (f nprune rOccur) true) ob
-		fun typeExistsP nprune rOccur ty =
-			xExists nprune (Util.objSRigMapType (f nprune rOccur) true) ty
-	in (objExistsP AllowPrune, typeExistsP AllowPrune) end
+				in if Subst.isId w andalso !noNestedUndef then
+					(Y', (false, NfInj.Nil'))
+				else if !noNestedUndef andalso
+						isSome $ Subst.patSub (fn x => (x, true))
+								Eta.etaContract sY' (ctxMap nfAsyncTypeToApx G) then
+					let val wi = Subst.invert w
+						val G' = pruneCtx Subst.ExnUndef (pruneType (vref NONE)) wi G
+						val A' = pruneType (vref NONE) (NfTClos (A, wi))
+						val Y'w = NfClos (newNfLVarCtx (SOME G') A', w)
+						val () = instantiate (rY, Y'w, cs, tag)
+					in (#1 $ invAtomicP $ NfClos (Y'w, sY'), (false, NfInj.Nil')) end
+				else
+					( addConstraint (vref (Exist (NfAtomic' (Y', NfInj.Nil'))), [cs])
+					; (Y', (false, NfInj.Nil')) )
+				end
+		fun objExists1 rOccur ob = SOME (pruneObj rOccur true ob) handle Subst.ExnUndef => NONE
+		fun typeExists1 rOccur ty = SOME (pruneType rOccur ty) handle Subst.ExnUndef => NONE
+	in (objExists1, typeExists1) end
 
 (*
 fun lPrLookup (n, pl) = if n>0 then List.find (fn (m, _) => m=n) pl else NONE
@@ -390,16 +465,16 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 				end
 			else if isSome dryRun then (valOf dryRun) := false
 			else let val apxG1 = ctxMap nfAsyncTypeToApx G1
-			in case Subst.patSub Eta.etaContract s1 apxG1 of
+			in case patSub (vref NONE) s1 apxG1 of
 				  SOME (p, s') => unifyLVar (X1 with's s', NfAtomic' hS2, p, s1)
 				| NONE =>
-					(case Subst.patSub Eta.etaContract s2 apxG1 of
+					(case patSub (vref NONE) s2 apxG1 of
 					  SOME (p, s') => unifyLVar (X2 with's s', NfAtomic' hS1, p, s2)
 					| NONE => addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs1, cs2]))
 			end
 	| (LogicVar (X as {s, ctx=ref (SOME G), cnstr=cs, ...}), _) =>
 			if isSome dryRun then (valOf dryRun) := false else
-			(case Subst.patSub Eta.etaContract s (ctxMap nfAsyncTypeToApx G) of
+			(case patSub (vref NONE) s (ctxMap nfAsyncTypeToApx G) of
 				  SOME (p, s') => unifyLVar (X with's s', NfAtomic' hS2, p, s)
 				| NONE => addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs]))
 	| (LogicVar {ctx=ref NONE, tag, ...}, _) =>

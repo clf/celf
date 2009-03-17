@@ -72,7 +72,7 @@ and uc2xType lookup n ty = case AsyncType.prj ty of
 	| TMonad S => TMonad' (uc2xSyncType lookup n S)
 	| TAtomic (a, S) => TAtomic' (a, uc2xTypeSpine lookup n S)
 	| TAbbrev aA => TAbbrev' aA
-and uc2xTypeSpine lookup n sp = Util.TypeSpineRec.unfold (uc2xObj lookup n) TypeSpine.prj sp
+and uc2xTypeSpine lookup n sp = Util.TypeSpineRec.map (uc2xObj lookup n) sp
 and uc2xSyncType lookup n sty = case SyncType.prj sty of
 	  LExists (p, S1, S2) => LExists' (p, uc2xSyncType lookup n S1, uc2xSyncType lookup (n + nbinds p) S2)
 	| TOne => TOne'
@@ -93,12 +93,12 @@ and uc2xHead lookup n h = case h of
 		LogicVar (X with'ty uc2xType lookup (Subst.fold (fn (_,k) => k+1) (fn k => n-k) (#s X)) (#ty X)
 			with's Subst.map (normalizeObj o uc2xObj lookup n o unnormalizeObj) (#s X))
 	| Var vn => Var vn
-and uc2xSpine lookup n sp = Util.SpineRec.unfold (uc2xMonadObj lookup n) Spine.prj sp
+and uc2xSpine lookup n sp = Util.SpineRec.map (uc2xMonadObj lookup n) sp
 and uc2xExp lookup n e = case ExpObj.prj e of
 	  LetRedex (p, S, N, E) => LetRedex' (p, S, uc2xObj lookup n N, uc2xExp lookup (n + nbinds p) E)
 	| Let (p, (H, S), E) => Let' (p, (uc2xHead lookup n H, uc2xSpine lookup n S), uc2xExp lookup (n + nbinds p) E)
 	| Mon M => Mon' (uc2xMonadObj lookup n M)
-and uc2xMonadObj lookup n m = Util.MonadObjRec.unfold (uc2xObj lookup n) MonadObj.prj m
+and uc2xMonadObj lookup n m = Util.MonadObjRec.map (uc2xObj lookup n) m
 
 
 fun ctx2Lookup ctx =
