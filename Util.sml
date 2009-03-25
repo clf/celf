@@ -193,27 +193,6 @@ fun objMapType f = unfoldType (uffsMap f)
 fun objMapSyncType f = unfoldSyncType (uffsMap f)
 fun objMapObj f = unfoldObj (uffsMap f)
 
-(* objSRigMapKind : (bool -> nfObj -> nfObj nfObjF) -> bool -> nfKind -> nfKind *)
-(* objSRigMapType : (bool -> nfObj -> nfObj nfObjF) -> bool -> nfAsyncType -> nfAsyncType *)
-(* objSRigMapObj : (bool -> nfObj -> nfObj nfObjF) -> bool -> nfObj -> nfObj *)
-(* boolean flag r indicates a strong rigid context *)
-fun pair r y = (r, y)
-fun sr2 fmap prj (r, x) = fmap (pair r, pair r) (prj x)
-fun sr3 fmap prj (r, x) = fmap ((pair r, pair r), pair r) (prj x)
-(*fun sr4 fmap prj (r, x) = fmap ((pair r, pair r, pair r), pair r) (prj x)*)
-fun sr3' fmap prj (r, x) = fmap ((pair r, pair r), pair r) (prj r x)
-fun checkSRig (NfAtomic (v as Var _, (_, S))) = (NfAtomic (v, (false, S)))
-  | checkSRig (NfAtomic (v as LogicVar _, (_, S))) = (NfAtomic (v, (false, S)))
-  | checkSRig N = N
-fun uffsSRigMap f = {fki=sr2 NfKind.Fmap NfKind.prj, faTy=sr3 NfAsyncType.Fmap NfAsyncType.prj,
-		ftyS=sr2 NfTypeSpine.Fmap NfTypeSpine.prj, fsTy=sr2 NfSyncType.Fmap NfSyncType.prj,
-		fo=checkSRig o (sr3' NfObj.Fmap f), fsp=sr2 NfSpine.Fmap NfSpine.prj,
-		fe=sr3 NfExpObj.Fmap NfExpObj.prj, fm=sr2 NfMonadObj.Fmap NfMonadObj.prj}
-fun objSRigMapKind f srig k = unfoldNfKind (uffsSRigMap f) (srig, k)
-fun objSRigMapType f srig t = unfoldNfType (uffsSRigMap f) (srig, t)
-fun objSRigMapSyncType f srig t = unfoldNfSyncType (uffsSRigMap f) (srig, t)
-fun objSRigMapObj f srig x = unfoldNfObj (uffsSRigMap f) (srig, x)
-
 val ffsCopy = {fki=NfKind.inj, faTy=NfAsyncType.inj, ftyS=NfTypeSpine.inj, fsTy=NfSyncType.inj,
 		fo=NfObj.inj, fsp=NfSpine.inj, fe=NfExpObj.inj, fm=NfMonadObj.inj}
 val forceNormalizeKind = unnormalizeKind o (foldNfKind ffsCopy) o normalizeKind

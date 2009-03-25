@@ -35,7 +35,7 @@ val pruneCtx : exn -> (Syntax.nfAsyncType -> Syntax.nfAsyncType) -> Syntax.subst
 exception ExnOccur
 
 val objExists : Syntax.nfObj option VRef.vref -> Syntax.nfObj -> Syntax.nfObj option
-val typeExists : Syntax.nfObj option VRef.vref -> Syntax.nfAsyncType -> Syntax.nfAsyncType option
+val typeExists : Syntax.nfAsyncType -> Syntax.nfAsyncType option
 
 val unify : Syntax.asyncType * Syntax.asyncType * (unit -> string) -> unit
 val unifiable : Syntax.asyncType * Syntax.asyncType -> bool

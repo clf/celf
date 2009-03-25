@@ -147,38 +147,6 @@ struct
 			  | switchSub' k = Dot (Idx (ID, n2+n1+1-k), switchSub' (k-1))
 		in switchSub' n1 end
 
-	(* Input:
-	   G1 |- s1 : G2  and  G1 |- s2 : G2
-	   Output:
-	   G2 |- w : G3   w weakening substitution
-	   Constructs a subcontext G3 of G2 consisting of the parts of G2
-	   on which s1 and s2 agrees.
-	*)
-	fun intersection conv s1s2 =
-		let fun modeMult ID m = m
-			  | modeMult INT4LIN LIN = INT
-			  | modeMult INT4AFF AFF = INT
-			  | modeMult AFF4LIN LIN = AFF
-			  | modeMult _ _ = raise Fail "Linearity mismatch in intersection"
-			fun eq (Idx (M1, n), Idx (M2, m)) = (assertLin (M1=M2 orelse n<>m) ; n=m)
-			  | eq (Idx (m, n), Ob (M, N)) =
-					(conv (INL (modeMult m M, n), N) handle ExnUndef => false)
-			  | eq (N1 as Ob _, N2 as Idx _) = eq (N2, N1)
-			  | eq (Ob (M1, N1), Ob (M2, N2)) =
-					( assertLin (M1=M2) ; conv (INR N1, N2) handle ExnUndef => false )
-			  | eq (Undef, _) = false
-			  | eq (_, Undef) = false
-			fun intersect (Dot (n1, s1), Dot (n2, s2)) =
-					if eq (n1, n2) then dot1 (intersect (s1, s2))
-					else comp (intersect (s1, s2), Shift 1)
-			  | intersect (s1 as Dot _, Shift n) =
-			  		intersect (s1, Dot (Idx (ID, n+1), Shift (n+1)))
-			  | intersect (Shift n, s2 as Dot _) =
-			  		intersect (Dot (Idx (ID, n+1), Shift (n+1)), s2)
-			  | intersect (Shift n1, Shift n2) =
-					if n1=n2 then id else raise Fail "Internal error: intersection\n"
-		in intersect s1s2 end
-
 	fun invert s =
 		let fun lookup (_, Shift _, p) = NONE
 			  | lookup (_, Dot (Ob _, _), _) =
@@ -236,6 +204,46 @@ struct
 				  | toStr (Dot (Idx (M, n), s)) = (Int.toString n)^(cm2s M)^"."^(toStr s)
 				  | toStr (Shift n) = "^"^(Int.toString n)
 			in "["^(toStr s)^"]" end
+
+	(* intersect s = w
+	 * given pattern G |- s : G
+	 * w o s o w^-1 is a permutation *)
+	fun intersect s =
+		let val w = fold (fn (Undef, w) => comp (w, Shift 1) | (_, w) => dot1 w)
+					(fn _ => id) s
+		in if isId w then id else comp (intersect (comp (w, comp (s, invert w))), w) end
+
+	(* Input:
+	   G1 |- s1 : G2  and  G1 |- s2 : G2
+	   Output:
+	   G2 |- w : G3   w weakening substitution
+	   Constructs a subcontext G3 of G2 consisting of the parts of G2
+	   on which s1 and s2 agrees.
+	*)
+	fun intersection conv s1s2 =
+		let fun modeMult ID m = m
+			  | modeMult INT4LIN LIN = INT
+			  | modeMult INT4AFF AFF = INT
+			  | modeMult AFF4LIN LIN = AFF
+			  | modeMult _ _ = raise Fail "Linearity mismatch in intersection"
+			fun eq (Idx (M1, n), Idx (M2, m)) = (assertLin (M1=M2 orelse n<>m) ; n=m)
+			  | eq (Idx (m, n), Ob (M, N)) =
+					(conv (INL (modeMult m M, n), N) handle ExnUndef => false)
+			  | eq (N1 as Ob _, N2 as Idx _) = eq (N2, N1)
+			  | eq (Ob (M1, N1), Ob (M2, N2)) =
+					( assertLin (M1=M2) ; conv (INR N1, N2) handle ExnUndef => false )
+			  | eq (Undef, _) = false
+			  | eq (_, Undef) = false
+			fun intersect (Dot (n1, s1), Dot (n2, s2)) =
+					if eq (n1, n2) then dot1 (intersect (s1, s2))
+					else comp (intersect (s1, s2), Shift 1)
+			  | intersect (s1 as Dot _, Shift n) =
+			  		intersect (s1, Dot (Idx (ID, n+1), Shift (n+1)))
+			  | intersect (Shift n, s2 as Dot _) =
+			  		intersect (Dot (Idx (ID, n+1), Shift (n+1)), s2)
+			  | intersect (Shift n1, Shift n2) =
+					if n1=n2 then id else raise Fail "Internal error: intersection\n"
+		in intersect s1s2 end
 
 	fun modeDiv INT INT = ID (* modeDiv also used in Syntax.sml *)
 	  | modeDiv INT AFF = INT4AFF

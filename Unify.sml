@@ -182,28 +182,8 @@ fun splitExp (rOccur, ex) =
 	end
 *)
 
-(* pruneCtx : exn -> (nfAsyncType -> nfAsyncType) -> subst -> nfAsyncType context -> nfAsyncType context *)
-(* pruneCtx calculates G' such that
-   G' |- ss : G
-   for a strengthening substitution ss
-   raises e if ss is not well-typed due to linearity
-*)
-fun pruneCtx e pruneType ss G =
-	let fun pruneCtx' ss [] = emptyCtx
-		  | pruneCtx' ss ((x, A, mode)::G) =
-				if Subst.hdDef ss then
-					let val si = Subst.invert (Subst.shift 1)
-						val ss' = Subst.comp (Subst.comp (Subst.shift 1, ss), si)
-						val A' = pruneType (NfTClos (A, ss'))
-					in ctxCons (x, A', mode) (pruneCtx' ss' G) end
-				else if mode = SOME LIN then (* and hd ss = Undef *)
-					raise e
-				else (* mode <> LIN and hd ss = Undef *)
-					pruneCtx' (Subst.comp (Subst.shift 1, ss)) G
-	in pruneCtx' ss (ctx2list G) end
-
 exception ExnOccur
-fun patSub rOccur s G = Subst.patSub (checkExistObj rOccur) Eta.etaContract s G
+fun patSubOcc rOccur s G = Subst.patSub (checkExistObj rOccur) Eta.etaContract s G
 and checkExistObj rOccur ob =
 	let val nestedUndef = ref false
 		val undefined = NfClos (normalizeObj (EtaTag (Atomic' (Var (INT, 1), Nil'), (INT, 1))),
@@ -225,7 +205,7 @@ and checkExistObj rOccur ob =
 				raise Fail ("Internal error: no context on $"^Word.toString tag)
 		  | chHead lvCtrlCtx (LogicVar (Y as {X=rY, s=sY, ctx=ref (SOME G), ...})) =
 				if eq (rY, rOccur) then (* X = H . S{X[p]} --> X = H . S{_}  if p is pattern *)
-					if isSome $ patSub rOccur sY (ctxMap nfAsyncTypeToApx G) then
+					if isSome $ patSubOcc rOccur sY (ctxMap nfAsyncTypeToApx G) then
 						raise Subst.ExnUndef
 					else raise ExnOccur
 				else
@@ -266,15 +246,36 @@ and checkExistObj rOccur ob =
 		val ob' = chOb true [] ob
 	in (ob', not $ !nestedUndef) end
 
+fun patSub s G = patSubOcc (vref NONE) s G
+
+(* pruneCtx : exn -> (nfAsyncType -> nfAsyncType) -> subst -> nfAsyncType context -> nfAsyncType context *)
+(* pruneCtx calculates G' such that
+   G' |- ss : G
+   for a strengthening substitution ss
+   raises e if ss is not well-typed due to linearity
+*)
+fun pruneCtx e pruneType ss G =
+	let fun pruneCtx' ss [] = emptyCtx
+		  | pruneCtx' ss ((x, A, mode)::G) =
+				if Subst.hdDef ss then
+					let val si = Subst.invert (Subst.shift 1)
+						val ss' = Subst.comp (Subst.comp (Subst.shift 1, ss), si)
+						val A' = pruneType (NfTClos (A, ss'))
+					in ctxCons (x, A', mode) (pruneCtx' ss' G) end
+				else if mode = SOME LIN then (* and hd ss = Undef *)
+					raise e
+				else (* mode <> LIN and hd ss = Undef *)
+					pruneCtx' (Subst.comp (Subst.shift 1, ss)) G
+	in pruneCtx' ss (ctx2list G) end
+
 (* objExists : nfObj option vref -> nfObj -> nfObj option *)
-(* typeExists : nfObj option vref -> nfAsyncType -> nfAsyncType option *)
+(* typeExists : nfAsyncType -> nfAsyncType option *)
 val (objExists, typeExists) =
 	let open Util
 		fun pair r x = (r, x)
-		(* FIXME: Remove occurs check from pruneType? *)
-		fun pruneType rOccur x = NfAsyncTypeRec.map (pruneTypeSpine rOccur, pruneSyncType rOccur) x
-		and pruneTypeSpine rOccur x = NfTypeSpineRec.map (pruneObj rOccur true) x
-		and pruneSyncType rOccur x = NfSyncTypeRec.map (pruneType rOccur) x
+		fun pruneType x = NfAsyncTypeRec.map (pruneTypeSpine, pruneSyncType) x
+		and pruneTypeSpine x = NfTypeSpineRec.map (pruneObj (vref NONE) true) x
+		and pruneSyncType x = NfSyncTypeRec.map pruneType x
 		and pruneSpine rOccur (srig, x) = NfSpineRec.map (pruneMonad rOccur srig) x
 		and pruneMonad rOccur srig x = NfMonadObjRec.map (pruneObj rOccur srig) x
 		and pruneMonad' rOccur (srig, x) = pruneMonad rOccur srig x
@@ -303,7 +304,7 @@ val (objExists, typeExists) =
 					 * For all ground R, |R| >= |R[sY]|
 					 *)
 					if srig then raise Subst.ExnUndef
-					else if isSome $ patSub rOccur sY (ctxMap nfAsyncTypeToApx G)
+					else if isSome $ patSubOcc rOccur sY (ctxMap nfAsyncTypeToApx G)
 						then raise Subst.ExnUndef
 					else raise ExnOccur
 				else let
@@ -321,17 +322,17 @@ val (objExists, typeExists) =
 						isSome $ Subst.patSub (fn x => (x, true))
 								Eta.etaContract sY' (ctxMap nfAsyncTypeToApx G) then
 					let val wi = Subst.invert w
-						val G' = pruneCtx Subst.ExnUndef (pruneType (vref NONE)) wi G
-						val A' = pruneType (vref NONE) (NfTClos (A, wi))
+						val G' = pruneCtx Subst.ExnUndef pruneType wi G
+						val A' = pruneType (NfTClos (A, wi))
 						val Y'w = NfClos (newNfLVarCtx (SOME G') A', w)
 						val () = instantiate (rY, Y'w, cs, tag)
-					in (#1 $ invAtomicP $ NfClos (Y'w, sY'), (false, NfInj.Nil')) end
+					in map2 (pair false) $ invAtomicP $ NfClos (Y'w, sY') end
 				else
 					( addConstraint (vref (Exist (NfAtomic' (Y', NfInj.Nil'))), [cs])
 					; (Y', (false, NfInj.Nil')) )
 				end
 		fun objExists1 rOccur ob = SOME (pruneObj rOccur true ob) handle Subst.ExnUndef => NONE
-		fun typeExists1 rOccur ty = SOME (pruneType rOccur ty) handle Subst.ExnUndef => NONE
+		fun typeExists1 ty = SOME (pruneType ty) handle Subst.ExnUndef => NONE
 	in (objExists1, typeExists1) end
 
 (*
@@ -440,41 +441,63 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 			else unifySpine dryRun (S1, S2)
 	| (LogicVar (X1 as {X=r1, ty=A1, s=s1, ctx=ref (SOME G1), cnstr=cs1, tag=tag1}),
 		LogicVar (X2 as {X=r2, s=s2, cnstr=cs2, ...})) =>
-			if eq (r1, r2) then
-				let val dryRunIntersect = ref true
-					exception ExnUnifyMaybe
-					fun conv ob1ob2 = case SOME (unifyObj (SOME dryRunIntersect) ob1ob2)
-							handle ExnUnify _ => NONE of
-						  SOME () => if !dryRunIntersect then true
-								else raise ExnUnifyMaybe
-						| NONE => false
-					fun conv' (INL n, ob2) = conv (NfAtomic' (Var n, NfInj.Nil'), ob2) (* FIXME eta *)
-					  | conv' (INR ob1, ob2) = conv (ob1, ob2)
-				in case SOME (Subst.intersection conv' (s1, s2)) handle ExnUnifyMaybe => NONE of
-					  NONE => if isSome dryRun then (valOf dryRun) := false else
+			let val apxG1 = ctxMap nfAsyncTypeToApx G1
+			in if eq (r1, r2) then
+				case (patSub s1 apxG1, patSub s2 apxG1) of
+				  (NONE, NONE) =>
+					let val dryRunIntersect = ref true
+						exception ExnUnifyMaybe
+						fun conv ob1ob2 = case SOME (unifyObj (SOME dryRunIntersect) ob1ob2)
+								handle ExnUnify _ => NONE of
+							  SOME () => if !dryRunIntersect then true else raise ExnUnifyMaybe
+							| NONE => false
+						fun conv' (INL n, ob2) = conv (NfAtomic' (Var n, NfInj.Nil'), ob2) (* FIXME eta *)
+						  | conv' (INR ob1, ob2) = conv (ob1, ob2)
+					in if Subst.isId (Subst.intersection conv' (s1, s2))
+							handle ExnUnifyMaybe => false then ()
+					else if isSome dryRun then (valOf dryRun) := false else
+						addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs1])
+					end
+				| (SOME (p, s1'), NONE) =>
+					if isSome dryRun then (valOf dryRun) := false else
+						addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs1])
+				| (NONE, SOME (p, s2')) =>
+					if isSome dryRun then (valOf dryRun) := false else
+						addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs1])
+				| (SOME (p1, s1'), SOME (p2, s2')) =>
+					let val s12 = Subst.comp (s1', Subst.invert s2')
+						val w = Subst.intersect s12
+						val wi = Subst.invert w
+						val sp = Subst.comp (w, Subst.comp (s12, wi))
+					in if Subst.isId w then
+						if Subst.isId sp then ()
+						else if isSome dryRun then (valOf dryRun) := false else
 							addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs1])
-					| SOME w => if Subst.isId w then () else 
-							if isSome dryRun then (valOf dryRun) := false else
-							let val wi = Subst.invert w
-								fun pruneType ty = case typeExists (vref NONE) ty of
-										  SOME ty' => ty'
-										| NONE => raise ExnUnify "pruneType in intersection"
-								val A' = pruneType $ NfTClos (A1, wi)
-								val G' = pruneCtx (ExnUnify "intersect:pruneCtx") pruneType wi G1
-							in instantiate (r1, NfClos (newNfLVarCtx (SOME G') A', w), cs1, tag1) end
-				end
+					else if isSome dryRun then (valOf dryRun) := false else
+						let fun pruneType ty = case typeExists ty of
+									  SOME ty' => ty'
+									| NONE => raise ExnUnify "pruneType in intersection"
+							val A' = pruneType $ NfTClos (A1, wi)
+							val G' = pruneCtx (ExnUnify "intersect:pruneCtx") pruneType wi G1
+							val Y = newNfLVarCtx (SOME G') A'
+							val () = instantiate (r1, NfClos (Y, w), cs1, tag1)
+						in if Subst.isId sp then () else
+							addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)),
+								[case NfObj.prj Y of NfAtomic (LogicVar {cnstr=cs, ...}, _) => cs
+									| _ => raise Fail "Internal error: intersect: no lvar"])
+						end
+					end
 			else if isSome dryRun then (valOf dryRun) := false
-			else let val apxG1 = ctxMap nfAsyncTypeToApx G1
-			in case patSub (vref NONE) s1 apxG1 of
+			else case patSub s1 apxG1 of
 				  SOME (p, s') => unifyLVar (X1 with's s', NfAtomic' hS2, p, s1)
 				| NONE =>
-					(case patSub (vref NONE) s2 apxG1 of
+					(case patSub s2 apxG1 of
 					  SOME (p, s') => unifyLVar (X2 with's s', NfAtomic' hS1, p, s2)
 					| NONE => addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs1, cs2]))
 			end
 	| (LogicVar (X as {s, ctx=ref (SOME G), cnstr=cs, ...}), _) =>
 			if isSome dryRun then (valOf dryRun) := false else
-			(case patSub (vref NONE) s (ctxMap nfAsyncTypeToApx G) of
+			(case patSub s (ctxMap nfAsyncTypeToApx G) of
 				  SOME (p, s') => unifyLVar (X with's s', NfAtomic' hS2, p, s)
 				| NONE => addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs]))
 	| (LogicVar {ctx=ref NONE, tag, ...}, _) =>

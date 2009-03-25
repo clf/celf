@@ -247,6 +247,7 @@ structure Subst : sig
 	val comp : subst * subst -> subst
 	val shiftHead : 'aTy headF * int -> 'aTy headF
 	val switchSub : int * int -> subst
+	val intersect : subst -> subst
 	val intersection : ((Context.mode * int, nfObj) sum * nfObj -> bool) -> subst * subst -> subst
 	val invert : (*pat*)subst -> subst
 	val patSub : (nfObj -> nfObj * bool) -> (exn -> nfObj -> apxAsyncType -> Context.mode * int) ->

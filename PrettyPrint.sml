@@ -99,7 +99,9 @@ and pSyncType ctx pa sty = case SyncType.prj sty of
 	| TDown A => pType ctx pa A
 	| TAffi A => ["@"] @ pType ctx true A
 	| TBang A => ["!"] @ pType ctx true A
-and pObj ctx pa ob = case Obj.prj ob of
+and pObj ctx pa ob = case SOME (Obj.prj ob) handle Subst.ExnUndef => NONE of
+	  NONE => ["_"]
+	| SOME ob => case ob of
 	  LLam (p, N) =>
 			let val (pP, ctx') = pOPattern ctx p
 			in paren pa (["\\"] @ pP @ [". "] @ pObj ctx' false N) end

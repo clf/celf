@@ -91,7 +91,7 @@ fun sort () =
 		val noIns = map #1 (List.filter
 								(fn (_, (ref inset, _)) => 0 = numItems inset)
 								(toList graph))
-		fun topsort l [] = rev l
+		fun topsort l [] = if length l = length ucVars then rev l else raise Fail "Circularity"
 		  | topsort l (x::xs) =
 				topsort ((x, ucLookup x)::l)
 					(xs @ foldl
