@@ -444,7 +444,7 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 			let val apxG1 = ctxMap nfAsyncTypeToApx G1
 			in if eq (r1, r2) then
 				case (patSub s1 apxG1, patSub s2 apxG1) of
-				  (NONE, NONE) =>
+				  (NONE, NONE) => (* FIXME: code restructuring? *)
 					let val dryRunIntersect = ref true
 						exception ExnUnifyMaybe
 						fun conv ob1ob2 = case SOME (unifyObj (SOME dryRunIntersect) ob1ob2)
@@ -464,7 +464,7 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 				| (NONE, SOME (p, s2')) =>
 					if isSome dryRun then (valOf dryRun) := false else
 						addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs1])
-				| (SOME (p1, s1'), SOME (p2, s2')) =>
+				| (SOME (_, s1'), SOME (_, s2')) => (* we can disregard linear changing subs *)
 					let val s12 = Subst.comp (s1', Subst.invert s2')
 						val w = Subst.intersect s12
 						val wi = Subst.invert w
@@ -510,7 +510,7 @@ and unifyLVar (X as {cnstr=cs, ...}, ob, _::_, s) =
 	(case objExists r (NfClos (ob, Subst.invert s)) of
 		  NONE => raise ExnUnify "Unification failed\n"
 		| SOME N => instantiate (r, N, cs, tag))
-			handle ExnOccur => addConstraint (vref (Eqn (NfAtomic' (LogicVar X, NfInj.Nil'), ob)), [cs])
+	handle ExnOccur => addConstraint (vref (Eqn (NfAtomic' (LogicVar X, NfInj.Nil'), ob)), [cs])
 and unifySpine dryRun (sp1, sp2) = case (NfSpine.prj sp1, NfSpine.prj sp2) of
 	  (Nil, Nil) => ()
 	| (LApp (M1, S1), LApp (M2, S2)) => (unifyMon dryRun (M1, M2); unifySpine dryRun (S1, S2))

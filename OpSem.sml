@@ -27,6 +27,7 @@ open PatternBind
 open SignaturTable
 
 val traceSolve = ref false
+val allowConstr = ref false
 
 val fcLimit = ref NONE : int option ref
 
@@ -246,7 +247,9 @@ and leftFocus' (lr, (l, ctx), P, ty, sc) = case Util.typePrjAbbrev ty of
 	| TMonad S => raise Fail "Internal error: leftFocus applied to monadic hypothesis!\n"
 	| P' as TAtomic _ =>
 				if l=[] andalso Unify.unifiable (AsyncType.inj P', P)
-				then sc (Nil', ctx)
+				then
+					( if !allowConstr then () else Unify.noConstrs ()
+					; sc (Nil', ctx) )
 				else ()
 	| TAbbrev _ => raise Fail "Internal error leftFocus: TAbbrev\n"
 

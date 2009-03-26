@@ -67,12 +67,17 @@ fun parseArgs args = case args of
 		( print "traceSolve := true\n"
 		; OpSem.traceSolve := true
 		; parseArgs args )
+	| "-ac"::args =>
+		( print "allowConstr := true\n"
+		; OpSem.allowConstr := true
+		; parseArgs args )
 	| "-h"::_ =>
 		( print ("Commandline: celf <options> <filename>\n"
 				^"Available options:\n"
 				^" -s seed : set random seed\n"
 				^" -h      : show this\n"
 				^" -d      : enable double checking\n"
+				^" -ac     : allow leftover constraints in proof search\n"
 				^" -pi     : print implicit arguments\n"
 				^" -pc     : print logicvar contexts\n"
 				^" -ta     : trace approximate type reconstruction\n"
@@ -95,7 +100,7 @@ fun parseArgs args = case args of
 	| f::_ => f
 
 fun celfMain' args =
-	let val () = print "Celf ver 2.1. Copyright (C) 2009\n"
+	let val () = print "Celf ver 2.2. Copyright (C) 2009\n"
 		val filename = parseArgs args
 	in if filename = "" then OS.Process.success (* -h was given *) else
 	let val () = print ("Reading "^filename^":\n\n")
