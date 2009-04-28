@@ -252,6 +252,8 @@ structure Subst : sig
 	val invert : (*pat*)subst -> subst
 	val patSub : (nfObj -> nfObj * bool) -> (exn -> nfObj -> apxAsyncType -> Context.mode * int) ->
 			subst -> apxAsyncType Context.context -> ((subMode * int) list * (*pat*)subst) option
+	val lcsComp : (subMode * int) list * subst -> (subMode * int) list
+	val lcs2sub : (subMode * int) list -> subst
 	val isId : subst -> bool
 	val isWeaken : subst -> bool
 	val substToStr : (nfObj -> string) -> subst -> string

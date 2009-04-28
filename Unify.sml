@@ -335,47 +335,124 @@ val (objExists, typeExists) =
 		fun typeExists1 ty = SOME (pruneType ty) handle Subst.ExnUndef => NONE
 	in (objExists1, typeExists1) end
 
-(*
-fun lPrLookup (n, pl) = if n>0 then List.find (fn (m, _) => m=n) pl else NONE
-
-fun linPruneObj (ob, n, pl) = case lowerObj $ Whnf.whnfObj ob of
-	  NfLinLam (x, N) => map1 (fn N' => LinLam' (x, N')) $ linPruneObj (N, n+1, pl)
-	| NfLam (x, N) => map1 (fn N' => Lam' (x, N')) $ linPruneObj (N, n+1, pl)
-	| NfAddPair (N1, N2) =>
-	| NfMonad E => map1 Monad' $ linPruneExp (E, n, pl)
-	| NfAtomic (H, S) => linPruneSpine (S, n, linPruneHead (H, n, pl))
-and linPruneHead (H, n, pl) = case H of
-	  Var (INT, m) => (case lPrLookup (m-n, #2 pl) of
-		  NONE => pl
-		| SOME NONE => raise Subst.ExnUndef
-		| SOME (SOME ls) =>)
-	| LogicVar X =>
-	| _ => pl (* Const, UCVar, Var (LIN, _) *)
-and linPruneSpine (sp, n, pl) = case Spine.prj sp of
-	  Nil => (Nil', pl)
-	| App (N, S) => map1 (fn S' => App' (Clos (N, _), S')) $ linPruneSpine (S, n, pl)
-	| LinApp (N, S) => linPruneSpine (S, n, linPruneObj (N, n, pl))
-	| ProjLeft S => map1 ProjLeft' $ linPruneSpine (S, n, pl)
-	| ProjRight S => map1 ProjRight' $ linPruneSpine (S, n, pl)
-*)
-
 fun qsort [] a = a
   | qsort (x::xs) a =
-		let val (l, g) = List.partition (fn y => y<x) xs
+		let val (l, g) = List.partition (fn (_, y) => y < #2 x) xs
 		in qsort l (x :: qsort g a) end
 
 fun linPrune (ob, pl) =
-	let val pl' = qsort pl
-		open Subst
-		fun convSub [] = id
-(*		  | convSub (1::ps) = dot (INT, NfAtomic' (Var (LIN, 1), NfInj.Nil'), comp (convSub ps, shift 1))*)
-		  | convSub (n::ps) = dot1 $ convSub (n-1 :: ps)
-		datatype lv = LV of obj * int | T | MULT of lv * lv | ADD of lv * lv
-(*		fun fo 
-		val u = ignore
-		val ff = {fki=u, faTy=u, ftyS=u, fsTy=u, fo=fo, fsp=fsp, fe=fe, fm=fm, fp=u}
-		*)
-	in 0 end
+	let datatype occ = No | Rigid | FlexMult | FlexUniq
+		val doexists = ref false
+		val postpone = ref false
+		fun np occ = (occ, Subst.id, Subst.id)
+		fun swap (occ, s1, s2) = (occ, s2, s1)
+		fun additiveOcc _ ID      _ _ = raise Fail "Internal error: linPrune: ID"
+		  | additiveOcc _ _       No No = np No
+		  | additiveOcc n m       o1 No = swap $ additiveOcc n m No o1
+		  | additiveOcc _ INT4AFF No Rigid = np Rigid
+		  | additiveOcc _ _       No Rigid = raise ExnUnify "implied linear var missing"
+		  | additiveOcc _ AFF4LIN No o2 = raise Fail "Internal error: A->L flex"
+		  | additiveOcc _ INT4AFF No o2 = np o2
+		  | additiveOcc n INT4LIN No o2 = (No, Subst.id, Subst.pruningsub [n])
+		  | additiveOcc _ _       Rigid Rigid = np Rigid
+		  | additiveOcc n m       o1 Rigid = swap $ additiveOcc n m Rigid o1
+		  | additiveOcc _ _       Rigid FlexUniq = np Rigid
+		  | additiveOcc _ _       Rigid FlexMult = (postpone:=true; np Rigid)
+		  | additiveOcc _ _       FlexUniq FlexUniq = np FlexUniq
+		  | additiveOcc _ _       FlexMult _ = np FlexMult
+		  | additiveOcc _ _       _ FlexMult = np FlexMult
+		fun multOcc _ ID _ _ = raise Fail "Internal error: linPrune: ID"
+		  | multOcc _ _ No o2 = np o2
+		  | multOcc _ _ o1 No = np o1
+		  | multOcc _ _ Rigid Rigid = raise ExnUnify "linPrune multiplicative"
+		  | multOcc n _ Rigid _ = (Rigid, Subst.id, Subst.pruningsub [n])
+		  | multOcc n _ _ Rigid = (Rigid, Subst.pruningsub [n], Subst.id)
+		  | multOcc _ _ _ _ = np FlexMult
+		fun occMap _ ([], [], []) = np []
+		  | occMap f ((m, n)::p, o1::occ1, o2::occ2) =
+				let val (occ, s1, s2) = f n m o1 o2
+					val (occs, s1', s2') = occMap f (p, occ1, occ2)
+				in (occ::occs, Subst.comp (s1, s1'), Subst.comp (s2, s2')) end
+		  | occMap _ _ = raise Fail "internal error: additiveOccs: Unequal lengths"
+		val additiveOccs = occMap additiveOcc
+		val multOccs = occMap multOcc
+		fun pClos clo n s N = if Subst.isId s then N else
+			( doexists := true
+			; clo (N, dotn n s) )
+		fun pObj p n ob = case lowerObj $ NfObj.prj ob of
+			  NfLLam (p, N) => map1 NfLLam' (pObj p (n+1) N)
+			| NfAddPair (N1, N2) =>
+				let val (N1', occ1) = pObj p n N1
+					val (N2', occ2) = pObj p n N2
+					val (occ, s1, s2) = additiveOccs (p, occ1, occ2)
+				in (NfAddPair' (pClos NfClos n s1 N1', pClos NfClos n s2 N2'), occ) end
+			| NfMonad E => map1 NfMonad' (pExp p n E)
+			| NfAtomic hs => map1 NfAtomic' (pAtomic p n hs)
+		and pAtomic p n hs = case hs of
+			  (Const c, S) => map1 (fn s => (Const c, s)) (pSpine p n S)
+			| (UCVar v, S) => map1 (fn s => (UCVar v, s)) (pSpine p n S)
+			| (Var (m, k), S) =>
+				let val m' = case (m, List.filter (fn (_, j) => j+n=k) p) of
+						  (_, []) => m
+						| (INT, [(INT4AFF, _)]) => AFF
+						| (AFF, [(AFF4LIN, _)]) => LIN
+						| (INT, [(INT4LIN, _)]) => AFF
+						| (_, [_]) => raise Fail "Internal error: linPrune: lin mismatch"
+						| (_, _::_::_) => raise Fail "Internal error: linPrune: double var"
+					val occ1 = map (fn (_, j) => if j+n=k then Rigid else No) p
+					val (S', occ2) = pSpine p n S
+					val (occ, s1, s2) = multOccs (p, occ1, occ2)
+					val () = if Subst.isId s1 then () else raise Fail "Internal error: lprune var"
+				in ((Var (m', k), pClos NfSClos n s2 S'), occ) end
+			| (LogicVar X, _) =>
+		and pSpine p n sp = case NfSpine.prj sp of
+			  Nil => (NfInj.Nil', map (fn _ => No) p)
+			| LApp (M, S) =>
+				let val (M', occ1) = pMonadObj p n M
+					val (S', occ2) = pSpine p n S
+					val (occ, s1, s2) = multOccs (p, occ1, occ2)
+				in (NfInj.LApp' (pClos NfMClos n s1 M', pClos NfSClos n s2 S'), occ) end
+			| ProjLeft S => map1 NfInj.ProjLeft' (pSpine p n S)
+			| ProjRight S => map1 NfInj.ProjRight' (pSpine p n S)
+		and pExp p n ex = case lowerExp $ NfExpObj.prj ex of
+			  NfLet (pa, hs, E) =>
+				let val (hs', occ1) = pAtomic p n hs
+					val (E', occ2) = pExp p n E
+					val (occ, s1, s2) = multOccs (p, occ1, occ2)
+					fun hsClos (hs, s) = (case NfObj.prj (NfClos (NfAtomic' hs, s)) of
+						  NfAtomic hs' => hs'
+						| _ => raise Fail "Internal error: pExp: no atomic")
+							handle Subst.ExnUndef => raise Fail "Internal error: pExp: prune var"
+				in (NfLet (pa, pClos hsClos n s1 hs', pClos NfEClos n s2 E'), occ) end
+			| NfMon M => map1 NfMon' (pMonadObj p n M)
+		and pMonadObj p n mo = case NfMonadObj.prj mo of
+			  DepPair (M1, M2) =>
+				let val (M1', occ1) = pMonadObj p n M1
+					val (M2', occ2) = pMonadObj p n M2
+					val (occ, s1, s2) = multOccs (p, occ1, occ2)
+				in (NfInj.DepPair' (pClos NfMClos n s1 M1', pClos NfMClos n s2 M2'), occ) end
+			| One => (NfInj.One', map (fn _ => No) p)
+			| Down N => map1 NfInj.Down' (pObj p n N)
+			| Affi N =>
+			| Bang N =>
+				( doexists := true
+				; (NfInj.Bang' (NfClos (N, Subst.dotn n $ Subst.pruningsub p)),
+					map (fn _ => No) p) )
+		fun finish p occ = additiveOccs (p, occ, map (fn _ => Rigid) p)
+		fun pruneObj [] ob = SOME ob
+		  | pruneObj p ob =
+			let val () = doexists := false
+				val () = postpone := false
+				val (ob1, occ) = pObj p 0 ob
+				val _ = finish p occ
+				val ob2 = if !doexists then case objExists (vref NONE) ob1 of
+							  NONE => raise ExnUnify "Multiple occurrences of implied A/L var"
+							| SOME ob2 => ob2
+						else ob1
+			in if !postpone then NONE else SOME ob2 end
+		val pl1 = qsort pl []
+		val pl2 = List.mapPartial (fn (INT4LIN, j) => SOME (AFF4LIN, j) | _ => NONE) pl1
+	in Option.mapPartial (pruneObj pl2) (pruneObj pl1 ob) end
 
 fun unifyType (ty1, ty2) = case (Util.nfTypePrjAbbrev ty1, Util.nfTypePrjAbbrev ty2) of
 	  (TLPi (_, A1, B1), TLPi (_, A2, B2)) => (unifySyncType (A1, A2); unifyType (B1, B2))
@@ -489,28 +566,35 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 					end
 			else if isSome dryRun then (valOf dryRun) := false
 			else case patSub s1 apxG1 of
-				  SOME (p, s') => unifyLVar (X1 with's s', NfAtomic' hS2, p, s1)
+				  SOME (p, s') => unifyLVar (X1 with's s', NfAtomic' hS2, p)
 				| NONE =>
 					(case patSub s2 apxG1 of
-					  SOME (p, s') => unifyLVar (X2 with's s', NfAtomic' hS1, p, s2)
+					  SOME (p, s') => unifyLVar (X2 with's s', NfAtomic' hS1, p)
 					| NONE => addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs1, cs2]))
 			end
 	| (LogicVar (X as {s, ctx=ref (SOME G), cnstr=cs, ...}), _) =>
 			if isSome dryRun then (valOf dryRun) := false else
 			(case patSub s (ctxMap nfAsyncTypeToApx G) of
-				  SOME (p, s') => unifyLVar (X with's s', NfAtomic' hS2, p, s)
+				  SOME (p, s') => unifyLVar (X with's s', NfAtomic' hS2, p)
 				| NONE => addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs]))
 	| (LogicVar {ctx=ref NONE, tag, ...}, _) =>
 			raise Fail ("Internal error: no context on $"^Word.toString tag)
 	| (_, LogicVar _) => unifyHead dryRun (hS2, hS1)
 	| _ => raise ExnUnify "h1 h2"
-and unifyLVar (X as {cnstr=cs, ...}, ob, _::_, s) =
-		addConstraint (vref (Eqn (NfAtomic' (LogicVar (X with's s), NfInj.Nil'), ob)), [cs])
-  | unifyLVar (X as {X=r, s, cnstr=cs, tag, ...}, ob, [], _) =
-	(case objExists r (NfClos (ob, Subst.invert s)) of
+and unifyLVar (X as {X=r, s, cnstr=cs, tag, ...}, ob, p) =
+	let val si = Subst.invert s
+	in case objExists r (NfClos (ob, si)) of
 		  NONE => raise ExnUnify "Unification failed\n"
-		| SOME N => instantiate (r, N, cs, tag))
-	handle ExnOccur => addConstraint (vref (Eqn (NfAtomic' (LogicVar X, NfInj.Nil'), ob)), [cs])
+		| SOME N => if null p then instantiate (r, N, cs, tag) else
+			let val p' = lcsComp (p, si)
+			in case linPrune (N, p') of
+				  NONE => addConstraint (vref (Eqn
+						(NfAtomic' (LogicVar (X with's (lcs2sub p')), NfInj.Nil'), N)), [cs])
+				| SOME N' => instantiate (r, N', cs, tag)
+			end
+	end handle ExnOccur =>
+		addConstraint (vref (Eqn
+			(NfAtomic' (LogicVar (X with's (Subst.comp (s, lcs2sub p))), NfInj.Nil'), ob)), [cs])
 and unifySpine dryRun (sp1, sp2) = case (NfSpine.prj sp1, NfSpine.prj sp2) of
 	  (Nil, Nil) => ()
 	| (LApp (M1, S1), LApp (M2, S2)) => (unifyMon dryRun (M1, M2); unifySpine dryRun (S1, S2))
@@ -569,7 +653,7 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) = raise Fail "FIXME2 unify
 								( unifyExp NONE (Let' (PClos (p1, Subst.shift n), Monad' newM,
 										Mon' (MClos (M1, Subst.dotn (nbinds p1) (Subst.shift n)))),
 									Mon' M2)
-								; unifyLVar (X1 with's s', Monad' (e newM), p, s) )
+								; unifyLVar (X1 with's s', Monad' (e newM), p) )
 							end))
 		| (_, E1', (LogicVar _, _), Mon M2) =>
 			unifyLetLet NONE ((p2, ob2', Mon' M2), (p1, ob1', expWhnfInj E1'))

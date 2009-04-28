@@ -292,6 +292,25 @@ struct
 					in ps (m, l, Dot (N', s), A::G) end
 			  | ps (_, _, Dot _, []) = raise Fail "Internal error: mismatch between ctx and sub"
 		in SOME $ (fn s => (!p, s)) $ ps (0, [], s', domCtx') handle ExnPatSub => NONE end
+	
+	fun lcsComp (p, s) =
+		let fun f (M, n, Shift m) =
+				if n>=1 then SOME (M, n+m) else raise Fail "Internal error: lcsComp: not patsub"
+			  | f (M, 1, Dot (Idx (ID, m), _)) = SOME (M, m)
+			  | f (M, 1, Dot (Undef, _)) = NONE
+			  | f (M, n, Dot (_, s)) = f (M, n-1, s)
+		in List.mapPartial (fn (M, n) => f (M, n, s)) p end
+
+	fun lcs2sub p = raise Fail "FIXME"
+
+	(*fun prunesub p =*)
+	fun pruningsub p =
+		let fun ps (n, k::p) =
+				if n=k then Dot (Undef, ps (n+1, p))
+				else if n<k then Dot (Idx (ID, n), ps (n+1, k::p))
+				else raise Fail "Internal error: prunesub: not sorted"
+			  | ps (n, []) = Shift (n-1)
+		in ps (1, p) end
 
 	fun shift n = Shift n
 end
