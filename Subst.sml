@@ -245,6 +245,15 @@ struct
 					if n1=n2 then id else raise Fail "Internal error: intersection\n"
 		in intersect s1s2 end
 
+	fun qsort2 l =
+		let fun qsort' [] a = a
+			  | qsort' (x::xs) a =
+					let val (l, g) = List.partition (fn (_, y) => y < #2 x) xs
+					in qsort' l (x :: qsort' g a) end
+			fun sorted ((_, x1)::x2::xs) = x1 <= #2 x2 andalso sorted (x2::xs)
+			  | sorted _ = true
+		in if sorted l then l else qsort' l [] end
+
 	fun modeDiv INT INT = ID (* modeDiv also used in Syntax.sml *)
 	  | modeDiv INT AFF = INT4AFF
 	  | modeDiv INT LIN = INT4LIN
@@ -291,15 +300,15 @@ struct
 								handle ExnUndef => Undef
 					in ps (m, l, Dot (N', s), A::G) end
 			  | ps (_, _, Dot _, []) = raise Fail "Internal error: mismatch between ctx and sub"
-		in SOME $ (fn s => (!p, s)) $ ps (0, [], s', domCtx') handle ExnPatSub => NONE end
-	
+		in SOME $ (fn s => (qsort2 (!p), s)) $ ps (0, [], s', domCtx') handle ExnPatSub => NONE end
+
 	fun lcsComp (p, s) =
 		let fun f (M, n, Shift m) =
 				if n>=1 then SOME (M, n+m) else raise Fail "Internal error: lcsComp: not patsub"
 			  | f (M, 1, Dot (Idx (ID, m), _)) = SOME (M, m)
 			  | f (M, 1, Dot (Undef, _)) = NONE
 			  | f (M, n, Dot (_, s)) = f (M, n-1, s)
-		in List.mapPartial (fn (M, n) => f (M, n, s)) p end
+		in qsort2 $ List.mapPartial (fn (M, n) => f (M, n, s)) p end
 
 	fun lcs2sub p = raise Fail "FIXME"
 

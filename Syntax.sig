@@ -242,6 +242,7 @@ structure Subst : sig
 	val subM : nfMonadObj -> subst
 	(*val dot : Context.mode * nfObj * subst -> subst*)
 	val dotMonad : nfMonadObj * subst -> subst
+	val Dot : subObj * subst -> subst
 	val dot1 : subst -> subst
 	val dotn : int -> subst -> subst
 	val comp : subst * subst -> subst
@@ -254,6 +255,8 @@ structure Subst : sig
 			subst -> apxAsyncType Context.context -> ((subMode * int) list * (*pat*)subst) option
 	val lcsComp : (subMode * int) list * subst -> (subMode * int) list
 	val lcs2sub : (subMode * int) list -> subst
+	val pruningsub : int list -> subst
+	val qsort2 : ('a * int) list -> ('a * int) list
 	val isId : subst -> bool
 	val isWeaken : subst -> bool
 	val substToStr : (nfObj -> string) -> subst -> string

@@ -335,12 +335,6 @@ val (objExists, typeExists) =
 		fun typeExists1 ty = SOME (pruneType ty) handle Subst.ExnUndef => NONE
 	in (objExists1, typeExists1) end
 
-fun qsort' [] a = a
-  | qsort' (x::xs) a =
-		let val (l, g) = List.partition (fn (_, y) => y < #2 x) xs
-		in qsort' l (x :: qsort' g a) end
-fun qsort l = qsort' l []
-
 fun linPrune (ob, pl) =
 	let datatype occ = No | Rigid | FlexMult | FlexUniq
 		val doexists = ref false
@@ -379,9 +373,9 @@ fun linPrune (ob, pl) =
 		val multOccs = occMap multOcc
 		fun pClos clo n s N = if Subst.isId s then N else
 			( doexists := true
-			; clo (N, dotn n s) )
+			; clo (N, Subst.dotn n s) )
 		fun pObj p n ob = case lowerObj $ NfObj.prj ob of
-			  NfLLam (p, N) => map1 NfLLam' (pObj p (n+1) N)
+			  NfLLam (pa, N) => map1 (fn N' => NfLLam' (pa, N')) (pObj p (n+1) N)
 			| NfAddPair (N1, N2) =>
 				let val (N1', occ1) = pObj p n N1
 					val (N2', occ2) = pObj p n N2
@@ -390,7 +384,7 @@ fun linPrune (ob, pl) =
 			| NfMonad E => map1 NfMonad' (pExp p n E)
 			| NfAtomic hs => map1 NfAtomic' (pAtomic p n hs)
 		and pAtomic p n hs =
-			let fun lookup k p = case List.filter (fn (_, j) => j=k) p of
+			let fun lookup k p = case List.filter (fn (_, j : int) => j=k) p of
 					  [] => ID
 					| [(ID, _)] => raise Fail "Internal error: linPrune: lin mismatch"
 					| [(m, _)] => m
@@ -404,13 +398,15 @@ fun linPrune (ob, pl) =
 						| (INT, INT4AFF) => AFF
 						| (AFF, AFF4LIN) => LIN
 						| (INT, INT4LIN) => AFF
+						| _ => raise Fail "Internal error: linPrune: linearity mismatch"
 					val occ1 = map (fn (_, j) => if j+n=k then Rigid else No) p
 					val (S', occ2) = pSpine p n S
 					val (occ, s1, s2) = multOccs (p, occ1, occ2)
 					val () = if Subst.isId s1 then () else raise Fail "Internal error: lprune var"
 				in ((Var (m', k), pClos NfSClos n s2 S'), occ) end
+			| (LogicVar {ctx=ref NONE, ...}, _) => raise Fail "Internal error: linPrune: no ctx"
 			| (LogicVar (X1 as {X=r, ty, s, ctx=ref (SOME G), cnstr, tag}), _) =>
-				let val () = assertNoNo G
+				let val () = raise Fail "FIXME:assertNoNo G"
 				in case patSub s (ctxMap nfAsyncTypeToApx G) of
 				  SOME (p1, s1) =>
 					let val s2 = Subst.comp (s1, Subst.lcs2sub p1)
@@ -428,9 +424,11 @@ fun linPrune (ob, pl) =
 								| (AFF4LIN, AFF4LIN) => (ID, [], [(k, Rigid)])
 								| (INT4LIN, INT4AFF) => (AFF4LIN, [], [(k, Rigid)])
 								| (INT4LIN, INT4LIN) => (AFF4LIN, [], [(k, Rigid)])
+								| _ => raise Fail "Internal error: linPrune: lin mismatch"
 								in (Subst.Dot (Idx (m', k), s), pp1 @ pp, occ1 @ occ) end)
-							(fn l => let val p' = List.filter (fn j => j > l-n) p
-								in (shift l,
+							(fn l =>
+								let val p' = List.filter (fn (_, j) => j > l-n) p
+								in (Subst.shift l,
 									map (fn (INT4LIN, j) => (INT4AFF, j+n)
 										  | (m, j) => (m, j+n)) p',
 									map (fn (AFF4LIN, j) => (j+n, Rigid)
@@ -444,10 +442,11 @@ fun linPrune (ob, pl) =
 								| (_::_::_) => raise Fail "Internal error: lp: not patsub") p
 						val Y = if null pp then X1 else
 								let val pp' = Subst.lcsComp (pp, Subst.invert s1)
-								in end
+								in raise Fail "FIXME" end (* X1:=Y[lc(pp')] *)
 					in ((LogicVar (Y with's s3), NfInj.Nil'), occ') end
-				| NONE =>
+				| NONE => raise Fail "FIXME"
 				end
+			end
 		and pSpine p n sp = case NfSpine.prj sp of
 			  Nil => (NfInj.Nil', map (fn _ => No) p)
 			| LApp (M, S) =>
@@ -479,10 +478,14 @@ fun linPrune (ob, pl) =
 			| Affi N =>
 				let val (pI2A, p2L) = List.partition (fn (m, _) => m = INT4AFF) p
 					val (N', occ1) = if null pI2A then (N, []) else pObj pI2A n N
-					val occ2 = map (fn (_, j) => (No, j)) p2L
-					val occ = map #1 $ qsort (occ2 @ listPairMapEq (map2 #2) (occ1, pI2A))
-				in (NfInj.Affi' (pClos NfClos n (Subst.pruningsub p2L) N'), occ) end
-			| Bang N => (NfInj.Bang' (pClos NfClos n (Subst.pruningsub p) N), map (fn _ => No) p)
+					val p2L' = map #2 p2L
+					val occ2 = map (fn j => (No, j)) p2L'
+					val occ = map #1 $ Subst.qsort2 (occ2 @ listPairMapEq (map2 #2) (occ1, pI2A))
+				in (NfInj.Affi' (pClos NfClos n (Subst.pruningsub p2L') N'), occ) end
+			| Bang N =>
+				(NfInj.Bang' (pClos NfClos n (Subst.pruningsub $ map #2 p) N),
+					map (fn _ => No) p)
+			| MonUndef => raise Fail "FIXME: check what to do"
 		fun finish p occ = additiveOccs (p, occ, map (fn _ => Rigid) p)
 		fun pruneObj [] ob = SOME ob
 		  | pruneObj p ob =
@@ -495,7 +498,7 @@ fun linPrune (ob, pl) =
 							| SOME ob2 => ob2
 						else ob1
 			in if !postpone then NONE else SOME ob2 end
-		val pl1 = qsort pl
+		val pl1 = Subst.qsort2 pl
 		val pl2 = List.mapPartial (fn (INT4LIN, j) => SOME (AFF4LIN, j) | _ => NONE) pl1
 	in Option.mapPartial (pruneObj pl2) (pruneObj pl1 ob) end
 
@@ -631,15 +634,15 @@ and unifyLVar (X as {X=r, s, cnstr=cs, tag, ...}, ob, p) =
 	in case objExists r (NfClos (ob, si)) of
 		  NONE => raise ExnUnify "Unification failed\n"
 		| SOME N => if null p then instantiate (r, N, cs, tag) else
-			let val p' = lcsComp (p, si)
+			let val p' = Subst.lcsComp (p, si)
 			in case linPrune (N, p') of
 				  NONE => addConstraint (vref (Eqn
-						(NfAtomic' (LogicVar (X with's (lcs2sub p')), NfInj.Nil'), N)), [cs])
+						(NfAtomic' (LogicVar (X with's (Subst.lcs2sub p')), NfInj.Nil'), N)), [cs])
 				| SOME N' => instantiate (r, N', cs, tag)
 			end
 	end handle ExnOccur =>
-		addConstraint (vref (Eqn
-			(NfAtomic' (LogicVar (X with's (Subst.comp (s, lcs2sub p))), NfInj.Nil'), ob)), [cs])
+		addConstraint (vref (Eqn (NfAtomic' (LogicVar
+				(X with's (Subst.comp (s, Subst.lcs2sub p))), NfInj.Nil'), ob)), [cs])
 and unifySpine dryRun (sp1, sp2) = case (NfSpine.prj sp1, NfSpine.prj sp2) of
 	  (Nil, Nil) => ()
 	| (LApp (M1, S1), LApp (M2, S2)) => (unifyMon dryRun (M1, M2); unifySpine dryRun (S1, S2))
