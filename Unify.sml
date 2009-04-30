@@ -406,7 +406,8 @@ fun linPrune (ob, pl) =
 				in ((Var (m', k), pClos NfSClos n s2 S'), occ) end
 			| (LogicVar {ctx=ref NONE, ...}, _) => raise Fail "Internal error: linPrune: no ctx"
 			| (LogicVar (X1 as {X=r, ty=A, s, ctx=ref (SOME G), cnstr=cs, tag}), _) =>
-				let val () = raise Fail "FIXME:assertNoNo G"
+				let val () = if List.all (isSome o #3) $ ctx2list G then () else
+								raise Fail "Internal error: lvar with non-pruned ctx"
 				in case patSub s (ctxMap nfAsyncTypeToApx G) of
 				  SOME (p1, s1) =>
 					let val s2 = Subst.comp (s1, Subst.lcs2sub p1)
