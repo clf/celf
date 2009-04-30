@@ -255,7 +255,7 @@ structure Subst : sig
 			subst -> apxAsyncType Context.context -> ((subMode * int) list * (*pat*)subst) option
 	val lcsComp : (subMode * int) list * subst -> (subMode * int) list
 	val lcs2sub : (subMode * int) list -> subst
-	val pruningsub : int list -> subst
+	val pruningsub : ('a * int) list -> subst
 	val qsort2 : ('a * int) list -> ('a * int) list
 	val isId : subst -> bool
 	val isWeaken : subst -> bool

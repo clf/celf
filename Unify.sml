@@ -348,7 +348,7 @@ fun linPrune (ob, pl) =
 		  | additiveOcc _ _       No Rigid = raise ExnUnify "implied linear var missing"
 		  | additiveOcc _ AFF4LIN No o2 = raise Fail "Internal error: A->L flex"
 		  | additiveOcc _ INT4AFF No o2 = np o2
-		  | additiveOcc n INT4LIN No o2 = (No, Subst.id, Subst.pruningsub [n])
+		  | additiveOcc n INT4LIN No o2 = (No, Subst.id, Subst.pruningsub [((), n)])
 		  | additiveOcc _ _       Rigid Rigid = np Rigid
 		  | additiveOcc n m       o1 Rigid = swap $ additiveOcc n m Rigid o1
 		  | additiveOcc _ _       Rigid FlexUniq = np Rigid
@@ -360,8 +360,8 @@ fun linPrune (ob, pl) =
 		  | multOcc _ _ No o2 = np o2
 		  | multOcc _ _ o1 No = np o1
 		  | multOcc _ _ Rigid Rigid = raise ExnUnify "linPrune multiplicative"
-		  | multOcc n _ Rigid _ = (Rigid, Subst.id, Subst.pruningsub [n])
-		  | multOcc n _ _ Rigid = (Rigid, Subst.pruningsub [n], Subst.id)
+		  | multOcc n _ Rigid _ = (Rigid, Subst.id, Subst.pruningsub [((), n)])
+		  | multOcc n _ _ Rigid = (Rigid, Subst.pruningsub [((), n)], Subst.id)
 		  | multOcc _ _ _ _ = np FlexMult
 		fun occMap _ ([], [], []) = np []
 		  | occMap f ((m, n)::p, o1::occ1, o2::occ2) =
@@ -375,7 +375,7 @@ fun linPrune (ob, pl) =
 			( doexists := true
 			; clo (N, Subst.dotn n s) )
 		fun pObj p n ob = case lowerObj $ NfObj.prj ob of
-			  NfLLam (pa, N) => map1 (fn N' => NfLLam' (pa, N')) (pObj p (n+1) N)
+			  NfLLam (pa, N) => map1 (fn N' => NfLLam' (pa, N')) (pObj p (n + nbinds pa) N)
 			| NfAddPair (N1, N2) =>
 				let val (N1', occ1) = pObj p n N1
 					val (N2', occ2) = pObj p n N2
@@ -405,7 +405,7 @@ fun linPrune (ob, pl) =
 					val () = if Subst.isId s1 then () else raise Fail "Internal error: lprune var"
 				in ((Var (m', k), pClos NfSClos n s2 S'), occ) end
 			| (LogicVar {ctx=ref NONE, ...}, _) => raise Fail "Internal error: linPrune: no ctx"
-			| (LogicVar (X1 as {X=r, ty, s, ctx=ref (SOME G), cnstr, tag}), _) =>
+			| (LogicVar (X1 as {X=r, ty=A, s, ctx=ref (SOME G), cnstr=cs, tag}), _) =>
 				let val () = raise Fail "FIXME:assertNoNo G"
 				in case patSub s (ctxMap nfAsyncTypeToApx G) of
 				  SOME (p1, s1) =>
@@ -441,10 +441,35 @@ fun linPrune (ob, pl) =
 								| [(_, oc)] => oc
 								| (_::_::_) => raise Fail "Internal error: lp: not patsub") p
 						val Y = if null pp then X1 else
-								let val pp' = Subst.lcsComp (pp, Subst.invert s1)
-								in raise Fail "FIXME" end (* X1:=Y[lc(pp')] *)
+								let fun pType pp A =
+										let val ps = Subst.pruningsub $
+												List.filter (fn (m, _) => m <> AFF4LIN) pp
+										in if Subst.isId ps then A
+										else case typeExists (NfTClos (A, ps)) of
+											  NONE => raise ExnUnify "Implied A/L var in type"
+											| SOME A' => A' end
+									fun sub1 ((_, 1)::pp) = map (fn (m, x) => (m, x-1)) pp
+									  | sub1 pp = map (fn (m, x) => (m, x-1)) pp
+									fun addM 1 (SOME INT) = SOME AFF
+									  | addM 1 (SOME AFF) = SOME LIN
+									  | addM 1 _ = raise Fail "Internal error: addM"
+									  | addM _ m = m
+									fun pCtx (G, []) = list2ctx G
+									  | pCtx ([], _::_) = raise Fail "Internal error: pCtx"
+									  | pCtx ((x, A, m)::G, pp as (_, j)::_) =
+										let val pp' = sub1 pp
+										in ctxCons (x, pType pp' A, addM j m) (pCtx (G, pp')) end
+									val pp' = Subst.lcsComp (pp, Subst.invert s1)
+									val A' = pType pp' A
+									val G' = pCtx (ctx2list G, pp')
+									val Y = newNfLVarCtx (SOME G') A'
+									val () = instantiate (r, NfClos (Y, Subst.lcs2sub pp'), cs, tag)
+									fun invLV (LogicVar Z, _) = Z
+									  | invLV _ = raise Fail "Internal error: invLV"
+								in invLV $ invAtomicP Y end
 					in ((LogicVar (Y with's s3), NfInj.Nil'), occ') end
-				| NONE => raise Fail "FIXME"
+				| NONE => (* FIXME? could check for actual occurrences *)
+					((LogicVar X1, NfInj.Nil'), map (fn _ => FlexMult) p)
 				end
 			end
 		and pSpine p n sp = case NfSpine.prj sp of
@@ -459,7 +484,7 @@ fun linPrune (ob, pl) =
 		and pExp p n ex = case lowerExp $ NfExpObj.prj ex of
 			  NfLet (pa, hs, E) =>
 				let val (hs', occ1) = pAtomic p n hs
-					val (E', occ2) = pExp p n E
+					val (E', occ2) = pExp p (n + nbinds pa) E
 					val (occ, s1, s2) = multOccs (p, occ1, occ2)
 					fun hsClos (hs, s) = (case NfObj.prj (NfClos (NfAtomic' hs, s)) of
 						  NfAtomic hs' => hs'
@@ -478,14 +503,11 @@ fun linPrune (ob, pl) =
 			| Affi N =>
 				let val (pI2A, p2L) = List.partition (fn (m, _) => m = INT4AFF) p
 					val (N', occ1) = if null pI2A then (N, []) else pObj pI2A n N
-					val p2L' = map #2 p2L
-					val occ2 = map (fn j => (No, j)) p2L'
+					val occ2 = map (fn (_, j) => (No, j)) p2L
 					val occ = map #1 $ Subst.qsort2 (occ2 @ listPairMapEq (map2 #2) (occ1, pI2A))
-				in (NfInj.Affi' (pClos NfClos n (Subst.pruningsub p2L') N'), occ) end
-			| Bang N =>
-				(NfInj.Bang' (pClos NfClos n (Subst.pruningsub $ map #2 p) N),
-					map (fn _ => No) p)
-			| MonUndef => raise Fail "FIXME: check what to do"
+				in (NfInj.Affi' (pClos NfClos n (Subst.pruningsub p2L) N'), occ) end
+			| Bang N => (NfInj.Bang' (pClos NfClos n (Subst.pruningsub p) N), map (fn _ => No) p)
+			| MonUndef => raise Fail "Internal error: MonUndef"
 		fun finish p occ = additiveOccs (p, occ, map (fn _ => Rigid) p)
 		fun pruneObj [] ob = SOME ob
 		  | pruneObj p ob =

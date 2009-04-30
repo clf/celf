@@ -310,16 +310,15 @@ struct
 			  | f (M, n, Dot (_, s)) = f (M, n-1, s)
 		in qsort2 $ List.mapPartial (fn (M, n) => f (M, n, s)) p end
 
-	fun lcs2sub p = raise Fail "FIXME"
+	fun lcs2x f (n, p1 as (x, k)::p) =
+			if n=k then Dot (f (x, k), lcs2x f (n+1, p))
+			else if n<k then Dot (Idx (ID, n), lcs2x f (n+1, p1))
+			else raise Fail "Internal error: lcs2x: not sorted"
+	  | lcs2x f (n, []) = Shift (n-1)
 
-	(*fun prunesub p =*)
-	fun pruningsub p =
-		let fun ps (n, k::p) =
-				if n=k then Dot (Undef, ps (n+1, p))
-				else if n<k then Dot (Idx (ID, n), ps (n+1, k::p))
-				else raise Fail "Internal error: prunesub: not sorted"
-			  | ps (n, []) = Shift (n-1)
-		in ps (1, p) end
+	fun lcs2sub p = lcs2x Idx (1, p)
+
+	fun pruningsub p = lcs2x (fn _ => Undef) (1, p)
 
 	fun shift n = Shift n
 end
