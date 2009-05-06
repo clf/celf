@@ -320,5 +320,18 @@ struct
 
 	fun pruningsub p = lcs2x (fn _ => Undef) (1, p)
 
+	(* lcsDiff (p, p') = p-p' such that
+	 * lcs2sub(p) = lcs2sub(p') o lcs2sub(p-p') *)
+	fun lcsDiff (p, []) = p
+	  | lcsDiff ([], _::_) = raise Fail "Internal error: lcsDiff 1"
+	  | lcsDiff ((m, n : int)::p, (m', n')::p') =
+			if n = n' then case (m, m') of
+				  (INT4LIN, INT4LIN) => lcsDiff (p, p')
+				| (INT4AFF, INT4AFF) => lcsDiff (p, p')
+				| (AFF4LIN, AFF4LIN) => lcsDiff (p, p')
+				| (INT4LIN, AFF4LIN) => (INT4AFF, n) :: lcsDiff (p, p')
+				| _ => raise Fail "Internal error: lcsDiff 2"
+			else (m, n) :: lcsDiff (p, (m', n')::p')
+
 	fun shift n = Shift n
 end

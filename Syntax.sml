@@ -231,6 +231,7 @@ type 'sTy apxSyncTypeF = (apxAsyncType, 'sTy) apxSyncTypeFF
 
 val redex = IntRedex
 val nfredex = IntRedex
+val nfletredex = IntLetRedex
 
 fun nbinds (FixPattern (_, n)) = n
 

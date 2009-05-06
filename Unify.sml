@@ -47,15 +47,20 @@ fun addConstraint (c, css) =
 	( if !outputUnify then print ("Adding constraint "^(constrToStr (!!c))^"\n") else ()
 	; app (fn cs => cs ::= c::(!!cs)) (constraints::css) )
 
+(* addLiveConstraint : constr vref * constr vref list vref list -> unit *)
+fun addLiveConstraint (c, css) =
+	( addConstraint (c, css)
+	; awakenedConstrs := c :: !awakenedConstrs )
+
 (* instantiate : nfObj option vref * nfObj * constr vref list vref * word -> unit *)
 fun instantiate (r, rInst, cs, l) =
-		if isSome (!! r) then raise Fail "Internal error: double instantiation\n" else
-		( r ::= SOME rInst
-		; if !outputUnify then
-			print ("Instantiating $"^(Word.toString l)^" = "
-				^(PrettyPrint.printObj $ unnormalizeObj rInst)^"\n")
-		  else ()
-		; awakenedConstrs := !!cs @ !awakenedConstrs)
+	if isSome (!! r) then raise Fail "Internal error: double instantiation\n" else
+	( r ::= SOME rInst
+	; if !outputUnify then
+		print ("Instantiating $"^(Word.toString l)^" = "
+			^(PrettyPrint.printObj $ unnormalizeObj rInst)^"\n")
+	  else ()
+	; awakenedConstrs := !!cs @ !awakenedConstrs)
 
 (* lowerLVar : nfAsyncType * nfSpine * subst * context -> nfObj * nfObj nfObjF *)
 (* Invariant:
@@ -109,29 +114,45 @@ fun whnf2obj (NfLinLam N) = LinLam N
   | whnf2obj (NfAtomic N) = Atomic N
 *)
 
-(* newMon (S, G) = M  :  G |- M : S *)
-(* newMon : nfSyncType * context -> nfMonadObj *)
-fun newMon _ = raise Fail "FIXME newMon"
-(*
-context split
-fun newMon (sTy, ctx) = case SyncType.prj sTy of
-	  LExists (p, S1, S2) =>
-		let fun splitCtx G =
-				if List.all (fn (_, _, m) => m = SOME INT orelse m = NONE) $ ctx2list G
-				then (G, G)
-				else raise Fail "FIXME: need context split"
-			val (ctx1, ctx2) = splitCtx ctx
-			val M1 = newMon (S1, ctx1)
-		in DeepPair' (M1, newMon (STClos (S2, Subst.subM M1), ctx2)) end
-	| TOne => One'
-	| TDown A => Down' (newLVarCtx (SOME ctx) A)
-	| TAffi A => Affi' (newLVarCtx (SOME ctx) A)  -- only aff and int
-	| TBang A => Bang' (newLVarCtx (SOME ctx) A)  -- only int
-	*)
+(* ctx2int G = (p, G_I)
+ * G_I |- lcs2sub(p) : G *)
+(* ctx2int : context -> (subMode * int) list * context *)
+fun ctx2int G =
+	let val G' = ctx2list G
+		fun ctx2int' n [] = ([], emptyCtx)
+		  | ctx2int' n ((x, A, m)::ctx) =
+			let val (p, ctx') = ctx2int' (n+1) ctx
+				val (p', m') = case m of
+					  NONE => (p, NONE)
+					| SOME INT => (p, SOME INT)
+					| SOME AFF => ((INT4AFF, n)::p, SOME INT)
+					| SOME LIN => ((INT4LIN, n)::p, SOME INT)
+			in (p', ctxCons (x, A, m') ctx') end
+	in ctx2int' 1 G' end
 
-(* newMonA : nfAsyncType * context -> nfExpObj *)
+(* newMonI (S, G) = M
+ * G |- M : S  assuming G is entirely intuitionistic *)
+(* newMonI : nfSyncType * context -> nfMonadObj *)
+fun newMonI (sTy, ctx) = case NfSyncType.prj sTy of
+	  LExists (p, S1, S2) =>
+		let val M1 = newMonI (S1, ctx)
+		in NfInj.DepPair' (M1, newMonI (NfSTClos (S2, Subst.subM M1), ctx)) end
+	| TOne => NfInj.One'
+	| TDown A => NfInj.Down' (newNfLVarCtx (SOME ctx) A)
+	| TAffi A => NfInj.Affi' (newNfLVarCtx (SOME ctx) A)
+	| TBang A => NfInj.Bang' (newNfLVarCtx (SOME ctx) A)
+
+(* newMon (S, G) = (p, M)
+ * G_I |- lcs2sub(p) : G
+ * G_I |- M : S           *)
+(* newMon : nfSyncType * context -> (subMode * int) list * nfMonadObj *)
+fun newMon (S, G) =
+	let val (p, GI) = ctx2int G
+	in (p, newMonI (S, GI)) end
+
+(* newMonA : nfAsyncType * context -> (subMode * int) list * nfObj *)
 fun newMonA (A, ctx) = case NfAsyncType.prj A of
-	  TMonad S => NfMon' (newMon (S, ctx))
+	  TMonad S => map2 (NfMonad' o NfMon') (newMon (S, ctx))
 	| _ => raise Fail "Internal error: newMonA\n"
 
 (* splitExp : obj option vref * expObj
@@ -558,6 +579,19 @@ and unifyObj dryRun (ob1, ob2) =
 		fun invLam p hS = nfredex (NfClos (NfAtomic' hS, Subst.shift $ nbinds p),
 				LApp' (pat2mon p 1, Nil'))
 		fun invPair p hS = nfredex (NfAtomic' hS, p Nil')
+		fun etaMimicMon m = case NfMonadObj.prj m of
+			  DepPair (M1, M2) =>
+				let val (p2, Mf2) = etaMimicMon M2
+					val (p1, Mf1) = etaMimicMon M1
+				in (PDepTensor' (p1, p2), fn n => DepPair' (Mf1 (n + nbinds p2), Mf2 n)) end
+			| One => (POne', fn _ => One')
+			| Down _ => (PDown' "", fn n => Down' $ NfAtomic' (Var (LIN, n), Nil'))
+			| Affi _ => (PAffi' "", fn n => Affi' $ NfAtomic' (Var (AFF, n), Nil'))
+			| Bang _ => (PBang' "", fn n => Bang' $ NfAtomic' (Var (INT, n), Nil'))
+			| MonUndef => raise Fail "Internal error: etaMimicMon: MonUndef"
+		fun etaMimicExp e = case NfExpObj.prj e of
+			  NfLet (_, _, E) => etaMimicExp E
+			| NfMon M => etaMimicMon M
 	in case (ob1', ob2') of
 		  (NfLLam (_, N1), NfLLam (_, N2)) => unifyObj dryRun (N1, N2)
 		| (NfLLam (p, N1), NfAtomic hS2) => unifyObj dryRun (N1, invLam p hS2)
@@ -572,8 +606,19 @@ and unifyObj dryRun (ob1, ob2) =
 				( unifyObj dryRun (invPair ProjLeft' hS1, L2)
 				; unifyObj dryRun (invPair ProjRight' hS1, N2) )
 		| (NfMonad E1, NfMonad E2) => unifyExp dryRun (E1, E2)
-		| (NfAtomic _, NfMonad E2) => raise Fail "FIXME !!!"
-		| (NfMonad E1, NfAtomic _) => raise Fail "FIXME !!!"
+		| (NfAtomic (LogicVar (X as {s, ctx=ref (SOME G), cnstr=cs, ...}), _), NfMonad E2) =>
+				if isSome dryRun then (valOf dryRun) := false else
+				(case patSub s (ctxMap nfAsyncTypeToApx G) of
+					  SOME (p, s') => unifyLVar (X with's s', NfMonad' E2, p)
+					| NONE => addConstraint (vref (Eqn (NfObj.inj ob1', NfMonad' E2)), [cs]))
+		| (NfMonad E1, NfAtomic (hS2 as (LogicVar _, _))) =>
+				unifyObj dryRun (NfAtomic' hS2, NfMonad' E1)
+		| (NfAtomic hS, NfMonad E) =>
+				let val (p, Mf) = etaMimicExp E
+				in unifyExp dryRun (NfLet' (p, hS, NfMon' $ Mf 1), E) end
+		| (NfMonad E, NfAtomic hS) =>
+				let val (p, Mf) = etaMimicExp E
+				in unifyExp dryRun (E, NfLet' (p, hS, NfMon' $ Mf 1)) end
 		| (NfAtomic hS1, NfAtomic hS2) => unifyHead dryRun (hS1, hS2)
 		| (N1, N2) => raise Fail "Internal error: unifyObj\n"
 	end
@@ -686,11 +731,24 @@ and unifyExp dryRun (e1, e2) = case (NfExpObj.prj e1, NfExpObj.prj e2) of
 				then (valOf dryRun) := false
 				else unifyLetLet dryRun (L1, L2)
 			end
-and unifyLetMon dryRun ((p, hS, E), M) = case lowerAtomic hS of
-	  (LogicVar {X, ty, s, ctx=ref G, cnstr=cs, tag}, _ (*=Nil*)) =>
-			if isSome dryRun then (valOf dryRun) := false else (* FIXME? *)
-			( instantiate (X, NfMonad' (newMonA (ty, valOf G)), cs, tag)
-			; unifyExp NONE (NfLet' (p, hS, E), NfMon' M) )
+and unifyLetMon dryRun ((pa, hS, E), M) = case lowerAtomic hS of
+	  (LogicVar (X as {X=r, ty, s, ctx=ref (SOME G), cnstr=cs, tag}), _ (*=Nil*)) =>
+			if isSome dryRun then (valOf dryRun) := false else
+			(case patSub s (ctxMap nfAsyncTypeToApx G) of
+				  NONE => addConstraint (vref (Eqn
+						(NfMonad' $ NfLet' (pa, hS, E), NfMonad' $ NfMon' M)), [cs])
+				| SOME (p', s') =>
+					let val () = if List.all (isSome o #3) $ ctx2list G then () else
+									raise Fail "Internal error: lvar with non-pruned ctx"
+						open Subst
+						val (p, newM) = newMonA (ty, G)
+						val lcs = lcs2sub $ lcsComp (lcsDiff (p, lcsComp (p', invert s')), s')
+					in ( unifyLVar (X with's id, newM, p)
+					   ; unifyExp NONE (nfletredex (pa, NfClos (newM, s'), E), (* E = E[lcs] *)
+							NfMon' $ NfMClos (M, lcs)) )
+					end)
+	| (LogicVar {ctx=ref NONE, tag, ...}, _) =>
+			raise Fail ("Internal error: no context on $"^Word.toString tag)
 	| _ => raise ExnUnify "let = mon\n"
 and unifyMon dryRun (m1, m2) = case (NfMonadObj.prj m1, NfMonadObj.prj m2) of
 	  (DepPair (M11, M12), DepPair (M21, M22)) =>

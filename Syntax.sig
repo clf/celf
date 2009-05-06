@@ -256,6 +256,7 @@ structure Subst : sig
 	val lcsComp : (subMode * int) list * subst -> (subMode * int) list
 	val lcs2sub : (subMode * int) list -> subst
 	val pruningsub : ('a * int) list -> subst
+	val lcsDiff : (subMode * int) list * (subMode * int) list -> (subMode * int) list
 	val qsort2 : ('a * int) list -> ('a * int) list
 	val isId : subst -> bool
 	val isWeaken : subst -> bool
@@ -411,6 +412,7 @@ val NfLet' : opattern * (nfHead * nfSpine) * nfExpObj -> nfExpObj
 val NfMon' : nfMonadObj -> nfExpObj
 
 val nfredex : nfObj * nfSpine -> nfObj
+val nfletredex : opattern * nfObj * nfExpObj -> nfExpObj
 
 
 val EtaTag : obj * (Context.mode * int) -> obj
