@@ -48,9 +48,9 @@ fun addConstraint (c, css) =
 	; app (fn cs => cs ::= c::(!!cs)) (constraints::css) )
 
 (* addLiveConstraint : constr vref * constr vref list vref list -> unit *)
-fun addLiveConstraint (c, css) =
+(*fun addLiveConstraint (c, css) =
 	( addConstraint (c, css)
-	; awakenedConstrs := c :: !awakenedConstrs )
+	; awakenedConstrs := c :: !awakenedConstrs )*)
 
 (* instantiate : nfObj option vref * nfObj * constr vref list vref * word -> unit *)
 fun instantiate (r, rInst, cs, l) =
@@ -114,6 +114,16 @@ fun whnf2obj (NfLinLam N) = LinLam N
   | whnf2obj (NfAtomic N) = Atomic N
 *)
 
+fun pat2mon p =
+	let open NfInj
+		fun pat2mon' p n = case Pattern.prj p of
+			  PDepTensor (p1, p2) => DepPair' (pat2mon' p1 (n + nbinds p2), pat2mon' p2 n)
+			| POne => One'
+			| PDown _ => Down' (NfAtomic' (Var (LIN, n), Nil'))
+			| PAffi _ => Affi' (NfAtomic' (Var (AFF, n), Nil'))
+			| PBang _ => Bang' (NfAtomic' (Var (INT, n), Nil'))
+	in pat2mon' p 1 end
+
 (* ctx2int G = (p, G_I)
  * G_I |- lcs2sub(p) : G *)
 (* ctx2int : context -> (subMode * int) list * context *)
@@ -155,53 +165,85 @@ fun newMonA (A, ctx) = case NfAsyncType.prj A of
 	  TMonad S => map2 (NfMonad' o NfMon') (newMon (S, ctx))
 	| _ => raise Fail "Internal error: newMonA\n"
 
-(* splitExp : obj option vref * expObj
-		-> (head * monadObj, (expObj -> expObj) * monadObj * (context -> context) * int) sum *)
-(* if X doesn't occur in let-head-position in E then
- *   splitExp (X, E) = INR (E'[], M, G[], n) 
- * where E=E'[M], n=nbinds(E') and G'|-E implies G[G']|-M
- *
- * if X does occur a single time and lvars can be instantiated such that
- * E=let {p}=X[s] in M then
- *   splitExp (X, E) = INL (X[s], M)
- * otherwise ExnUnify is raised.
- *)
-fun splitExp (rOccur, ex) = raise Fail "FIXME2 splitExp"
-(*
-fun splitExp (rOccur, ex) =
-	let fun splitExp' ex = case NfExpObj.prj ex of
-			  NfLet (p, N, E) =>
-				if case #1 N of
-					  LogicVar {X, ...} => eq (X, rOccur)
-					| _ => false
-				then NONE
-				else Option.map (fn (ef, M, ectx, n) =>
-								(fn e => NfLet' (p, N, ef e), M,
-									ectx o (patBind (fn x=>x) p), n + nbinds p))
-							(splitExp' E)
-			| NfMon M => SOME (fn e => e, M, fn ctx => ctx, 0)
-		fun pruneLetOccur foundL ex = case NfExpObj.prj ex of
-			  Mon M => (case foundL of
-				  NONE => raise Fail "Internal error: pruneLet\n"
-				| SOME L => (L, M))
-			| Let (p, N, E) => (case #1 $ lowerAtomic N of
-				  (L as LogicVar {X, ty, ctx=ref G, cnstr=cs, tag, ...}) =>
-					if eq (X, rOccur) then
-						if isSome foundL then
-							(*raise ExnUnify "Double occurs check in let\n"*)
-							(* FIXME: might set all lvars to {M} *)
-							raise Fail "FIXME: set X to {M}"
-						else
-							pruneLetOccur (SOME L) E
-					else
-						( instantiate (X, Monad' (newMonA (ty, valOf G)), cs, tag)
-						; pruneLetOccur foundL (Let' (p, Atomic' N, E)) )
-				| _ => raise ExnUnify "Occurs check in let\n")
-	in case splitExp' ex of
-		  SOME eMcn => INR eMcn
-		| NONE => INL (pruneLetOccur NONE ex)
-	end
-*)
+(* headCountExp obj option vref * nfExpObj -> int *)
+fun headCountExp (rOccur, ex) = case NfExpObj.prj ex of
+	  NfLet (_, (LogicVar {X, ...}, _), E) =>
+		if eq (X, rOccur) then 1 + headCountExp (rOccur, E) else headCountExp (rOccur, E)
+	| NfLet (_, _, E) => headCountExp (rOccur, E)
+	| NfMon _ => 0
+
+type intset = int list
+val empty = []
+fun singleton n = [n]
+fun decrn n is = List.filter (fn x => x>=1) (map (fn x => x-n) is)
+fun union (is1, is2) = is1 @ is2
+fun occurFromTo a b = if a <= b then a::occurFromTo (a+1) b else []
+
+fun occurObj ob = case SOME (lowerObj (NfObj.prj ob)) handle Subst.ExnUndef => NONE of
+	  NONE => empty
+	| SOME (NfLLam (p, N)) => decrn (nbinds p) (occurObj N)
+	| SOME (NfAddPair (N1, N2)) => union (occurObj N1, occurObj N2)
+	| SOME (NfMonad E) => occurExp E
+	| SOME (NfAtomic (H, S)) => union (occurHead H, occurSpine S)
+and occurHead h = case h of
+	  Const _ => empty
+	| Var (INT, _) => empty
+	| Var (_, n) => singleton n
+	| UCVar _ => empty
+	| LogicVar {ctx=ref NONE, ...} => raise Fail "Internal error: occurHead: no ctx"
+	| LogicVar {ctx=ref (SOME G), s, ...} => occurSub G s
+and occurSub ctx s =
+	let val G = ctx2list ctx
+		val () = if List.all (isSome o #3) G then () else
+					raise Fail "Internal error: lvar with non-pruned ctx"
+		val ctxL = length G
+		val subL = Subst.fold (fn (_, n) => n+1) (fn _ => 0) s
+		fun occurSubOb Undef = empty
+		  | occurSubOb (Ob (_, ob)) = occurObj ob
+		  | occurSubOb (Idx (_, n)) = singleton n
+	in Subst.fold (union o (map1 occurSubOb)) (fn m => occurFromTo (m+1) (ctxL-subL+m)) s end
+and occurSpine sp = case NfSpine.prj sp of
+	  Nil => empty
+	| LApp (M, S) => union (occurMonadObj M, occurSpine S)
+	| ProjLeft S => occurSpine S
+	| ProjRight S => occurSpine S
+and occurExp e = case NfExpObj.prj e of
+	  NfLet (p, (H, S), E) =>
+		union (occurHead H, union (occurSpine S, decrn (nbinds p) (occurExp E)))
+	| NfMon M => occurMonadObj M
+and occurMonadObj m = case NfMonadObj.prj m of
+	  DepPair (M1, M2) => union (occurMonadObj M1, occurMonadObj M2)
+	| One => empty
+	| Down N => occurObj N
+	| Affi N => occurObj N
+	| Bang N => empty
+	| MonUndef => raise Fail "Internal error: rdMonadObj: MonUndef"
+
+fun ctxSubList ctx [] = ctx
+  | ctxSubList ctx (n::ns) = ctxSubList (#1 $ ctxLookupNum (ctx, n)) ns
+
+fun synthHead ctx h = case h of
+	  Const c => (ctx, normalizeType $ Signatur.sigLookupType c)
+	| Var (m, n) =>
+		let val (ctxo, m', A) = ctxLookupNum (ctx, n)
+			val () = if m=m' then () else raise Fail "Linearity mismatch"
+		in (ctxo, NfTClos (A, Subst.shift n)) end
+	| UCVar x =>
+		(ctx, NfTClos (normalizeType $ ImplicitVars.ucLookup x,
+				Subst.shift $ length $ ctx2list ctx))
+	| LogicVar {ctx=ref NONE, ...} => raise Fail "Internal error: synthHead: no ctx"
+	| LogicVar {X, ty, s, ctx=ref (SOME G), ...} =>
+		(ctxSubList ctx (occurSub G s), NfTClos (ty, s))
+fun synthSpine ctx sp ty = case (NfSpine.prj sp, Util.nfTypePrjAbbrev ty) of
+	  (Nil, _) => (ctx, ty)
+	| (LApp (M, S), TLPi (_, _, B)) =>
+		synthSpine (ctxSubList ctx (occurMonadObj M)) S (NfTClos (B, Subst.subM M))
+	| (ProjLeft S, AddProd (A, _)) => synthSpine ctx S A
+	| (ProjRight S, AddProd (_, B)) => synthSpine ctx S B
+	| _ => raise Fail "Internal error match: synthSpine\n"
+fun synthAtomic ctx (H, S) =
+	let val (ctx1, ty1) = synthHead ctx H
+	in synthSpine ctx1 S ty1 end
 
 exception ExnOccur
 fun patSubOcc rOccur s G = Subst.patSub (checkExistObj rOccur) Eta.etaContract s G
@@ -356,6 +398,7 @@ val (objExists, typeExists) =
 		fun typeExists1 ty = SOME (pruneType ty) handle Subst.ExnUndef => NONE
 	in (objExists1, typeExists1) end
 
+(* linPrune : nfObj * (subMode * int) list -> nfObj option *)
 fun linPrune (ob, pl) =
 	let datatype occ = No | Rigid | FlexMult | FlexUniq
 		val doexists = ref false
@@ -410,7 +453,7 @@ fun linPrune (ob, pl) =
 					| [(ID, _)] => raise Fail "Internal error: linPrune: lin mismatch"
 					| [(m, _)] => m
 					| (_::_::_) => raise Fail "Internal error: linPrune: double var"
-			in case hs of
+			in case lowerAtomic hs of
 			  (Const c, S) => map1 (fn s => (Const c, s)) (pSpine p n S)
 			| (UCVar v, S) => map1 (fn s => (UCVar v, s)) (pSpine p n S)
 			| (Var (m, k), S) =>
@@ -570,14 +613,8 @@ and unifyObj dryRun (ob1, ob2) =
 	let val ob1' = lowerObj (NfObj.prj ob1)
 		val ob2' = lowerObj (NfObj.prj ob2)
 		open NfInj
-		fun pat2mon p n = case Pattern.prj p of
-			  PDepTensor (p1, p2) => DepPair' (pat2mon p1 (n + nbinds p2), pat2mon p2 n)
-			| POne => One'
-			| PDown _ => Down' (NfAtomic' (Var (LIN, n), Nil'))
-			| PAffi _ => Affi' (NfAtomic' (Var (AFF, n), Nil'))
-			| PBang _ => Bang' (NfAtomic' (Var (INT, n), Nil'))
 		fun invLam p hS = nfredex (NfClos (NfAtomic' hS, Subst.shift $ nbinds p),
-				LApp' (pat2mon p 1, Nil'))
+				LApp' (pat2mon p, Nil'))
 		fun invPair p hS = nfredex (NfAtomic' hS, p Nil')
 		fun etaMimicMon m = case NfMonadObj.prj m of
 			  DepPair (M1, M2) =>
@@ -606,19 +643,20 @@ and unifyObj dryRun (ob1, ob2) =
 				( unifyObj dryRun (invPair ProjLeft' hS1, L2)
 				; unifyObj dryRun (invPair ProjRight' hS1, N2) )
 		| (NfMonad E1, NfMonad E2) => unifyExp dryRun (E1, E2)
-		| (NfAtomic (LogicVar (X as {s, ctx=ref (SOME G), cnstr=cs, ...}), _), NfMonad E2) =>
-				if isSome dryRun then (valOf dryRun) := false else
-				(case patSub s (ctxMap nfAsyncTypeToApx G) of
-					  SOME (p, s') => unifyLVar (X with's s', NfMonad' E2, p)
-					| NONE => addConstraint (vref (Eqn (NfObj.inj ob1', NfMonad' E2)), [cs]))
-		| (NfMonad E1, NfAtomic (hS2 as (LogicVar _, _))) =>
-				unifyObj dryRun (NfAtomic' hS2, NfMonad' E1)
-		| (NfAtomic hS, NfMonad E) =>
-				let val (p, Mf) = etaMimicExp E
-				in unifyExp dryRun (NfLet' (p, hS, NfMon' $ Mf 1), E) end
 		| (NfMonad E, NfAtomic hS) =>
-				let val (p, Mf) = etaMimicExp E
-				in unifyExp dryRun (E, NfLet' (p, hS, NfMon' $ Mf 1)) end
+				unifyObj dryRun (NfAtomic' hS, NfMonad' E)
+		| (NfAtomic hS, NfMonad E) =>
+				(case case #1 hS of LogicVar (X as {X=r, ...}) =>
+					if headCountExp (r, E) = 0 then SOME X else NONE | _ => NONE of
+					  SOME (X as {s, ctx=ref (SOME G), cnstr=cs, ...}) =>
+						if isSome dryRun then (valOf dryRun) := false else
+						(case patSub s (ctxMap nfAsyncTypeToApx G) of
+							  SOME (p, s') => unifyLVar (X with's s', NfMonad' E, p)
+							| NONE => addConstraint (vref (Eqn (NfObj.inj ob1', NfMonad' E)), [cs]))
+					| SOME {ctx=ref NONE, ...} => raise Fail "Internal error: no ctx"
+					| NONE =>
+						let val (p, Mf) = etaMimicExp E
+						in unifyExp dryRun (NfLet' (p, hS, NfMon' $ Mf 1), E) end)
 		| (NfAtomic hS1, NfAtomic hS2) => unifyHead dryRun (hS1, hS2)
 		| (N1, N2) => raise Fail "Internal error: unifyObj\n"
 	end
@@ -760,51 +798,64 @@ and unifyMon dryRun (m1, m2) = case (NfMonadObj.prj m1, NfMonadObj.prj m2) of
 	| (MonUndef, _) => raise Fail "Internal error: unifyMon: MonUndef\n"
 	| (_, MonUndef) => raise Fail "Internal error: unifyMon: MonUndef\n"
 	| _ => raise Fail "Internal error: unifyMon\n"
-and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) = raise Fail "FIXME2 unifyLetLet"
+and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 	(* In the case of two equal LVars, the lowering of ob1 affects the whnf of ob2 *)
-	(*
 	let val ob1' = lowerAtomic ob1
-		val ob2' = invAtomic $ whnf2obj $ lowerObj $ NfObj.prj $ Atomic' ob2
-		val expWhnfInj = ExpObj.inj o (ExpObj.Fmap ((Atomic', fn x=>x, fn x=>x), fn x=>x))
+		val ob2' = invAtomic $ lowerObj $ NfObj.prj $ NfAtomic' ob2
 	in case (ob1', NfExpObj.prj E1, ob2', NfExpObj.prj E2) of
-		  ((L1 as LogicVar (X1 as {X, ty, s, ctx=ref G, ...}), S (*=Nil*)), Mon M1, _, E2') =>
-			(case splitExp (X, Let' (p2, Atomic' ob2', expWhnfInj E2')) of
-				  INL (L2, M2) =>
-					( unifyHead NONE ((L1, S), (L2, S))
-					; unifyMon NONE (M1, M2) )
-				| INR (e, M2, ectx, n) =>
-					(case Subst.patSub Eta.etaContract s (ctxMap asyncTypeToApx $ valOf G) of
-						  NONE => raise Fail "FIXME !!!"
-						| SOME (p, s') =>
-							let val newM = EClos (newMonA (TClos (ty, Subst.shift n),
-													ectx $ valOf G), Subst.dotn n s')
-							in
-								( unifyExp NONE (Let' (PClos (p1, Subst.shift n), Monad' newM,
-										Mon' (MClos (M1, Subst.dotn (nbinds p1) (Subst.shift n)))),
-									Mon' M2)
-								; unifyLVar (X1 with's s', Monad' (e newM), p) )
-							end))
-		| (_, E1', (LogicVar _, _), Mon M2) =>
-			unifyLetLet NONE ((p2, ob2', Mon' M2), (p1, ob1', expWhnfInj E1'))
+		  ((LogicVar ({ctx=ref NONE, ...}), _), NfMon _, _, _) =>
+			raise Fail "Internal error: unifyLetLet: no context"
+		| ((LogicVar (X1 as {X, ty, s, ctx=ref (SOME G), ...}), _ (*=Nil*)), NfMon M1, _, E2') =>
+			(case headCountExp (X, NfLet' (p2, ob2', NfExpObj.inj E2')) of
+			  0 => (case patSub s (ctxMap nfAsyncTypeToApx G) of
+				  NONE => raise Fail "FIXME: postpone"
+				| SOME (p, s') =>
+					let fun splitLet ctx si ex qn = case NfExpObj.prj ex of
+							  NfLet (q, hs, E) =>
+								let val hs' = case objExists X (NfClos (NfAtomic' hs, si)) of
+											  SOME ob => invAtomicP ob
+											| NONE => raise ExnUnify "can't prune"
+									val (ctx', A) = synthAtomic ctx hs'
+									val sty = case Util.nfTypePrjAbbrev A of TMonad sty => sty
+											| _ => raise Fail "Type checking: sync type expected"
+									val ctx'' = opatBindNf (q, sty) ctx'
+									val si' = Subst.dotn (nbinds q) si
+									val (E', y) = splitLet ctx'' si' E (qn + nbinds q)
+								in (NfLet' (q, hs', E'), y) end
+							| NfMon M =>
+								let val Y = newNfLVarCtx (SOME ctx) (NfTClos (ty, Subst.shift qn))
+									val p1m = pat2mon p1
+								in (NfLet' (p1, invAtomicP Y, NfMon' p1m), (Y, qn, M)) end
+						val si = Subst.invert s'
+						val (E2Y, (Y, qn, M2)) = splitLet G si (NfLet' (p2, ob2', E2)) 0
+						val p' = Subst.lcsComp (p, si)
+						val rest1 = NfLet' (p1, invAtomicP $ NfClos (Y, Subst.dotn qn s'),
+									NfMon' $ NfMClos (M1, Subst.dotn (nbinds p1) (Subst.shift qn)))
+					in unifyLVar (X1 with's Subst.id, NfMonad' E2Y, p')
+					 ; unifyExp NONE (rest1, NfMon' M2) end)
+			| 1 => raise Fail "FIXME: monad/intersection 1"
+			| _ => raise Fail "FIXME: monad/intersection 2+")
+		| (_, E1', (LogicVar _, _), NfMon M2) =>
+			unifyLetLet NONE ((p2, ob2', NfMon' M2), (p1, ob1', NfExpObj.inj E1'))
 		| ((LogicVar L1, _), E1', (LogicVar L2, _), E2') =>
 			raise Fail "FIXME: postpone as constraint"
 			(* or search E1' and E2' for heads that can be moved to front *)
 		| (_ (* ob1' <> LVar *), E1', (LogicVar L2, _), E2') =>
-			let val E = Util.whnfLetSpine (Let' (p2, Atomic' ob2', expWhnfInj E2'))
+			let val E = (NfLet' (p2, ob2', NfExpObj.inj E2'))
 				val E2rest = matchHeadInLet NONE (ob1', fn _ => fn e => e, 0, E, E, 0)
-			in unifyExp NONE (expWhnfInj E1', E2rest) end
+			in unifyExp NONE (NfExpObj.inj E1', E2rest) end
 		| ((LogicVar L1, _), E1', _ (* ob2' <> LVar *), E2') =>
-			let val E = Util.whnfLetSpine (Let' (p1, Atomic' ob1', expWhnfInj E1'))
+			let val E = (NfLet' (p1, ob1', NfExpObj.inj E1'))
 				val E1rest = matchHeadInLet NONE (ob2', fn _ => fn e => e, 0, E, E, 0)
-			in unifyExp NONE (E1rest, expWhnfInj E2') end
+			in unifyExp NONE (E1rest, NfExpObj.inj E2') end
 		| (_ (* ob1' <> LVar *), E1', _ (* ob2' <> LVar *), E2') => let exception ExnTryRev in
-			let val E = Util.whnfLetSpine (Let' (p2, Atomic' ob2', expWhnfInj E2'))
+			let val E = (NfLet' (p2, ob2', NfExpObj.inj E2'))
 				val E2rest = matchHeadInLet (SOME ExnTryRev) (ob1', fn _ => fn e => e, 0, E, E, 0)
-			in unifyExp dryRun (expWhnfInj E1', E2rest) end handle ExnTryRev =>
-			let val E = Util.whnfLetSpine (Let' (p1, Atomic' ob1', expWhnfInj E1'))
+			in unifyExp dryRun (NfExpObj.inj E1', E2rest) end handle ExnTryRev =>
+			let val E = (NfLet' (p1, ob1', NfExpObj.inj E1'))
 				val E1rest = matchHeadInLet NONE (ob2', fn _ => fn e => e, 0, E, E, 0)
-			in unifyExp dryRun (E1rest, expWhnfInj E2') end end
-	end*)
+			in unifyExp dryRun (E1rest, NfExpObj.inj E2') end end
+	end
 and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = raise Fail "FIXME2 matchHeadInLet"
 (*and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, NfExpObj.prj EsX) of
 	  (Let (p, N, E'), Let (_, NsX, EsX')) =>

@@ -25,7 +25,7 @@ open Syntax infix with'ty
 
 type intset = int list
 val empty = []
-fun occur n = [n]
+fun singleton n = [n]
 fun decrn n is = List.filter (fn x => x>=1) (map (fn x => x-n) is)
 fun decr is = decrn 1 is
 fun depend is = List.exists (fn x => x=1) is
@@ -82,7 +82,7 @@ and rdObj ob = case Obj.prj ob of
 	| Constraint (N, A) => join2 Constraint' (rdObj N) (rdType A)
 and rdHead h = case h of
 	  Const c => (Const c, empty)
-	| Var n => (Var n, occur $ #2 n)
+	| Var n => (Var n, singleton $ #2 n)
 	| UCVar v => (UCVar v, empty)
 	| LogicVar (X as {ctx, s, ty, ...}) =>
 			let val ctxL = length $ Context.ctx2list $ valOf $ !ctx
@@ -90,7 +90,7 @@ and rdHead h = case h of
 				fun occurSubOb Undef = empty
 				  | occurSubOb (Ob (_, ob)) = (#2 $ rdObj $ unnormalizeObj ob
 						handle Subst.ExnUndef => (*empty*) raise Fail "Internal error: rdHead")
-				  | occurSubOb (Idx (_, n)) = occur n
+				  | occurSubOb (Idx (_, n)) = singleton n
 				val occurSub = Subst.fold (union o (map1 occurSubOb))
 							(fn m => occurFromTo (m+1) (ctxL-subL+m)) s
 			in (LogicVar (X with'ty (#1 (rdType ty))), occurSub) end
