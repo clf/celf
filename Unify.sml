@@ -187,7 +187,6 @@ fun occurObj ob = case SOME (lowerObj (NfObj.prj ob)) handle Subst.ExnUndef => N
 	| SOME (NfAtomic (H, S)) => union (occurHead H, occurSpine S)
 and occurHead h = case h of
 	  Const _ => empty
-	| Var (INT, _) => empty
 	| Var (_, n) => singleton n
 	| UCVar _ => empty
 	| LogicVar {ctx=ref NONE, ...} => raise Fail "Internal error: occurHead: no ctx"
@@ -216,8 +215,8 @@ and occurMonadObj m = case NfMonadObj.prj m of
 	| One => empty
 	| Down N => occurObj N
 	| Affi N => occurObj N
-	| Bang N => empty
-	| MonUndef => raise Fail "Internal error: rdMonadObj: MonUndef"
+	| Bang N => occurObj N
+	| MonUndef => raise Fail "Internal error: occurMonadObj: MonUndef"
 
 fun ctxSubList ctx [] = ctx
   | ctxSubList ctx (n::ns) = ctxSubList (#1 $ ctxLookupNum (ctx, n)) ns
@@ -438,7 +437,7 @@ fun linPrune (ob, pl) =
 		fun pClos clo n s N = if Subst.isId s then N else
 			( doexists := true
 			; clo (N, Subst.dotn n s) )
-		fun pObj p n ob = case lowerObj $ NfObj.prj ob of
+		fun pObj p n ob = case NfObj.prj ob of (* lowering is done in pAtomic *)
 			  NfLLam (pa, N) => map1 (fn N' => NfLLam' (pa, N')) (pObj p (n + nbinds pa) N)
 			| NfAddPair (N1, N2) =>
 				let val (N1', occ1) = pObj p n N1
@@ -533,8 +532,11 @@ fun linPrune (ob, pl) =
 									  | invLV _ = raise Fail "Internal error: invLV"
 								in invLV $ invAtomicP Y end
 					in ((LogicVar (Y with's s3), NfInj.Nil'), occ') end
-				| NONE => (* FIXME? could check for actual occurrences *)
-					((LogicVar X1, NfInj.Nil'), map (fn _ => FlexMult) p)
+				| NONE =>
+					let val occSubAll = decrn n (occurSub G s)
+						fun occurs j = List.exists (fn x => x=j) occSubAll
+						val occ = map (fn (m, j) => if occurs j then FlexMult else No) p
+					in ((LogicVar X1, NfInj.Nil'), occ) end
 				end
 			end
 		and pSpine p n sp = case NfSpine.prj sp of
