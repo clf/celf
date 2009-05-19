@@ -740,7 +740,7 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 and unifyLVar (X as {X=r, s, cnstr=cs, tag, ...}, ob, p) =
 	let val si = Subst.invert s
 	in case objExists r (NfClos (ob, si)) of
-		  NONE => raise ExnUnify "Unification failed\n"
+		  NONE => raise ExnUnify "Unification failed: could not prune\n"
 		| SOME N => if null p then instantiate (r, N, cs, tag) else
 			let val p' = Subst.lcsComp (p, si)
 			in case linPrune (N, p') of
@@ -809,7 +809,8 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 			raise Fail "Internal error: unifyLetLet: no context"
 		| ((LogicVar (X1 as {X, ty, s, ctx=ref (SOME G), ...}), _ (*=Nil*)), NfMon M1, _, E2') =>
 			(case headCountExp (X, NfLet' (p2, ob2', NfExpObj.inj E2')) of
-			  0 => (case patSub s (ctxMap nfAsyncTypeToApx G) of
+			  0 => if isSome dryRun then (valOf dryRun) := false else
+				(case patSub s (ctxMap nfAsyncTypeToApx G) of
 				  NONE => raise Fail "FIXME: postpone"
 				| SOME (p, s') =>
 					let fun splitLet ctx si ex qn = case NfExpObj.prj ex of
@@ -839,17 +840,25 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 			| _ => raise Fail "FIXME: monad/intersection 2+")
 		| (_, E1', (LogicVar _, _), NfMon M2) =>
 			unifyLetLet NONE ((p2, ob2', NfMon' M2), (p1, ob1', NfExpObj.inj E1'))
-		| ((LogicVar L1, _), E1', (LogicVar L2, _), E2') =>
-			raise Fail "FIXME: postpone as constraint"
-			(* or search E1' and E2' for heads that can be moved to front *)
+		| ((LogicVar {cnstr=cs1, ...}, _), E1', (LogicVar {cnstr=cs2, ...}, _), E2') =>
+			let val dryRunLet = ref true
+			in case unifyHead dryRunLet (ob1', ob2') of
+				  NONE => raise Fail "Internal error: L1 /= L2 cannot happen"
+				| SOME () =>
+					if !dryRunLet then unifyExp dryRun (E1, E2) else
+					if isSome dryRun then (valOf dryRun) := false else
+						addConstraint (vref (Eqn
+							(NfMonad' $ NfLet' (p1, ob1', E1),
+							 NfMonad' $ NfLet' (p2, ob2', E2))), [cs1, cs2])
+			end (* or search E1' and E2' for heads that can be moved to front *)
 		| (_ (* ob1' <> LVar *), E1', (LogicVar L2, _), E2') =>
 			let val E = (NfLet' (p2, ob2', NfExpObj.inj E2'))
 				val E2rest = matchHeadInLet NONE (ob1', fn _ => fn e => e, 0, E, E, 0)
-			in unifyExp NONE (NfExpObj.inj E1', E2rest) end
+			in unifyExp dryRun (NfExpObj.inj E1', E2rest) end
 		| ((LogicVar L1, _), E1', _ (* ob2' <> LVar *), E2') =>
 			let val E = (NfLet' (p1, ob1', NfExpObj.inj E1'))
 				val E1rest = matchHeadInLet NONE (ob2', fn _ => fn e => e, 0, E, E, 0)
-			in unifyExp NONE (E1rest, NfExpObj.inj E2') end
+			in unifyExp dryRun (E1rest, NfExpObj.inj E2') end
 		| (_ (* ob1' <> LVar *), E1', _ (* ob2' <> LVar *), E2') => let exception ExnTryRev in
 			let val E = (NfLet' (p2, ob2', NfExpObj.inj E2'))
 				val E2rest = matchHeadInLet (SOME ExnTryRev) (ob1', fn _ => fn e => e, 0, E, E, 0)
