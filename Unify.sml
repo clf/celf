@@ -838,8 +838,11 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 									NfMon' $ NfMClos (M1, Subst.dotn (nbinds p1) (Subst.shift qn)))
 					in unifyLVar (X1 with's Subst.id, NfMonad' E2Y, p')
 					 ; unifyExp NONE (rest1, NfMon' M2) end)
-			| 1 => raise Fail "FIXME: monad/intersection 1"
-			| _ => raise Fail "FIXME: monad/intersection 2+")
+			(* FIXME: could distinguish headCountExp 1 and 2+ and do more *)
+			| _ => if isSome dryRun then (valOf dryRun) := false else
+					addConstraint (vref (Eqn
+							(NfMonad' $ NfLet' (p1, ob1', E1),
+							 NfMonad' $ NfLet' (p2, ob2', E2))), [#cnstr X1]))
 		| (_, E1', (LogicVar _, _), NfMon M2) =>
 			unifyLetLet dryRun ((p2, ob2', NfMon' M2), (p1, ob1', NfExpObj.inj E1'))
 		| ((LogicVar {cnstr=cs1, ...}, _), E1', (LogicVar {cnstr=cs2, ...}, _), E2') =>
@@ -851,24 +854,25 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 			else addConstraint (vref (Eqn
 						(NfMonad' $ NfLet' (p1, ob1', E1),
 						 NfMonad' $ NfLet' (p2, ob2', E2))), [cs1, cs2])
-			end (* or search E1' and E2' for heads that can be moved to front *)
-		| (_ (* ob1' <> LVar *), E1', (LogicVar L2, _), E2') =>
-			let val E = (NfLet' (p2, ob2', NfExpObj.inj E2'))
-				val E2rest = matchHeadInLet NONE (ob1', fn _ => fn e => e, 0, E, E, 0)
-			in unifyExp dryRun (NfExpObj.inj E1', E2rest) end
-		| ((LogicVar L1, _), E1', _ (* ob2' <> LVar *), E2') =>
-			let val E = (NfLet' (p1, ob1', NfExpObj.inj E1'))
-				val E1rest = matchHeadInLet NONE (ob2', fn _ => fn e => e, 0, E, E, 0)
-			in unifyExp dryRun (E1rest, NfExpObj.inj E2') end
-		| (_ (* ob1' <> LVar *), E1', _ (* ob2' <> LVar *), E2') => let exception ExnTryRev in
-			let val E = (NfLet' (p2, ob2', NfExpObj.inj E2'))
-				val E2rest = matchHeadInLet (SOME ExnTryRev) (ob1', fn _ => fn e => e, 0, E, E, 0)
-			in unifyExp dryRun (NfExpObj.inj E1', E2rest) end handle ExnTryRev =>
-			let val E = (NfLet' (p1, ob1', NfExpObj.inj E1'))
-				val E1rest = matchHeadInLet NONE (ob2', fn _ => fn e => e, 0, E, E, 0)
-			in unifyExp dryRun (E1rest, NfExpObj.inj E2') end end
+			end (* FIXME: maybe search E1' and E2' for heads that can be moved to front? *)
+		| ((LogicVar _, _), _, _ (* ob2' <> LVar *), _) =>
+			unifyLetLet dryRun ((p2, ob2', E2), (p1, ob1', E1))
+		| _ (* ob1' <> LVar *) =>
+			let val E = NfLet' (p2, ob2', E2)
+			in case matchHeadInLet (ob1', fn _ => fn e => e, 0, E, E, 0) of
+			  INL E2rest => unifyExp dryRun (E1, E2rest)
+			| INR m2 =>
+				let val E = NfLet' (p1, ob1', E1)
+				in case matchHeadInLet (ob2', fn _ => fn e => e, 0, E, E, 0) of
+				  INL E1rest => unifyExp dryRun (E1rest, E2)
+				| INR m1 => if isSome dryRun then (valOf dryRun) := false else
+					addConstraint (vref (Eqn
+							(NfMonad' $ NfLet' (p1, ob1', E1),
+							 NfMonad' $ NfLet' (p2, ob2', E2))), []) (* FIXME: not attached! *)
+				end
+			end
 	end
-and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = case (NfExpObj.prj E, NfExpObj.prj EsX) of
+and matchHeadInLet (hS, e, nbe, E, EsX, nMaybe) = case (NfExpObj.prj E, NfExpObj.prj EsX) of
 	  (NfLet (p, N, E'), NfLet (_, NsX, EsX')) =>
 			let val nbp = nbinds p
 				fun AtClos (a, s) = invAtomicP (NfClos (NfAtomic' a, s))
@@ -892,17 +896,15 @@ and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = case (NfExpObj.prj E, N
 						handle ExnUnify _ => NONE of
 				  SOME () =>
 					if !dryRun then (* unify success *)
-						e (Subst.shift nbp) (NfEClos (E', Subst.switchSub (nbp, nbe)))
+						INL $ e (Subst.shift nbp) (NfEClos (E', Subst.switchSub (nbp, nbe)))
 					else (* unify maybe *)
-						matchHeadInLet revExn (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe + 1)
+						matchHeadInLet (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe + 1)
 				| NONE => (* unify failure *)
-						matchHeadInLet revExn (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe)
+						matchHeadInLet (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe)
 			end
 	| (NfMon _, NfMon _) =>
 			if nMaybe = 0 then raise ExnUnify "Monadic objects not unifiable\n"
-			else if isSome revExn then raise valOf revExn
-			else if nMaybe = 1 then raise Fail "FIXME: should be able to let-float\n"
-			else raise Fail "FIXME: multiple options"
+			else INR nMaybe
 	| _ => raise Fail "Internal error: matchHeadInLet\n"
 
 (* solveConstr : constr vref -> unit *)
