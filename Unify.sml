@@ -811,7 +811,9 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 			(case headCountExp (X, NfLet' (p2, ob2', NfExpObj.inj E2')) of
 			  0 => if isSome dryRun then (valOf dryRun) := false else
 				(case patSub s (ctxMap nfAsyncTypeToApx G) of
-				  NONE => raise Fail "FIXME: postpone"
+				  NONE => addConstraint (vref (Eqn
+							(NfMonad' $ NfLet' (p1, ob1', E1),
+							 NfMonad' $ NfLet' (p2, ob2', E2))), [#cnstr X1])
 				| SOME (p, s') =>
 					let fun splitLet ctx si ex qn = case NfExpObj.prj ex of
 							  NfLet (q, hs, E) =>
