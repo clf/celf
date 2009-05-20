@@ -684,7 +684,7 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 								handle ExnUnify _ => NONE of
 							  SOME () => if !dryRunIntersect then true else raise ExnUnifyMaybe
 							| NONE => false
-						fun conv' (INL n, ob2) = conv (NfAtomic' (Var n, NfInj.Nil'), ob2) (* FIXME eta *)
+						fun conv' (INL n, ob2) = conv (NfAtomic' (Var n, NfInj.Nil'), ob2) (* eta *)
 						  | conv' (INR ob1, ob2) = conv (ob1, ob2)
 					in if Subst.isId (Subst.intersection conv' (s1, s2))
 							handle ExnUnifyMaybe => false then ()
@@ -763,14 +763,14 @@ and unifyExp dryRun (e1, e2) = case (NfExpObj.prj e1, NfExpObj.prj e2) of
 	  (NfMon M1, NfMon M2) => unifyMon dryRun (M1, M2)
 	| (NfLet L1, NfMon M2) => unifyLetMon dryRun (L1, M2)
 	| (NfMon M1, NfLet L2) => unifyLetMon dryRun (L2, M1)
-	| (NfLet L1, NfLet L2) =>
-			let fun lVarCount (NfLet (_, (LogicVar _, _), E)) = 1 + lVarCount (NfExpObj.prj E)
+	| (NfLet L1, NfLet L2) => unifyLetLet dryRun (L1, L2)
+			(*let fun lVarCount (NfLet (_, (LogicVar _, _), E)) = 1 + lVarCount (NfExpObj.prj E)
 				  | lVarCount (NfLet (_, _, E)) = lVarCount (NfExpObj.prj E)
 				  | lVarCount (NfMon _) = 0
 			in if isSome dryRun andalso (lVarCount (NfLet L1) > 0 orelse lVarCount (NfLet L2) > 0)
 				then (valOf dryRun) := false
 				else unifyLetLet dryRun (L1, L2)
-			end
+			end*)
 and unifyLetMon dryRun ((pa, hS, E), M) = case lowerAtomic hS of
 	  (LogicVar (X as {X=r, ty, s, ctx=ref (SOME G), cnstr=cs, tag}), _ (*=Nil*)) =>
 			if isSome dryRun then (valOf dryRun) := false else
@@ -839,17 +839,16 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 			| 1 => raise Fail "FIXME: monad/intersection 1"
 			| _ => raise Fail "FIXME: monad/intersection 2+")
 		| (_, E1', (LogicVar _, _), NfMon M2) =>
-			unifyLetLet NONE ((p2, ob2', NfMon' M2), (p1, ob1', NfExpObj.inj E1'))
+			unifyLetLet dryRun ((p2, ob2', NfMon' M2), (p1, ob1', NfExpObj.inj E1'))
 		| ((LogicVar {cnstr=cs1, ...}, _), E1', (LogicVar {cnstr=cs2, ...}, _), E2') =>
 			let val dryRunLet = ref true
-			in case unifyHead dryRunLet (ob1', ob2') of
-				  NONE => raise Fail "Internal error: L1 /= L2 cannot happen"
-				| SOME () =>
-					if !dryRunLet then unifyExp dryRun (E1, E2) else
-					if isSome dryRun then (valOf dryRun) := false else
-						addConstraint (vref (Eqn
-							(NfMonad' $ NfLet' (p1, ob1', E1),
-							 NfMonad' $ NfLet' (p2, ob2', E2))), [cs1, cs2])
+				val () = unifyHead (SOME dryRunLet) (ob1', ob2')
+						handle ExnUnify _ => raise Fail "Internal error: L1 /= L2 cannot happen"
+			in if !dryRunLet then unifyExp dryRun (E1, E2)
+			else if isSome dryRun then (valOf dryRun) := false
+			else addConstraint (vref (Eqn
+						(NfMonad' $ NfLet' (p1, ob1', E1),
+						 NfMonad' $ NfLet' (p2, ob2', E2))), [cs1, cs2])
 			end (* or search E1' and E2' for heads that can be moved to front *)
 		| (_ (* ob1' <> LVar *), E1', (LogicVar L2, _), E2') =>
 			let val E = (NfLet' (p2, ob2', NfExpObj.inj E2'))
@@ -867,38 +866,42 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 				val E1rest = matchHeadInLet NONE (ob2', fn _ => fn e => e, 0, E, E, 0)
 			in unifyExp dryRun (E1rest, NfExpObj.inj E2') end end
 	end
-and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = raise Fail "FIXME2 matchHeadInLet"
-(*and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = case (ExpObj.prj E, NfExpObj.prj EsX) of
-	  (Let (p, N, E'), Let (_, NsX, EsX')) =>
+and matchHeadInLet revExn (hS, e, nbe, E, EsX, nMaybe) = case (NfExpObj.prj E, NfExpObj.prj EsX) of
+	  (NfLet (p, N, E'), NfLet (_, NsX, EsX')) =>
 			let val nbp = nbinds p
-				fun hS' () = invAtomicP (Clos (Atomic' hS, Subst.shift nbp))
+				fun AtClos (a, s) = invAtomicP (NfClos (NfAtomic' a, s))
+				fun hS' () = AtClos (hS, Subst.shift nbp)
 				val e' = fn s => fn E =>
 							let val s' = Subst.dotn nbe s
-							in e s (Let' (PClos (p, s'), Clos (N, s'), E)) end
-				fun lVarSub 0 = Subst.shift nbp
-				  | lVarSub n = Subst.dot (raise Fail "FIXME lVarSub", Util.blank (), lVarSub (n-1))
+							in e s (NfLet' (p, AtClos (N, s'), E)) end
+				fun lVarSub (p, s) = case Pattern.prj p of
+					  PDepTensor (p1, p2) => lVarSub (p2, lVarSub (p1, s))
+					| POne => s
+					| PDown _ => Subst.Dot (Ob (LIN, normalizeObj $ Parse.blank ()), s)
+					| PAffi _ => Subst.Dot (Ob (AFF, normalizeObj $ Parse.blank ()), s)
+					| PBang _ => Subst.Dot (Ob (INT, normalizeObj $ Parse.blank ()), s)
+				fun lVarSub' () = lVarSub (p, Subst.shift nbp)
 				fun isLVar (LogicVar _, _) = true
 				  | isLVar _ = false
-				fun EsX'' () = if isLVar NsX then EClos (EsX', lVarSub nbp) else EsX'
+				fun EsX'' () = if isLVar NsX then NfEClos (EsX', lVarSub' ()) else EsX'
 				val dryRun = ref true
 			in
 				case SOME (unifyHead (SOME dryRun) (hS, NsX))
 						handle ExnUnify _ => NONE of
 				  SOME () =>
 					if !dryRun then (* unify success *)
-						e (Subst.shift nbp) (EClos (E', Subst.switchSub (nbp, nbe)))
+						e (Subst.shift nbp) (NfEClos (E', Subst.switchSub (nbp, nbe)))
 					else (* unify maybe *)
 						matchHeadInLet revExn (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe + 1)
 				| NONE => (* unify failure *)
 						matchHeadInLet revExn (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe)
 			end
-	| (Mon _, Mon _) =>
+	| (NfMon _, NfMon _) =>
 			if nMaybe = 0 then raise ExnUnify "Monadic objects not unifiable\n"
 			else if isSome revExn then raise valOf revExn
 			else if nMaybe = 1 then raise Fail "FIXME: should be able to let-float\n"
 			else raise Fail "FIXME: multiple options"
 	| _ => raise Fail "Internal error: matchHeadInLet\n"
-*)
 
 (* solveConstr : constr vref -> unit *)
 fun solveConstr c = case !!c of
