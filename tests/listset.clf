@@ -1,0 +1,19 @@
+nat : type.
+z : nat.
+s : nat -> nat.
+
+list : type.
+nil : list.
+cons : nat -> list -> list.
+
+set : type.
+cell : set -> nat -> {1}.
+
+same : list -> (set -> {1}) -> type.
+same_nil : same nil (\!s. {1}).
+same_cons : same (cons N L) (\!f. {let {1} = cell f N in let {1} = S !f in 1})
+	<- same L S.
+
+#query * * * 1 same (cons z (cons ( z) nil))
+	(\!f. {let {1} = cell f (s z) in let {1} = cell f z in 1}). 
+

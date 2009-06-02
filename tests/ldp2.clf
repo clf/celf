@@ -1,0 +1,171 @@
+%%% Mini-ML using linear destination passing
+%%% Function and argument may be evaluated concurrently
+
+% types
+tp : type.
+arrow : tp -> tp -> tp.
+
+% expressions
+exp : tp -> type.
+
+lam : (exp A1 -> exp A2) -> exp (arrow A1 A2).
+app : exp (arrow A1 A2) -> exp A1 -> exp A2.
+
+% values
+val : tp -> type.
+
+value : val A -> exp A.
+lam' : (val A1 -> exp A2) -> val (arrow A1 A2).
+
+% destinations
+dest : tp -> type.
+
+% frames
+frame : tp -> type.
+app2 : dest (arrow A1 A2) -> dest A1 -> frame A2.
+
+% operational judgments
+eflag : type.
+
+eval : exp A -> dest A -> type.
+comp : frame A -> dest A -> type.
+is : dest A -> val A -> type.
+
+evval : eflag -> eval (value V) D -o {is D V}.
+evlam : eflag -> eval (lam \!x. E !x) D -o {is D (lam' \!x. E !(value x))}.
+evapp : eflag -> eval (app E1 E2) D
+        -o {Exists d1:dest (arrow A2 A1). Exists d2:dest A2.
+	    eval E1 d1 * eval E2 d2 * comp (app2 d1 d2) D}.
+evapp2 :  eflag
+          -> is D1 (lam' \!x. E1' !x)	
+          -o is D2 V2
+          -o comp (app2 D1 D2) D
+          -o {eval (E1' !V2) D}.
+
+evaluate : exp A -> val A -> type.
+run : evaluate E V o- (Pi d0:dest A. eval E d0 -o eflag -> {is d0 V}).
+
+#query * 1 * 1 evaluate (app (lam \!x. x) (lam \!y. y)) V.
+
+sflag : type.
+supply : dest A -> type.
+vdeval : sflag -> eval E D -o {supply D}.
+vdis : sflag -> is D V -o {supply D}.
+vdapp2 : sflag -> supply D1
+	  -o supply D2
+	  -o comp (app2 D1 D2) D
+	  -o {supply D}.
+
+% valid : dest A -> type.
+% check : valid D o- {supply D}.
+
+check : exp A -> type.
+test : check E o- (sflag -> Pi d0:dest A. eval E d0 -o {supply d0}).
+
+% doesn't work because vdeval, vdis, etc pollute the transition space
+#query * 1 * 1 check (app (lam \!x. x) (lam \!y. y)).
+
+check2 : exp A -> type.
+test2 : check2 E o- (Pi d0:dest A. eval E d0 -o ((eflag -> {is d0 V}) & (sflag -> {supply d0}))).
+
+#query * 1 * 1 check2 (app (lam \!x. x) (lam \!y. y)).
+
+% % safety
+% %
+% % I am writing some kind of dependent pi to express intent.
+% % We assume a situation (context)
+% %
+% %   H, ^safe ^ (Meval & Mvalid)
+% %
+% % where H is a machine state (using d:dest_,p^eval _, i^is _, c^comp _)
+% % H |- Meval : {^is d0 V} is a complete run starting in state H
+% % H |- Mvalid : {^supply d0} is a validity derivation for H
+% %
+% % we transition, in the forward direction, until we have reached
+% %
+% %   d0, i0^is d0 V, ^safe ^ ([^i0] & [s0^ = vdis ^ i0; ^s0])
+% %
+% % I am using (M & N) for pairs
+% 
+
+safe : (eflag -> {is D0 V}) & (sflag -> {supply D0}) -> type.
+
+sf_evval :
+  Pi P: eval (value V) D.
+  safe <\!ef.{let {i} = evval ef P in
+         let {i0} = Q !ef i in
+          i0},
+        \!sf.{let {s} = vdeval sf P in
+         let {s0} = R !sf s in
+          s0} >
+ -o {Exists i:is D V.
+      safe <\!ef. {let {i0} = Q !ef i in i0},
+            \!sf. {let {s} = vdis sf i in
+             let {s0} = R !sf s in
+               s0}>}.
+
+sf_evlam :
+  Pi P:eval (lam \!x. E !x) D.
+  safe <\!ef. {let {i} = evlam ef P in
+	 let {i0} = Q !ef i in
+           i0},
+        \!sf.{let {s} = vdeval sf P in
+         let {s0} = R !sf s in
+           s0}>
+  -o {Exists i:is D (lam' \!x. E !(value x)).
+       safe <\!ef. {let {i0} = Q !ef i in i0},
+             \!sf. {let {s} = vdis sf i in let {s0} = R !sf s in s0}>}.
+
+sf_evapp :
+  Pi P:eval (app E1 E2) D.
+  safe <\!ef. {let {[!d1, !d2, p1 , p2 , c3]} = evapp ef P in
+         let {i0} = Q !ef !d1 !d2 p1 p2 c3 in
+           i0},
+        \!sf. {let {s} = vdeval sf P in let {s0} = R !sf s in s0}>
+  -o {Exists d1. Exists d2. Exists p1:eval E1 d1. Exists p2:eval E2 d2.
+      Exists c3:comp (app2 d1 d2) D.
+        safe <\!ef. {let {i0} = Q !ef !d1 !d2 p1 p2 c3 in i0},
+              \!sf. {let {s1} = vdeval sf p1 in
+               let {s2} = vdeval sf p2 in
+               let {s} = vdapp2 sf s1 s2 c3 in
+               let {s0} = R !sf s in
+                 s0}>}.
+
+sf_evapp2 :
+  Pi I1:is D1 (lam' \!x. E1' !x).
+  Pi I2:is D2 V2.
+  Pi C3:comp (app2 D1 D2) D.
+  safe <\!ef. {let {p3} = evapp2 ef I1 I2 C3 in
+         let {i0} = Q !ef p3 in
+           i0},
+         \!sf. {let {s1} = vdis sf I1 in
+          let {s2} = vdis sf I2 in
+          let {s3} = vdapp2 sf s1 s2 C3 in
+          let {s0} = R !sf s3 in
+            s0}>
+  -o {Exists p3:eval (E1' !V2) D.
+        safe <\!ef. {let {i0} = Q !ef p3 in i0},
+              \!sf. {let {s3} = vdeval sf p3 in
+               let {s0} = R !sf s3 in
+                 s0}>}.
+
+tps : (Pi d0. eval E d0 -o eflag -> {is d0 V}) -> type.
+tps0 : tps (\!d0. \p0. \!ef. P !d0 p0 !ef) o-
+  (Pi d0. Pi p0:eval E d0.  safe < \!ef. P !d0 p0 !ef , \!sf. vdeval sf p0 >
+   -o {Exists I0. safe < \!ef. {(I0 !d0)} ,
+                         \!sf. {let {s0} = vdis sf (I0 !d0) in s0} > }).
+
+#query * 1 * 1
+tps (\! d0. \ X1. \! X2. {
+    let {[!d1, !d2, X3, X4, X5]} = evapp X2 X1 in 
+    let {X6} = evlam X2 (X4 : eval (lam (\! y. y)) d2) in 
+    let {X7} = evlam X2 (X3 : eval (lam (\! x. x)) d1) in 
+    let {X8} = evapp2 X2 X7 X6 (X5 : comp (app2 d1 d2) d0) in 
+    let {X9} = evval X2 X8 in X9}).
+%%		X3: eval (lam (\! x. x)) d1 ,
+%%		X4: eval (lam (\! y. y)) d2 ,
+%%		X5: comp (app2 d1 d2) d0]} = evapp X2 X1 in 
+%%    let {X6: is d2 (lam' (\! x. value x))} = evlam X2 X4 in 
+%%    let {X7: is d1 (lam' (\! x. value x))} = evlam X2 X3 in 
+%%    let {X8: eval (value (lam' (\! x. value x))) d0} = evapp2 X2 X7 X6 X5 in 
+%%    let {X9: is d0 (lam' (\! x. value x))} = evval X2 X8 in X9}).

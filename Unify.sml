@@ -194,7 +194,7 @@ and occurHead h = case h of
 and occurSub ctx s =
 	let val G = ctx2list ctx
 		val () = if List.all (isSome o #3) G then () else
-					raise Fail "Internal error: lvar with non-pruned ctx"
+					raise Fail "Internal error: occurSub: lvar with non-pruned ctx"
 		val ctxL = length G
 		val subL = Subst.fold (fn (_, n) => n+1) (fn _ => 0) s
 		fun occurSubOb Undef = empty
@@ -399,7 +399,7 @@ val (objExists, typeExists) =
 
 (* pruneLVar : nfHead -> unit
  * prunes away linear and affine vars not occuring in the context *)
-fun pruneLVar (LogicVar {X, ty, ctx=ref (SOME G), ...}) =
+fun pruneLVar (LogicVar {X, ty, ctx=ref (SOME G), cnstr, tag, ...}) =
 	let val weakenSub = foldr (fn ((_, _, NONE), w) => Subst.comp (w, Subst.shift 1)
 		                        | ((_, _, SOME _), w) => Subst.dot1 w)
 		                Subst.id (ctx2list G)
@@ -407,7 +407,7 @@ fun pruneLVar (LogicVar {X, ty, ctx=ref (SOME G), ...}) =
 	let val ss = Subst.invert weakenSub
 		val G' = SOME $ pruneCtx (Fail "pruneLVar:pruning lin") (fn A => A) ss G
 		val ty' = NfTClos (ty, ss)
-	in X ::= SOME $ NfClos (newNfLVarCtx G' ty', weakenSub) end end
+	in instantiate (X, NfClos (newNfLVarCtx G' ty', weakenSub), cnstr, tag) end end
   | pruneLVar _ = raise Fail "internal error: pruneLVar: no lvar"
 
 (* linPrune : nfObj * (subMode * int) list -> nfObj option *)
@@ -483,7 +483,7 @@ fun linPrune (ob, pl) =
 			| (LogicVar {ctx=ref NONE, ...}, _) => raise Fail "Internal error: linPrune: no ctx"
 			| (LogicVar (X1 as {X=r, ty=A, s, ctx=ref (SOME G), cnstr=cs, tag}), _) =>
 				let val () = if List.all (isSome o #3) $ ctx2list G then () else
-								raise Fail "Internal error: lvar with non-pruned ctx"
+								raise Fail "Internal error: pAtomic: lvar with non-pruned ctx"
 				in case patSub s (ctxMap nfAsyncTypeToApx G) of
 				  SOME (p1, s1) =>
 					let val s2 = Subst.comp (s1, Subst.lcs2sub p1)
@@ -792,7 +792,7 @@ and unifyLetMon dryRun ((pa, hS, E), M) = case lowerAtomic hS of
 						(NfMonad' $ NfLet' (pa, hS, E), NfMonad' $ NfMon' M)), [cs])
 				| SOME (p', s') =>
 					let val () = if List.all (isSome o #3) $ ctx2list G then () else
-									raise Fail "Internal error: lvar with non-pruned ctx"
+								raise Fail "Internal error: unifyLetMon: lvar with non-pruned ctx"
 						open Subst
 						val (p, newM) = newMonA (ty, G)
 						val lcs = lcs2sub $ lcsComp (lcsDiff (p, lcsComp (p', invert s')), s')
@@ -873,54 +873,95 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 		| ((LogicVar _, _), _, _ (* ob2' <> LVar *), _) =>
 			unifyLetLet dryRun ((p2, ob2', E2), (p1, ob1', E1))
 		| _ (* ob1' <> LVar *) =>
-			let val E = NfLet' (p2, ob2', E2)
-			in case matchHeadInLet (ob1', fn _ => fn e => e, 0, E, E, 0) of
+			let val E2t = NfLet' (p2, ob2', E2)
+			in case matchHeadInLet (ob1', E2t) of
 			  INL E2rest => unifyExp dryRun (E1, E2rest)
 			| INR m2 =>
-				let val E = NfLet' (p1, ob1', E1)
-				in case matchHeadInLet (ob2', fn _ => fn e => e, 0, E, E, 0) of
+				let val E1t = NfLet' (p1, ob1', E1)
+				in case matchHeadInLet (ob2', E1t) of
 				  INL E1rest => unifyExp dryRun (E1rest, E2)
 				| INR m1 => if isSome dryRun then (valOf dryRun) := false else
-					addConstraint (vref (Eqn
+					let fun notLvar (LogicVar _, _) = false
+						  | notLvar _ = true
+						fun lvarFreeN (_, 0) = true
+						  | lvarFreeN (E, n) = case NfExpObj.prj E of
+							  NfLet (_, hS, E') => notLvar hS andalso lvarFreeN (E', n-1)
+							| NfMon _ => raise Fail "Internal error: lvarFreeN"
+					in if isSome m2 andalso lvarFreeN (E2t, valOf m2) andalso notLvar ob1' then
+						unifyExp dryRun (E1, matchHeadInLetFixedPos (ob1', E2t, valOf m2))
+					else if isSome m1 andalso lvarFreeN (E1t, valOf m1) andalso notLvar ob2' then
+						unifyExp dryRun (matchHeadInLetFixedPos (ob2', E1t, valOf m1), E2)
+					else addConstraint (vref (Eqn
 							(NfMonad' $ NfLet' (p1, ob1', E1),
 							 NfMonad' $ NfLet' (p2, ob2', E2))), []) (* FIXME: not attached! *)
+					end
 				end
 			end
 	end
-and matchHeadInLet (hS, e, nbe, E, EsX, nMaybe) = case (NfExpObj.prj E, NfExpObj.prj EsX) of
-	  (NfLet (p, N, E'), NfLet (_, NsX, EsX')) =>
-			let val nbp = nbinds p
-				fun AtClos (a, s) = invAtomicP (NfClos (NfAtomic' a, s))
-				fun hS' () = AtClos (hS, Subst.shift nbp)
-				val e' = fn s => fn E =>
-							let val s' = Subst.dotn nbe s
-							in e s (NfLet' (p, AtClos (N, s'), E)) end
-				fun lVarSub (p, s) = case Pattern.prj p of
-					  PDepTensor (p1, p2) => lVarSub (p2, lVarSub (p1, s))
-					| POne => s
-					| PDown _ => Subst.Dot (Ob (LIN, normalizeObj $ Parse.blank ()), s)
-					| PAffi _ => Subst.Dot (Ob (AFF, normalizeObj $ Parse.blank ()), s)
-					| PBang _ => Subst.Dot (Ob (INT, normalizeObj $ Parse.blank ()), s)
-				fun lVarSub' () = lVarSub (p, Subst.shift nbp)
-				fun isLVar (LogicVar _, _) = true
-				  | isLVar _ = false
-				fun EsX'' () = if isLVar NsX then NfEClos (EsX', lVarSub' ()) else EsX'
-				val dryRun = ref true
-			in
-				case SOME (unifyHead (SOME dryRun) (hS, NsX))
-						handle ExnUnify _ => NONE of
-				  SOME () =>
-					if !dryRun then (* unify success *)
-						INL $ e (Subst.shift nbp) (NfEClos (E', Subst.switchSub (nbp, nbe)))
-					else (* unify maybe *)
-						matchHeadInLet (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe + 1)
-				| NONE => (* unify failure *)
-						matchHeadInLet (hS' (), e', nbe + nbp, E', EsX'' (), nMaybe)
-			end
-	| (NfMon _, NfMon _) =>
-			if nMaybe = 0 then raise ExnUnify "Monadic objects not unifiable\n"
-			else INR nMaybe
-	| _ => raise Fail "Internal error: matchHeadInLet\n"
+and matchHeadInLet (hS, E) =
+	let datatype maybeMatch = None of int | One of int | More
+		fun advance (None l) = None (l+1)
+		  | advance mm = mm
+		fun foundOne (None l) = One l
+		  | foundOne (One _) = More
+		  | foundOne More = More
+		fun isLVar (LogicVar _, _) = true
+		  | isLVar _ = false
+		fun matchHead (hS, e, nbe, E, EsX, nMaybe) = case (NfExpObj.prj E, NfExpObj.prj EsX) of
+			  (NfLet (p, N, E'), NfLet (_, NsX, EsX')) =>
+				let val nbp = nbinds p
+					fun AtClos (a, s) = invAtomicP (NfClos (NfAtomic' a, s))
+					fun hS' () = AtClos (hS, Subst.shift nbp)
+					val e' = fn s => fn E =>
+								let val s' = Subst.dotn nbe s
+								in e s (NfLet' (p, AtClos (N, s'), E)) end
+					fun lVarSub (p, s) = case Pattern.prj p of
+						  PDepTensor (p1, p2) => lVarSub (p2, lVarSub (p1, s))
+						| POne => s
+						| PDown _ => Subst.Dot (Ob (LIN, normalizeObj $ Parse.blank ()), s)
+						| PAffi _ => Subst.Dot (Ob (AFF, normalizeObj $ Parse.blank ()), s)
+						| PBang _ => Subst.Dot (Ob (INT, normalizeObj $ Parse.blank ()), s)
+					fun lVarSub' () = lVarSub (p, Subst.shift nbp)
+					fun EsX'' () = if isLVar NsX then NfEClos (EsX', lVarSub' ()) else EsX'
+					val dryRun = ref true
+				in
+					case SOME (unifyHead (SOME dryRun) (hS, NsX))
+							handle ExnUnify _ => NONE of
+					  SOME () =>
+						if !dryRun then (* unify success *)
+							INL $ e (Subst.shift nbp) (NfEClos (E', Subst.switchSub (nbp, nbe)))
+						else (* unify maybe *)
+							matchHead (hS' (), e', nbe + nbp, E', EsX'' (), foundOne nMaybe)
+					| NONE => (* unify failure *)
+							matchHead (hS' (), e', nbe + nbp, E', EsX'' (), advance nMaybe)
+				end
+			| (NfMon _, NfMon _) =>
+				(case nMaybe of
+					  None _ => raise ExnUnify "Monadic objects not unifiable\n"
+					| One l => INR (SOME l)
+					| More => INR NONE)
+			| _ => raise Fail "Internal error: matchHeadInLet\n"
+	in matchHead (hS, fn _ => fn e => e, 0, E, E, None 1) end
+and matchHeadInLetFixedPos (hS, E, pos) =
+	let fun isLVar (LogicVar _, _) = true
+		  | isLVar _ = false
+		val () = if isLVar hS then raise Fail "internal error: mHILFP: lvar1" else ()
+		fun matchHead (hS, e, nbe, E, pos) = case NfExpObj.prj E of
+			  NfLet (p, N, E') =>
+				let val nbp = nbinds p
+					fun AtClos (a, s) = invAtomicP (NfClos (NfAtomic' a, s))
+					fun hS' () = AtClos (hS, Subst.shift nbp)
+					val e' = fn s => fn E =>
+								let val s' = Subst.dotn nbe s
+								in e s (NfLet' (p, AtClos (N, s'), E)) end
+					val () = if isLVar N then raise Fail "internal error: mHILFP: lvar2" else ()
+				in if pos = 1 then
+					( unifyHead NONE (hS, N)
+					; e (Subst.shift nbp) (NfEClos (E', Subst.switchSub (nbp, nbe))) )
+				else matchHead (hS' (), e', nbe + nbp, E', pos - 1)
+				end
+			| NfMon _ => raise Fail "internal error: mHILFP: wrong pos"
+	in matchHead (hS, fn _ => fn e => e, 0, E, pos) end
 
 (* solveConstr : constr vref -> unit *)
 fun solveConstr c = case !!c of

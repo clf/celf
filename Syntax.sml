@@ -446,9 +446,11 @@ end
 		and type t = obj and type a = asyncType and type b = spine and type c = expObj *)
 structure Obj =
 struct
-	fun tryLVar (a as Atomic (LogicVar {X, s, ...}, S)) =
+	fun tryLVarAtomic (LogicVar {X, s, ...}, S) =
 			Option.map (fn N => (Clos (N, s), S)) (!!X)
-	  | tryLVar a = NONE
+	  | tryLVarAtomic _ = NONE
+	fun tryLVar (Atomic hS) = tryLVarAtomic hS
+	  | tryLVar _ = NONE
 	type t = obj type a = asyncType type b = spine type c = expObj
 	type ('a, 'b, 'c, 't) F = ('a, 'b, 'c, 't) objFF
 	fun inj a = FixObj a
@@ -483,15 +485,21 @@ end
 		and type t = expObj and type a = obj and type b = spine and type c = monadObj *)
 structure ExpObj =
 struct
+	fun tryLVar (Let (p, hS, E)) =
+		Option.map (fn NS => (p, IntRedex NS, E)) (Obj.tryLVarAtomic hS)
+	  | tryLVar _ = NONE
 	type t = expObj type a = obj type b = spine type c = monadObj
 	type ('a, 'b, 'c, 't) F = ('a, 'b, 'c, 't) expObjFF
 	fun inj a = FixExpObj a
-	fun prj (FixExpObj a) = (*HashCons.nd*) a
+	fun prj (FixExpObj E) = (case tryLVar E of NONE => E | SOME pNE => intLetRedex pNE)
 	  | prj (EClos (EClos (E, s'), s)) = prj (EClos (E, Subst1.comp (s', s)))
-	  | prj (EClos (FixExpObj E, s)) = Subst1.subExpObj intLetRedex' ((*HashCons.nd*) E, s)
+	  | prj (EClos (FixExpObj E, s)) = (case tryLVar E of
+			  NONE => Subst1.subExpObj intLetRedex' ((*HashCons.nd*) E, s)
+			| SOME pNE => prj (EClos (IntLetRedex pNE, s)))
 	  | prj (IntLetRedex pNE) = intLetRedex pNE
-	  | prj (EClos (IntLetRedex (p, N, E), s)) = intLetRedex (p, Clos (N, s), EClos (E, Subst1.dotn (nbinds p) s))
-	and intLetRedex' (p, NS, E) = intLetRedex (p, Obj.inj $ Obj.intRedex NS, E)
+	  | prj (EClos (IntLetRedex (p, N, E), s)) =
+			intLetRedex (p, Clos (N, s), EClos (E, Subst1.dotn (nbinds p) s))
+	and intLetRedex' (p, NS, E) = intLetRedex (p, IntRedex NS, E)
 	and intLetRedex (p, ob, E) = case Obj.prj ob of
 		  Atomic hS => Let (p, hS, E)
 		| Constraint (N, A) => intLetRedex (p, N, E)

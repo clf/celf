@@ -96,7 +96,11 @@ fun genMon (ctx : context, p, sty) =
 			| (PDown (), TDown _) => MonUndef'
 			| (PAffi (), TAffi _) => MonUndef'
 			| (PBang NONE, TBang _) => MonUndef'
-			| (PBang (SOME x), TBang A) => Bang' (newLVarCtx (getIntCtx ()) A)
+			| (PBang (SOME x), TBang A) =>
+				let val X = newLVarCtx (getIntCtx ()) A
+					val () = case Obj.prj X of Atomic (h, _) => Unify.pruneLVar $ normalizeHead h
+							| _ => raise Fail "internal error: lvar expected"
+				in Bang' X end
 			| _ => raise Fail "Internal error: genMon"
 		fun gen' sty = case SyncType.prj sty of
 			  LExists (p, S1, S2) => DepPair' (gen (p, S1), gen' S2)

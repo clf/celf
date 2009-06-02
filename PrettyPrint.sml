@@ -126,7 +126,7 @@ and pHead ctx h = case h of
 			["<"] @ pContext ctx G @ [", "] @ pType ctx false (TClos (ty, s)) @ [">"] else [])
 		@ [Subst.substToStr (String.concat o (pObj ctx true) o unnormalizeObj) s]
 and pContext ctx NONE = ["--"]
-  | pContext ctx (SOME G) =
+  | pContext ctx (SOME G) = (* FIXME: prints in wrong ctx *)
 		join $ map (fn (_, A, m) => pType ctx false A
 					@ [case m of
 						  NONE => " NO"
