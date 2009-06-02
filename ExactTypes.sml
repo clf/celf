@@ -121,18 +121,16 @@ and inferHead (ctx, h) = case h of
 	| LogicVar {X, ty, s, ctx=rctx, ...} =>
 			let val calcCtx' = Unify.pruneCtx (Fail "inferHead:pruning lin") (fn A => A)
 				fun calcCtx si c = ctxMap unnormalizeType $ calcCtx' si $ ctxMap normalizeType c
-				val lvarCtx = calcCtx (Subst.invert s) $ ctxIntPart ctx
 				val () = if Subst.isWeaken s then ()
 							else raise Fail "inferHead:unexpected substitution"
+				val lvarCtx = calcCtx (Subst.invert s) $ ctxIntPart ctx
 				val () = case !rctx of
 						  NONE => rctx := SOME lvarCtx
 						| SOME prevCtx => raise Fail "Internal error: double ctx instantiation"
-							(*print "Checking context\n";
-							ListPair.appEq ApproxTypes.apxUnifyType
-								(map (asyncTypeToApx o #2) (ctx2list prevCtx),
-								 map (asyncTypeToApx o #2) (ctx2list lvarCtx)) *)
 				val () = checkType ((*ctxIntPart*) lvarCtx, ty)
-				val weakenSub = foldr (fn ((_, _, NONE), w) => Subst.comp (w, Subst.shift 1)
+				val () = Unify.pruneLVar $ normalizeHead h
+			in (ctx, TClos (ty, s)) end
+				(*val weakenSub = foldr (fn ((_, _, NONE), w) => Subst.comp (w, Subst.shift 1)
 				                        | ((_, _, SOME _), w) => Subst.dot1 w)
 				                Subst.id (ctx2list lvarCtx)
 				val () = if Subst.isId weakenSub then () else
@@ -140,8 +138,7 @@ and inferHead (ctx, h) = case h of
 								val G = SOME $ calcCtx ss lvarCtx
 								val ty' = TClos (ty, ss)
 								open VRef infix ::=
-							in X ::= SOME $ normalizeObj $ Clos (newLVarCtx G ty', weakenSub) end
-			in (ctx, TClos (ty, s)) end
+							in X ::= SOME $ normalizeObj $ Clos (newLVarCtx G ty', weakenSub) end*)
 
 (* inferSpine : context * spine * asyncType -> context * asyncType *)
 and inferSpine (ctx, sp, ty) = case (Spine.prj sp, Util.typePrjAbbrev ty) of

@@ -31,6 +31,7 @@ val instantiate : Syntax.nfObj option VRef.vref * Syntax.nfObj * Syntax.constr V
 
 val pruneCtx : exn -> (Syntax.nfAsyncType -> Syntax.nfAsyncType) -> Syntax.subst
 		-> Syntax.nfAsyncType Context.context -> Syntax.nfAsyncType Context.context
+val pruneLVar : Syntax.nfHead -> unit
 
 exception ExnOccur
 

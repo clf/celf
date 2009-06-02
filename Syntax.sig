@@ -526,6 +526,7 @@ val normalizeType : asyncType -> nfAsyncType
 val normalizeObj : obj -> nfObj
 val normalizeExpObj : expObj -> nfExpObj
 val normalizeMonadObj : monadObj -> nfMonadObj
+val normalizeHead : head -> nfHead
 
 val unnormalizeKind : nfKind -> kind
 val unnormalizeType : nfAsyncType -> asyncType

@@ -827,6 +827,7 @@ fun normalizeType x = x
 fun normalizeObj x = x
 fun normalizeExpObj x = x
 fun normalizeMonadObj x = x
+fun normalizeHead x = x
 
 fun unnormalizeKind x = x
 fun unnormalizeType x = x

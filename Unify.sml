@@ -397,6 +397,19 @@ val (objExists, typeExists) =
 		fun typeExists1 ty = SOME (pruneType ty) handle Subst.ExnUndef => NONE
 	in (objExists1, typeExists1) end
 
+(* pruneLVar : nfHead -> unit
+ * prunes away linear and affine vars not occuring in the context *)
+fun pruneLVar (LogicVar {X, ty, ctx=ref (SOME G), ...}) =
+	let val weakenSub = foldr (fn ((_, _, NONE), w) => Subst.comp (w, Subst.shift 1)
+		                        | ((_, _, SOME _), w) => Subst.dot1 w)
+		                Subst.id (ctx2list G)
+	in if Subst.isId weakenSub then () else
+	let val ss = Subst.invert weakenSub
+		val G' = SOME $ pruneCtx (Fail "pruneLVar:pruning lin") (fn A => A) ss G
+		val ty' = NfTClos (ty, ss)
+	in X ::= SOME $ NfClos (newNfLVarCtx G' ty', weakenSub) end end
+  | pruneLVar _ = raise Fail "internal error: pruneLVar: no lvar"
+
 (* linPrune : nfObj * (subMode * int) list -> nfObj option *)
 fun linPrune (ob, pl) =
 	let datatype occ = No | Rigid | FlexMult | FlexUniq
@@ -829,8 +842,10 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 								in (NfLet' (q, hs', E'), y) end
 							| NfMon M =>
 								let val Y = newNfLVarCtx (SOME ctx) (NfTClos (ty, Subst.shift qn))
+									val Y' = invAtomicP Y
+									val () = pruneLVar $ #1 Y'
 									val p1m = pat2mon p1
-								in (NfLet' (p1, invAtomicP Y, NfMon' p1m), (Y, qn, M)) end
+								in (NfLet' (p1, Y', NfMon' p1m), (Y, qn, M)) end
 						val si = Subst.invert s'
 						val (E2Y, (Y, qn, M2)) = splitLet G si (NfLet' (p2, ob2', E2)) 0
 						val p' = Subst.lcsComp (p, si)
