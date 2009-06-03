@@ -43,9 +43,13 @@ fun parseArgs args = case args of
 		( print "printImpl := true\n"
 		; PrettyPrint.printImpl := true
 		; parseArgs args )
-	| "-pc"::args =>
-		( print "printLVarCtx := true\n"
-		; PrettyPrint.printLVarCtx := true
+	| "-pc1"::args =>
+		( print "printLVarCtx := 1\n"
+		; PrettyPrint.printLVarCtx := 1
+		; parseArgs args )
+	| "-pc2"::args =>
+		( print "printLVarCtx := 2\n"
+		; PrettyPrint.printLVarCtx := 2
 		; parseArgs args )
 	| "-tu"::args =>
 		( print "outputUnify := true\n"
@@ -79,7 +83,7 @@ fun parseArgs args = case args of
 				^" -d      : enable double checking\n"
 				^" -ac     : allow leftover constraints in proof search\n"
 				^" -pi     : print implicit arguments\n"
-				^" -pc     : print logicvar contexts\n"
+				^" -pcL    : print logicvar contexts (L = 1 or 2)\n"
 				^" -ta     : trace approximate type reconstruction\n"
 				^" -te     : trace eta expansion\n"
 				^" -tt     : trace exact type reconstruction\n"

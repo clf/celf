@@ -21,7 +21,7 @@ signature PRETTYPRINT =
 sig
 
 val printImpl : bool ref
-val printLVarCtx : bool ref
+val printLVarCtx : int ref
 
 val printKind : Syntax.kind -> string
 val printType : Syntax.asyncType -> string

@@ -847,8 +847,15 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 									val p1m = pat2mon p1
 								in (NfLet' (p1, Y', NfMon' p1m), (Y, qn, M)) end
 						val si = Subst.invert s'
-						val (E2Y, (Y, qn, M2)) = splitLet G si (NfLet' (p2, ob2', E2)) 0
 						val p' = Subst.lcsComp (p, si)
+						fun changeMode ((INT4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME INT)::G
+						  | changeMode ((AFF4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME AFF)::G
+						  | changeMode ((INT4AFF, 1), (x, A, SOME AFF)::G) = (x, A, SOME INT)::G
+						  | changeMode ((_, 1), _) = raise Fail "Internal error: changeMode: 1"
+						  | changeMode ((m, j), x::G) = x :: changeMode ((m, j-1), G)
+						  | changeMode (_, []) = raise Fail "Internal error: changeMode: []"
+						val G' = list2ctx $ foldl changeMode (ctx2list G) p'
+						val (E2Y, (Y, qn, M2)) = splitLet G' si (NfLet' (p2, ob2', E2)) 0
 						val rest1 = NfLet' (p1, invAtomicP $ NfClos (Y, Subst.dotn qn s'),
 									NfMon' $ NfMClos (M1, Subst.dotn (nbinds p1) (Subst.shift qn)))
 					in unifyLVar (X1 with's Subst.id, NfMonad' E2Y, p')

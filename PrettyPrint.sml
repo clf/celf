@@ -24,7 +24,7 @@ struct
 open Syntax
 
 val printImpl = ref false
-val printLVarCtx = ref false
+val printLVarCtx = ref 0
 
 fun join' [] = []
   | join' [x] = x
@@ -118,12 +118,14 @@ and pObj ctx pa ob = case SOME (Obj.prj ob) handle Subst.ExnUndef => NONE of
 	| Constraint (N, A) => pObj ctx pa N
 and pHead ctx h = case h of
 	  Const c => [c] (*@ join (map (pObj ctx false) impl)*)
-	| Var (M, n) => [lookup ctx n (*, case M of Context.INT => "!" | Context.LIN => "L"*)]
+	| Var (M, n) => [lookup ctx n (*, case M of Context.INT => "!" | Context.AFF => "@" | Context.LIN => "L"*)]
 	| UCVar v => ["#"^v]
 	| LogicVar {ty, s, ctx=ref G, tag, ...} =>
 		["$", Word.toString tag] @
-		(if !printLVarCtx then
-			["<"] @ pContextOpt G @ [", "] @ pType ctx false (TClos (ty, s)) @ [">"] else [])
+		(if !printLVarCtx > 0 then
+			["<"] @ pContextOpt G @
+				(if !printLVarCtx > 1 then [", "] @ pType ctx false (TClos (ty, s)) else [])
+			@ [">"] else [])
 		@ [Subst.substToStr (String.concat o (pObj ctx true) o unnormalizeObj) s]
 and pContextOpt NONE = ["--"]
   | pContextOpt (SOME G) = ["["] @ (#2 $ pContext $ Context.ctx2list G) @ ["]"]
@@ -135,7 +137,8 @@ and pContext [] = ([], [])
 			  | pM (SOME Context.INT) = " !"
 			  | pM (SOME Context.AFF) = " @"
 			  | pM (SOME Context.LIN) = " L"
-		in (ctx', ["["] @ [x'] @ [pM m] @ [" : "] @ pType ctx false A @ ["]"] @ pG) end
+			val pTy = if !printLVarCtx > 1 then [" : "] @ pType ctx false A else []
+		in (ctx', ["["] @ [x'] @ [pM m] @ pTy @ ["]"] @ pG) end
 and pSpineSkip ctx sp n = if n=0 then pSpine ctx sp else case Spine.prj sp of
 	  LApp (M, S) =>
 		(if !printImpl then [" <"] @ pMonadObj ctx false M @ [">"] else [])
