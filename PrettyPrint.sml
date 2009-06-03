@@ -123,17 +123,19 @@ and pHead ctx h = case h of
 	| LogicVar {ty, s, ctx=ref G, tag, ...} =>
 		["$", Word.toString tag] @
 		(if !printLVarCtx then
-			["<"] @ pContext ctx G @ [", "] @ pType ctx false (TClos (ty, s)) @ [">"] else [])
+			["<"] @ pContextOpt G @ [", "] @ pType ctx false (TClos (ty, s)) @ [">"] else [])
 		@ [Subst.substToStr (String.concat o (pObj ctx true) o unnormalizeObj) s]
-and pContext ctx NONE = ["--"]
-  | pContext ctx (SOME G) = (* FIXME: prints in wrong ctx *)
-		join $ map (fn (_, A, m) => pType ctx false A
-					@ [case m of
-						  NONE => " NO"
-						| SOME Context.INT => " !"
-						| SOME Context.AFF => " @"
-						| SOME Context.LIN => " L"])
-				(Context.ctx2list G)
+and pContextOpt NONE = ["--"]
+  | pContextOpt (SOME G) = ["["] @ (#2 $ pContext $ Context.ctx2list G) @ ["]"]
+and pContext [] = ([], [])
+  | pContext ((x, A, m)::G) =
+		let val (ctx, pG) = pContext G
+			val (x', ctx') = add x ctx
+			fun pM NONE = " NO"
+			  | pM (SOME Context.INT) = " !"
+			  | pM (SOME Context.AFF) = " @"
+			  | pM (SOME Context.LIN) = " L"
+		in (ctx', ["["] @ [x'] @ [pM m] @ [" : "] @ pType ctx false A @ ["]"] @ pG) end
 and pSpineSkip ctx sp n = if n=0 then pSpine ctx sp else case Spine.prj sp of
 	  LApp (M, S) =>
 		(if !printImpl then [" <"] @ pMonadObj ctx false M @ [">"] else [])
