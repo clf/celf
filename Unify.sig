@@ -40,5 +40,6 @@ val typeExists : Syntax.nfAsyncType -> Syntax.nfAsyncType option
 
 val unify : Syntax.asyncType * Syntax.asyncType * (unit -> string) -> unit
 val unifiable : Syntax.asyncType * Syntax.asyncType -> bool
+val unifyAndBranch : Syntax.asyncType * Syntax.asyncType * (unit -> unit) -> unit
 
 end

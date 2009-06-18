@@ -14,6 +14,6 @@ same_nil : same nil (\!s. {1}).
 same_cons : same (cons N L) (\!f. {let {1} = cell f N in let {1} = S !f in 1})
 	<- same L S.
 
-#query * * * 1 same (cons z (cons ( z) nil))
+#query * * * 1 same (cons N1 (cons N2 nil))
 	(\!f. {let {1} = cell f (s z) in let {1} = cell f z in 1}). 
 

@@ -150,10 +150,14 @@ sf_evapp2 :
                  s0}>}.
 
 tps : (Pi d0. eval E d0 -o eflag -> {is d0 V}) -> type.
+%%tps0 : tps (\!d0. \p0. \!ef. P !d0 p0 !ef) o-
+%%  (Pi d0. Pi p0:eval E d0.  safe < \!ef. P !d0 p0 !ef , \!sf. vdeval sf p0 >
+%%   -o {Exists I0. safe < \!ef. {(I0 !d0)} ,
+%%                         \!sf. {let {s0} = vdis sf (I0 !d0) in s0} > }).
 tps0 : tps (\!d0. \p0. \!ef. P !d0 p0 !ef) o-
   (Pi d0. Pi p0:eval E d0.  safe < \!ef. P !d0 p0 !ef , \!sf. vdeval sf p0 >
-   -o {Exists I0. safe < \!ef. {(I0 !d0)} ,
-                         \!sf. {let {s0} = vdis sf (I0 !d0) in s0} > }).
+   -o {Exists I0. safe < \!ef. {I0} ,
+                         \!sf. {let {s0} = vdis sf I0 in s0} > }).
 
 #query * 1 * 1
 tps (\! d0. \ X1. \! X2. {

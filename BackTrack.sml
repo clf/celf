@@ -50,7 +50,7 @@ fun eraseMarks n = (eraseMarks' (!nMarks - n) [] (!trail); nMarks := n)
 
 (* trailUpdate : (unit -> unit) -> unit *)
 (* trails a state update and saves the undo function for future backtracking *)
-fun trailUpdate undoF = push (Update undoF)
+fun trailUpdate undoF = if !nMarks <> 0 then push (Update undoF) else ()
 
 (* backtrackC : (('a -> exn) -> unit) -> 'a option *)
 (* backtrackC f

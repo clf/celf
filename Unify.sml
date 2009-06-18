@@ -32,6 +32,7 @@ exception ExnUnify of string
 
 val constraints = vref [] : constr vref list vref
 val awakenedConstrs = ref [] : constr vref list ref
+val monConstrs = vref [] : constr vref list vref
 
 (* resetConstrs : unit -> unit *)
 fun resetConstrs () = (constraints ::= [])
@@ -106,13 +107,11 @@ fun lowerObj (NfAtomic hS) = NfAtomic (lowerAtomic hS)
 fun lowerExp (NfLet (p, hS, E)) = NfLet (p, lowerAtomic hS, E)
   | lowerExp E = E
 
-(*
-fun whnf2obj (NfLinLam N) = LinLam N
-  | whnf2obj (NfLam N) = Lam N
-  | whnf2obj (NfAddPair N) = AddPair N
-  | whnf2obj (NfMonad N) = Monad N
-  | whnf2obj (NfAtomic N) = Atomic N
-*)
+fun isLVar (LogicVar _, _) = true
+  | isLVar _ = false
+
+fun invLVar (LogicVar Z, _) = Z
+  | invLVar _ = raise Fail "Internal error: invLVar"
 
 fun pat2mon p =
 	let open NfInj
@@ -541,9 +540,7 @@ fun linPrune (ob, pl) =
 									val G' = pCtx (ctx2list G, pp')
 									val Y = newNfLVarCtx (SOME G') A'
 									val () = instantiate (r, NfClos (Y, Subst.lcs2sub pp'), cs, tag)
-									fun invLV (LogicVar Z, _) = Z
-									  | invLV _ = raise Fail "Internal error: invLV"
-								in invLV $ invAtomicP Y end
+								in invLVar $ invAtomicP Y end
 					in ((LogicVar (Y with's s3), NfInj.Nil'), occ') end
 				| NONE =>
 					let val occSubAll = decrn n (occurSub G s)
@@ -813,6 +810,44 @@ and unifyMon dryRun (m1, m2) = case (NfMonadObj.prj m1, NfMonadObj.prj m2) of
 	| (MonUndef, _) => raise Fail "Internal error: unifyMon: MonUndef\n"
 	| (_, MonUndef) => raise Fail "Internal error: unifyMon: MonUndef\n"
 	| _ => raise Fail "Internal error: unifyMon\n"
+(* unifyLVarLetPrefix (p1, X1[s], p, E2)
+ * with E2 = let {q1} = N1 in ... let {qn} = Nn in M
+ * and s a pattern sub
+ * set X1[s][lcs2sub p] =
+ *   {let {q1} = N1 in ... let {qn} = Nn in
+ *    let {p1} = Y[s'] in p1}
+ * return (Y[s'], q1+...+qn, M) *)
+and unifyLVarLetPrefix (p1, X1 as {X, ty, s, ctx=ref G, ...}, p, E2) =
+	let fun splitLet ctx si ex qn = case NfExpObj.prj ex of
+			  NfLet (q, hs, E) =>
+				let val hs' = case objExists X (NfClos (NfAtomic' hs, si)) of
+							  SOME ob => invAtomicP ob
+							| NONE => raise ExnUnify "can't prune"
+					val (ctx', A) = synthAtomic ctx hs'
+					val sty = case Util.nfTypePrjAbbrev A of TMonad sty => sty
+							| _ => raise Fail "Type checking: sync type expected"
+					val ctx'' = opatBindNf (q, sty) ctx'
+					val si' = Subst.dotn (nbinds q) si
+					val (E', y) = splitLet ctx'' si' E (qn + nbinds q)
+				in (NfLet' (q, hs', E'), y) end
+			| NfMon M =>
+				let val Y = newNfLVarCtx (SOME ctx) (NfTClos (ty, Subst.shift qn))
+					val Y' = invAtomicP Y
+					val () = pruneLVar $ #1 Y'
+					val p1m = pat2mon p1
+				in (NfLet' (p1, Y', NfMon' p1m), (Y, qn, M)) end
+		val si = Subst.invert s
+		val p' = Subst.lcsComp (p, si)
+		fun changeMode ((INT4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME INT)::G
+		  | changeMode ((AFF4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME AFF)::G
+		  | changeMode ((INT4AFF, 1), (x, A, SOME AFF)::G) = (x, A, SOME INT)::G
+		  | changeMode ((_, 1), _) = raise Fail "Internal error: changeMode: 1"
+		  | changeMode ((m, j), x::G) = x :: changeMode ((m, j-1), G)
+		  | changeMode (_, []) = raise Fail "Internal error: changeMode: []"
+		val G' = list2ctx $ foldl changeMode (ctx2list $ valOf G) p'
+		val (E2Y, (Y, qn, M2)) = splitLet G' si E2 0
+		val () = unifyLVar (X1 with's Subst.id, NfMonad' E2Y, p')
+	in (NfClos (Y, Subst.dotn qn s), qn, M2) end
 and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 	(* In the case of two equal LVars, the lowering of ob1 affects the whnf of ob2 *)
 	let val ob1' = lowerAtomic ob1
@@ -828,38 +863,11 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 							(NfMonad' $ NfLet' (p1, ob1', E1),
 							 NfMonad' $ NfLet' (p2, ob2', E2))), [#cnstr X1])
 				| SOME (p, s') =>
-					let fun splitLet ctx si ex qn = case NfExpObj.prj ex of
-							  NfLet (q, hs, E) =>
-								let val hs' = case objExists X (NfClos (NfAtomic' hs, si)) of
-											  SOME ob => invAtomicP ob
-											| NONE => raise ExnUnify "can't prune"
-									val (ctx', A) = synthAtomic ctx hs'
-									val sty = case Util.nfTypePrjAbbrev A of TMonad sty => sty
-											| _ => raise Fail "Type checking: sync type expected"
-									val ctx'' = opatBindNf (q, sty) ctx'
-									val si' = Subst.dotn (nbinds q) si
-									val (E', y) = splitLet ctx'' si' E (qn + nbinds q)
-								in (NfLet' (q, hs', E'), y) end
-							| NfMon M =>
-								let val Y = newNfLVarCtx (SOME ctx) (NfTClos (ty, Subst.shift qn))
-									val Y' = invAtomicP Y
-									val () = pruneLVar $ #1 Y'
-									val p1m = pat2mon p1
-								in (NfLet' (p1, Y', NfMon' p1m), (Y, qn, M)) end
-						val si = Subst.invert s'
-						val p' = Subst.lcsComp (p, si)
-						fun changeMode ((INT4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME INT)::G
-						  | changeMode ((AFF4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME AFF)::G
-						  | changeMode ((INT4AFF, 1), (x, A, SOME AFF)::G) = (x, A, SOME INT)::G
-						  | changeMode ((_, 1), _) = raise Fail "Internal error: changeMode: 1"
-						  | changeMode ((m, j), x::G) = x :: changeMode ((m, j-1), G)
-						  | changeMode (_, []) = raise Fail "Internal error: changeMode: []"
-						val G' = list2ctx $ foldl changeMode (ctx2list G) p'
-						val (E2Y, (Y, qn, M2)) = splitLet G' si (NfLet' (p2, ob2', E2)) 0
-						val rest1 = NfLet' (p1, invAtomicP $ NfClos (Y, Subst.dotn qn s'),
+					let val (Y, qn, M2) = unifyLVarLetPrefix (p1, X1 with's s', p,
+											NfLet' (p2, ob2', E2))
+						val rest1 = NfLet' (p1, invAtomicP Y,
 									NfMon' $ NfMClos (M1, Subst.dotn (nbinds p1) (Subst.shift qn)))
-					in unifyLVar (X1 with's Subst.id, NfMonad' E2Y, p')
-					 ; unifyExp NONE (rest1, NfMon' M2) end)
+					in unifyExp NONE (rest1, NfMon' M2) end)
 			(* FIXME: could distinguish headCountExp 1 and 2+ and do more *)
 			| _ => if isSome dryRun then (valOf dryRun) := false else
 					addConstraint (vref (Eqn
@@ -876,7 +884,7 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 			else addConstraint (vref (Eqn
 						(NfMonad' $ NfLet' (p1, ob1', E1),
 						 NfMonad' $ NfLet' (p2, ob2', E2))), [cs1, cs2])
-			end (* FIXME: maybe search E1' and E2' for heads that can be moved to front? *)
+			end
 		| ((LogicVar _, _), _, _ (* ob2' <> LVar *), _) =>
 			unifyLetLet dryRun ((p2, ob2', E2), (p1, ob1', E1))
 		| _ (* ob1' <> LVar *) =>
@@ -892,15 +900,17 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 						  | notLvar _ = true
 						fun lvarFreeN (_, 0) = true
 						  | lvarFreeN (E, n) = case NfExpObj.prj E of
-							  NfLet (_, hS, E') => notLvar hS andalso lvarFreeN (E', n-1)
+							  NfLet (_, (LogicVar {s, ctx=ref G, ...}, _), E') =>
+								n=1 andalso isSome $ patSub s (ctxMap nfAsyncTypeToApx (valOf G))
+							| NfLet (_, _, E') => lvarFreeN (E', n-1)
 							| NfMon _ => raise Fail "Internal error: lvarFreeN"
 					in if isSome m2 andalso lvarFreeN (E2t, valOf m2) andalso notLvar ob1' then
-						unifyExp dryRun (E1, matchHeadInLetFixedPos (ob1', E2t, valOf m2))
+						unifyExp dryRun (E1, matchHeadInLetFixedPos (p1, ob1', E2t, valOf m2))
 					else if isSome m1 andalso lvarFreeN (E1t, valOf m1) andalso notLvar ob2' then
-						unifyExp dryRun (matchHeadInLetFixedPos (ob2', E1t, valOf m1), E2)
+						unifyExp dryRun (matchHeadInLetFixedPos (p2, ob2', E1t, valOf m1), E2)
 					else addConstraint (vref (Eqn
 							(NfMonad' $ NfLet' (p1, ob1', E1),
-							 NfMonad' $ NfLet' (p2, ob2', E2))), []) (* FIXME: not attached! *)
+							 NfMonad' $ NfLet' (p2, ob2', E2))), [monConstrs])
 					end
 				end
 			end
@@ -912,8 +922,6 @@ and matchHeadInLet (hS, E) =
 		fun foundOne (None l) = One l
 		  | foundOne (One _) = More
 		  | foundOne More = More
-		fun isLVar (LogicVar _, _) = true
-		  | isLVar _ = false
 		fun matchHead (hS, e, nbe, E, EsX, nMaybe) = case (NfExpObj.prj E, NfExpObj.prj EsX) of
 			  (NfLet (p, N, E'), NfLet (_, NsX, EsX')) =>
 				let val nbp = nbinds p
@@ -949,10 +957,8 @@ and matchHeadInLet (hS, E) =
 					| More => INR NONE)
 			| _ => raise Fail "Internal error: matchHeadInLet\n"
 	in matchHead (hS, fn _ => fn e => e, 0, E, E, None 1) end
-and matchHeadInLetFixedPos (hS, E, pos) =
-	let fun isLVar (LogicVar _, _) = true
-		  | isLVar _ = false
-		val () = if isLVar hS then raise Fail "internal error: mHILFP: lvar1" else ()
+and matchHeadInLetFixedPos (q, hS, E, pos) =
+	let val () = if isLVar hS then raise Fail "internal error: mHILFP: lvar1" else ()
 		fun matchHead (hS, e, nbe, E, pos) = case NfExpObj.prj E of
 			  NfLet (p, N, E') =>
 				let val nbp = nbinds p
@@ -961,14 +967,114 @@ and matchHeadInLetFixedPos (hS, E, pos) =
 					val e' = fn s => fn E =>
 								let val s' = Subst.dotn nbe s
 								in e s (NfLet' (p, AtClos (N, s'), E)) end
-					val () = if isLVar N then raise Fail "internal error: mHILFP: lvar2" else ()
-				in if pos = 1 then
+					val () = if pos > 1 andalso isLVar N then
+								raise Fail "internal error: mHILFP: lvar2" else ()
+				in if pos = 1 then if isLVar N then
+					let val (X as {s, ctx=ref G, ...}) = invLVar N
+						val (p', s') = valOf $ patSub s (ctxMap nfAsyncTypeToApx (valOf G))
+						val (Y, qn, _) = unifyLVarLetPrefix (p, X with's s', p',
+								NfLet' (q, hS, NfMon' NfInj.One'))
+						val E'' = NfLet' (p, invAtomicP Y,
+								NfEClos (E', Subst.dotn nbp (Subst.shift qn)))
+					in e (Subst.shift qn) (NfEClos (E'', Subst.switchSub (qn, nbe))) end
+				else (* pos = 1 andalso not LVar *)
 					( unifyHead NONE (hS, N)
 					; e (Subst.shift nbp) (NfEClos (E', Subst.switchSub (nbp, nbe))) )
 				else matchHead (hS' (), e', nbe + nbp, E', pos - 1)
 				end
 			| NfMon _ => raise Fail "internal error: mHILFP: wrong pos"
 	in matchHead (hS, fn _ => fn e => e, 0, E, pos) end
+
+fun matchHeadInLetBranch (same, q, hS, E, sc) =
+	let val () = if isLVar hS then raise Fail "internal error: mHILBranch: lvar" else ()
+		fun matchHead (hS, e, nbe, E) = case lowerExp $ NfExpObj.prj E of
+			  NfLet (p, N, E') =>
+				let val nbp = nbinds p
+					fun AtClos (a, s) = invAtomicP (NfClos (NfAtomic' a, s))
+					fun hS' () = AtClos (hS, Subst.shift nbp)
+					val e' = fn s => fn E =>
+								let val s' = Subst.dotn nbe s
+								in e s (NfLet' (p, AtClos (N, s'), E)) end
+					fun assertMon () = case NfExpObj.prj E' of NfMon _ => () | _ =>
+							raise Fail "Internal error: matchHeadInLetBranch: assertMon"
+				in if isLVar N then (assertMon () ; if same then () else
+				BackTrack.backtrack (fn () =>
+					let val (X as {s, ctx=ref G, ...}) = invLVar N
+						fun valOf' (SOME x) = x
+						  | valOf' NONE = raise Fail "Internal error: not patsub in mHILBranch"
+						val (p', s') = valOf' $ patSub s (ctxMap nfAsyncTypeToApx (valOf G))
+					in case SOME (unifyLVarLetPrefix (p, X with's s', p',
+								NfLet' (q, hS, NfMon' NfInj.One'))) handle ExnUnify _ => NONE of
+						  NONE => ()
+						| SOME (Y, qn, _) =>
+							let val E'' = NfLet' (p, invAtomicP Y,
+											NfEClos (E', Subst.dotn nbp (Subst.shift qn)))
+							in sc (e (Subst.shift qn) (NfEClos (E'', Subst.switchSub (qn, nbe))))
+							end
+					end))
+				else
+				( BackTrack.backtrack (fn () =>
+					case SOME (unifyHead NONE (hS, N)) handle ExnUnify _ => NONE of
+					  SOME () => sc (e (Subst.shift nbp) (NfEClos (E', Subst.switchSub (nbp, nbe))))
+					| NONE => ())
+				; matchHead (hS' (), e', nbe + nbp, E') )
+				end
+			| NfMon _ => ()
+	in matchHead (hS, fn _ => fn e => e, 0, E) end
+fun unifyExpCont e1e2 sc = case SOME (unifyExp NONE e1e2) handle ExnUnify _ => NONE of
+		SOME () => sc () | NONE => ()
+fun unifyBranchExp (_, 0, e1, e2, sc) =
+	(case Util.NfExpObjAuxDefs.prj2 e1 of
+		  NfLet (_, (LogicVar _, _), NfMon _) => unifyExpCont (e1, e2) sc
+		| NfMon _ => unifyExpCont (e1, e2) sc
+		| _ => ( addConstraint (vref (Eqn (NfMonad' e1, NfMonad' e2)), []) ; sc () ))
+  | unifyBranchExp (same, n, e1, e2, sc) =
+	let fun invLet e = case NfExpObj.prj e of NfLet pNE => pNE
+				| NfMon _ => raise Fail "Internal error: invLet"
+		val (p, N, E) = invLet e1
+	in matchHeadInLetBranch (same, p, N, e2,
+			fn e2rest => unifyBranchExp (same, n-1, E, e2rest, sc))
+	end
+fun unifyBranch (ob1, ob2, sc) = case (NfObj.prj ob1, NfObj.prj ob2) of
+	  (NfMonad E1, NfMonad E2) =>
+		let fun checkLet (n, css, E) = case Util.NfExpObjAuxDefs.T.Fmap NfExpObj.prj E of
+				  NfLet (_, (LogicVar {cnstr, ...}, _), E' as NfLet _) =>
+					checkLet (n, cnstr::css, E')
+				| NfLet (_, (LogicVar X, _), E' as NfMon _) =>
+					if null css then INL (n, SOME X) else INR css
+				| NfLet (_, _, E') => checkLet (n+1, css, E')
+				| NfMon _ => if null css then INL (n, NONE) else INR css
+			fun checkLet' E = checkLet (0, [], NfExpObj.prj E)
+			fun join (INR css1, INL _) = INR css1
+			  | join (INL _, INR css2) = INR css2
+			  | join (INR css1, INR css2) = INR (css1 @ css2)
+			  | join (INL l1, INL l2) = INL (l1, l2)
+		in case join (checkLet' E1, checkLet' E2) of
+			  INR css =>
+				( addConstraint (vref (Eqn (NfMonad' E1, NfMonad' E2)), css)
+				; sc () )
+			| INL ((n1, SOME {X=r1, s=s1, ctx=ref (SOME G1), cnstr=cs1, ...}),
+					(n2, SOME {X=r2, s=s2, ctx=ref (SOME G2), cnstr=cs2, ...})) =>
+				if eq (r1, r2) andalso n1<>n2 then () else
+				(case (patSub s1 (ctxMap nfAsyncTypeToApx G1),
+						patSub s2 (ctxMap nfAsyncTypeToApx G2)) of
+					  (SOME _, SOME _) =>
+						if n1 <= n2 then unifyBranchExp (eq (r1, r2), n1, E1, E2, sc)
+						else unifyBranchExp (eq (r1, r2), n2, E2, E1, sc)
+					| (SOME _, NONE) => unifyBranchExp (eq (r1, r2), n2, E2, E1, sc)
+					| (NONE, SOME _) => unifyBranchExp (eq (r1, r2), n1, E1, E2, sc)
+					| (NONE, NONE) =>
+						( addConstraint (vref (Eqn (NfMonad' E1, NfMonad' E2)), [cs1, cs2])
+						; sc () ))
+			| INL ((n1, SOME _), (n2, SOME _)) => raise Fail "Internal error: unifyBranch: no ctx"
+			| INL ((n1, SOME X1), (n2, NONE)) =>
+				if n1 > n2 then () else unifyBranchExp (false, n1, E1, E2, sc)
+			| INL ((n1, NONE), (n2, SOME X2)) =>
+				if n1 < n2 then () else unifyBranchExp (false, n2, E2, E1, sc)
+			| INL ((n1, NONE), (n2, NONE)) =>
+				if n1 <> n2 then () else unifyBranchExp (false, n1, E1, E2, sc)
+		end
+	| _ => raise Fail "Internal error: unifyBranch: not monad"
 
 (* solveConstr : constr vref -> unit *)
 fun solveConstr c = case !!c of
@@ -1000,6 +1106,15 @@ fun noConstrs () =
 	in case leftOver of [] => ()
 	| _::_ => (app (fn c => print ("Constr: "^(constrToStr c)^"\n")) leftOver
 		; raise Fail "Leftover constraints\n") end
+
+fun branchConstr (c, sc) = case !!c of
+	  Solved => sc ()
+	| Eqn (ob1, ob2) =>
+		( if !outputUnify then
+			print ("Branching on leftover constraint: "^(constrToStr (!!c))^"\n") else ()
+		; c ::= Solved
+		; unifyBranch (ob1, ob2, sc) )
+	| Exist _ => raise Fail "Internal error: branchConstr: branch on exist-constraint"
 
 val unifyProblemCounter = ref 0
 fun unifyProblemCount () =
@@ -1034,5 +1149,20 @@ fun unify (ty1, ty2, errmsg) = case unifyOpt (ty1, ty2) of
 	  NONE => ()
 	| SOME (e as ExnUnify s) => (print ("ExnUnify: "^s^"\n"^(errmsg ())^"\n") ; raise e)
 	| SOME e => raise e
+
+(* solveConstrBacktrack : (unit -> unit) -> unit
+ * Branch on all ambiguous let-constraints and call sc on all successful leaves *)
+fun solveConstrBacktrack sc =
+	let fun sc' () =
+			( solveAwakened ()
+			; BackTrack.backtrack (fn () => case !!monConstrs of
+				  [] => sc ()
+				| c::cs => ( monConstrs ::= cs ; branchConstr (c, sc') )) )
+	in sc' () end
+
+(* unifyAndBranch : asyncType * asyncType * (unit -> unit) -> unit *)
+fun unifyAndBranch (ty1, ty2, sc) = case unifyOpt (ty1, ty2) of
+	  NONE => solveConstrBacktrack sc
+	| SOME e => ()
 
 end
