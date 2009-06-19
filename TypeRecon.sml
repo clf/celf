@@ -138,6 +138,8 @@ fun reconstructDecl dec =
 								( print ("Solution: "^PrettyPrint.printObj N^"\n")
 								; app printInst lvars
 								; solCount := !solCount + 1
+								; if TypeCheck.isEnabled () then
+									TypeCheck.checkObjEC (N, ty) else ()
 								; if l = SOME (!solCount) then raise stopSearchExn else () )
 							val () = OpSem.fcLimit := d
 							fun runQuery 0 = false

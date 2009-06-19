@@ -20,6 +20,7 @@
 (* Convertibility among CLF terms and types *)
 (* Author: Carsten Schuermann *)
 
+signature TLU_TypeCheck = TOP_LEVEL_UTIL
 structure TypeCheck :> TYPECHECK =
 struct
 
@@ -95,11 +96,43 @@ and inferAtomic (ctx, (H, S)) =
 and inferHead (ctx, hd) = case hd of
 	  Const c => (ctx, normalizeType (Signatur.sigLookupType c))
 	| Var (m, n) =>
-		let val (ctx1, m', A) = ctxLookupNum (ctx, n)     (* think about shifting  --cs *)
+		let val (ctx1, m', A) = ctxLookupNum (ctx, n)
 			val () = if m=m' then () else raise Fail "Linearity mismatch"
 		in (ctx1, NfTClos (A, Subst.shift n)) end
-(*     UCVar, LogicVar      should also be impossible -cs *)
+	| LogicVar {ctx=ref NONE, ...} => raise Fail "Internal error: inferHead: no ctx"
+	| LogicVar {ty, s, ctx=ref (SOME G), ...} => (checkSub (ctx, s, ctx2list G), NfTClos (ty, s))
+(*     UCVar      should also be impossible -cs *)
 	| _ => raise Fail "Type mismatch in inferhead"
+
+
+(* Invariant:
+   checkSub (G1, s, G2) => G1'
+   if G1 |- s <= G2 -| G1'
+   otherwise Fail is raised
+*)
+and checkSub (ctx, s', ctx') = case (Subst.subPrj s', ctx') of
+	  (INR n, _::_) => checkSub (ctx, Subst.Dot (Idx (ID, n+1), Subst.shift (n+1)), ctx')
+	| (INR n, []) => if length (ctx2list ctx) = n then ctx else raise Fail "ctx/shift mismatch"
+	| (INL _, []) => raise Fail "Substitution/context mismatch"
+	| (INL (_, s), (_, A, NONE)::G') => checkSub (ctx, s, G')
+	| (INL (Ob (LIN, M), s), (_, A, SOME LIN)::G') =>
+		checkSub (checkObj (ctx, M, NfTClos (A, s)), s, G')
+	| (INL (Ob (AFF, M), s), (_, A, SOME AFF)::G') =>
+		let val ctxm = ctxJoinAffLin (checkObj (ctxAffPart ctx, M, NfTClos (A, s)), ctx)
+		in checkSub (ctxm, s, G') end
+	| (INL (Ob (INT, M), s), (_, A, SOME INT)::G') =>
+		let val _ = checkObj (ctxIntPart ctx, M, NfTClos (A, s))
+		in checkSub (ctx, s, G') end
+	| (INL (Ob (_, M), s), (_, A, SOME _)::G') => raise Fail "Linearity mismatch"
+	| (INL (Idx (ID, n), s), (_, A, SOME m)::G') =>
+		checkSub (ctx, Subst.Dot (Ob (m, NfAtomic' (Var (m, n), NfInj.Nil')), s), ctx')
+	| (INL (Idx (INT4LIN, n), s), (_, A, SOME _)::G') =>
+		checkSub (ctx, Subst.Dot (Ob (LIN, NfAtomic' (Var (INT, n), NfInj.Nil')), s), ctx')
+	| (INL (Idx (INT4AFF, n), s), (_, A, SOME _)::G') =>
+		checkSub (ctx, Subst.Dot (Ob (AFF, NfAtomic' (Var (INT, n), NfInj.Nil')), s), ctx')
+	| (INL (Idx (AFF4LIN, n), s), (_, A, SOME _)::G') =>
+		checkSub (ctx, Subst.Dot (Ob (LIN, NfAtomic' (Var (AFF, n), NfInj.Nil')), s), ctx')
+	| (INL (Undef, s), (_, A, SOME m)::G') => checkSub (ctx, s, G')
 
 
 (* Invariant:

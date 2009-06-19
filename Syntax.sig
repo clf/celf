@@ -264,6 +264,7 @@ structure Subst : sig
 	val fold : (subObj * 'a -> 'a) -> (int -> 'a) -> subst -> 'a
 	val map : (nfObj -> nfObj) -> subst -> subst
 	val hdDef : subst -> bool
+	val subPrj : subst -> (subObj * subst, int) sum
 end
 
 val Type' : kind

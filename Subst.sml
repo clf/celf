@@ -333,5 +333,8 @@ struct
 				| _ => raise Fail "Internal error: lcsDiff 2"
 			else (m, n) :: lcsDiff (p, (m', n')::p')
 
+	fun subPrj (Dot (N, s)) = INL (N, s)
+	  | subPrj (Shift n) = INR n
+
 	fun shift n = Shift n
 end

@@ -86,6 +86,9 @@ and convHead (hd1, hd2) = case (hd1, hd2) of
 	| (Var n1, Var n2) =>
 		if n1 = n2 then ()
 		else raise ExnConv "Convertibilty failed: Bound variable clash"
+	| (LogicVar {X=r1, s=s1, ...}, LogicVar {X=r2, s=s2, ...}) =>
+		if VRef.eq (r1, r2) then () (* FIXME: convSub (s1, s2) assumed *)
+		else raise ExnConv "Convertibilty failed: Distinct logic variables"
 	| _ => raise ExnConv "Convertibility failed"
 
 
