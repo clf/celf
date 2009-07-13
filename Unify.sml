@@ -943,7 +943,7 @@ and matchHeadInLet (hS, E) =
 					case SOME (unifyHead (SOME dryRun) (hS, NsX))
 							handle ExnUnify _ => NONE of
 					  SOME () =>
-						if !dryRun then (* unify success *)
+						if !dryRun andalso nbp = 0 then (* unify success *)
 							INL $ e (Subst.shift nbp) (NfEClos (E', Subst.switchSub (nbp, nbe)))
 						else (* unify maybe *)
 							matchHead (hS' (), e', nbe + nbp, E', EsX'' (), foundOne nMaybe)
