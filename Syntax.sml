@@ -174,13 +174,13 @@ and nfExpObj = expObj
 and nfMonadObj = monadObj
 
 and head = asyncType headF
-and nfHead = nfAsyncType headF
+and nfHead = (*nf*)asyncType headF
 
 and apxKind = kind
 and apxAsyncType = asyncType
 and apxSyncType = syncType
 
-and typeLogicVar = apxAsyncType option ref * word
+and typeLogicVar = (*apx*)asyncType option ref * word
 
 (*type implicits = (string * asyncType) list*)
 datatype typeOrKind = Ty of asyncType | Ki of kind
