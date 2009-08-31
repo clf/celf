@@ -55,7 +55,7 @@ fun ctxAffPart ctx =
 fun use _ (SOME INT) = SOME INT
   | use _ (SOME AFF) = NONE
   | use _ (SOME LIN) = NONE
-  | use y NONE = raise Fail ("Linear/affine variable "^y^" can't be used twice/here\n")
+  | use y NONE = raise Fail ("Linear/affine variable "^y^" can't be used here\n")
 
 (* ctxLookupNum : 'a context * int -> 'a context * mode * 'a *)
 fun ctxLookupNum (ctx, n) =

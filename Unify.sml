@@ -421,7 +421,9 @@ fun linPrune (ob, pl) =
 		  | additiveOcc n m       o1 No = swap $ additiveOcc n m No o1
 		  | additiveOcc _ INT4AFF No Rigid = np Rigid
 		  | additiveOcc _ _       No Rigid = raise ExnUnify "implied linear var missing"
-		  | additiveOcc _ AFF4LIN No o2 = raise Fail "Internal error: A->L flex"
+		(*| additiveOcc _ AFF4LIN No o2 = raise Fail "Internal error: A->L flex"*)
+		(* "AFF4LIN No FlexMult" can occur if there is affine occurrences in a non-pattern sub *)
+		  | additiveOcc _ AFF4LIN No o2 = raise ExnUnify "implied linear var missing"
 		  | additiveOcc _ INT4AFF No o2 = np o2
 		  | additiveOcc n INT4LIN No o2 = (No, Subst.id, Subst.pruningsub [((), n)])
 		  | additiveOcc _ _       Rigid Rigid = np Rigid
@@ -593,7 +595,7 @@ fun linPrune (ob, pl) =
 				val (ob1, occ) = pObj p 0 ob
 				val _ = finish p occ
 				val ob2 = if !doexists then case objExists (vref NONE) ob1 of
-							  NONE => raise ExnUnify "Multiple occurrences of implied A/L var"
+							  NONE => raise ExnUnify "Impossible occurrences of implied A/L var"
 							| SOME ob2 => ob2
 						else ob1
 			in if !postpone then NONE else SOME ob2 end
