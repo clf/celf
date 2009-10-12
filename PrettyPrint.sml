@@ -147,8 +147,8 @@ and pSpineSkip ctx sp n = if n=0 then pSpine ctx sp else case Spine.prj sp of
 and pSpine ctx sp = case Spine.prj sp of
 	  Nil => []
 	| LApp (M, S) => [" "] @ pMonadObj ctx true M @ pSpine ctx S
-	| ProjLeft S => [" pi_1"] @ pSpine ctx S
-	| ProjRight S => [" pi_2"] @ pSpine ctx S
+	| ProjLeft S => [" #1"] @ pSpine ctx S
+	| ProjRight S => [" #2"] @ pSpine ctx S
 and pExp ctx e = case ExpObj.prj e of
 	  LetRedex (p, _, N, E) => pLet ctx (p, N, E)
 	| Let (p, hS, E) => pLet ctx (p, Atomic' hS, E)
