@@ -26,7 +26,7 @@ open Context
 open PatternBind
 open SignaturTable
 
-val traceSolve = ref false
+val traceSolve = ref 0
 val allowConstr = ref false
 
 val fcLimit = ref NONE : int option ref
@@ -108,11 +108,17 @@ fun genMon (ctx : context, p, sty) =
 			| _ => MonUndef'
 	in case p of NONE => gen' sty | SOME p => gen (p, sty) end
 
+fun traceLeftFocus (h, ty) =
+	if !traceSolve >= 1 then
+		print ("Trying "^PrettyPrint.printPreObj (Atomic' (h, Nil'))^
+				" : "^PrettyPrint.printType ty^"\n")
+	else ()
+
 
 (* solve : (lcontext * context) * asyncType * (obj * context -> unit) -> unit *)
 (* Right Inversion : Gamma;Delta => A *)
 fun solve (ctx, ty, sc) =
-	( if !traceSolve then
+	( if !traceSolve >= 2 then
 		print ("Right Invert ("^PrettyPrint.printType ty^")\n")
 	  else ()
 	; solve' (ctx, ty, sc) )
@@ -136,16 +142,18 @@ and solve' (ctx, ty, sc) = case Util.typePrjAbbrev ty of
 (* matchAtom : (lcontext * context) * asyncType asyncTypeF * (obj * context -> unit) -> unit *)
 (* Choice point: choose hypothesis and switch from Right Inversion to Left Focusing *)
 and matchAtom (ctx, P, sc) =
-	( if !traceSolve then
-		print ("MatchAtom ("^PrettyPrint.printType (AsyncType.inj P)^")\n")
+	( if !traceSolve >= 1 then
+		print ("Subgoal: MatchAtom ("^PrettyPrint.printType (AsyncType.inj P)^")\n")
 	  else ()
 	; matchAtom' (ctx, P, sc) )
 and matchAtom' (ctx, P, sc) =
 	let val aP = (case P of TAtomic (a, _) => a
 					| _ => raise Fail "Internal error: wrong argument to matchAtom!\n")
 		val P' = AsyncType.inj P
-		fun lFocus (ctx', lr, A, h) = fn () => leftFocus (lr, ctx', P', A, fn (S, ctxo) =>
-										sc (Atomic' (h, S), ctxo))
+		fun lFocus (ctx', lr, A, h) = fn () =>
+					( traceLeftFocus (h, A)
+					; leftFocus (lr, ctx', P', A, fn (S, ctxo) =>
+										sc (Atomic' (h, S), ctxo)) )
 		fun matchSig (c, lr, A) = BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
 		fun matchCtx ([], _) = ()
 		  | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
@@ -163,14 +171,16 @@ and matchAtom' (ctx, P, sc) =
 
 (* forwardChain : int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)
 and forwardChain (fcLim, ctx, S, sc) =
-	( if !traceSolve then
+	( if !traceSolve >= 1 then
 		print ("ForwardChain ("^PrettyPrint.printType (TMonad' S)^")\n")
 	  else ()
 	; forwardChain' (fcLim, ctx, S, sc) )
 and forwardChain' (fcLim, (l, ctx), S, sc) =
 	let fun mlFocus (ctx', lr, A, h) = fn commitExn =>
-					monLeftFocus (lr, ([], ctx'), A, fn (S, sty, ctxo) =>
-						raise commitExn ((h, S), sty, ctxo))
+					( traceLeftFocus (h, A)
+					; monLeftFocus (lr, ctx', A, fn (S, sty, ctxo) =>
+						( if !allowConstr then () else Unify.noConstrs (SOME $ Atomic' (h, S))
+						; raise commitExn ((h, S), sty, ctxo) ) ) )
 		fun matchSig (c, lr, A) = fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))
 		fun matchCtx ([], _) = []
 		  | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
@@ -198,7 +208,10 @@ and forwardChain' (fcLim, (l, ctx), S, sc) =
 						| TDown A => PDown' () | TAffi A => PAffi' () | TBang A => PBang' NONE
 					val p = syncType2pat sty
 					val p' = Util.patternT2O p
-				in forwardChain (Option.map (fn x => x - 1) fcLim,
+					val () = if !traceSolve >= 1 then
+						print ("Committing:\n   let {_} = "^PrettyPrint.printObj (Atomic' N)^
+								" : {"^PrettyPrint.printSyncType sty^"}\n") else ()
+				in forwardChain' (Option.map (fn x => x - 1) fcLim,
 					pBind (p, sty) $ linIntersect (l, ctxm),
 					STClos (S, Subst.shift $ nbinds p),
 					fn (E, ctxo) => sc (Let' (p', N, E), patUnbind (p', ctxo)))
@@ -207,7 +220,7 @@ and forwardChain' (fcLim, (l, ctx), S, sc) =
 
 (* rightFocus : (lcontext * context) * monadObj * syncType * (monadObj * context -> unit) -> unit *)
 and rightFocus (ctx, m, sty, sc) =
-	( if !traceSolve then
+	( if !traceSolve >= 2 then
 		print ("RightFocus ("^PrettyPrint.printType (TMonad' sty)^")\n")
 	  else ()
 	; rightFocus' (ctx, m, sty, sc) )
@@ -232,7 +245,7 @@ and rightFocus' ((l, ctx), m, sty, sc) = case (MonadObj.prj m, SyncType.prj sty)
 (* Left Focusing : Gamma;Delta;A >> P  ~~  leftFocus (LR-Oracle, Gamma;Delta, P, A, SuccCont)
  * Construct the spine corresponding to the chosen hypothesis. *)
 and leftFocus (lr, ctx, P, ty, sc) =
-	( if !traceSolve then
+	( if !traceSolve >= 2 then
 		print ("LeftFocus ("^PrettyPrint.printType ty^")\n")
 	  else ()
 	; leftFocus' (lr, ctx, P, ty, sc) )
@@ -256,30 +269,30 @@ and leftFocus' (lr, (l, ctx), P, ty, sc) = case Util.typePrjAbbrev ty of
 					; sc (Nil', ctx) )
 				else () *)
 				if l=[] then
-					Unify.unifyAndBranch (AsyncType.inj P', P, fn () =>
-						( if !allowConstr then () else Unify.noConstrs ()
-						; sc (Nil', ctx) ))
+					Unify.unifyAndBranch (AsyncType.inj P', P, fn () => sc (Nil', ctx))
+						(* if !allowConstr then () else Unify.noConstrs ()
+						; sc (Nil', ctx) *)
 				else ()
 	| TAbbrev _ => raise Fail "Internal error leftFocus: TAbbrev\n"
 
-(* monLeftFocus : lr list * (lcontext * context) * asyncType * (spine * syncType * context -> unit) -> unit *)
+(* monLeftFocus : lr list * context * asyncType * (spine * syncType * context -> unit) -> unit *)
 and monLeftFocus (lr, ctx, ty, sc) =
-	( if !traceSolve then
+	( if !traceSolve >= 2 then
 		print ("monLeftFocus ("^PrettyPrint.printType ty^")\n")
 	  else ()
 	; monLeftFocus' (lr, ctx, ty, sc) )
-and monLeftFocus' (lr, (l, ctx), ty, sc) = case Util.typePrjAbbrev ty of
+and monLeftFocus' (lr, ctx, ty, sc) = case Util.typePrjAbbrev ty of
 	  TLPi (p, A, B) => let val m = genMon (ctx, SOME p, A)
 			in rightFocus (([], ctx), m, A, fn (M, ctxm) =>
-				monLeftFocus (lr, linIntersect (l, ctxm),
+				monLeftFocus (lr, ctxm,
 					TClos (B, Subst.subM $ normalizeMonadObj m),
 					fn (S, sty, ctxo) => sc (LApp' (M, S), sty, ctxo)))
 			end
 	| AddProd (A, B) => (case lr of
 			  [] => raise Fail "LR-oracle is out of answers! Internal error!\n"
-			| L::lrs => monLeftFocus (lrs, (l, ctx), A,
+			| L::lrs => monLeftFocus (lrs, ctx, A,
 				fn (S, sty, ctxo) => sc (ProjLeft' S, sty, ctxo))
-			| R::lrs => monLeftFocus (lrs, (l, ctx), B,
+			| R::lrs => monLeftFocus (lrs, ctx, B,
 				fn (S, sty, ctxo) => sc (ProjRight' S, sty, ctxo)))
 	| TMonad sty => sc (Nil', sty, ctx)
 	| TAtomic _ => raise Fail "Internal error: monLeftFocus applied to wrong hypothesis!\n"

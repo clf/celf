@@ -73,7 +73,7 @@ fun reconstructDecl dec =
 			val () = appDecl ExactTypes.checkKindEC
 			                 ExactTypes.checkTypeEC
 			                 ExactTypes.checkObjEC dec
-			val () = Unify.noConstrs ()
+			val () = Unify.noConstrs NONE
 			val () = if isQuery dec then () else
 					( appDecl ImplicitVarsConvert.logicVarsToUCVarsKind
 					          ImplicitVarsConvert.logicVarsToUCVarsType
@@ -135,7 +135,8 @@ fun reconstructDecl dec =
 							exception stopSearchExn
 							val solCount = ref 0
 							fun sc N =
-								( print ("Solution: "^PrettyPrint.printObj N^"\n")
+								( Unify.noConstrs (SOME N)
+								; print ("Solution: "^PrettyPrint.printObj N^"\n")
 								; app printInst lvars
 								; solCount := !solCount + 1
 								; if TypeCheck.isEnabled () then

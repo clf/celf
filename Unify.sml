@@ -1099,15 +1099,17 @@ fun solveAwakened () = case !awakenedConstrs of [] => () | c::cs =>
 	; solveConstr c
 	; solveAwakened () )
 
-(* noConstrs : unit -> unit *)
-fun noConstrs () =
+(* noConstrs : obj option -> unit *)
+fun noConstrs N =
 	let val () = awakenedConstrs := !!constraints
 		val () = solveAwakened ()
 		val leftOver = List.mapPartial (fn Solved => NONE | e => SOME e)
 						(map !! (!!constraints))
 	in case leftOver of [] => ()
 	| _::_ => (app (fn c => print ("Constr: "^(constrToStr c)^"\n")) leftOver
-		; raise Fail "Leftover constraints\n") end
+		; raise Fail ("Leftover constraints" ^
+			(case N of NONE => "\n" | SOME N =>
+				" during construction of:\n  " ^ PrettyPrint.printObj N ^ "\n"))) end
 
 fun branchConstr (c, sc) = case !!c of
 	  Solved => sc ()

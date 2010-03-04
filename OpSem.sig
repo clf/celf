@@ -20,7 +20,7 @@
 signature OPSEM =
 sig
 
-val traceSolve : bool ref
+val traceSolve : int ref
 val allowConstr : bool ref
 val fcLimit : int option ref
 

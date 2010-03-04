@@ -25,7 +25,7 @@ val outputUnify : bool ref
 exception ExnUnify of string
 
 val resetConstrs : unit -> unit
-val noConstrs : unit -> unit
+val noConstrs : Syntax.obj option -> unit
 val addConstraint : Syntax.constr VRef.vref * Syntax.constr VRef.vref list VRef.vref list -> unit
 val instantiate : Syntax.nfObj option VRef.vref * Syntax.nfObj * Syntax.constr VRef.vref list VRef.vref * word -> unit
 
