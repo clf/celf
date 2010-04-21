@@ -55,8 +55,7 @@ evcase : eval (case !E1 !E2 !(\!x. E3 !x)) D -o
 arrow : tp -> tp -> tp.
 lam : (val T2 -> exp T1) -> exp (arrow !T2 !T1).
 app : exp (arrow !T2 !T1) -> exp T2 -> exp T1.
-lam
-' : (val T2 -> exp T1) -> val (arrow !T2 !T1).
+lam' : (val T2 -> exp T1) -> val (arrow !T2 !T1).
 evlam : eval (lam !(\!x. E1 !x)) D -o {return (lam' !(\!x. E1 !x)) D}.
 evapp : eval (app !E1 !E2) D -o
           {Exists d1 : dest (arrow !T2 !T1). eval E1 d1 *
