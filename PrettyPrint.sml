@@ -133,6 +133,7 @@ and pContext [] = ([], [])
   | pContext ((x, A, m)::G) =
 		let val (ctx, pG) = pContext G
 			val (x', ctx') = add x ctx
+			(* FIXME: Reverse order for better ctx printing, make ctx an argument *)
 			fun pM NONE = " NO"
 			  | pM (SOME Context.INT) = " !"
 			  | pM (SOME Context.AFF) = " @"

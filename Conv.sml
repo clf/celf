@@ -141,6 +141,9 @@ and convExpObj (E1, E2) = case (NfExpObj.prj E1, NfExpObj.prj E2) of
    and   G, P1 |- E = convExpObj1 (E1, E2) : S
    and   E2 == let P1=R1 in E: S
 *)
+(* FIXME: Bug:
+ * {let {x} = c1 in let {y} = c1 in c2 x y} should be equal to
+ * {let {x} = c1 in let {y} = c1 in c2 y x} *)
 and convExpObj1 (E1, E2) = case (NfExpObj.prj E1, NfExpObj.prj E2) of
 	  (NfLet (P1, (H1, S1), _), NfLet (P2, (H2, S2), E2')) =>
 		if ((convHead (H1, H2); convSpine (S1, S2); true) handle ExnConv _ => false) then E2'

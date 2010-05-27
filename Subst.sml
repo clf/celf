@@ -265,42 +265,41 @@ struct
 	  | modeDiv LIN LIN = ID
 	fun modeInvDiv m1 m2 = modeDiv m2 m1
 
-	(* patSub Unify.checkExistObj Eta.etaContract s G1
+	(* patSub Unify.checkExistObj Eta.etaContract s (G1)
 	 *    where G |- s : G1 can give three different results:
 	 * NONE
 	 *    s is not a pattern sub
 	 * SOME ([], s')
 	 *    s is equal to s' which is a pattern sub
 	 * SOME (p, s')
-	 *    s is equal to s' which is a pattern sub, but
+	 *    s is equal (modulo flags) to s' which is a pattern sub, but
 	 *    G  |- s : G1
 	 *    G' |- s' : G1
+	 *    s = s' o lcs2sub p
 	 *    G equals G' on the indices not in p
 	 *    (INT4LIN, n) in p => G_n is INT and G'_n is LIN
 	 *    (INT4AFF, n) in p => G_n is INT and G'_n is AFF
 	 *    (AFF4LIN, n) in p => G_n is AFF and G'_n is LIN
 	 *)
-	fun patSub checkExists etaContract s' domCtx = (* FIXME: domCtx may not be necessary after top died? *)
+	fun patSub checkExists etaContract s' = (* FIXME: domCtx may not be necessary after top died? *)
 		let exception ExnPatSub
-			fun etaContr N A = case checkExists N of
+			fun etaContr N = case checkExists N of
 				  (_, false) => raise ExnPatSub
-				| (N', true) => etaContract ExnPatSub N' A
+				| (N', true) => etaContract ExnPatSub N'
 			val p = ref []
-			val domCtx' = List.map #2 $ ctx2list domCtx
 			fun add (n : int, l) = if List.exists (fn i => i=n) l then raise ExnPatSub else n::l
-			fun ps (m, _, s as Shift n, _) = if m <= n then s else raise ExnPatSub
-			  | ps (m, l, Dot (Undef, s), _::G) = Dot (Undef, ps (m, l, s, G))
-			  | ps (m, l, Dot (Idx (ID, n), s), _::G) =
-					Dot (Idx (ID, n), ps (Int.max (m, n), add (n, l), s, G))
-			  | ps (m, l, Dot (Idx (M, n), s), G as _::_) =
+			fun ps (m, _, s as Shift n) = if m <= n then s else raise ExnPatSub
+			  | ps (m, l, Dot (Undef, s)) = Dot (Undef, ps (m, l, s))
+			  | ps (m, l, Dot (Idx (ID, n), s)) =
+					Dot (Idx (ID, n), ps (Int.max (m, n), add (n, l), s))
+			  | ps (m, l, Dot (Idx (M, n), s)) =
 					( p := (M, n) :: !p
-					; ps (m, l, Dot (Idx (ID, n), s), G) )
-			  | ps (m, l, Dot (Ob (M, N), s), A::G) =
-					let val N' = Idx (map1 (modeInvDiv M) $ etaContr N A)
+					; ps (m, l, Dot (Idx (ID, n), s)) )
+			  | ps (m, l, Dot (Ob (M, N), s)) =
+					let val N' = Idx (map1 (modeInvDiv M) $ etaContr N)
 								handle ExnUndef => Undef
-					in ps (m, l, Dot (N', s), A::G) end
-			  | ps (_, _, Dot _, []) = raise Fail "Internal error: mismatch between ctx and sub"
-		in SOME $ (fn s => (qsort2 (!p), s)) $ ps (0, [], s', domCtx') handle ExnPatSub => NONE end
+					in ps (m, l, Dot (N', s)) end
+		in SOME $ (fn s => (qsort2 (!p), s)) $ ps (0, [], s') handle ExnPatSub => NONE end
 
 	fun lcsComp (p, s) =
 		let fun f (M, n, Shift m) =

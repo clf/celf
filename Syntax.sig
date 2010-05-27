@@ -251,8 +251,8 @@ structure Subst : sig
 	val intersect : subst -> subst
 	val intersection : ((Context.mode * int, nfObj) sum * nfObj -> bool) -> subst * subst -> subst
 	val invert : (*pat*)subst -> subst
-	val patSub : (nfObj -> nfObj * bool) -> (exn -> nfObj -> apxAsyncType -> Context.mode * int) ->
-			subst -> apxAsyncType Context.context -> ((subMode * int) list * (*pat*)subst) option
+	val patSub : (nfObj -> nfObj * bool) -> (exn -> nfObj -> Context.mode * int) ->
+			subst -> ((subMode * int) list * (*pat*)subst) option
 	val lcsComp : (subMode * int) list * subst -> (subMode * int) list
 	val lcs2sub : (subMode * int) list -> subst
 	val pruningsub : ('a * int) list -> subst

@@ -164,12 +164,19 @@ fun newMonA (A, ctx) = case NfAsyncType.prj A of
 	  TMonad S => map2 (NfMonad' o NfMon') (newMon (S, ctx))
 	| _ => raise Fail "Internal error: newMonA\n"
 
-(* headCountExp obj option vref * nfExpObj -> int *)
+(* headCountExp (X, E) = SOME n
+ * where n is the number of occurrences of X in lethead-position in E
+ * under pattern substitutions.  If any of those occurrences are under
+ * non-pattern substitutions then headCountExp returns NONE instead.  *)
+(* headCountExp obj option vref * nfExpObj -> int option *)
 fun headCountExp (rOccur, ex) = case NfExpObj.prj ex of
-	  NfLet (_, (LogicVar {X, ...}, _), E) =>
-		if eq (X, rOccur) then 1 + headCountExp (rOccur, E) else headCountExp (rOccur, E)
+	  NfLet (_, (LogicVar {X, s, ctx=ref G, ...}, _), E) =>
+		if not eq (X, rOccur) then headCountExp (rOccur, E)
+		else if isSome $ patSub s (*ctxMap nfAsyncTypeToApx (valOf G)*) then
+			Option.map (fn n => n + 1) $ headCountExp (rOccur, E)
+		else NONE
 	| NfLet (_, _, E) => headCountExp (rOccur, E)
-	| NfMon _ => 0
+	| NfMon _ => SOME 0
 
 type intset = int list
 val empty = []
@@ -244,7 +251,7 @@ fun synthAtomic ctx (H, S) =
 	in synthSpine ctx1 S ty1 end
 
 exception ExnOccur
-fun patSubOcc rOccur s G = Subst.patSub (checkExistObj rOccur) Eta.etaContract s G
+fun patSubOcc rOccur s = Subst.patSub (checkExistObj rOccur) Eta.etaContract s
 and checkExistObj rOccur ob =
 	let val nestedUndef = ref false
 		val undefined = NfClos (normalizeObj (EtaTag (Atomic' (Var (INT, 1), Nil'), (INT, 1))),
@@ -266,7 +273,7 @@ and checkExistObj rOccur ob =
 				raise Fail ("Internal error: no context on $"^Word.toString tag)
 		  | chHead lvCtrlCtx (LogicVar (Y as {X=rY, s=sY, ctx=ref (SOME G), ...})) =
 				if eq (rY, rOccur) then (* X = H . S{X[p]} --> X = H . S{_}  if p is pattern *)
-					if isSome $ patSubOcc rOccur sY (ctxMap nfAsyncTypeToApx G) then
+					if isSome $ patSubOcc rOccur sY (*ctxMap nfAsyncTypeToApx G*) then
 						raise Subst.ExnUndef
 					else raise ExnOccur
 				else
@@ -307,7 +314,7 @@ and checkExistObj rOccur ob =
 		val ob' = chOb true [] ob
 	in (ob', not $ !nestedUndef) end
 
-fun patSub s G = patSubOcc (vref NONE) s G
+fun patSub s = patSubOcc (vref NONE) s
 
 (* pruneCtx : exn -> (nfAsyncType -> nfAsyncType) -> subst -> nfAsyncType context -> nfAsyncType context *)
 (* pruneCtx calculates G' such that
@@ -365,7 +372,7 @@ val (objExists, typeExists) =
 					 * For all ground R, |R| >= |R[sY]|
 					 *)
 					if srig then raise Subst.ExnUndef
-					else if isSome $ patSubOcc rOccur sY (ctxMap nfAsyncTypeToApx G)
+					else if isSome $ patSubOcc rOccur sY (*ctxMap nfAsyncTypeToApx G*)
 						then raise Subst.ExnUndef
 					else raise ExnOccur
 				else let
@@ -381,7 +388,7 @@ val (objExists, typeExists) =
 					(Y', (false, NfInj.Nil'))
 				else if !noNestedUndef andalso
 						isSome $ Subst.patSub (fn x => (x, true))
-								Eta.etaContract sY' (ctxMap nfAsyncTypeToApx G) then
+								Eta.etaContract sY' (*ctxMap nfAsyncTypeToApx G*) then
 					let val wi = Subst.invert w
 						val G' = pruneCtx Subst.ExnUndef pruneType wi G
 						val A' = pruneType (NfTClos (A, wi))
@@ -485,7 +492,7 @@ fun linPrune (ob, pl) =
 			| (LogicVar (X1 as {X=r, ty=A, s, ctx=ref (SOME G), cnstr=cs, tag}), _) =>
 				let val () = if List.all (isSome o #3) $ ctx2list G then () else
 								raise Fail "Internal error: pAtomic: lvar with non-pruned ctx"
-				in case patSub s (ctxMap nfAsyncTypeToApx G) of
+				in case patSub s (*ctxMap nfAsyncTypeToApx G*) of
 				  SOME (p1, s1) =>
 					let val s2 = Subst.comp (s1, Subst.lcs2sub p1)
 						val (s3, pp, occ) = Subst.fold
@@ -656,15 +663,27 @@ and unifyObj dryRun (ob1, ob2) =
 		| (NfAtomic hS1, NfAddPair (L2, N2)) =>
 				( unifyObj dryRun (invPair ProjLeft' hS1, L2)
 				; unifyObj dryRun (invPair ProjRight' hS1, N2) )
-		| (NfMonad E1, NfMonad E2) => unifyExp dryRun (E1, E2)
+		| (NfMonad E1, NfMonad E2) =>
+				(case (Eta.etaContractLetMon E1, Eta.etaContractLetMon E2) of
+					  (NONE, NONE) => unifyExp dryRun (E1, E2)
+					| (SOME hS1, NONE) => unifyAtomicExp dryRun ((lowerAtomic hS1, SOME E1), E2)
+					| (NONE, SOME hS2) => unifyAtomicExp dryRun ((lowerAtomic hS2, SOME E2), E1)
+					| (SOME hS1, SOME hS2) =>
+						let val hS1' = lowerAtomic hS1
+							val hS2' = invAtomic $ lowerObj $ NfObj.prj $ NfAtomic' hS2
+						in unifyHead dryRun (hS1', hS2') end)
 		| (NfMonad E, NfAtomic hS) =>
 				unifyObj dryRun (NfAtomic' hS, NfMonad' E)
 		| (NfAtomic hS, NfMonad E) =>
+				(case Eta.etaContractLetMon E of
+					  NONE => unifyAtomicExp dryRun ((hs, NONE), E)
+					| SOME hS2 => unifyHead dryRun (hS, lowerAtomic hS2))
+		| (NfAtomic hS, NfMonad E) =>
 				(case case #1 hS of LogicVar (X as {X=r, ...}) =>
-					if headCountExp (r, E) = 0 then SOME X else NONE | _ => NONE of
+					if headCountExp (r, E) = SOME 0 then SOME X else NONE | _ => NONE of
 					  SOME (X as {s, ctx=ref (SOME G), cnstr=cs, ...}) =>
 						if isSome dryRun then (valOf dryRun) := false else
-						(case patSub s (ctxMap nfAsyncTypeToApx G) of
+						(case patSub s (*ctxMap nfAsyncTypeToApx G*) of
 							  SOME (p, s') => unifyLVar (X with's s', NfMonad' E, p)
 							| NONE => addConstraint (vref (Eqn (NfObj.inj ob1', NfMonad' E)), [cs]))
 					| SOME {ctx=ref NONE, ...} => raise Fail "Internal error: no ctx"
@@ -688,7 +707,7 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 		LogicVar (X2 as {X=r2, s=s2, cnstr=cs2, ...})) =>
 			let val apxG1 = ctxMap nfAsyncTypeToApx G1
 			in if eq (r1, r2) then
-				case (patSub s1 apxG1, patSub s2 apxG1) of
+				case (patSub s1 (*apxG1*), patSub s2 (*apxG1*)) of
 				  (NONE, NONE) => (* FIXME: code restructuring? *)
 					let val dryRunIntersect = ref true
 						exception ExnUnifyMaybe
@@ -733,16 +752,16 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 						end
 					end
 			else if isSome dryRun then (valOf dryRun) := false
-			else case patSub s1 apxG1 of
+			else case patSub s1 (*apxG1*) of
 				  SOME (p, s') => unifyLVar (X1 with's s', NfAtomic' hS2, p)
 				| NONE =>
-					(case patSub s2 apxG1 of
+					(case patSub s2 (*apxG1*) of
 					  SOME (p, s') => unifyLVar (X2 with's s', NfAtomic' hS1, p)
 					| NONE => addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs1, cs2]))
 			end
 	| (LogicVar (X as {s, ctx=ref (SOME G), cnstr=cs, ...}), _) =>
 			if isSome dryRun then (valOf dryRun) := false else
-			(case patSub s (ctxMap nfAsyncTypeToApx G) of
+			(case patSub s (*ctxMap nfAsyncTypeToApx G*) of
 				  SOME (p, s') => unifyLVar (X with's s', NfAtomic' hS2, p)
 				| NONE => addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs]))
 	| (LogicVar {ctx=ref NONE, tag, ...}, _) =>
@@ -771,6 +790,20 @@ and unifySpine dryRun (sp1, sp2) = case (NfSpine.prj sp1, NfSpine.prj sp2) of
 	| (ProjLeft _, ProjRight _) => raise ExnUnify "Projections differ\n"
 	| (ProjRight _, ProjLeft _) => raise ExnUnify "Projections differ\n"
 	| _ => raise Fail "Internal error: unifySpine\n"
+and unifyAtomicExp dryRun ((hS, e1), e2) =
+	let val lvar = case #1 hS of LogicVar (X as {X=r, ...}) =>
+				if headCountExp (r, e2) = SOME 0 then SOME X else NONE | _ => NONE
+		fun e1' () = case e1 of SOME e => e | NONE =>
+			let val (p, Mf) = etaMimicExp e2
+			in NfLet' (p, hS, NfMon' $ Mf 1) end
+	in case lvar of
+		  NONE => unifyExp dryRun (e1' (), e2)
+		| SOME (X as {s, cnstr=cs, ...}) =>
+			if isSome dryRun then (valOf dryRun) := false else
+			(case patSub s of
+				  SOME (p, s') => unifyLVar (X with's s', NfMonad' e2, p)
+				| NONE => addConstraint (vref (Eqn (NfAtomic' hS, NfMonad' e2)), [cs]))
+	end
 and unifyExp dryRun (e1, e2) = case (NfExpObj.prj e1, NfExpObj.prj e2) of
 	  (NfMon M1, NfMon M2) => unifyMon dryRun (M1, M2)
 	| (NfLet L1, NfMon M2) => unifyLetMon dryRun (L1, M2)
@@ -786,7 +819,7 @@ and unifyExp dryRun (e1, e2) = case (NfExpObj.prj e1, NfExpObj.prj e2) of
 and unifyLetMon dryRun ((pa, hS, E), M) = case lowerAtomic hS of
 	  (LogicVar (X as {X=r, ty, s, ctx=ref (SOME G), cnstr=cs, tag}), _ (*=Nil*)) =>
 			if isSome dryRun then (valOf dryRun) := false else
-			(case patSub s (ctxMap nfAsyncTypeToApx G) of
+			(case patSub s (*ctxMap nfAsyncTypeToApx G*) of
 				  NONE => addConstraint (vref (Eqn
 						(NfMonad' $ NfLet' (pa, hS, E), NfMonad' $ NfMon' M)), [cs])
 				| SOME (p', s') =>
@@ -854,13 +887,48 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 	(* In the case of two equal LVars, the lowering of ob1 affects the whnf of ob2 *)
 	let val ob1' = lowerAtomic ob1
 		val ob2' = invAtomic $ lowerObj $ NfObj.prj $ NfAtomic' ob2
+		(*fun testRefl () =
+			let val dryRunLet = ref true
+				val () = unifyHead (SOME dryRunLet) (ob1', ob2')
+						handle ExnUnify _ => raise Fail "Internal error: L1 /= L2 cannot happen"
+			in !dryRunLet end*)
 	in case (ob1', NfExpObj.prj E1, ob2', NfExpObj.prj E2) of
 		  ((LogicVar ({ctx=ref NONE, ...}), _), NfMon _, _, _) =>
 			raise Fail "Internal error: unifyLetLet: no context"
 		| ((LogicVar (X1 as {X, ty, s, ctx=ref (SOME G), ...}), _ (*=Nil*)), NfMon M1, _, E2') =>
+			if isSome dryRun then (valOf dryRun) := false else
+			(case patSub s (*ctxMap nfAsyncTypeToApx G*) of
+			  NONE => addConstraint (vref (Eqn
+					(NfMonad' $ NfLet' (p1, ob1', E1),
+					 NfMonad' $ NfLet' (p2, ob2', E2))), [#cnstr X1])
+			| SOME (p, s') =>
+				(case headCountExp (X, NfLet' (p2, ob2', NfExpObj.inj E2')) of
+				  NONE => addConstraint (vref (Eqn
+						(NfMonad' $ NfLet' (p1, ob1', E1),
+						 NfMonad' $ NfLet' (p2, ob2', E2))), [#cnstr X1])
+				| SOME 0 =>
+					let val (Y, qn, M2) = unifyLVarLetPrefix (p1, X1 with's s', p,
+											NfLet' (p2, ob2', E2))
+						val rest1 = NfLet' (p1, invAtomicP Y,
+									NfMon' $ NfMClos (M1, Subst.dotn (nbinds p1) (Subst.shift qn)))
+					in unifyExp NONE (rest1, NfMon' M2) end
+				| SOME 1 => (case ob2' of
+					  (LogicVar (X2 as {X=Y, ...}), _) =>
+						if eq (X, Y) then
+							(* Consider: {let {x}=X[x] in x*y}=={let {y}=X[y] in x*y}
+							 * with solutions including X[x] == {x}
+							 * thus we won't prune *)
+						else unifyLetMon NONE ((p2, ob2', NfExpObj.inj E2'),
+								NfLet' (p1, ob1', NfMon M1))
+					| _ => raise ExnUnify "let sequences differ in length")
+				| SOME _ => unifyLetMon NONE ((p1, ob1', NfMon' M1),
+								NfLet' (p2, ob2', NfExpObj.inj E2'))
+				)
+			)
+
 			(case headCountExp (X, NfLet' (p2, ob2', NfExpObj.inj E2')) of
 			  0 => if isSome dryRun then (valOf dryRun) := false else
-				(case patSub s (ctxMap nfAsyncTypeToApx G) of
+				(case patSub s (*ctxMap nfAsyncTypeToApx G*) of
 				  NONE => addConstraint (vref (Eqn
 							(NfMonad' $ NfLet' (p1, ob1', E1),
 							 NfMonad' $ NfLet' (p2, ob2', E2))), [#cnstr X1])
@@ -871,22 +939,20 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 									NfMon' $ NfMClos (M1, Subst.dotn (nbinds p1) (Subst.shift qn)))
 					in unifyExp NONE (rest1, NfMon' M2) end)
 			(* FIXME: could distinguish headCountExp 1 and 2+ and do more *)
+			| 1 =>
+			| _ => unifyLetMon dryRun ((p1, ob1', NfMon' M1), NfLet' (p2, ob2', NfExpObj.inj E2'))
 			| _ => if isSome dryRun then (valOf dryRun) := false else
 					addConstraint (vref (Eqn
 							(NfMonad' $ NfLet' (p1, ob1', E1),
-							 NfMonad' $ NfLet' (p2, ob2', E2))), [#cnstr X1]))
+							 NfMonad' $ NfLet' (p2, ob2', E2))), [#cnstr X1])
+				)
 		| (_, E1', (LogicVar _, _), NfMon M2) =>
 			unifyLetLet dryRun ((p2, ob2', NfMon' M2), (p1, ob1', NfExpObj.inj E1'))
 		| ((LogicVar {cnstr=cs1, ...}, _), E1', (LogicVar {cnstr=cs2, ...}, _), E2') =>
-			let val dryRunLet = ref true
-				val () = unifyHead (SOME dryRunLet) (ob1', ob2')
-						handle ExnUnify _ => raise Fail "Internal error: L1 /= L2 cannot happen"
-			in if !dryRunLet then unifyExp dryRun (E1, E2)
-			else if isSome dryRun then (valOf dryRun) := false
+			if isSome dryRun then (valOf dryRun) := false
 			else addConstraint (vref (Eqn
 						(NfMonad' $ NfLet' (p1, ob1', E1),
 						 NfMonad' $ NfLet' (p2, ob2', E2))), [cs1, cs2])
-			end
 		| ((LogicVar _, _), _, _ (* ob2' <> LVar *), _) =>
 			unifyLetLet dryRun ((p2, ob2', E2), (p1, ob1', E1))
 		| _ (* ob1' <> LVar *) =>
@@ -903,7 +969,7 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 						fun lvarFreeN (_, 0) = true
 						  | lvarFreeN (E, n) = case NfExpObj.prj E of
 							  NfLet (_, (LogicVar {s, ctx=ref G, ...}, _), E') =>
-								n=1 andalso isSome $ patSub s (ctxMap nfAsyncTypeToApx (valOf G))
+								n=1 andalso isSome $ patSub s (*ctxMap nfAsyncTypeToApx (valOf G)*)
 							| NfLet (_, _, E') => lvarFreeN (E', n-1)
 							| NfMon _ => raise Fail "Internal error: lvarFreeN"
 					in if isSome m2 andalso lvarFreeN (E2t, valOf m2) andalso notLvar ob1' then
@@ -973,7 +1039,7 @@ and matchHeadInLetFixedPos (q, hS, E, pos) =
 								raise Fail "internal error: mHILFP: lvar2" else ()
 				in if pos = 1 then if isLVar N then
 					let val (X as {s, ctx=ref G, ...}) = invLVar N
-						val (p', s') = valOf $ patSub s (ctxMap nfAsyncTypeToApx (valOf G))
+						val (p', s') = valOf $ patSub s (*ctxMap nfAsyncTypeToApx (valOf G)*)
 						val (Y, qn, _) = unifyLVarLetPrefix (p, X with's s', p',
 								NfLet' (q, hS, NfMon' NfInj.One'))
 						val E'' = NfLet' (p, invAtomicP Y,
@@ -1004,7 +1070,7 @@ fun matchHeadInLetBranch (same, q, hS, E, sc) =
 					let val (X as {s, ctx=ref G, ...}) = invLVar N
 						fun valOf' (SOME x) = x
 						  | valOf' NONE = raise Fail "Internal error: not patsub in mHILBranch"
-						val (p', s') = valOf' $ patSub s (ctxMap nfAsyncTypeToApx (valOf G))
+						val (p', s') = valOf' $ patSub s (*ctxMap nfAsyncTypeToApx (valOf G)*)
 					in case SOME (unifyLVarLetPrefix (p, X with's s', p',
 								NfLet' (q, hS, NfMon' NfInj.One'))) handle ExnUnify _ => NONE of
 						  NONE => ()
@@ -1058,8 +1124,8 @@ fun unifyBranch (ob1, ob2, sc) = case (NfObj.prj ob1, NfObj.prj ob2) of
 			| INL ((n1, SOME {X=r1, s=s1, ctx=ref (SOME G1), cnstr=cs1, ...}),
 					(n2, SOME {X=r2, s=s2, ctx=ref (SOME G2), cnstr=cs2, ...})) =>
 				if eq (r1, r2) andalso n1<>n2 then () else
-				(case (patSub s1 (ctxMap nfAsyncTypeToApx G1),
-						patSub s2 (ctxMap nfAsyncTypeToApx G2)) of
+				(case (patSub s1 (*ctxMap nfAsyncTypeToApx G1*),
+						patSub s2 (*ctxMap nfAsyncTypeToApx G2*)) of
 					  (SOME _, SOME _) =>
 						if n1 <= n2 then unifyBranchExp (eq (r1, r2), n1, E1, E2, sc)
 						else unifyBranchExp (eq (r1, r2), n2, E2, E1, sc)
