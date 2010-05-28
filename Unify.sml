@@ -637,19 +637,6 @@ and unifyObj dryRun (ob1, ob2) =
 		fun invLam p hS = nfredex (NfClos (NfAtomic' hS, Subst.shift $ nbinds p),
 				LApp' (pat2mon p, Nil'))
 		fun invPair p hS = nfredex (NfAtomic' hS, p Nil')
-		fun etaMimicMon m = case NfMonadObj.prj m of
-			  DepPair (M1, M2) =>
-				let val (p2, Mf2) = etaMimicMon M2
-					val (p1, Mf1) = etaMimicMon M1
-				in (PDepTensor' (p1, p2), fn n => DepPair' (Mf1 (n + nbinds p2), Mf2 n)) end
-			| One => (POne', fn _ => One')
-			| Down _ => (PDown' "", fn n => Down' $ NfAtomic' (Var (LIN, n), Nil'))
-			| Affi _ => (PAffi' "", fn n => Affi' $ NfAtomic' (Var (AFF, n), Nil'))
-			| Bang _ => (PBang' "", fn n => Bang' $ NfAtomic' (Var (INT, n), Nil'))
-			| MonUndef => raise Fail "Internal error: etaMimicMon: MonUndef"
-		fun etaMimicExp e = case NfExpObj.prj e of
-			  NfLet (_, _, E) => etaMimicExp E
-			| NfMon M => etaMimicMon M
 	in case (ob1', ob2') of
 		  (NfLLam (_, N1), NfLLam (_, N2)) => unifyObj dryRun (N1, N2)
 		| (NfLLam (p, N1), NfAtomic hS2) => unifyObj dryRun (N1, invLam p hS2)
@@ -791,11 +778,24 @@ and unifySpine dryRun (sp1, sp2) = case (NfSpine.prj sp1, NfSpine.prj sp2) of
 	| (ProjRight _, ProjLeft _) => raise ExnUnify "Projections differ\n"
 	| _ => raise Fail "Internal error: unifySpine\n"
 and unifyAtomicExp dryRun ((hS, e1), e2) =
-	let val lvar = case #1 hS of LogicVar (X as {X=r, ...}) =>
-				if headCountExp (r, e2) = SOME 0 then SOME X else NONE | _ => NONE
+	let fun etaMimicMon m = case NfMonadObj.prj m of
+			  DepPair (M1, M2) =>
+				let val (p2, Mf2) = etaMimicMon M2
+					val (p1, Mf1) = etaMimicMon M1
+				in (PDepTensor' (p1, p2), fn n => DepPair' (Mf1 (n + nbinds p2), Mf2 n)) end
+			| One => (POne', fn _ => One')
+			| Down _ => (PDown' "", fn n => Down' $ NfAtomic' (Var (LIN, n), Nil'))
+			| Affi _ => (PAffi' "", fn n => Affi' $ NfAtomic' (Var (AFF, n), Nil'))
+			| Bang _ => (PBang' "", fn n => Bang' $ NfAtomic' (Var (INT, n), Nil'))
+			| MonUndef => raise Fail "Internal error: etaMimicMon: MonUndef"
+		fun etaMimicExp e = case NfExpObj.prj e of
+			  NfLet (_, _, E) => etaMimicExp E
+			| NfMon M => etaMimicMon M
 		fun e1' () = case e1 of SOME e => e | NONE =>
 			let val (p, Mf) = etaMimicExp e2
 			in NfLet' (p, hS, NfMon' $ Mf 1) end
+		val lvar = case #1 hS of LogicVar (X as {X=r, ...}) =>
+				if headCountExp (r, e2) = SOME 0 then SOME X else NONE | _ => NONE
 	in case lvar of
 		  NONE => unifyExp dryRun (e1' (), e2)
 		| SOME (X as {s, cnstr=cs, ...}) =>
