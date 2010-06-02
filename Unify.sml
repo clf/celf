@@ -165,19 +165,12 @@ fun newMonA (A, ctx) = case NfAsyncType.prj A of
 	  TMonad S => map2 (NfMonad' o NfMon') (newMon (S, ctx))
 	| _ => raise Fail "Internal error: newMonA\n"
 
-(* headCountExp (X, E) = SOME n
- * where n is the number of occurrences of X in lethead-position in E
- * under pattern substitutions.  If any of those occurrences are under
- * non-pattern substitutions then headCountExp returns NONE instead.  *)
-(* headCountExp obj option vref * nfExpObj -> int option *)
+(* headCountExp obj option vref * nfExpObj -> int *)
 fun headCountExp (rOccur, ex) = case NfExpObj.prj ex of
-	  NfLet (_, (LogicVar {X, s, ctx=ref G, ...}, _), E) =>
-		if not eq (X, rOccur) then headCountExp (rOccur, E)
-		else if isSome $ patSub s (*ctxMap nfAsyncTypeToApx (valOf G)*) then
-			Option.map (fn n => n + 1) $ headCountExp (rOccur, E)
-		else NONE
+	  NfLet (_, (LogicVar {X, ...}, _), E) =>
+		if eq (X, rOccur) then 1 + headCountExp (rOccur, E) else headCountExp (rOccur, E)
 	| NfLet (_, _, E) => headCountExp (rOccur, E)
-	| NfMon _ => SOME 0
+	| NfMon _ => 0
 
 type intset = int list
 val empty = []
@@ -382,13 +375,12 @@ val (objExists, typeExists) =
 				if eq (rY, rOccur) then
 					(* X = H . S{X[p]} --> X = H . S{_}   if p is pattern
 					 * X = H . S_srig{X[s]} --> _         with H <> lvar and H <> var
-					 * To simply raise ExnUndef is a completeness bug.  We must either
-					 * be in a strongly rigid context or have sY preserve size, i.e.:
-					 * For all ground R, |R| >= |R[sY]|
+					 * To simply raise ExnUndef would be a completeness bug.  We must
+					 * either be in a strongly rigid context or have sY preserve size,
+					 * i.e.: For all ground R, |R| >= |R[sY]|
 					 *)
 					if srig then raise Subst.ExnUndef
-					else if isSome $ patSubOcc rOccur sY (*ctxMap nfAsyncTypeToApx G*)
-						then raise Subst.ExnUndef
+					else if isSome $ patSubOcc rOccur sY then raise Subst.ExnUndef
 					else raise ExnOccur
 				else let
 					val noNestedUndef = ref true
@@ -680,7 +672,7 @@ and unifyObj dryRun (ob1, ob2) =
 				unifyObj dryRun (NfAtomic' hS, NfMonad' E)
 		| (NfAtomic hS, NfMonad E) =>
 				(case Eta.etaContractLetMon E of
-					  NONE => unifyAtomicExp dryRun ((hs, NONE), E)
+					  NONE => unifyAtomicExp dryRun ((hS, NONE), E)
 					| SOME hS2 => unifyHead dryRun (hS, lowerAtomic hS2))
 (*		| (NfAtomic hS, NfMonad E) =>
 				(case case #1 hS of LogicVar (X as {X=r, ...}) =>
@@ -795,7 +787,8 @@ and unifySpine dryRun (sp1, sp2) = case (NfSpine.prj sp1, NfSpine.prj sp2) of
 	| (ProjRight _, ProjLeft _) => raise ExnUnify "Projections differ\n"
 	| _ => raise Fail "Internal error: unifySpine\n"
 and unifyAtomicExp dryRun ((hS, e1), e2) =
-	let fun etaMimicMon m = case NfMonadObj.prj m of
+	let open NfInj
+		fun etaMimicMon m = case NfMonadObj.prj m of
 			  DepPair (M1, M2) =>
 				let val (p2, Mf2) = etaMimicMon M2
 					val (p1, Mf1) = etaMimicMon M1
@@ -811,15 +804,15 @@ and unifyAtomicExp dryRun ((hS, e1), e2) =
 		fun e1' () = case e1 of SOME e => e | NONE =>
 			let val (p, Mf) = etaMimicExp e2
 			in NfLet' (p, hS, NfMon' $ Mf 1) end
-		val lvar = case #1 hS of LogicVar (X as {X=r, ...}) =>
-				if headCountExp (r, e2) = SOME 0 then SOME X else NONE | _ => NONE
-	in case lvar of
-		  NONE => unifyExp dryRun (e1' (), e2)
-		| SOME (X as {s, cnstr=cs, ...}) =>
+	in case hS of
+	  (LogicVar (X as {X=r, s, cnstr=cs, ...}), _) =>
+		if headCountExp (r, e2) = 0 then
 			if isSome dryRun then (valOf dryRun) := false else
-			(case patSub s of
-				  SOME (p, s') => unifyLVar (X with's s', NfMonad' e2, p)
-				| NONE => addConstraint (vref (Eqn (NfAtomic' hS, NfMonad' e2)), [cs]))
+			case patSub s of
+			  SOME (p, s') => unifyLVar (X with's s', NfMonad' e2, p)
+			| NONE => addConstraint (vref (Eqn (NfAtomic' hS, NfMonad' e2)), [cs])
+		else unifyExp dryRun (e1' (), e2)
+	| _ => unifyExp dryRun (e1' (), e2)
 	end
 and unifyExp dryRun (e1, e2) = case (NfExpObj.prj e1, NfExpObj.prj e2) of
 	  (NfMon M1, NfMon M2) => unifyMon dryRun (M1, M2)
@@ -871,6 +864,7 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 				 NfMonad' $ NfLet' (p2, ob2', E2))), css)
 	in case (ob1', NfExpObj.prj E1, ob2', NfExpObj.prj E2) of
 		  ((LogicVar {cnstr=cs1, ...}, _), E1', (LogicVar {cnstr=cs2, ...}, _), E2') =>
+			(* even {let {[x,y]}=X in [x,y]} = {let {[x,y]}=X in [y,x]} has solutions *)
 			if isSome dryRun then (valOf dryRun) := false else postpone [cs1, cs2]
 		| (_, E1', (LogicVar _, _), NfMon M2) =>
 			unifyLetLet dryRun ((p2, ob2', NfMon' M2), (p1, ob1', NfExpObj.inj E1'))
@@ -879,48 +873,13 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 			(case patSub s of
 			  NONE => postpone [#cnstr X1]
 			| SOME (p, s') =>
-				(case headCountExp (X, NfLet' (p2, ob2', NfExpObj.inj E2')) of
-				  NONE => postpone [#cnstr X1]
-				| SOME 0 =>
-					let val (Y, qn, M2) = unifyLVarLetPrefix (p1, X1 with's s', p,
+				if headCountExp (X, NfLet' (p2, ob2', NfExpObj.inj E2')) = 0 then
+					let val (Y, qn, E2rest) = unifyLVarLetPrefix (p1, X1 with's s', p,
 											NfLet' (p2, ob2', E2))
 						val rest1 = NfLet' (p1, invAtomicP Y,
 									NfMon' $ NfMClos (M1, Subst.dotn (nbinds p1) (Subst.shift qn)))
-					in unifyExp NONE (rest1, NfMon' M2) end
-				| SOME 1 => (case ob2' of
-					  (LogicVar (X2 as {X=Y, ...}), _) =>
-						if eq (X, Y) then
-							(* Consider: {let {x}=X[x] in x*y}=={let {y}=X[y] in x*y}
-							 * with solutions including X[x] == {x}
-							 * thus we won't prune *)
-						else unifyLetMon NONE ((p2, ob2', NfExpObj.inj E2'),
-								NfLet' (p1, ob1', NfMon M1))
-					| _ => raise ExnUnify "let sequences differ in length")
-				| SOME _ => unifyLetMon NONE ((p1, ob1', NfMon' M1),
-								NfLet' (p2, ob2', NfExpObj.inj E2'))
-				)
-			)
-
-			(case headCountExp (X, NfLet' (p2, ob2', NfExpObj.inj E2')) of
-			  0 => if isSome dryRun then (valOf dryRun) := false else
-				(case patSub s (*ctxMap nfAsyncTypeToApx G*) of
-				  NONE => addConstraint (vref (Eqn
-							(NfMonad' $ NfLet' (p1, ob1', E1),
-							 NfMonad' $ NfLet' (p2, ob2', E2))), [#cnstr X1])
-				| SOME (p, s') =>
-					let val (Y, qn, M2) = unifyLVarLetPrefix (p1, X1 with's s', p,
-											NfLet' (p2, ob2', E2))
-						val rest1 = NfLet' (p1, invAtomicP Y,
-									NfMon' $ NfMClos (M1, Subst.dotn (nbinds p1) (Subst.shift qn)))
-					in unifyExp NONE (rest1, NfMon' M2) end)
-			(* FIXME: could distinguish headCountExp 1 and 2+ and do more *)
-			| 1 =>
-			| _ => unifyLetMon dryRun ((p1, ob1', NfMon' M1), NfLet' (p2, ob2', NfExpObj.inj E2'))
-			| _ => if isSome dryRun then (valOf dryRun) := false else
-					addConstraint (vref (Eqn
-							(NfMonad' $ NfLet' (p1, ob1', E1),
-							 NfMonad' $ NfLet' (p2, ob2', E2))), [#cnstr X1])
-				)
+					in unifyExp NONE (rest1, E2rest) end
+				else postpone [#cnstr X1])
 		| ((LogicVar _, _), _, _ (* ob2' <> LVar *), _) =>
 			unifyLetLet dryRun ((p2, ob2', E2), (p1, ob1', E1))
 		| _ (* ob1' <> LVar *) =>
@@ -952,21 +911,32 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 			end
 	end
 (* unifyLVarLetPrefix (p1, X1[s], p, E2)
- * with E2 = let {q1} = N1 in ... let {qn} = Nn in M
- * and s a pattern sub
+ * with E2 = let {q1} = N1 in ... let {qn} = Nn in E3,
+ * E3 is either a monadic object M or let {q} = Y[t] in E4,
+ * n>=1, Ni not logic variables, and s a pattern sub
  * set X1[s][lcs2sub p] =
  *   {let {q1} = N1 in ... let {qn} = Nn in
  *    let {p1} = Y[s'] in p1}
  * where s' = dotn (q1+...+qn) s
- * return (Y[s'], q1+...+qn, M) *)
+ * return (Y[s'], q1+...+qn, E3) *)
 and unifyLVarLetPrefix (p1, X1 as {X, ty, s, ctx=ref G, ...}, p, E2) =
-	let fun splitLet ctx si ex qn = case NfExpObj.prj ex of
-			  NfLet (_, (LogicVar _, _), _) =>
-				raise Fail "Internal error: unifyLVarLetPrefix with lvar"
+	let fun buildY ctx qn ex =
+			let val Y = newNfLVarCtx (SOME ctx) (NfTClos (ty, Subst.shift qn))
+				val Y' = invAtomicP Y
+				val () = pruneLVar $ #1 Y'
+				val p1m = pat2mon p1
+			in (NfLet' (p1, Y', NfMon' p1m), (Y, qn, ex)) end
+		fun splitLet ctx si ex qn = case NfExpObj.prj ex of
+			  NfMon _ => buildY ctx qn ex
+			| NfLet (_, (LogicVar _, _), _) => buildY ctx qn ex
 			| NfLet (q, hs, E) =>
-				let val hs' = case objExists X (NfClos (NfAtomic' hs, si)) of
+				let fun prunehs' rX = (case objExists rX (NfClos (NfAtomic' hs, si)) of
 							  SOME ob => invAtomicP ob
-							| NONE => raise ExnUnify "can't prune"
+							| NONE => raise ExnUnify "can't prune")
+					val hs' = prunehs' X handle ExnOccur => prunehs' (vref NONE)
+					(* ExnOccur: If the occurs check fails outside the pattern
+					 * fragment we postpone its treatment to the call to
+					 * unifyLVar below where it will be reraised *)
 					val (ctx', A) = synthAtomic ctx hs'
 					val sty = case Util.nfTypePrjAbbrev A of TMonad sty => sty
 							| _ => raise Fail "Type checking: sync type expected"
@@ -974,12 +944,6 @@ and unifyLVarLetPrefix (p1, X1 as {X, ty, s, ctx=ref G, ...}, p, E2) =
 					val si' = Subst.dotn (nbinds q) si
 					val (E', y) = splitLet ctx'' si' E (qn + nbinds q)
 				in (NfLet' (q, hs', E'), y) end
-			| NfMon M =>
-				let val Y = newNfLVarCtx (SOME ctx) (NfTClos (ty, Subst.shift qn))
-					val Y' = invAtomicP Y
-					val () = pruneLVar $ #1 Y'
-					val p1m = pat2mon p1
-				in (NfLet' (p1, Y', NfMon' p1m), (Y, qn, M)) end
 		val si = Subst.invert s
 		val p' = Subst.lcsComp (p, si) (* X[s][lcs2sub p] = X[lcs2sub p'][s] *)
 		fun changeMode ((INT4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME INT)::G
@@ -991,6 +955,9 @@ and unifyLVarLetPrefix (p1, X1 as {X, ty, s, ctx=ref G, ...}, p, E2) =
 		(* G |- X, G' |- X[lcs2sub p'] *)
 		val G' = list2ctx $ foldl changeMode (ctx2list $ valOf G) p'
 		val (E2Y, (Y, qn, M2)) = splitLet G' si E2 0
+		val () = case Util.NfExpObjAuxDefs.prj2 E2Y of
+			  NfLet (_, _, NfLet _) => ()
+			| _ => raise Fail "Internal error: unifyLVarLetPrefix: no progress"
 		val () = unifyLVar (X1 with's Subst.id, NfMonad' E2Y, p')
 	in (NfClos (Y, Subst.dotn qn s), qn, M2) end
 and matchHeadInLet (hS, E) =

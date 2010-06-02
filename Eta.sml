@@ -125,7 +125,7 @@ fun etaContractLetMon e = case Util.NfExpObjAuxDefs.prj2 e of
 		let exception ExnNoEta
 			val v = (INT, 1) (* dummy variable *)
 			fun isV mn = if mn = v then SOME hS else raise Fail "Internal error: etaContractLetMon"
-		in isV (etaContract ExnNoEta (NfMonad' $ NfLet' (p, NfAtomic' (Var v, Nil'), NfMon' M)))
+		in isV (etaContract ExnNoEta (NfMonad' $ NfLet' (p, (Var v, NfInj.Nil'), NfMon' M)))
 			handle ExnNoEta => NONE
 		end
 	| _ => NONE
