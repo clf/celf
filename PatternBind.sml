@@ -116,6 +116,6 @@ fun patUnbind (p, ctx) = case Pattern.prj p of
 	| PBang x => ctxPop ctx
 
 (* patUnbindOpt : opattern * 'a context -> 'a context option *)
-fun patUnbindOpt pG = SOME (patUnbind pG) handle ExnCtx _ => NONE
+(*fun patUnbindOpt pG = SOME (patUnbind pG) handle ExnCtx _ => NONE*)
 
 end

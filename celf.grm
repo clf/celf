@@ -22,6 +22,8 @@ fun objs2spine objs =
 		  | o2s (ob::objs) sp = o2s objs (Syntax.TApp' (ob,sp))
 	in o2s objs Syntax.TNil' end
 
+fun getline (line, ch) = line
+
 %%
 
 %pos int * int
@@ -42,8 +44,8 @@ fun objs2spine objs =
 	| ExpObj of Syntax.expObj | MonadObj of Syntax.monadObj
 	| OPattern of Syntax.opattern | OPatternPair of Syntax.opattern * Syntax.opattern
 	| TPattern of Syntax.tpattern | TPatternPair of Syntax.tpattern * Syntax.tpattern
-	| Decl of Syntax.decl | DeclList of Syntax.decl list
-	| Program of Syntax.decl list
+	| Decl of Syntax.decl | DeclList of (int * Syntax.decl) list
+	| Program of (int * Syntax.decl) list
 	| Number of int | NumOpt of int option
 
 %start Program
@@ -69,8 +71,8 @@ Program :
 	  DeclList ( DeclList )
 
 DeclList :
-	  Decl DeclList ( Decl :: DeclList )
-	| Decl          ( [Decl] )
+	  Decl DeclList ( (getline Decl1left, Decl) :: DeclList )
+	| Decl          ( [(getline Decl1left, Decl)] )
 
 Decl :
 	  ID COLON Kind DOT                        ( Syntax.ConstDecl(ID,0,Syntax.Ki Kind) )

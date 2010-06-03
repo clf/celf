@@ -41,6 +41,6 @@ val opatBindNf : Syntax.opattern * Syntax.nfSyncType -> Syntax.nfAsyncType Conte
 val depPatBind : {dep : Syntax.asyncType -> 'a, nodep : Syntax.asyncType -> 'a}
 		-> Syntax.tpattern * Syntax.syncType -> 'a Context.context -> 'a Context.context
 val patUnbind : Syntax.opattern * 'a Context.context -> 'a Context.context
-val patUnbindOpt : Syntax.opattern * 'a Context.context -> 'a Context.context option
+(*val patUnbindOpt : Syntax.opattern * 'a Context.context -> 'a Context.context option*)
 
 end

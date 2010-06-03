@@ -25,7 +25,7 @@ val traceApx : bool ref
 type context
 val emptyCtx : context
 
-exception ExnApxUnifyType of string
+exception ExnApxUnify of string
 
 val occur : Syntax.typeLogicVar -> Syntax.apxAsyncType -> unit
 val apxUnifyType : Syntax.apxAsyncType * Syntax.apxAsyncType -> unit

@@ -118,7 +118,7 @@ fun celfMain' args =
 			print ("Parse error at "^
 				Int.toString l1^","^Int.toString c1^"--"^
 				Int.toString l2^","^Int.toString c2^": "^s^"\n")
-		val (result : Syntax.decl list,_) = ClfParser.parse(0,lexer,print_parse_error,())
+		val (result : (int * Syntax.decl) list,_) = ClfParser.parse(0,lexer,print_parse_error,())
 		val () = TypeRecon.reconstructSignature result
 	in OS.Process.success end end
 

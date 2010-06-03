@@ -29,7 +29,7 @@ val traceApx = ref false
 
 type context = apxAsyncType Context.context
 
-exception ExnApxUnifyType of string
+exception ExnApxUnify of string
 
 (* ucase : string -> bool *)
 fun ucase x = (*x<>"" andalso Char.isUpper (String.sub (x, 0))*)
@@ -39,7 +39,7 @@ fun ucase x = (*x<>"" andalso Char.isUpper (String.sub (x, 0))*)
 
 (* occur : typeLogicVar -> apxAsyncType -> unit *)
 fun occur X = foldApxType {fki = ignore, fsTy = ignore, faTy =
-	(fn ApxTLogicVar X' => if eqLVar (X, X') then raise ExnApxUnifyType "Occurs check" else ()
+	(fn ApxTLogicVar X' => if eqLVar (X, X') then raise ExnApxUnify "Occurs check" else ()
 	  | _ => ()) }
 
 (* apxUnifyType : apxAsyncType * apxAsyncType -> unit *)
@@ -48,12 +48,12 @@ fun apxUnifyType (ty1, ty2) = case (Util.apxTypePrjAbbrev ty1, Util.apxTypePrjAb
 	| (ApxAddProd (A1, B1), ApxAddProd (A2, B2)) => (apxUnifyType (A1, A2); apxUnifyType (B1, B2))
 	| (ApxTMonad S1, ApxTMonad S2) => apxUnifySyncType (S1, S2)
 	| (ApxTAtomic a1, ApxTAtomic a2) =>
-			if a1 = a2 then () else raise ExnApxUnifyType (a1^" and "^a2^" differ")
+			if a1 = a2 then () else raise ExnApxUnify (a1^" and "^a2^" differ")
 	| (ApxTLogicVar X, A as ApxTLogicVar X') =>
 			if eqLVar (X, X') then () else updLVar (X, ApxAsyncType.inj A)
 	| (ApxTLogicVar X, _) => (occur X ty2; updLVar (X, ty2))
 	| (_, ApxTLogicVar X) => (occur X ty1; updLVar (X, ty1))
-	| (A1, A2) => raise ExnApxUnifyType
+	| (A1, A2) => raise ExnApxUnify
 			(PrettyPrint.printType (unsafeCast ty1)^"\nand: "
 						^PrettyPrint.printType (unsafeCast ty2))
 and apxUnifySyncType (ty1, ty2) = case (ApxSyncType.prj ty1, ApxSyncType.prj ty2) of
@@ -63,12 +63,12 @@ and apxUnifySyncType (ty1, ty2) = case (ApxSyncType.prj ty1, ApxSyncType.prj ty2
 	| (ApxTDown A1, ApxTDown A2) => apxUnifyType (A1, A2)
 	| (ApxTAffi A1, ApxTAffi A2) => apxUnifyType (A1, A2)
 	| (ApxTBang A1, ApxTBang A2) => apxUnifyType (A1, A2)
-	| (S1, S2) => raise ExnApxUnifyType
+	| (S1, S2) => raise ExnApxUnify
 			(PrettyPrint.printSyncType (unsafeCastS ty1)^"\nand: "
 						^PrettyPrint.printSyncType (unsafeCastS ty2))
 
 fun apxUnify (ty1, ty2, errmsg) = (apxUnifyType (ty1, ty2))
-		handle (e as ExnApxUnifyType s) =>
+		handle (e as ExnApxUnify s) =>
 			( print ("ExnApxUnify: "^s^"\n")
 			; print $ errmsg ()
 			; raise e)

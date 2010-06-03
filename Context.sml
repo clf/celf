@@ -55,7 +55,7 @@ fun ctxAffPart ctx =
 fun use _ (SOME INT) = SOME INT
   | use _ (SOME AFF) = NONE
   | use _ (SOME LIN) = NONE
-  | use y NONE = raise Fail ("Linear/affine variable "^y^" can't be used here\n")
+  | use y NONE = raise ExnCtx ("Linear/affine variable "^y^" can't be used here\n")
 
 (* ctxLookupNum : 'a context * int -> 'a context * mode * 'a *)
 fun ctxLookupNum (ctx, n) =
@@ -92,7 +92,7 @@ fun ctxPop ((_, _, NONE)::ctx) = ctx
   | ctxPop [] = raise Fail "Internal error ctxPop: empty context"
 
 (* ctxPopLINopt : 'a context -> 'a context option *)
-fun ctxPopLINopt ctx = SOME (ctxPop ctx) handle ExnCtx _ => NONE
+(*fun ctxPopLINopt ctx = SOME (ctxPop ctx) handle ExnCtx _ => NONE*)
 
 fun addJoin ((x, A, f1), (_, _, f2)) =
 	let val f = case (f1, f2) of
@@ -111,7 +111,7 @@ fun addJoin ((x, A, f1), (_, _, f2)) =
 fun ctxAddJoin ctxs = listPairMapEq addJoin ctxs
 
 (* ctxAddJoinOpt : 'a context * 'a context -> 'a context option *)
-fun ctxAddJoinOpt ctxs = SOME (ctxAddJoin ctxs) handle ExnCtx _ => NONE
+(*fun ctxAddJoinOpt ctxs = SOME (ctxAddJoin ctxs) handle ExnCtx _ => NONE*)
 
 fun joinAffLin ((x, A, f1), (_, _, f2)) =
 	let val f = case (f1, f2) of

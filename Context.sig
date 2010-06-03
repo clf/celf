@@ -45,10 +45,10 @@ val ctxPush : string * mode * 'a * 'a context -> 'a context
 val ctxPushNO : 'a * 'a context -> 'a context
 val ctxCondPushINT : string option * 'a * 'a context -> 'a context
 val ctxPop : 'a context -> 'a context
-val ctxPopLINopt : 'a context -> 'a context option
+(*val ctxPopLINopt : 'a context -> 'a context option*)
 
 val ctxAddJoin : 'a context * 'a context -> 'a context
-val ctxAddJoinOpt : 'a context * 'a context -> 'a context option
+(*val ctxAddJoinOpt : 'a context * 'a context -> 'a context option*)
 
 (* if  AffPart(G1)=G1  then  ctxJoinAffLin (G1, G2) = G1+LinPart(G2) *)
 val ctxJoinAffLin : 'a context * 'a context -> 'a context

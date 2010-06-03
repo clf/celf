@@ -17,6 +17,7 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+signature TLU_Signatur = TOP_LEVEL_UTIL
 functor SignaturFun (Syn : SYNTAX_CORE1) =
 struct
 
@@ -59,6 +60,11 @@ fun idFromDecl (ConstDecl (s, _, _)) = s
   | idFromDecl (ObjAbbrev (s, _, _)) = s
   | idFromDecl (Query _) = raise Fail "Internal error: Adding query to sig table\n"
 
+fun declSetId id (ConstDecl (_, imps, kity)) = ConstDecl (id, imps, kity)
+  | declSetId id (TypeAbbrev (_, ty)) = TypeAbbrev (id, ty)
+  | declSetId id (ObjAbbrev (_, ty, ob)) = ObjAbbrev (id, ty, ob)
+  | declSetId id (Query _) = raise Fail "Internal error: Adding query to sig table\n"
+
 (******************)
 
 (* getSigDelta : unit -> decl list *)
@@ -66,11 +72,20 @@ fun getSigDelta () = rev (!sigDelta) before sigDelta := []
 
 (* sigAddDecl : decl -> unit *)
 fun sigAddDecl dec =
-	( if isSome (peek (!sigTable, idFromDecl dec)) andalso String.sub (idFromDecl dec, 0) <> #"-"
-		then raise Fail ("Error name clash: "^idFromDecl dec)
-		else ()
-	; sigTable := insert (!sigTable, idFromDecl dec, dec) (* FIXME "-..." is erased *)
-	; sigDelta := dec :: !sigDelta )
+	let val id = idFromDecl dec
+		val allowDup = String.sub (id, 0) = #"-"
+		fun checkId x = not $ isSome $ peek (!sigTable, x)
+		fun nextId x n =
+			let val x' = x ^ Int.toString n
+			in if checkId x' then x' else nextId x (n+1) end
+		val id' =
+			if checkId id then id
+			else if allowDup then nextId id 1
+			else raise Fail ("Error name clash: " ^ id)
+		val dec' = declSetId id' dec
+	in ( sigTable := insert (!sigTable, id', dec')
+	   ; sigDelta := dec' :: !sigDelta )
+	end
 
 (* getImplLength : string -> int *)
 fun getImplLength c = case getKiTyOpt c of NONE => 0 | SOME (imps, _) => imps

@@ -54,8 +54,15 @@ fun appDecl fk ft fo (ConstDecl (_, _, Ki ki)) = fk ki
 fun isQuery (Query _) = true
   | isQuery _ = false
 
-(* reconstructDecl : decl -> unit *)
-fun reconstructDecl dec =
+fun declToStr (ConstDecl (id, _, _)) = "declaration of " ^ id
+  | declToStr (TypeAbbrev (id, _)) = "declaration of " ^ id
+  | declToStr (ObjAbbrev (id, _, _)) = "declaration of " ^ id
+  | declToStr (Query _) = "query"
+
+exception ExnDeclError
+
+(* reconstructDecl : int * decl -> unit *)
+fun reconstructDecl (linenum, dec) =
 		let val () = ImplicitVars.resetUCTable ()
 			val dec = mapDecl ApproxTypes.apxCheckKindEC
 			                  ApproxTypes.apxCheckTypeEC
@@ -167,11 +174,21 @@ fun reconstructDecl dec =
 							()
 						end
 			val () = if isQuery dec then () else Signatur.sigAddDecl dec
-		in () end
+		in () end handle
+		  ApproxTypes.ExnApxUnify s =>
+			( print ("Type mismatch in " ^ declToStr dec ^
+					" on line " ^ Int.toString linenum ^ "\n")
+			; raise ExnDeclError )
+		(*| ExnCtx s =>*)
+		| Unify.ExnUnify s =>
+			( print ("Type mismatch in " ^ declToStr dec ^
+					" on line " ^ Int.toString linenum ^ "\n")
+			; raise ExnDeclError )
+		(*| ExnConv s =>*)
 
 
-(* reconstructSignature : decl list -> unit *)
-fun reconstructSignature prog = app reconstructDecl prog
+(* reconstructSignature : (int * decl) list -> unit *)
+fun reconstructSignature prog = app reconstructDecl prog handle ExnDeclError => ()
 
 
 end
