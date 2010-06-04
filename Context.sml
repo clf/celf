@@ -55,7 +55,7 @@ fun ctxAffPart ctx =
 fun use _ (SOME INT) = SOME INT
   | use _ (SOME AFF) = NONE
   | use _ (SOME LIN) = NONE
-  | use y NONE = raise ExnCtx ("Linear/affine variable "^y^" can't be used here\n")
+  | use y NONE = raise ExnCtx ("Linear/affine variable "^y^" can't be used here.")
 
 (* ctxLookupNum : 'a context * int -> 'a context * mode * 'a *)
 fun ctxLookupNum (ctx, n) =
@@ -88,17 +88,18 @@ fun ctxCondPushINT (NONE, _, ctx) = ctx
 fun ctxPop ((_, _, NONE)::ctx) = ctx
   | ctxPop ((_, _, SOME INT)::ctx) = ctx
   | ctxPop ((_, _, SOME AFF)::ctx) = ctx
-  | ctxPop ((x, _, SOME LIN)::ctx) = raise ExnCtx (x^" doesn't occur\n")
+  | ctxPop ((x, _, SOME LIN)::ctx) = raise ExnCtx ("Linear variable "^x^" doesn't occur.")
   | ctxPop [] = raise Fail "Internal error ctxPop: empty context"
 
 (* ctxPopLINopt : 'a context -> 'a context option *)
 (*fun ctxPopLINopt ctx = SOME (ctxPop ctx) handle ExnCtx _ => NONE*)
 
 fun addJoin ((x, A, f1), (_, _, f2)) =
-	let val f = case (f1, f2) of
+	let val joinerr = "Contexts can't join: linear variable "^x^" only occurs on one side."
+		val f = case (f1, f2) of
 				  (NONE, NONE) => NONE
-				| (NONE, SOME LIN) => raise ExnCtx "Contexts can't join\n"
-				| (SOME LIN, NONE) => raise ExnCtx "Contexts can't join\n"
+				| (NONE, SOME LIN) => raise ExnCtx joinerr
+				| (SOME LIN, NONE) => raise ExnCtx joinerr
 				| (NONE, SOME AFF) => NONE
 				| (SOME AFF, NONE) => NONE
 				| (SOME INT, SOME INT) => SOME INT

@@ -54,15 +54,18 @@ fun appDecl fk ft fo (ConstDecl (_, _, Ki ki)) = fk ki
 fun isQuery (Query _) = true
   | isQuery _ = false
 
-fun declToStr (ConstDecl (id, _, _)) = "declaration of " ^ id
-  | declToStr (TypeAbbrev (id, _)) = "declaration of " ^ id
-  | declToStr (ObjAbbrev (id, _, _)) = "declaration of " ^ id
-  | declToStr (Query _) = "query"
+fun declToStr (linenum, dec) =
+	let val decstr = case dec of
+			  ConstDecl (id, _, _) => "declaration of " ^ id
+			| TypeAbbrev (id, _) => "declaration of " ^ id
+			| ObjAbbrev (id, _, _) => "declaration of " ^ id
+			| Query _ => "query"
+	in decstr ^ " on line " ^ Int.toString linenum end
 
 exception ExnDeclError
 
 (* reconstructDecl : int * decl -> unit *)
-fun reconstructDecl (linenum, dec) =
+fun reconstructDecl (ldec as (_, dec)) =
 		let val () = ImplicitVars.resetUCTable ()
 			val dec = mapDecl ApproxTypes.apxCheckKindEC
 			                  ApproxTypes.apxCheckTypeEC
@@ -176,13 +179,16 @@ fun reconstructDecl (linenum, dec) =
 			val () = if isQuery dec then () else Signatur.sigAddDecl dec
 		in () end handle
 		  ApproxTypes.ExnApxUnify s =>
-			( print ("Type mismatch in " ^ declToStr dec ^
-					" on line " ^ Int.toString linenum ^ "\n")
+			( print ("Type mismatch in " ^ declToStr ldec ^ "\n")
 			; raise ExnDeclError )
-		(*| ExnCtx s =>*)
+		| ApproxTypes.ExnKindError s =>
+			( print ("Kind-checking failed in " ^ declToStr ldec ^ ":\n" ^ s ^ "\n")
+			; raise ExnDeclError )
+		| Context.ExnCtx s =>
+			( print ("Typing failed in " ^ declToStr ldec ^ ":\n" ^ s ^ "\n")
+			; raise ExnDeclError )
 		| Unify.ExnUnify s =>
-			( print ("Type mismatch in " ^ declToStr dec ^
-					" on line " ^ Int.toString linenum ^ "\n")
+			( print ("Type mismatch in " ^ declToStr ldec ^ "\n")
 			; raise ExnDeclError )
 		(*| ExnConv s =>*)
 

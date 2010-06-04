@@ -162,7 +162,7 @@ fun etaExpand (A, H, S) =
 				let val (p, Mf) = etaSyncType S
 				in Monad' (Let' (p, addEtaSpine (n, Sf), Mon' $ Mf 1)) end
 			| ApxTAtomic _ => Atomic' $ addEtaSpine (n, Sf)
-			| ApxTAbbrev _ => raise Fail "Internal error eta': ApxTAbbrev cannot happen\n"
+			| ApxTAbbrev _ => raise Fail "Internal error: eta': ApxTAbbrev cannot happen"
 			| ApxTLogicVar _ => raise Fail "Ambiguous typing\n"
 		val etaResult = eta' (A, 0, fn (n, S) => S)
 	in case H of
@@ -209,7 +209,7 @@ and etaExpandTypeSpine (ctx, sp, ki) = case (TypeSpine.prj sp, ApxKind.prj ki) o
 	  (TNil, ApxType) => TNil'
 	| (TApp (N, S), ApxKPi (A, K)) =>
 			TApp' (etaExpandObj (ctx, N, A), etaExpandTypeSpine (ctx, S, K))
-	| _ => raise Fail "Internal error etaExpandTypeSpine: Match\n"
+	| _ => raise Fail "Internal error: etaExpandTypeSpine match"
 
 (* etaExpandSyncType : context * syncType -> syncType *)
 and etaExpandSyncType (ctx, ty) = case SyncType.prj ty of
@@ -242,7 +242,7 @@ and etaExpandObj' (ctx, ob, ty) = case (Obj.prj ob, Util.apxTypePrjAbbrev ty) of
 			in etaExpand (ty, H', #1 $ etaExpandSpine (ctx, S, A)) end
 	| (Redex (N, A, S), _) => Redex' (etaExpandObj (ctx, N, A), A, #1 $ etaExpandSpine (ctx, S, A))
 	| (Constraint (N, A), _) => Constraint' (etaExpandObj (ctx, N, ty), etaExpandType (ctx, A))
-	| _ => raise Fail "Internal error etaExpandObj: Match\n"
+	| _ => raise Fail "Internal error: etaExpandObj match"
 
 (* etaExpandHead : context * head -> head * apxAsyncType *)
 and etaExpandHead (ctx, h) = case h of
@@ -250,7 +250,7 @@ and etaExpandHead (ctx, h) = case h of
 	| Var (_, n) => (h, #3 (ctxLookupNum (ctx, n)))
 	| UCVar x => (h, asyncTypeToApx (ImplicitVars.ucLookup x))
 	| LogicVar X =>
-			let val () = if Subst.isId (#s X) then () else raise Fail "Internal error eta lvar"
+			let val () = if Subst.isId (#s X) then () else raise Fail "Internal error: eta lvar"
 				val A = etaExpandType (ctx, #ty X)
 			in (LogicVar (X with'ty A), asyncTypeToApx A) end
 
@@ -273,7 +273,7 @@ and etaExpandSpine (ctx, sp, ty) = case (Spine.prj sp, Util.apxTypePrjAbbrev ty)
 			map1 (fn sp => LApp' (etaExpandMonadObj (ctx, N, A), sp)) (etaExpandSpine (ctx, S, B))
 	| (ProjLeft S, ApxAddProd (A, B)) => map1 ProjLeft' (etaExpandSpine (ctx, S, A))
 	| (ProjRight S, ApxAddProd (A, B)) => map1 ProjRight' (etaExpandSpine (ctx, S, B))
-	| _ => raise Fail "Internal error etaExpandSpine: Match\n"
+	| _ => raise Fail "Internal error: etaExpandSpine match"
 
 (* etaExpandExp : context * expObj * apxSyncType -> expObj *)
 and etaExpandExp (ctx, ex, ty) = case ExpObj.prj ex of
@@ -298,7 +298,7 @@ and etaExpandMonadObj (ctx, mob, ty) = case (MonadObj.prj mob, ApxSyncType.prj t
 	| (Down N, ApxTDown A) => Down' (etaExpandObj (ctx, N, A))
 	| (Affi N, ApxTAffi A) => Affi' (etaExpandObj (ctx, N, A))
 	| (Bang N, ApxTBang A) => Bang' (etaExpandObj (ctx, N, A))
-	| _ => raise Fail "Internal error etaExpandMonadObj: Match" (* includes MonUndef *)
+	| _ => raise Fail "Internal error: etaExpandMonadObj match" (* includes MonUndef *)
 
 fun etaExpandKindEC ki = etaExpandKind (emptyCtx, ki)
 fun etaExpandTypeEC ty = etaExpandType (emptyCtx, ty)

@@ -99,7 +99,7 @@ fun genMon (ctx : context, p, sty) =
 			| (PBang (SOME x), TBang A) =>
 				let val X = newLVarCtx (getIntCtx ()) A
 					val () = case Obj.prj X of Atomic (h, _) => Unify.pruneLVar $ normalizeHead h
-							| _ => raise Fail "internal error: lvar expected"
+							| _ => raise Fail "Internal error: lvar expected"
 				in Bang' X end
 			| _ => raise Fail "Internal error: genMon"
 		fun gen' sty = case SyncType.prj sty of
@@ -137,7 +137,7 @@ and solve' (ctx, ty, sc) = case Util.typePrjAbbrev ty of
 					ctxAddJoin (ctxo1, ctxJoinAffLin (ctxo2, ctxo1)))))
 	| TMonad S => forwardChain (!fcLimit, ctx, S, fn (E, ctxo) => sc (Monad' E, ctxo))
 	| P as TAtomic _ => matchAtom (ctx, P, sc)
-	| TAbbrev _ => raise Fail "Internal error solve: TAbbrev\n"
+	| TAbbrev _ => raise Fail "Internal error: solve: TAbbrev\n"
 
 (* matchAtom : (lcontext * context) * asyncType asyncTypeF * (obj * context -> unit) -> unit *)
 (* Choice point: choose hypothesis and switch from Right Inversion to Left Focusing *)
@@ -258,10 +258,10 @@ and leftFocus' (lr, (l, ctx), P, ty, sc) = case Util.typePrjAbbrev ty of
 			fn (M, ctxo) => sc (LApp' (M, S), ctxo)))
 		end
 	| AddProd (A, B) => (case lr of
-			  [] => raise Fail "LR-oracle is out of answers! Internal error!\n"
+			  [] => raise Fail "Internal error: LR-oracle is out of answers"
 			| L::lrs => leftFocus (lrs, (l, ctx), P, A, fn (S, ctxo) => sc (ProjLeft' S, ctxo))
 			| R::lrs => leftFocus (lrs, (l, ctx), P, B, fn (S, ctxo) => sc (ProjRight' S, ctxo)))
-	| TMonad S => raise Fail "Internal error: leftFocus applied to monadic hypothesis!\n"
+	| TMonad S => raise Fail "Internal error: leftFocus applied to monadic hypothesis!"
 	| P' as TAtomic _ =>
 				(*if l=[] andalso Unify.unifiable (AsyncType.inj P', P)
 				then
@@ -273,7 +273,7 @@ and leftFocus' (lr, (l, ctx), P, ty, sc) = case Util.typePrjAbbrev ty of
 						(* if !allowConstr then () else Unify.noConstrs ()
 						; sc (Nil', ctx) *)
 				else ()
-	| TAbbrev _ => raise Fail "Internal error leftFocus: TAbbrev\n"
+	| TAbbrev _ => raise Fail "Internal error: leftFocus: TAbbrev\n"
 
 (* monLeftFocus : lr list * context * asyncType * (spine * syncType * context -> unit) -> unit *)
 and monLeftFocus (lr, ctx, ty, sc) =
@@ -289,14 +289,14 @@ and monLeftFocus' (lr, ctx, ty, sc) = case Util.typePrjAbbrev ty of
 					fn (S, sty, ctxo) => sc (LApp' (M, S), sty, ctxo)))
 			end
 	| AddProd (A, B) => (case lr of
-			  [] => raise Fail "LR-oracle is out of answers! Internal error!\n"
+			  [] => raise Fail "Internal error: LR-oracle is out of answers!"
 			| L::lrs => monLeftFocus (lrs, ctx, A,
 				fn (S, sty, ctxo) => sc (ProjLeft' S, sty, ctxo))
 			| R::lrs => monLeftFocus (lrs, ctx, B,
 				fn (S, sty, ctxo) => sc (ProjRight' S, sty, ctxo)))
 	| TMonad sty => sc (Nil', sty, ctx)
 	| TAtomic _ => raise Fail "Internal error: monLeftFocus applied to wrong hypothesis!\n"
-	| TAbbrev _ => raise Fail "Internal error monLeftFocus: TAbbrev\n"
+	| TAbbrev _ => raise Fail "Internal error: monLeftFocus: TAbbrev\n"
 
 
 (* solveEC : asyncType * (obj -> unit) -> unit *)

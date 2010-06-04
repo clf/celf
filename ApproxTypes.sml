@@ -30,6 +30,7 @@ val traceApx = ref false
 type context = apxAsyncType Context.context
 
 exception ExnApxUnify of string
+exception ExnKindError of string
 
 (* ucase : string -> bool *)
 fun ucase x = (*x<>"" andalso Char.isUpper (String.sub (x, 0))*)
@@ -126,8 +127,8 @@ and apxCheckType' (ctx, ty) = if isUnknown ty then ty else case AsyncType.prj ty
 (* checks that the spine is : ki > Type *)
 and apxCheckTypeSpine (ctx, sp, ki) = case (TypeSpine.prj sp, ApxKind.prj ki) of
 	  (TNil, ApxType) => TNil'
-	| (TNil, ApxKPi _) => raise Fail "Wrong kind; expected Type\n"
-	| (TApp _, ApxType) => raise Fail "Wrong kind; cannot apply Type\n"
+	| (TNil, ApxKPi _) => raise ExnKindError "Type is not well-kinded; expected Type\n"
+	| (TApp _, ApxType) => raise ExnKindError "Type is not well-kinded; cannot apply Type\n"
 	| (TApp (N, S), ApxKPi (A, K)) =>
 			let val (_, N') = apxCheckObj (ctx, N, A)
 			in TApp' (N', apxCheckTypeSpine (ctx, S, K)) end
@@ -208,8 +209,8 @@ and apxInferHead (ctx, h) = case h of
 						  SOME (ob, ty) => (ctx, INR ob, 0, asyncTypeToApx ty)
 						| NONE => (ctx, INL (Const c), Signatur.getImplLength c,
 							asyncTypeToApx (Signatur.sigLookupType c))))
-	| Var _ => raise Fail "de Bruijn indices shouldn't occur yet\n"
-	| UCVar _ => raise Fail "Upper case variables shouldn't occur yet\n"
+	| Var _ => raise Fail "Internal error: de Bruijn indices shouldn't occur yet\n"
+	| UCVar _ => raise Fail "Internal error: Upper case variables shouldn't occur yet\n"
 	| X as LogicVar {ty, ...} => (ctx, INL X, 0, asyncTypeToApx ty)
 
 (* apxInferSpine : bool * context * spine * apxAsyncType * (spine -> string)

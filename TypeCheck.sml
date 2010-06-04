@@ -43,7 +43,7 @@ and checkType (ctx, ty) = case Util.nfTypePrjAbbrev ty of
 	| AddProd (A, B) => (checkType (ctx, A); checkType (ctx, B))
 	| TMonad S => checkSyncType (ctx, S)
 	| TAtomic (a, S) => checkTypeSpine (ctx, S, normalizeKind (Signatur.sigLookupKind a))
-	| _ => raise Fail "Type mismatch in checkType"
+	| _ => raise Fail "Internal error: checkType match"
 
 and checkTypeSpine (ctx, sp, ki) = case (NfTypeSpine.prj sp, NfKind.prj ki) of
 	  (TNil, Type) => ()

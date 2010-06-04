@@ -27,7 +27,7 @@ struct
 	open Context
 	open Syn infix with's
 
-	fun assertLin b = if b then () else raise Fail "Linearity substitution mismatch"
+	fun assertLin b = if b then () else raise Fail "Internal error: Linearity substitution mismatch"
 	fun isUndef Undef = true
 	  | isUndef _ = false
 
@@ -35,10 +35,10 @@ struct
 	  | domMult INT4LIN (Ob (INT, N)) = Ob (LIN, N)
 	  | domMult AFF4LIN (Ob (AFF, N)) = Ob (LIN, N)
 	  | domMult INT4AFF (Ob (INT, N)) = Ob (AFF, N)
-	  | domMult _ (Ob (_, _)) = raise Fail "Linearity substitution mismatch"
+	  | domMult _ (Ob (_, _)) = raise Fail "Internal error: Linearity substitution mismatch"
 	  | domMult M (Idx (ID, n)) = Idx (M, n)
 	  | domMult AFF4LIN (Idx (INT4AFF, n)) = Idx (INT4LIN, n)
-	  | domMult _ (Idx (_, _)) = raise Fail "Linearity substitution mismatch"
+	  | domMult _ (Idx (_, _)) = raise Fail "Internal error: Linearity substitution mismatch"
 	  | domMult _ Undef = Undef
 
 	fun Clos' (Ob (m, N), t) = Ob (m, NfClos (N, t))
@@ -69,7 +69,7 @@ struct
 	  | headSub (Var (LIN, 1), Dot (Idx (INT4LIN, n), s)) = INL (Var (INT, n))
 	  | headSub (Var (LIN, 1), Dot (Idx (AFF4LIN, n), s)) = INL (Var (AFF, n))
 	  | headSub (Var (AFF, 1), Dot (Idx (INT4AFF, n), s)) = INL (Var (INT, n))
-	  | headSub (Var (_, 1), Dot (Idx (_, n), s)) = raise Fail "Linearity mismatch"
+	  | headSub (Var (_, 1), Dot (Idx (_, n), s)) = raise Fail "Internal error: Linearity mismatch"
 	  | headSub (Var (M, 1), Dot (Ob (M', N), s)) = (assertLin (M=M') ; INR N)
 	  | headSub (Var (_, 1), Dot (Undef, s)) = raise ExnUndef
 	  | headSub (Var (M, n), Dot (_, s)) = headSub (Var (M, n-1), s)
@@ -186,7 +186,7 @@ struct
 	  | map f (Shift n) = Shift n
 
 	fun hdDef (Dot (Undef, _)) = false
-	  | hdDef (Dot (Ob _, _)) = raise Fail "Internal error hdDef: not patSub\n"
+	  | hdDef (Dot (Ob _, _)) = raise Fail "Internal error: hdDef: not patSub\n"
 	  | hdDef (Dot (Idx _, _)) = true
 	  | hdDef (Shift _) = true
 
@@ -225,7 +225,7 @@ struct
 			  | modeMult INT4LIN LIN = INT
 			  | modeMult INT4AFF AFF = INT
 			  | modeMult AFF4LIN LIN = AFF
-			  | modeMult _ _ = raise Fail "Linearity mismatch in intersection"
+			  | modeMult _ _ = raise Fail "Internal error: Linearity mismatch in intersection"
 			fun eq (Idx (M1, n), Idx (M2, m)) = (assertLin (M1=M2 orelse n<>m) ; n=m)
 			  | eq (Idx (m, n), Ob (M, N)) =
 					(conv (INL (modeMult m M, n), N) handle ExnUndef => false)
@@ -257,11 +257,11 @@ struct
 	fun modeDiv INT INT = ID (* modeDiv also used in Syntax.sml *)
 	  | modeDiv INT AFF = INT4AFF
 	  | modeDiv INT LIN = INT4LIN
-	  | modeDiv AFF INT = raise Fail "Linearity mismatch patSub"
+	  | modeDiv AFF INT = raise Fail "Internal error: Linearity mismatch patSub"
 	  | modeDiv AFF AFF = ID
 	  | modeDiv AFF LIN = AFF4LIN
-	  | modeDiv LIN INT = raise Fail "Linearity mismatch patSub"
-	  | modeDiv LIN AFF = raise Fail "Linearity mismatch patSub"
+	  | modeDiv LIN INT = raise Fail "Internal error: Linearity mismatch patSub"
+	  | modeDiv LIN AFF = raise Fail "Internal error: Linearity mismatch patSub"
 	  | modeDiv LIN LIN = ID
 	fun modeInvDiv m1 m2 = modeDiv m2 m1
 
@@ -281,7 +281,7 @@ struct
 	 *    (INT4AFF, n) in p => G_n is INT and G'_n is AFF
 	 *    (AFF4LIN, n) in p => G_n is AFF and G'_n is LIN
 	 *)
-	fun patSub checkExists etaContract s' = (* FIXME: domCtx may not be necessary after top died? *)
+	fun patSub checkExists etaContract s' =
 		let exception ExnPatSub
 			fun etaContr N = case checkExists N of
 				  (_, false) => raise ExnPatSub

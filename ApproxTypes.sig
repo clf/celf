@@ -26,6 +26,7 @@ type context
 val emptyCtx : context
 
 exception ExnApxUnify of string
+exception ExnKindError of string
 
 val occur : Syntax.typeLogicVar -> Syntax.apxAsyncType -> unit
 val apxUnifyType : Syntax.apxAsyncType * Syntax.apxAsyncType -> unit

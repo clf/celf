@@ -239,7 +239,7 @@ fun synthSpine ctx sp ty = case (NfSpine.prj sp, Util.nfTypePrjAbbrev ty) of
 		synthSpine (ctxSubList ctx (occurMonadObj M)) S (NfTClos (B, Subst.subM M))
 	| (ProjLeft S, AddProd (A, _)) => synthSpine ctx S A
 	| (ProjRight S, AddProd (_, B)) => synthSpine ctx S B
-	| _ => raise Fail "Internal error match: synthSpine\n"
+	| _ => raise Fail "Internal error: synthSpine match\n"
 fun synthAtomic ctx (H, S) =
 	let val (ctx1, ty1) = synthHead ctx H
 	in synthSpine ctx1 S ty1 end
@@ -421,7 +421,7 @@ fun pruneLVar (LogicVar {X, ty, ctx=ref (SOME G), cnstr, tag, ...}) =
 		val G' = SOME $ pruneCtx (Fail "pruneLVar:pruning lin") (fn A => A) ss G
 		val ty' = NfTClos (ty, ss)
 	in instantiate (X, NfClos (newNfLVarCtx G' ty', weakenSub), cnstr, tag) end end
-  | pruneLVar _ = raise Fail "internal error: pruneLVar: no lvar"
+  | pruneLVar _ = raise Fail "Internal error: pruneLVar: no lvar"
 
 (* linPrune : nfObj * (subMode * int) list -> nfObj option *)
 (* tries to solve X[lcs2sub pl] = ob by linearity pruning,
@@ -461,7 +461,7 @@ fun linPrune (ob, pl) =
 				let val (occ, s1, s2) = f n m o1 o2
 					val (occs, s1', s2') = occMap f (p, occ1, occ2)
 				in (occ::occs, Subst.comp (s1, s1'), Subst.comp (s2, s2')) end
-		  | occMap _ _ = raise Fail "internal error: additiveOccs: Unequal lengths"
+		  | occMap _ _ = raise Fail "Internal error: additiveOccs: Unequal lengths"
 		val additiveOccs = occMap additiveOcc
 		val multOccs = occMap multOcc
 		fun pClos clo n s N = if Subst.isId s then N else
@@ -624,20 +624,20 @@ fun unifyType (ty1, ty2) = case (Util.nfTypePrjAbbrev ty1, Util.nfTypePrjAbbrev 
 	| (AddProd (A1, B1), AddProd (A2, B2)) => (unifyType (A1, A2); unifyType (B1, B2))
 	| (TMonad S1, TMonad S2) => unifySyncType (S1, S2)
 	| (TAtomic (a1, S1), TAtomic (a2, S2)) =>
-			if a1 <> a2 then raise Fail (a1^" and "^a2^" differ; shouldn't happen")
+			if a1 <> a2 then raise Fail ("Internal error: "^a1^" and "^a2^" differ")
 			else unifyTSpine (S1, S2)
-	| (A1, A2) => raise Fail "Error shouldn't happen: unifyType\n"
+	| (A1, A2) => raise Fail "Internal error: unifyType\n"
 and unifySyncType (ty1, ty2) = case (NfSyncType.prj ty1, NfSyncType.prj ty2) of
 	  (LExists (_, S1, T1), LExists (_, S2, T2)) => (unifySyncType (S1, S2); unifySyncType (T1, T2))
 	| (TOne, TOne) => ()
 	| (TDown A1, TDown A2) => unifyType (A1, A2)
 	| (TAffi A1, TAffi A2) => unifyType (A1, A2)
 	| (TBang A1, TBang A2) => unifyType (A1, A2)
-	| (S1, S2) => raise Fail "Error shouldn't happen: unifySyncType\n"
+	| (S1, S2) => raise Fail "Internal error: unifySyncType\n"
 and unifyTSpine (sp1, sp2) = case (NfTypeSpine.prj sp1, NfTypeSpine.prj sp2) of
 	  (TNil, TNil) => ()
 	| (TApp (N1, S1), TApp (N2, S2)) => (unifyObj NONE (N1, N2); unifyTSpine (S1, S2))
-	| (S1, S2) => raise Fail "Error shouldn't happen: unifyTSpine\n"
+	| (S1, S2) => raise Fail "Internal error: unifyTSpine\n"
 and unifyObj dryRun (ob1, ob2) =
 	(* In the case of two equal LVars, the lowering of ob1 affects the whnf of ob2 *)
 	let val ob1' = lowerObj (NfObj.prj ob1)
@@ -1006,7 +1006,7 @@ and matchHeadInLet (hS, E) =
 			| _ => raise Fail "Internal error: matchHeadInLet\n"
 	in matchHead (hS, fn _ => fn e => e, 0, E, E, None 1) end
 and matchHeadInLetFixedPos (q, hS, E, pos) =
-	let val () = if isLVar hS then raise Fail "internal error: mHILFP: lvar1" else ()
+	let val () = if isLVar hS then raise Fail "Internal error: mHILFP: lvar1" else ()
 		fun matchHead (hS, e, nbe, E, pos) = case NfExpObj.prj E of
 			  NfLet (p, N, E') =>
 				let val nbp = nbinds p
@@ -1016,7 +1016,7 @@ and matchHeadInLetFixedPos (q, hS, E, pos) =
 								let val s' = Subst.dotn nbe s
 								in e s (NfLet' (p, AtClos (N, s'), E)) end
 					val () = if pos > 1 andalso isLVar N then
-								raise Fail "internal error: mHILFP: lvar2" else ()
+								raise Fail "Internal error: mHILFP: lvar2" else ()
 				in if pos = 1 then if isLVar N then
 					let val (X as {s, ctx=ref G, ...}) = invLVar N
 						val (p', s') = valOf $ patSub s (*ctxMap nfAsyncTypeToApx (valOf G)*)
@@ -1030,11 +1030,11 @@ and matchHeadInLetFixedPos (q, hS, E, pos) =
 					; e (Subst.shift nbp) (NfEClos (E', Subst.switchSub (nbp, nbe))) )
 				else matchHead (hS' (), e', nbe + nbp, E', pos - 1)
 				end
-			| NfMon _ => raise Fail "internal error: mHILFP: wrong pos"
+			| NfMon _ => raise Fail "Internal error: mHILFP: wrong pos"
 	in matchHead (hS, fn _ => fn e => e, 0, E, pos) end
 
 fun matchHeadInLetBranch (same, q, hS, E, sc) =
-	let val () = if isLVar hS then raise Fail "internal error: mHILBranch: lvar" else ()
+	let val () = if isLVar hS then raise Fail "Internal error: mHILBranch: lvar" else ()
 		fun matchHead (hS, e, nbe, E) = case lowerExp $ NfExpObj.prj E of
 			  NfLet (p, N, E') =>
 				let val nbp = nbinds p

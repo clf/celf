@@ -54,8 +54,8 @@ and checkType' (ctx, ty) = case AsyncType.prj ty of
 (* checks that the spine is : ki > Type *)
 and checkTypeSpine (ctx, sp, ki) = case (TypeSpine.prj sp, Kind.prj ki) of
 	  (TNil, Type) => ()
-	| (TNil, KPi _) => raise Fail "Wrong kind; expected Type\n"
-	| (TApp _, Type) => raise Fail "Wrong kind; cannot apply Type\n"
+	| (TNil, KPi _) => raise ApproxTypes.ExnKindError "Type is not well-kinded; expected Type\n"
+	| (TApp _, Type) => raise ApproxTypes.ExnKindError "Type is not well-kinded; cannot apply Type\n"
 	| (TApp (N, S), KPi (x, A, K)) =>
 			let val _ = checkObj (ctx, N, A)
 				val K' = if isSome x then KClos (K, Subst.subI $ normalizeObj N) else K 
@@ -107,14 +107,14 @@ and checkObj' (ctx, ob, ty) = case (Obj.prj ob, Util.typePrjAbbrev ty) of
 							^"\nbut expected:\n"^(PrettyPrint.printType ty)
 				val () = unify (AsyncType.inj A, A', errmsg)
 			in checkObj (ctx, N, A') end
-	| _ => raise Fail "Internal error match: checkObj\n"
+	| _ => raise Fail "Internal error: checkObj match\n"
 
 (* inferHead : context * head -> context * asyncType *)
 and inferHead (ctx, h) = case h of
 	  Const c => (ctx, Signatur.sigLookupType c)
 	| Var (m, n) =>
 			let val (ctxo, m', A) = ctxLookupNum (ctx, n)
-				val () = if m=m' then () else raise Fail "Linearity mismatch"
+				val () = if m=m' then () else raise Fail "Internal error: Linearity mismatch"
 			in (ctxo, TClos (A, Subst.shift n)) end
 	| UCVar x =>
 			(ctx, TClos (ImplicitVars.ucLookup x, Subst.shift $ length $ ctx2list ctx))
