@@ -39,7 +39,7 @@ fun rewind () = case pop () of
 fun eraseMarks' 0 tacc t = trail := List.revAppend (tacc, t)
   | eraseMarks' n tacc (Mark::t) = eraseMarks' (n-1) tacc t
   | eraseMarks' n tacc (tp::t) = eraseMarks' n (tp::tacc) t
-  | eraseMarks' _ _ [] = raise Fail "Internal error: eraseMarks'\n"
+  | eraseMarks' _ _ [] = raise Fail "Internal error: eraseMarks'"
 
 fun eraseMarks n = (eraseMarks' (!nMarks - n) [] (!trail); nMarks := n)
 

@@ -59,7 +59,7 @@ fun use _ (SOME INT) = SOME INT
 
 (* ctxLookupNum : 'a context * int -> 'a context * mode * 'a *)
 fun ctxLookupNum (ctx, n) =
-	let fun ctxLookup' (i, ctxfront, []) = raise Fail "Internal error: End of context\n"
+	let fun ctxLookup' (i, ctxfront, []) = raise Fail "Internal error: End of context"
 		  | ctxLookup' (1, ctxfront, (x, A, f)::ctx) = (* getOpt = valOf because of "use" *)
 				(List.revAppend (ctxfront, (x, A, use x f)::ctx), getOpt (f, LIN), A)
 		  | ctxLookup' (i, ctxfront, c::ctx) = ctxLookup' (i-1, c::ctxfront, ctx)
@@ -105,7 +105,7 @@ fun addJoin ((x, A, f1), (_, _, f2)) =
 				| (SOME INT, SOME INT) => SOME INT
 				| (SOME AFF, SOME AFF) => SOME AFF
 				| (SOME LIN, SOME LIN) => SOME LIN
-				| _ => raise Fail "Internal error: context misalignment\n"
+				| _ => raise Fail "Internal error: context misalignment"
 	in (x, A, f) end
 
 (* ctxAddJoin : 'a context * 'a context -> 'a context *)
@@ -122,7 +122,7 @@ fun joinAffLin ((x, A, f1), (_, _, f2)) =
 				| (SOME AFF, SOME AFF) => SOME AFF
 				| (SOME INT, SOME INT) => SOME INT
 				| (SOME AFF, NONE) => SOME AFF
-				| _ => raise Fail "Internal error joinAffLin: context misalignment\n"
+				| _ => raise Fail "Internal error joinAffLin: context misalignment"
 	in (x, A, f) end
 
 (* ctxJoinAffLin : 'a context * 'a context -> 'a context *)

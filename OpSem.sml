@@ -137,7 +137,7 @@ and solve' (ctx, ty, sc) = case Util.typePrjAbbrev ty of
 					ctxAddJoin (ctxo1, ctxJoinAffLin (ctxo2, ctxo1)))))
 	| TMonad S => forwardChain (!fcLimit, ctx, S, fn (E, ctxo) => sc (Monad' E, ctxo))
 	| P as TAtomic _ => matchAtom (ctx, P, sc)
-	| TAbbrev _ => raise Fail "Internal error: solve: TAbbrev\n"
+	| TAbbrev _ => raise Fail "Internal error: solve: TAbbrev"
 
 (* matchAtom : (lcontext * context) * asyncType asyncTypeF * (obj * context -> unit) -> unit *)
 (* Choice point: choose hypothesis and switch from Right Inversion to Left Focusing *)
@@ -148,7 +148,7 @@ and matchAtom (ctx, P, sc) =
 	; matchAtom' (ctx, P, sc) )
 and matchAtom' (ctx, P, sc) =
 	let val aP = (case P of TAtomic (a, _) => a
-					| _ => raise Fail "Internal error: wrong argument to matchAtom!\n")
+					| _ => raise Fail "Internal error: wrong argument to matchAtom!")
 		val P' = AsyncType.inj P
 		fun lFocus (ctx', lr, A, h) = fn () =>
 					( traceLeftFocus (h, A)
@@ -273,7 +273,7 @@ and leftFocus' (lr, (l, ctx), P, ty, sc) = case Util.typePrjAbbrev ty of
 						(* if !allowConstr then () else Unify.noConstrs ()
 						; sc (Nil', ctx) *)
 				else ()
-	| TAbbrev _ => raise Fail "Internal error: leftFocus: TAbbrev\n"
+	| TAbbrev _ => raise Fail "Internal error: leftFocus: TAbbrev"
 
 (* monLeftFocus : lr list * context * asyncType * (spine * syncType * context -> unit) -> unit *)
 and monLeftFocus (lr, ctx, ty, sc) =
@@ -295,8 +295,8 @@ and monLeftFocus' (lr, ctx, ty, sc) = case Util.typePrjAbbrev ty of
 			| R::lrs => monLeftFocus (lrs, ctx, B,
 				fn (S, sty, ctxo) => sc (ProjRight' S, sty, ctxo)))
 	| TMonad sty => sc (Nil', sty, ctx)
-	| TAtomic _ => raise Fail "Internal error: monLeftFocus applied to wrong hypothesis!\n"
-	| TAbbrev _ => raise Fail "Internal error: monLeftFocus: TAbbrev\n"
+	| TAtomic _ => raise Fail "Internal error: monLeftFocus applied to wrong hypothesis!"
+	| TAbbrev _ => raise Fail "Internal error: monLeftFocus: TAbbrev"
 
 
 (* solveEC : asyncType * (obj -> unit) -> unit *)

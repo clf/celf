@@ -189,6 +189,9 @@ datatype decl = ConstDecl of string * int * typeOrKind
 	| ObjAbbrev of string * asyncType * obj
 	| Query of int option * int option * int option * int * asyncType
 
+datatype declError = TypeErr | KindErr | AmbigType | UndeclId
+exception ExnDeclError of declError * string
+
 type 'ki nfKindF = (nfAsyncType, 'ki) kindFF
 type 'aTy nfAsyncTypeF = (nfTypeSpine, nfSyncType, 'aTy) asyncTypeFF
 type 'tyS nfTypeSpineF = (nfObj, 'tyS) typeSpineFF
@@ -358,7 +361,7 @@ struct
 	  | Fmap' _ ((g1, g2), f) (TAtomic (a, ts)) = TAtomic (a, g1 a ts)
 	  | Fmap' _ (g, f) (TAbbrev (a, A)) = TAbbrev (a, f A)
 	fun Fmap ((g1, g2), f) a = Fmap' (fn x => x) ((fn _ => g1, g2), f) a 
-	fun prjApx (TLogicVar (ref NONE, _)) = raise Fail "Ambiguous typing\n"
+	fun prjApx (TLogicVar (ref NONE, _)) = raise Fail "Ambiguous typing"
 	  | prjApx (TLogicVar (ref (SOME a), _)) = prjApx a
 	  | prjApx (TClos (a, _)) = prjApx a
 	  | prjApx (Apx a) = prjApx a
@@ -367,10 +370,10 @@ struct
 	fun prj (FixAsyncType a) = (*HashCons.nd*) a
 	  | prj (TClos (TClos (a, s'), s)) = prj (TClos (a, Subst1.comp (s', s)))
 	  | prj (TClos (FixAsyncType a, s)) = Subst1.subType ((*HashCons.nd*) a, s)
-	  | prj (TClos (TLogicVar (ref NONE, _), _)) = raise Fail "Ambiguous typing\n"
+	  | prj (TClos (TLogicVar (ref NONE, _), _)) = raise Fail "Ambiguous typing"
 	  | prj (TClos (TLogicVar (ref (SOME a), _), s)) = Subst1.subType (prjApx a, s)
 	  | prj (TClos (Apx a, s)) = Subst1.subType (prjApx a, s)
-	  | prj (TLogicVar (ref NONE, _)) = raise Fail "Ambiguous typing\n"
+	  | prj (TLogicVar (ref NONE, _)) = raise Fail "Ambiguous typing"
 	  | prj (TLogicVar (ref (SOME a), _)) = prjApx a
 	  | prj (Apx a) = prjApx a
 end
@@ -473,7 +476,7 @@ struct
 		| (Atomic (H, S1), S2) => Atomic (H, Spine.appendSpine (S1, Spine.inj S2))
 		| (Redex (N, A, S1), S2) => Redex (N, A, Spine.appendSpine (S1, Spine.inj S2))
 		| (Constraint (N, A), S) => intRedex (N, Spine.inj S)
-		| _ => raise Fail "Internal error: intRedex\n"
+		| _ => raise Fail "Internal error: intRedex"
 	fun Fmap (g, f) (LLam (p, N)) = (LLam (p, f N))
 	  | Fmap (g, f) (AddPair (N1, N2)) = (AddPair (f N1, f N2))
 	  | Fmap ((g1, g2, g3), f) (Monad E) = Monad (g3 E)
@@ -800,7 +803,7 @@ and foldApxSyncType fs x = ApxSyncTypeRec.fold (foldApxType fs) (#fsTy fs) x
 val apxCopyFfs = {fki = ApxKind.inj, faTy = ApxAsyncType.inj o cpLVar, fsTy = ApxSyncType.inj}*)
 
 (* updLVar : typeLogicVar * apxAsyncType -> unit *)
-fun updLVar ((ref (SOME _), _), _) = raise Fail "typeLogicVar already updated\n"
+fun updLVar ((ref (SOME _), _), _) = raise Fail "Internal error: typeLogicVar already updated"
   | updLVar ((X as ref NONE, _), A) = X := SOME A (*(foldApxType apxCopyFfs A)*)
   (*| updLVar (ref (NON L), A) = app (fn X => X := SOM (foldApxType apxCopyFfs A)) (!L)*)
 

@@ -33,18 +33,18 @@ fun getKiTyOpt c =
 	case peek (!sigTable, c) of
 		NONE => NONE
 	  | SOME (ConstDecl (_, imps, kity)) => SOME (imps, kity)
-	  | SOME _ => raise Fail "Internal error: getKiTy called on abbrev\n"
+	  | SOME _ => raise Fail "Internal error: getKiTy called on abbrev"
 
 fun getKiTy c = case getKiTyOpt c of
-	  NONE => raise Fail ("Undeclared identifier: "^c^"\n")
+	  NONE => raise ExnDeclError (UndeclId, c)
 	| SOME x => x
 
 fun getType c = case getKiTy c of
 	  (imps, Ty ty) => (imps, ty)
-	| (_, Ki _) => raise Fail ("Type "^c^" is used as an object\n")
+	| (_, Ki _) => raise Fail ("Type "^c^" is used as an object")
 
 fun getKind a = case getKiTy a of
-	  (_, Ty _) => raise Fail ("Object "^a^" is used as a type\n")
+	  (_, Ty _) => raise Fail ("Object "^a^" is used as a type")
 	| (imps, Ki ki) => (imps, ki)
 
 (* newImplicits implicits -> obj list *)
@@ -58,12 +58,12 @@ fun getKind a = case getKiTy a of
 fun idFromDecl (ConstDecl (s, _, _)) = s
   | idFromDecl (TypeAbbrev (s, _)) = s
   | idFromDecl (ObjAbbrev (s, _, _)) = s
-  | idFromDecl (Query _) = raise Fail "Internal error: Adding query to sig table\n"
+  | idFromDecl (Query _) = raise Fail "Internal error: Adding query to sig table"
 
 fun declSetId id (ConstDecl (_, imps, kity)) = ConstDecl (id, imps, kity)
   | declSetId id (TypeAbbrev (_, ty)) = TypeAbbrev (id, ty)
   | declSetId id (ObjAbbrev (_, ty, ob)) = ObjAbbrev (id, ty, ob)
-  | declSetId id (Query _) = raise Fail "Internal error: Adding query to sig table\n"
+  | declSetId id (Query _) = raise Fail "Internal error: Adding query to sig table"
 
 (******************)
 
@@ -122,18 +122,18 @@ fun sigLookupType a = #2 (getType a)
 (* sigGetTypeAbbrev : string -> asyncType option *)
 fun sigGetTypeAbbrev a =
 	case peek (!sigTable, a) of
-		NONE => raise Fail ("Undeclared identifier: "^a^"\n")
+		NONE => raise Fail ("Undeclared identifier: "^a^"")
 	  | SOME (TypeAbbrev (_, ty)) => SOME ty
-	  | SOME (ObjAbbrev _) => raise Fail ("Object "^a^" is used as a type\n")
+	  | SOME (ObjAbbrev _) => raise Fail ("Object "^a^" is used as a type")
 	  | SOME (ConstDecl _) => NONE
 	  | SOME (Query _) => raise Fail "Internal error: sigGetTypeAbbrev"
 
 (* sigGetObjAbbrev : string -> (obj * asyncType) option *)
 fun sigGetObjAbbrev c =
 	case peek (!sigTable, c) of
-		NONE => raise Fail ("Undeclared identifier: "^c^"\n")
+		NONE => raise Fail ("Undeclared identifier: "^c^"")
 	  | SOME (ObjAbbrev (_, ty, ob)) => SOME (ob, ty)
-	  | SOME (TypeAbbrev _) => raise Fail ("Type "^c^" is used as an object\n")
+	  | SOME (TypeAbbrev _) => raise Fail ("Type "^c^" is used as an object")
 	  | SOME (ConstDecl _) => NONE
 	  | SOME (Query _) => raise Fail "Internal error: sigGetObjAbbrev"
 

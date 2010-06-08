@@ -175,6 +175,9 @@ datatype decl = ConstDecl of string * int * typeOrKind
 	| ObjAbbrev of string * asyncType * obj
 	| Query of int option * int option * int option * int * asyncType
 
+datatype declError = TypeErr | KindErr | AmbigType | UndeclId
+exception ExnDeclError of declError * string
+
 val KClos : kind * subst -> kind
 val TClos : asyncType * subst -> asyncType
 val TSClos : typeSpine * subst -> typeSpine

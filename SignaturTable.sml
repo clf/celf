@@ -42,7 +42,7 @@ fun heads ty = case Util.typePrjAbbrev ty of
 						@ map (map1 (fn lrs => R::lrs)) (heads B)
 	| TMonad _ => [([], HdMonad)]
 	| TAtomic (a, _) => [([], HdAtom a)]
-	| _ => raise Fail "Internal error: heads: TAbbrev\n"
+	| _ => raise Fail "Internal error: heads: TAbbrev"
 
 fun updDecl (ConstDecl (c, _, Ty ty)) =
 		let val hds = heads ty

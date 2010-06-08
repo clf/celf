@@ -47,19 +47,22 @@ and checkType' (ctx, ty) = case AsyncType.prj ty of
 	  TLPi (p, S, B) => (checkSyncType (ctx, S); checkType (tpatBind (p, S) ctx, B))
 	| AddProd (A, B) => (checkType (ctx, A); checkType (ctx, B))
 	| TMonad S => checkSyncType (ctx, S)
-	| TAtomic (a, S) => checkTypeSpine (ctx, S, Signatur.sigLookupKind a)
+	| TAtomic (a, S) =>
+		checkTypeSpine (fn () => PrettyPrint.printType ty) (ctx, S, Signatur.sigLookupKind a)
 	| TAbbrev aA => ()
 
-(* checkTypeSpine : context * typeSpine * kind -> unit *)
+(* checkTypeSpine : (unit -> string) -> context * typeSpine * kind -> unit *)
 (* checks that the spine is : ki > Type *)
-and checkTypeSpine (ctx, sp, ki) = case (TypeSpine.prj sp, Kind.prj ki) of
+and checkTypeSpine ty (ctx, sp, ki) = case (TypeSpine.prj sp, Kind.prj ki) of
 	  (TNil, Type) => ()
-	| (TNil, KPi _) => raise ApproxTypes.ExnKindError "Type is not well-kinded; expected Type\n"
-	| (TApp _, Type) => raise ApproxTypes.ExnKindError "Type is not well-kinded; cannot apply Type\n"
+	| (TNil, KPi _) =>
+		raise ExnDeclError (KindErr, "Type " ^ ty () ^ " is not well-kinded; too few arguments")
+	| (TApp _, Type) =>
+		raise ExnDeclError (KindErr, "Type " ^ ty () ^ " is not well-kinded; too many arguments")
 	| (TApp (N, S), KPi (x, A, K)) =>
 			let val _ = checkObj (ctx, N, A)
 				val K' = if isSome x then KClos (K, Subst.subI $ normalizeObj N) else K 
-			in checkTypeSpine (ctx, S, K') end
+			in checkTypeSpine ty (ctx, S, K') end
 
 (* checkSyncType : context * syncType -> unit *)
 and checkSyncType (ctx, ty) = case SyncType.prj ty of
@@ -107,7 +110,7 @@ and checkObj' (ctx, ob, ty) = case (Obj.prj ob, Util.typePrjAbbrev ty) of
 							^"\nbut expected:\n"^(PrettyPrint.printType ty)
 				val () = unify (AsyncType.inj A, A', errmsg)
 			in checkObj (ctx, N, A') end
-	| _ => raise Fail "Internal error: checkObj match\n"
+	| _ => raise Fail "Internal error: checkObj match"
 
 (* inferHead : context * head -> context * asyncType *)
 and inferHead (ctx, h) = case h of
@@ -148,7 +151,7 @@ and inferSpine (ctx, sp, ty) = case (Spine.prj sp, Util.typePrjAbbrev ty) of
 			in inferSpine (ctxm, S, TClos (B, Subst.subM $ normalizeMonadObj M)) end
 	| (ProjLeft S, AddProd (A, _)) => inferSpine (ctx, S, A)
 	| (ProjRight S, AddProd (_, B)) => inferSpine (ctx, S, B)
-	| _ => raise Fail "Internal error match: inferSpine\n"
+	| _ => raise Fail "Internal error match: inferSpine"
 
 (* checkExp : context * expObj * syncType -> context *)
 and checkExp (ctx, ex, ty) = case ExpObj.prj ex of
@@ -178,8 +181,8 @@ and checkMonadObj (ctx, mob, ty) = case (MonadObj.prj mob, SyncType.prj ty) of
 	| (Down N, TDown A) => checkObj (ctx, N, A)
 	| (Affi N, TAffi A) => ctxJoinAffLin (checkObj (ctxAffPart ctx, N, A), ctx)
 	| (Bang N, TBang A) => (ignore $ checkObj (ctxIntPart ctx, N, A) ; ctx)
-	| (MonUndef, _) => raise Fail "Internal error: checkMonadObj: MonUndef\n"
-	| _ => raise Fail "Internal error match: checkMonadObj\n"
+	| (MonUndef, _) => raise Fail "Internal error: checkMonadObj: MonUndef"
+	| _ => raise Fail "Internal error match: checkMonadObj"
 
 
 fun checkKindEC ki = checkKind (emptyCtx, ki)

@@ -163,7 +163,7 @@ fun etaExpand (A, H, S) =
 				in Monad' (Let' (p, addEtaSpine (n, Sf), Mon' $ Mf 1)) end
 			| ApxTAtomic _ => Atomic' $ addEtaSpine (n, Sf)
 			| ApxTAbbrev _ => raise Fail "Internal error: eta': ApxTAbbrev cannot happen"
-			| ApxTLogicVar _ => raise Fail "Ambiguous typing\n"
+			| ApxTLogicVar _ => raise Fail "Ambiguous typing"
 		val etaResult = eta' (A, 0, fn (n, S) => S)
 	in case H of
 		  Var mn => if Util.isNil S then EtaTag (etaResult, mn) else etaResult
@@ -231,7 +231,7 @@ and etaExpandObj (ctx, ob, ty) =
 	  else ()
 	; etaExpandObj' (ctx, ob, ty) )
 and etaExpandObj' (ctx, ob, ty) = case (Obj.prj ob, Util.apxTypePrjAbbrev ty) of
-	  (_, ApxTLogicVar _) => raise Fail "Ambiguous typing\n"
+	  (_, ApxTLogicVar _) => raise Fail "Ambiguous typing"
 	| (LLam (p, N), ApxLolli (A, B)) =>
 			LLam' (p, etaExpandObj (opatBindApx (p, A) ctx, N, B))
 	| (AddPair (N1, N2), ApxAddProd (A, B)) =>
@@ -260,14 +260,14 @@ and etaExpandImpl impl =
 	let fun f ob = case Obj.prj ob of
 			  Atomic (LogicVar X, A', S) =>
 					if Util.isNil S then etaExpand (A', LogicVar (X with'ty etaExpandType (#ty X)), A', S)
-					else raise Fail "Internal error: etaExpandImpl 1\n"
-			| _ => raise Fail "Internal error: etaExpandImpl 2\n"
+					else raise Fail "Internal error: etaExpandImpl 1"
+			| _ => raise Fail "Internal error: etaExpandImpl 2"
 	in map f impl end
 *)
 
 (* etaExpandSpine : context * spine * apxAsyncType -> spine * apxAsyncType *)
 and etaExpandSpine (ctx, sp, ty) = case (Spine.prj sp, Util.apxTypePrjAbbrev ty) of
-	  (_, ApxTLogicVar _) => raise Fail "Ambiguous typing\n"
+	  (_, ApxTLogicVar _) => raise Fail "Ambiguous typing"
 	| (Nil, A) => (Nil', ApxAsyncType.inj A)
 	| (LApp (N, S), ApxLolli (A, B)) =>
 			map1 (fn sp => LApp' (etaExpandMonadObj (ctx, N, A), sp)) (etaExpandSpine (ctx, S, B))

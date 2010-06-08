@@ -62,7 +62,7 @@ fun declToStr (linenum, dec) =
 			| Query _ => "query"
 	in decstr ^ " on line " ^ Int.toString linenum end
 
-exception ExnDeclError
+exception ExnDeclError'
 
 (* reconstructDecl : int * decl -> unit *)
 fun reconstructDecl (ldec as (_, dec)) =
@@ -178,23 +178,26 @@ fun reconstructDecl (ldec as (_, dec)) =
 						end
 			val () = if isQuery dec then () else Signatur.sigAddDecl dec
 		in () end handle
-		  ApproxTypes.ExnApxUnify s =>
+		  ExnDeclError (UndeclId, c) =>
+			( print ("Undeclared identifier \"" ^ c ^ "\" in " ^ declToStr ldec ^ "\n")
+			; raise ExnDeclError' )
+		| ApproxTypes.ExnApxUnify s =>
 			( print ("Type mismatch in " ^ declToStr ldec ^ "\n")
-			; raise ExnDeclError )
-		| ApproxTypes.ExnKindError s =>
+			; raise ExnDeclError' )
+		(*| ApproxTypes.ExnKindError s =>
 			( print ("Kind-checking failed in " ^ declToStr ldec ^ ":\n" ^ s ^ "\n")
-			; raise ExnDeclError )
+			; raise ExnDeclError )*)
 		| Context.ExnCtx s =>
 			( print ("Typing failed in " ^ declToStr ldec ^ ":\n" ^ s ^ "\n")
-			; raise ExnDeclError )
+			; raise ExnDeclError' )
 		| Unify.ExnUnify s =>
 			( print ("Type mismatch in " ^ declToStr ldec ^ "\n")
-			; raise ExnDeclError )
+			; raise ExnDeclError' )
 		(*| ExnConv s =>*)
 
 
 (* reconstructSignature : (int * decl) list -> unit *)
-fun reconstructSignature prog = app reconstructDecl prog handle ExnDeclError => ()
+fun reconstructSignature prog = app reconstructDecl prog handle ExnDeclError' => ()
 
 
 end

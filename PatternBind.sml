@@ -30,7 +30,7 @@ fun pBindAdd add push (p, sty) ctx = case (Pattern.prj p, SyncType.prj sty) of
 	| (PDown x, TDown A) => push (PDown x, A, ctx)
 	| (PAffi x, TAffi A) => push (PAffi x, A, ctx)
 	| (PBang x, TBang A) => push (PBang x, A, ctx)
-	| _ => raise Fail "Internal error: patternBind\n"
+	| _ => raise Fail "Internal error: patternBind"
 fun pBindApx push (p, sty) ctx = case (Pattern.prj p, ApxSyncType.prj sty) of
 	  (PDepTensor (p1, p2), ApxTTensor (S1, S2)) =>
 			pBindApx push (p2, S2) (pBindApx push (p1, S1) ctx)
@@ -38,7 +38,7 @@ fun pBindApx push (p, sty) ctx = case (Pattern.prj p, ApxSyncType.prj sty) of
 	| (PDown x, ApxTDown A) => push (PDown x, A, ctx)
 	| (PAffi x, ApxTAffi A) => push (PAffi x, A, ctx)
 	| (PBang x, ApxTBang A) => push (PBang x, A, ctx)
-	| _ => raise Fail "Internal error: patternBind\n"
+	| _ => raise Fail "Internal error: patternBind"
 fun pBind push = pBindAdd (fn (p1, _) => p1) push
 
 fun tpush f (PDown (), A, ctx) = ctxPushNO (f A, ctx)
@@ -75,14 +75,14 @@ fun tpatBind f (p, sty) ctx = case (Pattern.prj p, SyncType.prj sty) of
 	| (PAffi (), TAffi A) => ctxPushNO (f A, ctx)
 	| (PBang NONE, TBang A) => ctxPushNO (f A, ctx)
 	| (PBang (SOME x), TBang A) => ctxPush (x, INT, f A, ctx)
-	| _ => raise Fail "Internal error: patternBind\n"
+	| _ => raise Fail "Internal error: patternBind"
 fun opatBind f (p, sty) ctx = case (Pattern.prj p, SyncType.prj sty) of
 	  (PDepTensor (p1, p2), LExists (_, S1, S2)) => opatBind f (p2, S2) (opatBind f (p1, S1) ctx)
 	| (POne, TOne) => ctx
 	| (PDown x, TDown A) => ctxPush (x, LIN, f A, ctx)
 	| (PAffi x, TAffi A) => ctxPush (x, AFF, f A, ctx)
 	| (PBang x, TBang A) => ctxPush (x, INT, f A, ctx)
-	| _ => raise Fail "Internal error: patternBind\n"
+	| _ => raise Fail "Internal error: patternBind"
 *)
 
 (* patBindApx : pattern * apxSyncType -> apxAsyncType context -> apxAsyncType context *)
@@ -94,14 +94,14 @@ fun tpatBindApx (p, sty) ctx = case (Pattern.prj p, ApxSyncType.prj sty) of
 	| (PAffi (), ApxTAffi A) => ctxPushNO (A, ctx)
 	| (PBang NONE, ApxTBang A) => ctxPushNO (A, ctx)
 	| (PBang (SOME x), ApxTBang A) => ctxPush (x, INT, A, ctx)
-	| _ => raise Fail "Internal error: patternBind\n"
+	| _ => raise Fail "Internal error: patternBind"
 fun opatBindApx (p, sty) ctx = case (Pattern.prj p, ApxSyncType.prj sty) of
 	  (PDepTensor (p1, p2), ApxTTensor (S1, S2)) => opatBindApx (p2, S2) (opatBindApx (p1, S1) ctx)
 	| (POne, ApxTOne) => ctx
 	| (PDown x, ApxTDown A) => ctxPush (x, LIN, A, ctx)
 	| (PAffi x, ApxTAffi A) => ctxPush (x, AFF, A, ctx)
 	| (PBang x, ApxTBang A) => ctxPush (x, INT, A, ctx)
-	| _ => raise Fail "Internal error: patternBind\n"
+	| _ => raise Fail "Internal error: patternBind"
 
 fun tpatBindNf (p, sty) ctx = tpatBind normalizeType (p, unnormalizeSyncType sty) ctx
 fun opatBindNf (p, sty) ctx = opatBind normalizeType (p, unnormalizeSyncType sty) ctx

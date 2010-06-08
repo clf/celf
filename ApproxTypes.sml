@@ -30,7 +30,6 @@ val traceApx = ref false
 type context = apxAsyncType Context.context
 
 exception ExnApxUnify of string
-exception ExnKindError of string
 
 (* ucase : string -> bool *)
 fun ucase x = (*x<>"" andalso Char.isUpper (String.sub (x, 0))*)
@@ -112,26 +111,30 @@ and apxCheckType' (ctx, ty) = if isUnknown ty then ty else case AsyncType.prj ty
 	| AddProd (A, B) => AddProd' (apxCheckType (ctx, A), apxCheckType (ctx, B))
 	| TMonad S => TMonad' (apxCheckSyncType (ctx, S))
 	| TAtomic (a, S) =>
-		(case Signatur.sigGetTypeAbbrev a of
+			let fun pTy () = PrettyPrint.printPreType ty
+			in case Signatur.sigGetTypeAbbrev a of
 			  SOME ty =>
-				let val _ = apxCheckTypeSpine (ctx, S, ApxType') (* S = TNil *)
+				let val _ = apxCheckTypeSpine pTy (ctx, S, ApxType') (* S = TNil *)
 				in TAbbrev' (a, ty) end
 			| NONE =>
 				let val K = kindToApx (Signatur.sigLookupKind a)
 					val nImpl = Signatur.getImplLength a
 					val S' = foldr TApp' S (List.tabulate (nImpl, fn _ => Parse.blank ()))
-				in TAtomic' (a, apxCheckTypeSpine (ctx, S', K)) end)
-	| TAbbrev _ => raise Fail "Internal error: TAbbrev cannot occur yet\n"
+				in TAtomic' (a, apxCheckTypeSpine pTy (ctx, S', K)) end
+			end
+	| TAbbrev _ => raise Fail "Internal error: TAbbrev cannot occur yet"
 
-(* apxCheckTypeSpine : context * typeSpine * apxKind -> typeSpine *)
+(* apxCheckTypeSpine : (unit -> string) -> context * typeSpine * apxKind -> typeSpine *)
 (* checks that the spine is : ki > Type *)
-and apxCheckTypeSpine (ctx, sp, ki) = case (TypeSpine.prj sp, ApxKind.prj ki) of
+and apxCheckTypeSpine ty (ctx, sp, ki) = case (TypeSpine.prj sp, ApxKind.prj ki) of
 	  (TNil, ApxType) => TNil'
-	| (TNil, ApxKPi _) => raise ExnKindError "Type is not well-kinded; expected Type\n"
-	| (TApp _, ApxType) => raise ExnKindError "Type is not well-kinded; cannot apply Type\n"
+	| (TNil, ApxKPi _) =>
+		raise ExnDeclError (KindErr, "Type " ^ ty () ^ " is not well-kinded; too few arguments")
+	| (TApp _, ApxType) =>
+		raise ExnDeclError (KindErr, "Type " ^ ty () ^ " is not well-kinded; too many arguments")
 	| (TApp (N, S), ApxKPi (A, K)) =>
 			let val (_, N') = apxCheckObj (ctx, N, A)
-			in TApp' (N', apxCheckTypeSpine (ctx, S, K)) end
+			in TApp' (N', apxCheckTypeSpine ty (ctx, S, K)) end
 
 (* apxCheckSyncType : context * syncType -> syncType *)
 and apxCheckSyncType (ctx, ty) = case SyncType.prj ty of
@@ -209,8 +212,8 @@ and apxInferHead (ctx, h) = case h of
 						  SOME (ob, ty) => (ctx, INR ob, 0, asyncTypeToApx ty)
 						| NONE => (ctx, INL (Const c), Signatur.getImplLength c,
 							asyncTypeToApx (Signatur.sigLookupType c))))
-	| Var _ => raise Fail "Internal error: de Bruijn indices shouldn't occur yet\n"
-	| UCVar _ => raise Fail "Internal error: Upper case variables shouldn't occur yet\n"
+	| Var _ => raise Fail "Internal error: de Bruijn indices shouldn't occur yet"
+	| UCVar _ => raise Fail "Internal error: Upper case variables shouldn't occur yet"
 	| X as LogicVar {ty, ...} => (ctx, INL X, 0, asyncTypeToApx ty)
 
 (* apxInferSpine : bool * context * spine * apxAsyncType * (spine -> string)
@@ -287,7 +290,7 @@ fun apxCheckObjEC (ob, ty) = #2 (apxCheckObj (emptyCtx, ob, ty))
 (*
 fun apxCheckObjEC (ob, ty) = case (Obj.prj o #3 o apxInferObj) (emptyCtx, Constraint' (ob, ty)) of
 		  Constraint obty => obty
-		| _ => raise Fail "Internal error: apxCheckObjEC\n"
+		| _ => raise Fail "Internal error: apxCheckObjEC"
 *)
 
 end

@@ -150,12 +150,12 @@ struct
 	fun invert s =
 		let fun lookup (_, Shift _, p) = NONE
 			  | lookup (_, Dot (Ob _, _), _) =
-					raise Fail "Internal error: invert called on non-pattern sub\n"
+					raise Fail "Internal error: invert called on non-pattern sub"
 			  | lookup (n, Dot (Undef, s'), p) = lookup (n+1, s', p)
 			  | lookup (n, Dot (Idx (ID, k), s'), p) =
 					if k = p then SOME n else lookup (n+1, s', p)
 			  | lookup (_, Dot (Idx (_, _), _), _) =
-					raise Fail "Internal error: invert called on non-pattern sub\n"
+					raise Fail "Internal error: invert called on non-pattern sub"
 			fun invert'' (0, si) = si
 			  | invert'' (p, si) =
 					(case lookup (1, s, p) of
@@ -186,7 +186,7 @@ struct
 	  | map f (Shift n) = Shift n
 
 	fun hdDef (Dot (Undef, _)) = false
-	  | hdDef (Dot (Ob _, _)) = raise Fail "Internal error: hdDef: not patSub\n"
+	  | hdDef (Dot (Ob _, _)) = raise Fail "Internal error: hdDef: not patSub"
 	  | hdDef (Dot (Idx _, _)) = true
 	  | hdDef (Shift _) = true
 
@@ -242,7 +242,7 @@ struct
 			  | intersect (Shift n, s2 as Dot _) =
 			  		intersect (Dot (Idx (ID, n+1), Shift (n+1)), s2)
 			  | intersect (Shift n1, Shift n2) =
-					if n1=n2 then id else raise Fail "Internal error: intersection\n"
+					if n1=n2 then id else raise Fail "Internal error: intersection"
 		in intersect s1s2 end
 
 	fun qsort2 l =

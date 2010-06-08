@@ -55,7 +55,7 @@ fun addConstraint (c, css) =
 
 (* instantiate : nfObj option vref * nfObj * constr vref list vref * word -> unit *)
 fun instantiate (r, rInst, cs, l) =
-	if isSome (!! r) then raise Fail "Internal error: double instantiation\n" else
+	if isSome (!! r) then raise Fail "Internal error: double instantiation" else
 	( r ::= SOME rInst
 	; if !outputUnify then
 		print ("Instantiating $"^(Word.toString l)^" = "
@@ -88,10 +88,10 @@ fun lowerLVar (ty, sp, s, ctx) = case (Util.nfTypePrjAbbrev ty, NfSpine.prj sp) 
 	| (TMonad _, Nil) =>
 			let val X = newNfLVarCtx (SOME ctx) ty
 			in (X, NfObj.prj $ NfClos (X, s)) end
-	| _ => raise Fail "Internal error: lowerLVar\n"
+	| _ => raise Fail "Internal error: lowerLVar"
 
 fun invAtomic (NfAtomic a) = a
-  | invAtomic _ = raise Fail "Internal error: invAtomic\n"
+  | invAtomic _ = raise Fail "Internal error: invAtomic"
 val invAtomicP = invAtomic o NfObj.prj
 
 (* lowerAtomic : nfHead * nfSpine -> nfHead * nfSpine *)
@@ -163,7 +163,7 @@ fun newMon (S, G) =
 (* newMonA : nfAsyncType * context -> (subMode * int) list * nfObj *)
 fun newMonA (A, ctx) = case NfAsyncType.prj A of
 	  TMonad S => map2 (NfMonad' o NfMon') (newMon (S, ctx))
-	| _ => raise Fail "Internal error: newMonA\n"
+	| _ => raise Fail "Internal error: newMonA"
 
 (* headCountExp obj option vref * nfExpObj -> int *)
 fun headCountExp (rOccur, ex) = case NfExpObj.prj ex of
@@ -239,7 +239,7 @@ fun synthSpine ctx sp ty = case (NfSpine.prj sp, Util.nfTypePrjAbbrev ty) of
 		synthSpine (ctxSubList ctx (occurMonadObj M)) S (NfTClos (B, Subst.subM M))
 	| (ProjLeft S, AddProd (A, _)) => synthSpine ctx S A
 	| (ProjRight S, AddProd (_, B)) => synthSpine ctx S B
-	| _ => raise Fail "Internal error: synthSpine match\n"
+	| _ => raise Fail "Internal error: synthSpine match"
 fun synthAtomic ctx (H, S) =
 	let val (ctx1, ty1) = synthHead ctx H
 	in synthSpine ctx1 S ty1 end
@@ -452,7 +452,7 @@ fun linPrune (ob, pl) =
 		fun multOcc _ ID _ _ = raise Fail "Internal error: linPrune: ID"
 		  | multOcc _ _ No o2 = np o2
 		  | multOcc _ _ o1 No = np o1
-		  | multOcc _ _ Rigid Rigid = raise ExnUnify "linPrune multiplicative"
+		  | multOcc _ _ Rigid Rigid = raise ExnUnify "implied linear/affine var occurring twice"
 		  | multOcc n _ Rigid _ = (Rigid, Subst.id, Subst.pruningsub [((), n)])
 		  | multOcc n _ _ Rigid = (Rigid, Subst.pruningsub [((), n)], Subst.id)
 		  | multOcc _ _ _ _ = np FlexMult
@@ -626,18 +626,18 @@ fun unifyType (ty1, ty2) = case (Util.nfTypePrjAbbrev ty1, Util.nfTypePrjAbbrev 
 	| (TAtomic (a1, S1), TAtomic (a2, S2)) =>
 			if a1 <> a2 then raise Fail ("Internal error: "^a1^" and "^a2^" differ")
 			else unifyTSpine (S1, S2)
-	| (A1, A2) => raise Fail "Internal error: unifyType\n"
+	| (A1, A2) => raise Fail "Internal error: unifyType"
 and unifySyncType (ty1, ty2) = case (NfSyncType.prj ty1, NfSyncType.prj ty2) of
 	  (LExists (_, S1, T1), LExists (_, S2, T2)) => (unifySyncType (S1, S2); unifySyncType (T1, T2))
 	| (TOne, TOne) => ()
 	| (TDown A1, TDown A2) => unifyType (A1, A2)
 	| (TAffi A1, TAffi A2) => unifyType (A1, A2)
 	| (TBang A1, TBang A2) => unifyType (A1, A2)
-	| (S1, S2) => raise Fail "Internal error: unifySyncType\n"
+	| (S1, S2) => raise Fail "Internal error: unifySyncType"
 and unifyTSpine (sp1, sp2) = case (NfTypeSpine.prj sp1, NfTypeSpine.prj sp2) of
 	  (TNil, TNil) => ()
 	| (TApp (N1, S1), TApp (N2, S2)) => (unifyObj NONE (N1, N2); unifyTSpine (S1, S2))
-	| (S1, S2) => raise Fail "Internal error: unifyTSpine\n"
+	| (S1, S2) => raise Fail "Internal error: unifyTSpine"
 and unifyObj dryRun (ob1, ob2) =
 	(* In the case of two equal LVars, the lowering of ob1 affects the whnf of ob2 *)
 	let val ob1' = lowerObj (NfObj.prj ob1)
@@ -687,17 +687,17 @@ and unifyObj dryRun (ob1, ob2) =
 						let val (p, Mf) = etaMimicExp E
 						in unifyExp dryRun (NfLet' (p, hS, NfMon' $ Mf 1), E) end)*)
 		| (NfAtomic hS1, NfAtomic hS2) => unifyHead dryRun (hS1, hS2)
-		| (N1, N2) => raise Fail "Internal error: unifyObj\n"
+		| (N1, N2) => raise Fail "Internal error: unifyObj"
 	end
 and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 	  (Const c1, Const c2) =>
-			if c1 <> c2 then raise ExnUnify ("Constants "^c1^" and "^c2^" differ\n")
+			if c1 <> c2 then raise ExnUnify ("Constants "^c1^" and "^c2^" differ")
 			else unifySpine dryRun (S1, S2)
 	| (UCVar x1, UCVar x2) =>
-			if x1 <> x2 then raise ExnUnify ("Vars "^x1^" and "^x2^" differ\n")
+			if x1 <> x2 then raise ExnUnify ("Vars "^x1^" and "^x2^" differ")
 			else unifySpine dryRun (S1, S2)
 	| (Var n1, Var n2) =>
-			if n1 <> n2 then raise ExnUnify "Vars differ\n"
+			if n1 <> n2 then raise ExnUnify "Vars differ"
 			else unifySpine dryRun (S1, S2)
 	| (LogicVar (X1 as {X=r1, ty=A1, s=s1, ctx=ref (SOME G1), cnstr=cs1, tag=tag1}),
 		LogicVar (X2 as {X=r2, s=s2, cnstr=cs2, ...})) =>
@@ -767,7 +767,7 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 and unifyLVar (X as {X=r, s, cnstr=cs, tag, ...}, ob, p) =
 	let val si = Subst.invert s
 	in case objExists r (NfClos (ob, si)) of
-		  NONE => raise ExnUnify "Unification failed: could not prune\n"
+		  NONE => raise ExnUnify "Unification failed: could not prune"
 		| SOME N => if null p then instantiate (r, N, cs, tag) else
 			let val p' = Subst.lcsComp (p, si)
 			in case linPrune (N, p') of
@@ -783,9 +783,9 @@ and unifySpine dryRun (sp1, sp2) = case (NfSpine.prj sp1, NfSpine.prj sp2) of
 	| (LApp (M1, S1), LApp (M2, S2)) => (unifyMon dryRun (M1, M2); unifySpine dryRun (S1, S2))
 	| (ProjLeft S1, ProjLeft S2) => unifySpine dryRun (S1, S2)
 	| (ProjRight S1, ProjRight S2) => unifySpine dryRun (S1, S2)
-	| (ProjLeft _, ProjRight _) => raise ExnUnify "Projections differ\n"
-	| (ProjRight _, ProjLeft _) => raise ExnUnify "Projections differ\n"
-	| _ => raise Fail "Internal error: unifySpine\n"
+	| (ProjLeft _, ProjRight _) => raise ExnUnify "Projections differ"
+	| (ProjRight _, ProjLeft _) => raise ExnUnify "Projections differ"
+	| _ => raise Fail "Internal error: unifySpine"
 and unifyAtomicExp dryRun ((hS, e1), e2) =
 	let open NfInj
 		fun etaMimicMon m = case NfMonadObj.prj m of
@@ -844,7 +844,7 @@ and unifyLetMon dryRun ((pa, hS, E), M) = case lowerAtomic hS of
 					end)
 	| (LogicVar {ctx=ref NONE, tag, ...}, _) =>
 			raise Fail ("Internal error: no context on $"^Word.toString tag)
-	| _ => raise ExnUnify "let = mon\n"
+	| _ => raise ExnUnify "let = mon"
 and unifyMon dryRun (m1, m2) = case (NfMonadObj.prj m1, NfMonadObj.prj m2) of
 	  (DepPair (M11, M12), DepPair (M21, M22)) =>
 			(unifyMon dryRun (M11, M21); unifyMon dryRun (M12, M22))
@@ -852,9 +852,9 @@ and unifyMon dryRun (m1, m2) = case (NfMonadObj.prj m1, NfMonadObj.prj m2) of
 	| (Down N1, Down N2) => unifyObj dryRun (N1, N2)
 	| (Affi N1, Affi N2) => unifyObj dryRun (N1, N2)
 	| (Bang N1, Bang N2) => unifyObj dryRun (N1, N2)
-	| (MonUndef, _) => raise Fail "Internal error: unifyMon: MonUndef\n"
-	| (_, MonUndef) => raise Fail "Internal error: unifyMon: MonUndef\n"
-	| _ => raise Fail "Internal error: unifyMon\n"
+	| (MonUndef, _) => raise Fail "Internal error: unifyMon: MonUndef"
+	| (_, MonUndef) => raise Fail "Internal error: unifyMon: MonUndef"
+	| _ => raise Fail "Internal error: unifyMon"
 and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 	(* In the case of two equal LVars, the lowering of ob1 affects the whnf of ob2 *)
 	let val ob1' = lowerAtomic ob1
@@ -1000,10 +1000,10 @@ and matchHeadInLet (hS, E) =
 				end
 			| (NfMon _, NfMon _) =>
 				(case nMaybe of
-					  None _ => raise ExnUnify "Monadic objects not unifiable\n"
+					  None _ => raise ExnUnify "Monadic objects not unifiable"
 					| One l => INR (SOME l)
 					| More => INR NONE)
-			| _ => raise Fail "Internal error: matchHeadInLet\n"
+			| _ => raise Fail "Internal error: matchHeadInLet"
 	in matchHead (hS, fn _ => fn e => e, 0, E, E, None 1) end
 and matchHeadInLetFixedPos (q, hS, E, pos) =
 	let val () = if isLVar hS then raise Fail "Internal error: mHILFP: lvar1" else ()
@@ -1213,6 +1213,7 @@ fun solveConstrBacktrack sc =
 (* unifyAndBranch : asyncType * asyncType * (unit -> unit) -> unit *)
 fun unifyAndBranch (ty1, ty2, sc) = case unifyOpt (ty1, ty2) of
 	  NONE => solveConstrBacktrack sc
-	| SOME e => ()
+	| SOME (ExnUnify _) => ()
+	| SOME e => raise e
 
 end

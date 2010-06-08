@@ -46,7 +46,7 @@ fun raiseLVar' (ctx, B, S, n) =
 
 fun raiseLVar (Atomic (LogicVar {X, ty, ctx, tag, ...}, ())) = (case (!!X, !ctx) of
 	  (SOME _, _) => () (* FIXME: this can never occur?? *)
-	| (NONE, NONE) => raise Fail ("Internal error: no context on $"^(Word.toString tag)^"\n")
+	| (NONE, NONE) => raise Fail ("Internal error: no context on $"^(Word.toString tag))
 	| (NONE, SOME ctx) => X ::= SOME $ normalizeObj $ raiseLVar' (ctx2list ctx, ty, Nil', 1) )
   | raiseLVar _ = ()
 
@@ -102,7 +102,7 @@ and uc2xMonadObj lookup n m = Util.MonadObjRec.map (uc2xObj lookup n) m
 
 
 fun ctx2Lookup ctx =
-	let fun l [] n (x : string) = raise Fail "Internal error: UCVar not in implicits\n"
+	let fun l [] n (x : string) = raise Fail "Internal error: UCVar not in implicits"
 		  | l ((y, _)::ys) n x = if x=y then Var (INT, n) else l ys (n+1) x
 	in l ctx end
 
@@ -123,7 +123,7 @@ fun convUCVars2LogicVarsType ty =
 	let val table = ref $ mapTable (fn A => newLVarCtx (SOME emptyCtx) A) (ImplicitVars.getUCTable ())
 		fun uc2lvar n x = case Obj.prj (Clos (valOf (peek (!table, x)), Subst.shift n)) of
 			  Atomic (X as LogicVar _, _) => X
-			| _ => raise Fail "Internal error: uc2lvar\n"
+			| _ => raise Fail "Internal error: uc2lvar"
 		val imps = ImplicitVars.sort ()
 		fun convX x = table := insert (!table, x, uc2xObj uc2lvar 0 $ valOf $ peek (!table, x))
 		val () = app (convX o #1) imps

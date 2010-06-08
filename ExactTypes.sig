@@ -27,7 +27,7 @@ val emptyCtx : context
 
 val checkKind : context * Syntax.kind -> unit
 val checkType : context * Syntax.asyncType -> unit
-val checkTypeSpine : context * Syntax.typeSpine * Syntax.kind -> unit
+val checkTypeSpine : (unit -> string) -> context * Syntax.typeSpine * Syntax.kind -> unit
 val checkSyncType : context * Syntax.syncType -> unit
 val checkObj : context * Syntax.obj * Syntax.asyncType -> context
 val inferHead : context * Syntax.head -> context * Syntax.asyncType

@@ -26,19 +26,20 @@ type context
 val emptyCtx : context
 
 exception ExnApxUnify of string
-exception ExnKindError of string
 
 val occur : Syntax.typeLogicVar -> Syntax.apxAsyncType -> unit
 val apxUnifyType : Syntax.apxAsyncType * Syntax.apxAsyncType -> unit
 
 val apxCheckKind : context * Syntax.kind -> Syntax.kind
 val apxCheckType : context * Syntax.asyncType -> Syntax.asyncType
-val apxCheckTypeSpine : context * Syntax.typeSpine * Syntax.apxKind -> Syntax.typeSpine
+val apxCheckTypeSpine : (unit -> string)
+		-> context * Syntax.typeSpine * Syntax.apxKind -> Syntax.typeSpine
 val apxCheckSyncType : context * Syntax.syncType -> Syntax.syncType
 val apxCheckObj : context * Syntax.obj * Syntax.apxAsyncType -> context * Syntax.obj
 val apxInferObj : context * Syntax.obj -> context * Syntax.obj * Syntax.apxAsyncType
 val apxInferExp : context * Syntax.expObj -> context * Syntax.expObj * Syntax.apxSyncType
-val apxInferMonadObj : context * Syntax.monadObj * Syntax.apxSyncType option -> context * Syntax.monadObj * Syntax.apxSyncType
+val apxInferMonadObj : context * Syntax.monadObj * Syntax.apxSyncType option
+		-> context * Syntax.monadObj * Syntax.apxSyncType
 
 val apxCheckKindEC : Syntax.kind -> Syntax.kind
 val apxCheckTypeEC : Syntax.asyncType -> Syntax.asyncType

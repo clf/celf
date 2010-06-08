@@ -36,7 +36,7 @@ fun paren false x = x
 
 fun lookup (x::ctx) 1 = x
   | lookup (_::ctx) n = lookup ctx (n-1)
-  | lookup [] n = Int.toString n (*raise Fail "Internal error: de Bruijn index out of range\n"*)
+  | lookup [] n = Int.toString n (*raise Fail "Internal error: de Bruijn index out of range"*)
 
 fun add x ctx =
 	let fun eq (x : string) y = x=y
@@ -77,7 +77,7 @@ and pType ctx pa ty = if isUnknown ty then ["???"] else case AsyncType.prj ty of
 			[a] @ (*join (map (pObj ctx false) impl) @*) pTypeSpineSkip ctx S (getImplLength a)
 	| TAbbrev (a, ty) => [a]
 and pTypeSpineSkip ctx sp n = if n=0 then pTypeSpine ctx sp else case TypeSpine.prj sp of
-	  TNil => raise Fail "Internal error: pTypeSpineSkip\n"
+	  TNil => raise Fail "Internal error: pTypeSpineSkip"
 	| TApp (N, S) =>
 		(if !printImpl then [" <"] @ pObj ctx false N @ [">"] else [])
 		@ pTypeSpineSkip ctx S (n-1)
@@ -144,7 +144,7 @@ and pSpineSkip ctx sp n = if n=0 then pSpine ctx sp else case Spine.prj sp of
 	  LApp (M, S) =>
 		(if !printImpl then [" <"] @ pMonadObj ctx false M @ [">"] else [])
 		@ pSpineSkip ctx S (n-1)
-	| _ => raise Fail "Internal error: pSpineSkip\n"
+	| _ => raise Fail "Internal error: pSpineSkip"
 and pSpine ctx sp = case Spine.prj sp of
 	  Nil => []
 	| LApp (M, S) => [" "] @ pMonadObj ctx true M @ pSpine ctx S
@@ -192,7 +192,7 @@ and pTPattern bctx p = case Pattern.prj p of
 	| PDepPair (x, A, p) =>
 			let val (x', bctx') = add x bctx
 				val (x'', ctx') = add x' ctx
-				val () = if x' = x'' then () else raise Fail "Internal error: pPattern\n"
+				val () = if x' = x'' then () else raise Fail "Internal error: pPattern"
 				val (pP, bctx'') = pPattern ctx' bctx' false p
 			in (["["^x'^": "] @ pType ctx false A @ [", "] @ pP @ ["]"], bctx'') end
 	| PVar (x, A) =>
