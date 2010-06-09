@@ -39,7 +39,7 @@ fun ucase x = (*x<>"" andalso Char.isUpper (String.sub (x, 0))*)
 
 (* occur : typeLogicVar -> apxAsyncType -> unit *)
 fun occur X = foldApxType {fki = ignore, fsTy = ignore, faTy =
-	(fn ApxTLogicVar X' => if eqLVar (X, X') then raise ExnApxUnify "Occurs check" else ()
+	(fn ApxTLogicVar X' => if eqLVar (X, X') then raise ExnApxUnify "Occurs check failure" else ()
 	  | _ => ()) }
 
 (* apxUnifyType : apxAsyncType * apxAsyncType -> unit *)
@@ -54,8 +54,8 @@ fun apxUnifyType (ty1, ty2) = case (Util.apxTypePrjAbbrev ty1, Util.apxTypePrjAb
 	| (ApxTLogicVar X, _) => (occur X ty2; updLVar (X, ty2))
 	| (_, ApxTLogicVar X) => (occur X ty1; updLVar (X, ty1))
 	| (A1, A2) => raise ExnApxUnify
-			(PrettyPrint.printType (unsafeCast ty1)^"\nand: "
-						^PrettyPrint.printType (unsafeCast ty2))
+			(PrettyPrint.printType (unsafeCast ty1)^"\nand "
+						^PrettyPrint.printType (unsafeCast ty2)^" differ")
 and apxUnifySyncType (ty1, ty2) = case (ApxSyncType.prj ty1, ApxSyncType.prj ty2) of
 	  (ApxTTensor (S1, T1), ApxTTensor (S2, T2)) =>
 			(apxUnifySyncType (S1, S2); apxUnifySyncType (T1, T2))
@@ -64,14 +64,13 @@ and apxUnifySyncType (ty1, ty2) = case (ApxSyncType.prj ty1, ApxSyncType.prj ty2
 	| (ApxTAffi A1, ApxTAffi A2) => apxUnifyType (A1, A2)
 	| (ApxTBang A1, ApxTBang A2) => apxUnifyType (A1, A2)
 	| (S1, S2) => raise ExnApxUnify
-			(PrettyPrint.printSyncType (unsafeCastS ty1)^"\nand: "
-						^PrettyPrint.printSyncType (unsafeCastS ty2))
+			(PrettyPrint.printSyncType (unsafeCastS ty1)^"\nand "
+						^PrettyPrint.printSyncType (unsafeCastS ty2)^" differ")
 
 fun apxUnify (ty1, ty2, errmsg) = (apxUnifyType (ty1, ty2))
-		handle (e as ExnApxUnify s) =>
-			( print ("ExnApxUnify: "^s^"\n")
-			; print $ errmsg ()
-			; raise e)
+		handle ExnApxUnify s =>
+			raise ExnDeclError (TypeErr,
+				"Type-unification failed: " ^ s ^ "\n" ^ errmsg ())
 
 val apxCount = ref 0
 
@@ -129,9 +128,9 @@ and apxCheckType' (ctx, ty) = if isUnknown ty then ty else case AsyncType.prj ty
 and apxCheckTypeSpine ty (ctx, sp, ki) = case (TypeSpine.prj sp, ApxKind.prj ki) of
 	  (TNil, ApxType) => TNil'
 	| (TNil, ApxKPi _) =>
-		raise ExnDeclError (KindErr, "Type " ^ ty () ^ " is not well-kinded; too few arguments")
+		raise ExnDeclError (KindErr, "Type " ^ ty () ^ " is not well-kinded; too few arguments\n")
 	| (TApp _, ApxType) =>
-		raise ExnDeclError (KindErr, "Type " ^ ty () ^ " is not well-kinded; too many arguments")
+		raise ExnDeclError (KindErr, "Type " ^ ty () ^ " is not well-kinded; too many arguments\n")
 	| (TApp (N, S), ApxKPi (A, K)) =>
 			let val (_, N') = apxCheckObj (ctx, N, A)
 			in TApp' (N', apxCheckTypeSpine ty (ctx, S, K)) end

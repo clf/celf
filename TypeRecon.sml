@@ -62,7 +62,7 @@ fun declToStr (linenum, dec) =
 			| Query _ => "query"
 	in decstr ^ " on line " ^ Int.toString linenum end
 
-exception ExnDeclError'
+exception ExnStopCelf
 
 (* reconstructDecl : int * decl -> unit *)
 fun reconstructDecl (ldec as (_, dec)) =
@@ -164,40 +164,45 @@ fun reconstructDecl (ldec as (_, dec)) =
 						in if a = 0 orelse l = SOME 0 then
 							print "Ignoring query\n"
 						else if a >= 2 andalso isSome l then
-							(* disallow combined monad exploration and backtrack exploration *)
-							raise Fail "Malformed query (D,E,L,A): A>1 and L<>*\n"
+							raise ExnDeclError (GeneralErr,
+								"Malformed query (D,E,L,A): A>1 and L<>*\n"
+								^ "Should not do simultaneous monad and backtrack exploration\n")
 						else if isSome e andalso isSome l andalso valOf e >= valOf l then
-							(* disallow querys with uncheckable expect *)
-							raise Fail "Malformed query (D,E,L,A): E>=L\n"
+							raise ExnDeclError (GeneralErr,
+								"Malformed query (D,E,L,A): E>=L\n"
+								^ "Uncheckable since expected number of solutions is\n"
+								^ "greater than the number of solutions to look for\n")
 						else if (runQuery a handle stopSearchExn => false) then
 							print "Query ok.\n"
 						else if isSome e then
-							raise Fail "Query failed\n"
+							( print "Query failed\n"
+							; raise ExnStopCelf )
 						else
 							()
 						end
 			val () = if isQuery dec then () else Signatur.sigAddDecl dec
 		in () end handle
-		  ExnDeclError (UndeclId, c) =>
-			( print ("Undeclared identifier \"" ^ c ^ "\" in " ^ declToStr ldec ^ "\n")
-			; raise ExnDeclError' )
-		| ApproxTypes.ExnApxUnify s =>
-			( print ("Type mismatch in " ^ declToStr ldec ^ "\n")
-			; raise ExnDeclError' )
-		(*| ApproxTypes.ExnKindError s =>
-			( print ("Kind-checking failed in " ^ declToStr ldec ^ ":\n" ^ s ^ "\n")
-			; raise ExnDeclError )*)
+		  ExnDeclError es =>
+			let val decstr = declToStr ldec
+				val d = case es of
+					  (UndeclId, c) => "Undeclared identifier \"" ^ c ^ "\" in " ^ decstr ^ "\n"
+					| (TypeErr, s) => "Type-checking failed in " ^ decstr ^ ":\n" ^ s
+					| (KindErr, s) => "Kind-checking failed in " ^ decstr ^ ":\n" ^ s
+					| (AmbigType, "") => "Ambiguous typing in " ^ decstr ^ "\n"
+					| (AmbigType, s) => "Ambiguous typing in " ^ decstr ^ ":\n" ^ s
+					| (GeneralErr, s) => "Error in " ^ decstr ^ ":\n" ^ s
+			in print d ; raise ExnStopCelf end
 		| Context.ExnCtx s =>
-			( print ("Typing failed in " ^ declToStr ldec ^ ":\n" ^ s ^ "\n")
-			; raise ExnDeclError' )
+			( print ("Type-checking failed in " ^ declToStr ldec ^ ":\n" ^ s)
+			; raise ExnStopCelf )
 		| Unify.ExnUnify s =>
 			( print ("Type mismatch in " ^ declToStr ldec ^ "\n")
-			; raise ExnDeclError' )
+			; raise ExnStopCelf )
 		(*| ExnConv s =>*)
 
 
 (* reconstructSignature : (int * decl) list -> unit *)
-fun reconstructSignature prog = app reconstructDecl prog handle ExnDeclError' => ()
+fun reconstructSignature prog = app reconstructDecl prog handle ExnStopCelf => ()
 
 
 end

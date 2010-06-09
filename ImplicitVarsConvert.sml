@@ -30,7 +30,7 @@ open Context
  * ctx |- X : B
  *)
 fun raiseLVar' (ctx, B, S, n) =
-	let fun Idx A M n = Eta.etaExpand (asyncTypeToApx A, Var (M, n), Nil')
+	let fun Idx A M n = Eta.etaExpand (fn () => "") (asyncTypeToApx A, Var (M, n), Nil')
 		val si = Subst.invert $ Subst.shift 1
 		fun invsh ty = TClos (ty, si)
 	in case ctx of

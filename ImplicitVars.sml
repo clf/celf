@@ -47,7 +47,10 @@ fun mapUCTable f = ucTable := mapTable f (!ucTable)
 fun appUCTable f = appTable f (!ucTable)
 
 (* noUCVars : unit -> unit *)
-fun noUCVars () = if null (toList (!ucTable)) then () else raise Fail "UCVars not allowed\n"
+fun noUCVars () =
+	if null (toList (!ucTable)) then ()
+	else raise ExnDeclError (GeneralErr,
+		"Upper-case (implicitly bound) variables are not allowed here\n")
 
 (* apxUCLookup : string -> apxAsyncType *)
 fun apxUCLookup x =
@@ -91,7 +94,10 @@ fun sort () =
 		val noIns = map #1 (List.filter
 								(fn (_, (ref inset, _)) => 0 = numItems inset)
 								(toList graph))
-		fun topsort l [] = if length l = length ucVars then rev l else raise Fail "Circularity"
+		fun topsort l [] =
+				if length l = length ucVars then rev l
+				else raise ExnDeclError (TypeErr,
+					"Circular dependencies between implicit variables")
 		  | topsort l (x::xs) =
 				topsort ((x, ucLookup x)::l)
 					(xs @ foldl

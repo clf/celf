@@ -225,7 +225,7 @@ fun synthHead ctx h = case h of
 	  Const c => (ctx, normalizeType $ Signatur.sigLookupType c)
 	| Var (m, n) =>
 		let val (ctxo, m', A) = ctxLookupNum (ctx, n)
-			val () = if m=m' then () else raise Fail "Linearity mismatch"
+			val () = if m=m' then () else raise Fail "Internal error: Linearity mismatch"
 		in (ctxo, NfTClos (A, Subst.shift n)) end
 	| UCVar x =>
 		(ctx, NfTClos (normalizeType $ ImplicitVars.ucLookup x,
@@ -763,11 +763,11 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 	| (LogicVar {ctx=ref NONE, tag, ...}, _) =>
 			raise Fail ("Internal error: no context on $"^Word.toString tag)
 	| (_, LogicVar _) => unifyHead dryRun (hS2, hS1)
-	| _ => raise ExnUnify "h1 h2"
+	| _ => raise ExnUnify "Heads differ"
 and unifyLVar (X as {X=r, s, cnstr=cs, tag, ...}, ob, p) =
 	let val si = Subst.invert s
 	in case objExists r (NfClos (ob, si)) of
-		  NONE => raise ExnUnify "Unification failed: could not prune"
+		  NONE => raise ExnUnify "Cannot prune"
 		| SOME N => if null p then instantiate (r, N, cs, tag) else
 			let val p' = Subst.lcsComp (p, si)
 			in case linPrune (N, p') of
@@ -844,7 +844,7 @@ and unifyLetMon dryRun ((pa, hS, E), M) = case lowerAtomic hS of
 					end)
 	| (LogicVar {ctx=ref NONE, tag, ...}, _) =>
 			raise Fail ("Internal error: no context on $"^Word.toString tag)
-	| _ => raise ExnUnify "let = mon"
+	| _ => raise ExnUnify "let sequences have different lengths"
 and unifyMon dryRun (m1, m2) = case (NfMonadObj.prj m1, NfMonadObj.prj m2) of
 	  (DepPair (M11, M12), DepPair (M21, M22)) =>
 			(unifyMon dryRun (M11, M21); unifyMon dryRun (M12, M22))
@@ -939,7 +939,7 @@ and unifyLVarLetPrefix (p1, X1 as {X, ty, s, ctx=ref G, ...}, p, E2) =
 					 * unifyLVar below where it will be reraised *)
 					val (ctx', A) = synthAtomic ctx hs'
 					val sty = case Util.nfTypePrjAbbrev A of TMonad sty => sty
-							| _ => raise Fail "Type checking: sync type expected"
+							| _ => raise Fail "Internal error: sync type expected"
 					val ctx'' = opatBindNf (q, sty) ctx'
 					val si' = Subst.dotn (nbinds q) si
 					val (E', y) = splitLet ctx'' si' E (qn + nbinds q)
@@ -1152,10 +1152,11 @@ fun noConstrs N =
 		val leftOver = List.mapPartial (fn Solved => NONE | e => SOME e)
 						(map !! (!!constraints))
 	in case leftOver of [] => ()
-	| _::_ => (app (fn c => print ("Constr: "^(constrToStr c)^"\n")) leftOver
-		; raise Fail ("Leftover constraints" ^
-			(case N of NONE => "\n" | SOME N =>
-				" during construction of:\n  " ^ PrettyPrint.printObj N ^ "\n"))) end
+	| _::_ => raise ExnDeclError (TypeErr, "Leftover constraints:\n"
+			^ concat (map (fn c => "Constr: "^constrToStr c^"\n") leftOver)
+			^ (case N of NONE => "" | SOME N =>
+				"\nduring construction of:\n  " ^ PrettyPrint.printObj N ^ "\n"))
+	end
 
 fun branchConstr (c, sc) = case !!c of
 	  Solved => sc ()

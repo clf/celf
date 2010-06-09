@@ -27,14 +27,15 @@ type context
 val etaContract : exn -> Syntax.nfObj -> Context.mode * int
 val etaContractLetMon : Syntax.nfExpObj -> (Syntax.nfHead * Syntax.nfSpine) option
 
-val etaExpand : Syntax.apxAsyncType * Syntax.head * Syntax.spine -> Syntax.obj
+val etaExpand : (unit -> string) -> Syntax.apxAsyncType * Syntax.head * Syntax.spine -> Syntax.obj
 val etaExpandKind : context * Syntax.kind -> Syntax.kind
 val etaExpandType : context * Syntax.asyncType -> Syntax.asyncType
 val etaExpandTypeSpine : context * Syntax.typeSpine * Syntax.apxKind -> Syntax.typeSpine
 val etaExpandSyncType : context * Syntax.syncType -> Syntax.syncType
 val etaExpandObj : context * Syntax.obj * Syntax.apxAsyncType -> Syntax.obj
 val etaExpandHead : context * Syntax.head -> Syntax.head * Syntax.apxAsyncType
-val etaExpandSpine : context * Syntax.spine * Syntax.apxAsyncType -> Syntax.spine * Syntax.apxAsyncType
+val etaExpandSpine : (unit -> string) -> context * Syntax.spine * Syntax.apxAsyncType
+		-> Syntax.spine * Syntax.apxAsyncType
 val etaExpandExp : context * Syntax.expObj * Syntax.apxSyncType -> Syntax.expObj
 val etaExpandMonadObj : context * Syntax.monadObj * Syntax.apxSyncType -> Syntax.monadObj
 

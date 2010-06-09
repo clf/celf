@@ -41,10 +41,10 @@ fun getKiTy c = case getKiTyOpt c of
 
 fun getType c = case getKiTy c of
 	  (imps, Ty ty) => (imps, ty)
-	| (_, Ki _) => raise Fail ("Type "^c^" is used as an object")
+	| (_, Ki _) => raise ExnDeclError (KindErr, "Type "^c^" is used as an object\n")
 
 fun getKind a = case getKiTy a of
-	  (_, Ty _) => raise Fail ("Object "^a^" is used as a type")
+	  (_, Ty _) => raise ExnDeclError (KindErr, "Object "^a^" is used as a type\n")
 	| (imps, Ki ki) => (imps, ki)
 
 (* newImplicits implicits -> obj list *)
@@ -81,7 +81,7 @@ fun sigAddDecl dec =
 		val id' =
 			if checkId id then id
 			else if allowDup then nextId id 1
-			else raise Fail ("Error name clash: " ^ id)
+			else raise Fail ("Error name clash: " ^ id) (* FIXME: Different exception? *)
 		val dec' = declSetId id' dec
 	in ( sigTable := insert (!sigTable, id', dec')
 	   ; sigDelta := dec' :: !sigDelta )
@@ -122,18 +122,18 @@ fun sigLookupType a = #2 (getType a)
 (* sigGetTypeAbbrev : string -> asyncType option *)
 fun sigGetTypeAbbrev a =
 	case peek (!sigTable, a) of
-		NONE => raise Fail ("Undeclared identifier: "^a^"")
+		NONE => raise ExnDeclError (UndeclId, a)
 	  | SOME (TypeAbbrev (_, ty)) => SOME ty
-	  | SOME (ObjAbbrev _) => raise Fail ("Object "^a^" is used as a type")
+	  | SOME (ObjAbbrev _) => raise ExnDeclError (KindErr, "Object "^a^" is used as a type\n")
 	  | SOME (ConstDecl _) => NONE
 	  | SOME (Query _) => raise Fail "Internal error: sigGetTypeAbbrev"
 
 (* sigGetObjAbbrev : string -> (obj * asyncType) option *)
 fun sigGetObjAbbrev c =
 	case peek (!sigTable, c) of
-		NONE => raise Fail ("Undeclared identifier: "^c^"")
+		NONE => raise ExnDeclError (UndeclId, c)
 	  | SOME (ObjAbbrev (_, ty, ob)) => SOME (ob, ty)
-	  | SOME (TypeAbbrev _) => raise Fail ("Type "^c^" is used as an object")
+	  | SOME (TypeAbbrev _) => raise ExnDeclError (KindErr, "Type "^c^" is used as an object\n")
 	  | SOME (ConstDecl _) => NONE
 	  | SOME (Query _) => raise Fail "Internal error: sigGetObjAbbrev"
 

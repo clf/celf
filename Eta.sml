@@ -130,9 +130,9 @@ fun etaContractLetMon e = case Util.NfExpObjAuxDefs.prj2 e of
 		end
 	| _ => NONE
 
-(* etaExpand : apxAsyncType * head * spine -> obj *)
-fun etaExpand (A, H, S) =
-	let fun Idx M A n = etaExpand (A, Var (M, n), Nil')
+(* etaExpand : (unit -> string) -> apxAsyncType * head * spine -> obj *)
+fun etaExpand pp (A, H, S) =
+	let fun Idx M A n = etaExpand pp (A, Var (M, n), Nil')
 		(*fun printResult ob = (print ("Eta> "^(PrettyPrint.printObj (Atomic' (H, AH, S)))^" : "^
 								(PrettyPrint.printType (asyncTypeFromApx A))^" = "^
 								(PrettyPrint.printObj ob)^"\n")
@@ -163,7 +163,7 @@ fun etaExpand (A, H, S) =
 				in Monad' (Let' (p, addEtaSpine (n, Sf), Mon' $ Mf 1)) end
 			| ApxTAtomic _ => Atomic' $ addEtaSpine (n, Sf)
 			| ApxTAbbrev _ => raise Fail "Internal error: eta': ApxTAbbrev cannot happen"
-			| ApxTLogicVar _ => raise Fail "Ambiguous typing"
+			| ApxTLogicVar _ => raise ExnDeclError (AmbigType, pp ())
 		val etaResult = eta' (A, 0, fn (n, S) => S)
 	in case H of
 		  Var mn => if Util.isNil S then EtaTag (etaResult, mn) else etaResult
@@ -230,8 +230,10 @@ and etaExpandObj (ctx, ob, ty) =
 		; print ("|- "^PrettyPrint.printObj ob^" : "^PrettyPrint.printType (unsafeCast ty)^"\n"))
 	  else ()
 	; etaExpandObj' (ctx, ob, ty) )
-and etaExpandObj' (ctx, ob, ty) = case (Obj.prj ob, Util.apxTypePrjAbbrev ty) of
-	  (_, ApxTLogicVar _) => raise Fail "Ambiguous typing"
+and etaExpandObj' (ctx, ob, ty) =
+	let fun pp () = PrettyPrint.printObj ob ^ " : " ^ PrettyPrint.printType (unsafeCast ty) ^ "\n"
+	in case (Obj.prj ob, Util.apxTypePrjAbbrev ty) of
+	  (_, ApxTLogicVar _) => raise ExnDeclError (AmbigType, pp ())
 	| (LLam (p, N), ApxLolli (A, B)) =>
 			LLam' (p, etaExpandObj (opatBindApx (p, A) ctx, N, B))
 	| (AddPair (N1, N2), ApxAddProd (A, B)) =>
@@ -239,10 +241,14 @@ and etaExpandObj' (ctx, ob, ty) = case (Obj.prj ob, Util.apxTypePrjAbbrev ty) of
 	| (Monad E, ApxTMonad S) => Monad' (etaExpandExp (ctx, E, S))
 	| (Atomic (H, S), _) =>
 			let val (H', A) = etaExpandHead (ctx, H)
-			in etaExpand (ty, H', #1 $ etaExpandSpine (ctx, S, A)) end
-	| (Redex (N, A, S), _) => Redex' (etaExpandObj (ctx, N, A), A, #1 $ etaExpandSpine (ctx, S, A))
+				fun ppH () = PrettyPrint.printObj (Atomic' (H', S)) ^ " : "
+						^ PrettyPrint.printType (unsafeCast A) ^ "\n"
+			in etaExpand pp (ty, H', #1 $ etaExpandSpine ppH (ctx, S, A)) end
+	| (Redex (N, A, S), _) =>
+			Redex' (etaExpandObj (ctx, N, A), A, #1 $ etaExpandSpine (fn () => "") (ctx, S, A))
 	| (Constraint (N, A), _) => Constraint' (etaExpandObj (ctx, N, ty), etaExpandType (ctx, A))
 	| _ => raise Fail "Internal error: etaExpandObj match"
+	end
 
 (* etaExpandHead : context * head -> head * apxAsyncType *)
 and etaExpandHead (ctx, h) = case h of
@@ -265,14 +271,15 @@ and etaExpandImpl impl =
 	in map f impl end
 *)
 
-(* etaExpandSpine : context * spine * apxAsyncType -> spine * apxAsyncType *)
-and etaExpandSpine (ctx, sp, ty) = case (Spine.prj sp, Util.apxTypePrjAbbrev ty) of
-	  (_, ApxTLogicVar _) => raise Fail "Ambiguous typing"
+(* etaExpandSpine : (unit -> string) -> context * spine * apxAsyncType -> spine * apxAsyncType *)
+and etaExpandSpine ppH (ctx, sp, ty) = case (Spine.prj sp, Util.apxTypePrjAbbrev ty) of
+	  (_, ApxTLogicVar _) => raise ExnDeclError (AmbigType, ppH ())
 	| (Nil, A) => (Nil', ApxAsyncType.inj A)
 	| (LApp (N, S), ApxLolli (A, B)) =>
-			map1 (fn sp => LApp' (etaExpandMonadObj (ctx, N, A), sp)) (etaExpandSpine (ctx, S, B))
-	| (ProjLeft S, ApxAddProd (A, B)) => map1 ProjLeft' (etaExpandSpine (ctx, S, A))
-	| (ProjRight S, ApxAddProd (A, B)) => map1 ProjRight' (etaExpandSpine (ctx, S, B))
+			map1 (fn sp => LApp' (etaExpandMonadObj (ctx, N, A), sp))
+				(etaExpandSpine ppH (ctx, S, B))
+	| (ProjLeft S, ApxAddProd (A, B)) => map1 ProjLeft' (etaExpandSpine ppH (ctx, S, A))
+	| (ProjRight S, ApxAddProd (A, B)) => map1 ProjRight' (etaExpandSpine ppH (ctx, S, B))
 	| _ => raise Fail "Internal error: etaExpandSpine match"
 
 (* etaExpandExp : context * expObj * apxSyncType -> expObj *)
@@ -282,7 +289,9 @@ and etaExpandExp (ctx, ex, ty) = case ExpObj.prj ex of
 				etaExpandExp (opatBindApx (p, S) ctx, E, ty))
 	| Let (p, (H, S), E) =>
 			let val (H', A) = etaExpandHead (ctx, H)
-				val (S', mTy) = etaExpandSpine (ctx, S, A)
+				fun ppH () = PrettyPrint.printObj (Atomic' (H', S)) ^ " : "
+						^ PrettyPrint.printType (unsafeCast A) ^ "\n"
+				val (S', mTy) = etaExpandSpine ppH (ctx, S, A)
 			in case Util.apxTypePrjAbbrev mTy of
 				  ApxTMonad sTy =>
 					Let' (p, (H', S'), etaExpandExp (opatBindApx (p, sTy) ctx, E, ty))

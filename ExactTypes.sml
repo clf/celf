@@ -56,9 +56,9 @@ and checkType' (ctx, ty) = case AsyncType.prj ty of
 and checkTypeSpine ty (ctx, sp, ki) = case (TypeSpine.prj sp, Kind.prj ki) of
 	  (TNil, Type) => ()
 	| (TNil, KPi _) =>
-		raise ExnDeclError (KindErr, "Type " ^ ty () ^ " is not well-kinded; too few arguments")
+		raise ExnDeclError (KindErr, "Type " ^ ty () ^ " is not well-kinded; too few arguments\n")
 	| (TApp _, Type) =>
-		raise ExnDeclError (KindErr, "Type " ^ ty () ^ " is not well-kinded; too many arguments")
+		raise ExnDeclError (KindErr, "Type " ^ ty () ^ " is not well-kinded; too many arguments\n")
 	| (TApp (N, S), KPi (x, A, K)) =>
 			let val _ = checkObj (ctx, N, A)
 				val K' = if isSome x then KClos (K, Subst.subI $ normalizeObj N) else K 
@@ -122,10 +122,11 @@ and inferHead (ctx, h) = case h of
 	| UCVar x =>
 			(ctx, TClos (ImplicitVars.ucLookup x, Subst.shift $ length $ ctx2list ctx))
 	| LogicVar {X, ty, s, ctx=rctx, ...} =>
-			let val calcCtx' = Unify.pruneCtx (Fail "inferHead:pruning lin") (fn A => A)
+			let val calcCtx' = Unify.pruneCtx
+						(Fail "Internal error: inferHead:pruning lin") (fn A => A)
 				fun calcCtx si c = ctxMap unnormalizeType $ calcCtx' si $ ctxMap normalizeType c
 				val () = if Subst.isWeaken s then ()
-							else raise Fail "inferHead:unexpected substitution"
+							else raise Fail "Internal error: inferHead:unexpected substitution"
 				val lvarCtx = calcCtx (Subst.invert s) $ ctxIntPart ctx
 				val () = case !rctx of
 						  NONE => rctx := SOME lvarCtx

@@ -189,7 +189,7 @@ datatype decl = ConstDecl of string * int * typeOrKind
 	| ObjAbbrev of string * asyncType * obj
 	| Query of int option * int option * int option * int * asyncType
 
-datatype declError = TypeErr | KindErr | AmbigType | UndeclId
+datatype declError = TypeErr | KindErr | AmbigType | UndeclId | GeneralErr
 exception ExnDeclError of declError * string
 
 type 'ki nfKindF = (nfAsyncType, 'ki) kindFF
@@ -361,7 +361,7 @@ struct
 	  | Fmap' _ ((g1, g2), f) (TAtomic (a, ts)) = TAtomic (a, g1 a ts)
 	  | Fmap' _ (g, f) (TAbbrev (a, A)) = TAbbrev (a, f A)
 	fun Fmap ((g1, g2), f) a = Fmap' (fn x => x) ((fn _ => g1, g2), f) a 
-	fun prjApx (TLogicVar (ref NONE, _)) = raise Fail "Ambiguous typing"
+	fun prjApx (TLogicVar (ref NONE, _)) = raise ExnDeclError (AmbigType, "")
 	  | prjApx (TLogicVar (ref (SOME a), _)) = prjApx a
 	  | prjApx (TClos (a, _)) = prjApx a
 	  | prjApx (Apx a) = prjApx a
@@ -370,10 +370,10 @@ struct
 	fun prj (FixAsyncType a) = (*HashCons.nd*) a
 	  | prj (TClos (TClos (a, s'), s)) = prj (TClos (a, Subst1.comp (s', s)))
 	  | prj (TClos (FixAsyncType a, s)) = Subst1.subType ((*HashCons.nd*) a, s)
-	  | prj (TClos (TLogicVar (ref NONE, _), _)) = raise Fail "Ambiguous typing"
+	  | prj (TClos (TLogicVar (ref NONE, _), _)) = raise ExnDeclError (AmbigType, "")
 	  | prj (TClos (TLogicVar (ref (SOME a), _), s)) = Subst1.subType (prjApx a, s)
 	  | prj (TClos (Apx a, s)) = Subst1.subType (prjApx a, s)
-	  | prj (TLogicVar (ref NONE, _)) = raise Fail "Ambiguous typing"
+	  | prj (TLogicVar (ref NONE, _)) = raise ExnDeclError (AmbigType, "")
 	  | prj (TLogicVar (ref (SOME a), _)) = prjApx a
 	  | prj (Apx a) = prjApx a
 end
