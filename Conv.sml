@@ -32,9 +32,9 @@ open Syntax
 exception ExnConv of string
 
 (* Invariant:  convAsyncType (ty1, ty2) => ()
-   if  G |- ty1 == ty2 : kind
-   otherwise ExnConv is raised
-*)
+ * if  G |- ty1 == ty2 : kind
+ * otherwise ExnConv is raised
+ *)
 fun convAsyncType (ty1, ty2) = case (Util.nfTypePrjAbbrev ty1, Util.nfTypePrjAbbrev ty2) of
 	  (TLPi (_, A1, B1), TLPi (_, A2, B2)) => (convSyncType (A1, A2); convAsyncType (B1, B2))
 	| (AddProd (A1, B1), AddProd (A2, B2)) => (convAsyncType (A1, A2); convAsyncType (B1, B2))
@@ -46,9 +46,9 @@ fun convAsyncType (ty1, ty2) = case (Util.nfTypePrjAbbrev ty1, Util.nfTypePrjAbb
 
 
 (* Invariant:  convTypeSpine (TS1, TS2) => ()
-   if  G |- TS1 == TS2 : K1 > K2
-   otherwise ExnConv is raised
-*)
+ * if  G |- TS1 == TS2 : K1 > K2
+ * otherwise ExnConv is raised
+ *)
 and convTypeSpine (ts1, ts2) = case (NfTypeSpine.prj ts1, NfTypeSpine.prj ts2) of
 	  (TNil, TNil) => ()
 	| (TApp (M1, TS1), TApp (M2, TS2)) => (convObj (M1, M2); convTypeSpine (TS1, TS2))
@@ -63,9 +63,9 @@ and convSyncType (st1, st2) = case (NfSyncType.prj st1, NfSyncType.prj st2) of
 	| _ => raise ExnConv "Convertibility: SyncTypes differ"
 
 (* Invariant:  convObj (N1, N2) => ()
-   if  G |- N1 == N2 : A
-   otherwise ExnConv is raised
-*)
+ * if  G |- N1 == N2 : A
+ * otherwise ExnConv is raised
+ *)
 and convObj (ob1, ob2) = case (NfObj.prj ob1, NfObj.prj ob2) of
 	  (NfLLam (_, N), NfLLam (_, M)) => convObj (N, M)
 	| (NfAddPair (N1, N2), NfAddPair (M1, M2)) => (convObj (N1, M1); convObj (N2, M2))
@@ -76,9 +76,9 @@ and convObj (ob1, ob2) = case (NfObj.prj ob1, NfObj.prj ob2) of
 
 
 (* Invariant:  convHead (H1, H2) => ()
-   if  G |- H1 == H2 : A
-   otherwise ExnConv is raised
-*)
+ * if  G |- H1 == H2 : A
+ * otherwise ExnConv is raised
+ *)
 and convHead (hd1, hd2) = case (hd1, hd2) of
 	  (Const c1, Const c2) =>
 		if c1 = c2 then ()
@@ -93,9 +93,9 @@ and convHead (hd1, hd2) = case (hd1, hd2) of
 
 
 (* Invariant:  convSpine (S1, S2) => ()
-   if  G |- S1 == S2 : A1 > A2
-   otherwise ExnConv is raised
-*)
+ * if  G |- S1 == S2 : A1 > A2
+ * otherwise ExnConv is raised
+ *)
 and convSpine (sp1, sp2) = case (NfSpine.prj sp1, NfSpine.prj sp2) of
 	  (Nil, Nil) => ()
 	| (LApp (M1, S1), LApp (M2, S2)) => (convMonadObj (M1, M2); convSpine (S1, S2))
@@ -105,9 +105,9 @@ and convSpine (sp1, sp2) = case (NfSpine.prj sp1, NfSpine.prj sp2) of
 
 
 (* Invariant:  convMonadObj (M1, M2) => ()
-   if  G |- M1 == M2 : S
-   otherwise ExnConv is raised
-*)
+ * if  G |- M1 == M2 : S
+ * otherwise ExnConv is raised
+ *)
 and convMonadObj (M1, M2) = case (NfMonadObj.prj M1, NfMonadObj.prj M2) of
 	  (DepPair (M11, M12), DepPair (M21, M22)) =>
 		(convMonadObj (M11, M21); convMonadObj (M12, M22))
@@ -121,12 +121,12 @@ and convMonadObj (M1, M2) = case (NfMonadObj.prj M1, NfMonadObj.prj M2) of
 
 
 (* Invariant:  convExpObj (E1, E2)  => ()
-   if  G |- let P11 = R11 in ... let P1n = R1n in E1
-            == let P21 = R21 in ... let P2n = R2n in E2 : S
-   otherwise ExnConv is raised
-   where n = |C1| = |C2|
-   and   Ci = ((Pi1, Ri1), ..., (Pin, Rin))
-*)
+ * if  G |- let P11 = R11 in ... let P1n = R1n in E1
+ *          == let P21 = R21 in ... let P2n = R2n in E2 : S
+ * otherwise ExnConv is raised
+ * where n = |C1| = |C2|
+ * and   Ci = ((Pi1, Ri1), ..., (Pin, Rin))
+ *)
 and convExpObj (E1, E2) = case (NfExpObj.prj E1, NfExpObj.prj E2) of
 	  (NfMon M1, NfMon M2) => convMonadObj (M1, M2)
 	| (NfLet (P1, R1, E1'), NfLet (P2, R2, E2')) =>
@@ -135,12 +135,12 @@ and convExpObj (E1, E2) = case (NfExpObj.prj E1, NfExpObj.prj E2) of
 
 
 (* Invariant:
-   If    G |- E1 == let P1=R1 in E1' : S
-   and   G |- E2 : S
-   then  there exists E, such that
-   and   G, P1 |- E = convExpObj1 (E1, E2) : S
-   and   E2 == let P1=R1 in E: S
-*)
+ * If    G |- E1 == let P1=R1 in E1' : S
+ * and   G |- E2 : S
+ * then  there exists E, such that
+ * and   G, P1 |- E = convExpObj1 (E1, E2) : S
+ * and   E2 == let P1=R1 in E: S
+ *)
 (* FIXME: Bug:
  * {let {x} = c1 in let {y} = c1 in c2 x y} should be equal to
  * {let {x} = c1 in let {y} = c1 in c2 y x} *)

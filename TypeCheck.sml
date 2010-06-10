@@ -62,10 +62,10 @@ and checkSyncType (ctx, ty) = case NfSyncType.prj ty of
 	| TBang A => checkType (ctx, A)
 
 (* Invariant:
-   checkObj (G, N, A) => G'
-   if G |- N <= A -| G'
-   otherwise Fail is raised
-*)
+ * checkObj (G, N, A) => G'
+ * if G |- N <= A -| G'
+ * otherwise Fail is raised
+ *)
 and checkObj (ctx, ob, ty) = case (NfObj.prj ob, Util.nfTypePrjAbbrev ty) of
 	  (NfLLam (p, N), TLPi (p', A, B)) => patUnbind (p, checkObj (opatBindNf (p, A) ctx, N, B))
 	| (NfAddPair (N, M), AddProd (A, B)) => ctxAddJoin (checkObj (ctx, N, A), checkObj (ctx, M, B))
@@ -80,19 +80,19 @@ and checkObj (ctx, ob, ty) = case (NfObj.prj ob, Util.nfTypePrjAbbrev ty) of
 
 
 (* Invariant:
-   inferAtomic (G, R) => (G', A')
-   if G |- R => A' -| G'
-   otherwise Fail is raised
-*)
+ * inferAtomic (G, R) => (G', A')
+ * if G |- R => A' -| G'
+ * otherwise Fail is raised
+ *)
 and inferAtomic (ctx, (H, S)) =
 	let val (ctx1, ty1) = inferHead (ctx, H)
 	in inferSpine (ctx1, S, ty1) end
 
 (* Invariant:
-   inferHead (G, R) => (G', A')
-   if G |- R => A' -| G'
-   otherwise Fail is raised
-*)
+ * inferHead (G, R) => (G', A')
+ * if G |- R => A' -| G'
+ * otherwise Fail is raised
+ *)
 and inferHead (ctx, hd) = case hd of
 	  Const c => (ctx, normalizeType (Signatur.sigLookupType c))
 	| Var (m, n) =>
@@ -106,10 +106,10 @@ and inferHead (ctx, hd) = case hd of
 
 
 (* Invariant:
-   checkSub (G1, s, G2) => G1'
-   if G1 |- s <= G2 -| G1'
-   otherwise Fail is raised
-*)
+ * checkSub (G1, s, G2) => G1'
+ * if G1 |- s <= G2 -| G1'
+ * otherwise Fail is raised
+ *)
 and checkSub (ctx, s', ctx') = case (Subst.subPrj s', ctx') of
 	  (INR n, _::_) => checkSub (ctx, Subst.Dot (Idx (ID, n+1), Subst.shift (n+1)), ctx')
 	| (INR n, []) => if length (ctx2list ctx) = n then ctx else raise Fail "ctx/shift mismatch"
@@ -136,10 +136,10 @@ and checkSub (ctx, s', ctx') = case (Subst.subPrj s', ctx') of
 
 
 (* Invariant:
-   inferSpine (G, S, A) => (G', A')
-   if G |- S => A >> A' -| G'
-   otherwise Fail is raised
-*)
+ * inferSpine (G, S, A) => (G', A')
+ * if G |- S => A >> A' -| G'
+ * otherwise Fail is raised
+ *)
 and inferSpine (ctx, sp, ty) = case (NfSpine.prj sp, Util.nfTypePrjAbbrev ty) of
 	  (Nil, _) => (ctx, ty)
 	| (LApp (M, S), TLPi (p, A, B)) =>
@@ -150,10 +150,10 @@ and inferSpine (ctx, sp, ty) = case (NfSpine.prj sp, Util.nfTypePrjAbbrev ty) of
 	| _ => raise Fail "Type mismatch in inferSpine"
 
 (* Invariant:
-   checkExp (G, E, S) => G'
-   if G |- E <= S -| G'
-   otherwise Fail is raised
-*)
+ * checkExp (G, E, S) => G'
+ * if G |- E <= S -| G'
+ * otherwise Fail is raised
+ *)
 and checkExp (ctx, exp, S) = case NfExpObj.prj exp of
 	  NfLet (P, R, E)  =>
 		let val (ctx1, ty) = inferAtomic (ctx, R)
@@ -167,10 +167,10 @@ and checkExp (ctx, exp, S) = case NfExpObj.prj exp of
 	| NfMon M => checkMonad (ctx, M, S)
 
 (* Invariant:
-   checkMonad (G, M, S) => G'
-   if G |- M <= S -| G'
-   otherwise Fail is raised
-*)
+ * checkMonad (G, M, S) => G'
+ * if G |- M <= S -| G'
+ * otherwise Fail is raised
+ *)
 and checkMonad (ctx, mon, S) = case (NfMonadObj.prj mon, NfSyncType.prj S) of
 	  (DepPair (M1, M2), LExists (p, S1, S2)) =>
 		let val ctx1 = checkMonad (ctx, M1, S1)
@@ -183,10 +183,10 @@ and checkMonad (ctx, mon, S) = case (NfMonadObj.prj mon, NfSyncType.prj S) of
      | _ => raise Fail "Type mismatch in checkMonad"
 
 (* Invariant:
-   checkPattern (P, S) => ()
-   if |- P : S
-   otherwise Fail is raised
-*)
+ * checkPattern (P, S) => ()
+ * if |- P : S
+ * otherwise Fail is raised
+ *)
 and checkPattern (pat, S) = case (Pattern.prj pat, NfSyncType.prj S) of
 	  (PDepTensor (P1, P2), LExists (_, S1, S2)) =>
 		(checkPattern (P1, S1); checkPattern (P2, S2))
