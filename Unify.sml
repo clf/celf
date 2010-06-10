@@ -418,7 +418,7 @@ fun pruneLVar (LogicVar {X, ty, ctx=ref (SOME G), cnstr, tag, ...}) =
 		                Subst.id (ctx2list G)
 	in if Subst.isId weakenSub then () else
 	let val ss = Subst.invert weakenSub
-		val G' = SOME $ pruneCtx (Fail "pruneLVar:pruning lin") (fn A => A) ss G
+		val G' = SOME $ pruneCtx (Fail "Internal error: pruneLVar: pruning lin") (fn A => A) ss G
 		val ty' = NfTClos (ty, ss)
 	in instantiate (X, NfClos (newNfLVarCtx G' ty', weakenSub), cnstr, tag) end end
   | pruneLVar _ = raise Fail "Internal error: pruneLVar: no lvar"
@@ -436,10 +436,10 @@ fun linPrune (ob, pl) =
 		  | additiveOcc _ _       No No = np No
 		  | additiveOcc n m       o1 No = swap $ additiveOcc n m No o1
 		  | additiveOcc _ INT4AFF No Rigid = np Rigid
-		  | additiveOcc _ _       No Rigid = raise ExnUnify "implied linear var missing"
+		  | additiveOcc _ _       No Rigid = raise ExnUnify "Implied linear var missing"
 		(*| additiveOcc _ AFF4LIN No o2 = raise Fail "Internal error: A->L flex"*)
 		(* "AFF4LIN No FlexMult" can occur if there is affine occurrences in a non-pattern sub *)
-		  | additiveOcc _ AFF4LIN No o2 = raise ExnUnify "implied linear var missing"
+		  | additiveOcc _ AFF4LIN No o2 = raise ExnUnify "Implied linear var missing"
 		  | additiveOcc _ INT4AFF No o2 = np o2
 		  | additiveOcc n INT4LIN No o2 = (No, Subst.id, Subst.pruningsub [((), n)])
 		  | additiveOcc _ _       Rigid Rigid = np Rigid
@@ -452,7 +452,7 @@ fun linPrune (ob, pl) =
 		fun multOcc _ ID _ _ = raise Fail "Internal error: linPrune: ID"
 		  | multOcc _ _ No o2 = np o2
 		  | multOcc _ _ o1 No = np o1
-		  | multOcc _ _ Rigid Rigid = raise ExnUnify "implied linear/affine var occurring twice"
+		  | multOcc _ _ Rigid Rigid = raise ExnUnify "Implied linear/affine var occurring twice"
 		  | multOcc n _ Rigid _ = (Rigid, Subst.id, Subst.pruningsub [((), n)])
 		  | multOcc n _ _ Rigid = (Rigid, Subst.pruningsub [((), n)], Subst.id)
 		  | multOcc _ _ _ _ = np FlexMult
@@ -932,7 +932,7 @@ and unifyLVarLetPrefix (p1, X1 as {X, ty, s, ctx=ref G, ...}, p, E2) =
 			| NfLet (q, hs, E) =>
 				let fun prunehs' rX = (case objExists rX (NfClos (NfAtomic' hs, si)) of
 							  SOME ob => invAtomicP ob
-							| NONE => raise ExnUnify "can't prune")
+							| NONE => raise ExnUnify "Can't prune")
 					val hs' = prunehs' X handle ExnOccur => prunehs' (vref NONE)
 					(* ExnOccur: If the occurs check fails outside the pattern
 					 * fragment we postpone its treatment to the call to
@@ -1198,7 +1198,8 @@ val unifiable = not o isSome o unifyOpt
 (* unify : asyncType * asyncType * (unit -> string) -> unit *)
 fun unify (ty1, ty2, errmsg) = case unifyOpt (ty1, ty2) of
 	  NONE => ()
-	| SOME (e as ExnUnify s) => (print ("ExnUnify: "^s^"\n"^(errmsg ())^"\n") ; raise e)
+	| SOME (ExnUnify s) =>
+		raise ExnDeclError (TypeErr, "Unification failed: " ^ s ^ "\n" ^ errmsg ())
 	| SOME e => raise e
 
 (* solveConstrBacktrack : (unit -> unit) -> unit

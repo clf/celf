@@ -185,18 +185,15 @@ fun reconstructDecl (ldec as (_, dec)) =
 		  ExnDeclError es =>
 			let val decstr = declToStr ldec
 				val d = case es of
-					  (UndeclId, c) => "Undeclared identifier \"" ^ c ^ "\" in " ^ decstr ^ "\n"
-					| (TypeErr, s) => "Type-checking failed in " ^ decstr ^ ":\n" ^ s
-					| (KindErr, s) => "Kind-checking failed in " ^ decstr ^ ":\n" ^ s
-					| (AmbigType, "") => "Ambiguous typing in " ^ decstr ^ "\n"
-					| (AmbigType, s) => "Ambiguous typing in " ^ decstr ^ ":\n" ^ s
-					| (GeneralErr, s) => "Error in " ^ decstr ^ ":\n" ^ s
+					  (UndeclId, c) => "\nUndeclared identifier \"" ^ c ^ "\" in " ^ decstr ^ "\n\n"
+					| (TypeErr, s) => "\nType-checking failed in " ^ decstr ^ ":\n" ^ s ^ "\n"
+					| (KindErr, s) => "\nKind-checking failed in " ^ decstr ^ ":\n" ^ s ^ "\n"
+					| (AmbigType, "") => "\nAmbiguous typing in " ^ decstr ^ "\n\n"
+					| (AmbigType, s) => "\nAmbiguous typing in " ^ decstr ^ ":\n" ^ s ^ "\n"
+					| (GeneralErr, s) => "\nError in " ^ decstr ^ ":\n" ^ s ^ "\n"
 			in print d ; raise ExnStopCelf end
 		| Context.ExnCtx s =>
-			( print ("Type-checking failed in " ^ declToStr ldec ^ ":\n" ^ s)
-			; raise ExnStopCelf )
-		| Unify.ExnUnify s =>
-			( print ("Type mismatch in " ^ declToStr ldec ^ "\n")
+			( print ("\nType-checking failed in " ^ declToStr ldec ^ ":\n" ^ s ^ "\n")
 			; raise ExnStopCelf )
 		(*| ExnConv s =>*)
 

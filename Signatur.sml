@@ -81,7 +81,7 @@ fun sigAddDecl dec =
 		val id' =
 			if checkId id then id
 			else if allowDup then nextId id 1
-			else raise Fail ("Error name clash: " ^ id) (* FIXME: Different exception? *)
+			else raise ExnDeclError (GeneralErr, "Identifier is already defined\n")
 		val dec' = declSetId id' dec
 	in ( sigTable := insert (!sigTable, id', dec')
 	   ; sigDelta := dec' :: !sigDelta )

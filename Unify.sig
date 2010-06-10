@@ -22,8 +22,6 @@ sig
 
 val outputUnify : bool ref
 
-exception ExnUnify of string
-
 val resetConstrs : unit -> unit
 val noConstrs : Syntax.obj option -> unit
 val addConstraint : Syntax.constr VRef.vref * Syntax.constr VRef.vref list VRef.vref list -> unit
@@ -32,8 +30,6 @@ val instantiate : Syntax.nfObj option VRef.vref * Syntax.nfObj * Syntax.constr V
 val pruneCtx : exn -> (Syntax.nfAsyncType -> Syntax.nfAsyncType) -> Syntax.subst
 		-> Syntax.nfAsyncType Context.context -> Syntax.nfAsyncType Context.context
 val pruneLVar : Syntax.nfHead -> unit
-
-exception ExnOccur
 
 val objExists : Syntax.nfObj option VRef.vref -> Syntax.nfObj -> Syntax.nfObj option
 val typeExists : Syntax.nfAsyncType -> Syntax.nfAsyncType option
