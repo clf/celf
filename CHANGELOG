@@ -1,0 +1,8 @@
+Version 2.6
+* Fixed unification issue with eta-contraction at monadic type.
+* Simplified the implementation of eta-contraction and pattern substitution
+  recognition to not use type information.
+* Fixed issue concerning reuse of constant names (starting with "-").
+* Cleaned up the error reporting infrastructure and improved error messages to
+  include line numbers.
+
