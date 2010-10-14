@@ -71,8 +71,6 @@ datatype ('aTy, 'ki) kindFF
 	= Type
 	| KPi of string option * 'aTy * 'ki
 datatype ('tyS, 'sTy, 'aTy) asyncTypeFF
-	(*= Lolli of 'aTy * 'aTy
-	| TPi of string option * 'aTy * 'aTy*)
 	= TLPi of tpattern * 'sTy * 'aTy
 	| AddProd of 'aTy * 'aTy
 	| TMonad of 'sTy
@@ -82,18 +80,12 @@ datatype ('o, 'tyS) typeSpineFF
 	= TNil
 	| TApp of 'o * 'tyS
 datatype ('aTy, 'sTy) syncTypeFF
-	(*= TTensor of 'sTy * 'sTy
-	| TOne
-	| Exists of string option * 'aTy * 'sTy
-	| Async of 'aTy*)
 	= LExists of tpattern * 'sTy * 'sTy
 	| TOne
 	| TDown of 'aTy
 	| TAffi of 'aTy
 	| TBang of 'aTy
 datatype ('aTy, 'sp, 'e, 'o) objFF
-	(*= LinLam of string * 'o
-	| Lam of string * 'o*)
 	= LLam of opattern * 'o
 	| AddPair of 'o * 'o
 	| Monad of 'e
@@ -101,16 +93,12 @@ datatype ('aTy, 'sp, 'e, 'o) objFF
 	| Redex of 'o * apxAsyncType * 'sp
 	| Constraint of 'o * 'aTy
 datatype ('sp, 'e, 'o) nfObjFF
-	(*= NfLinLam of string * 'o
-	| NfLam of string * 'o*)
 	= NfLLam of opattern * 'o
 	| NfAddPair of 'o * 'o
 	| NfMonad of 'e
 	| NfAtomic of nfHead * 'sp
 datatype ('m, 'sp) spineFF
 	= Nil
-	(*| App of 'o * 'sp
-	| LinApp of 'o * 'sp*)
 	| LApp of 'm * 'sp
 	| ProjLeft of 'sp
 	| ProjRight of 'sp
@@ -128,15 +116,6 @@ datatype ('o, 'm) monadObjFF
 	| Affi of 'o
 	| Bang of 'o
 	| MonUndef
-	(*= Tensor of 'm * 'm
-	| One
-	| DepPair of 'o * 'm
-	| Norm of 'o*)
-(*datatype 'p patternF
-	= PTensor of 'p * 'p
-	| POne
-	| PDepPair of string * 'p
-	| PVar of string*)
 datatype ('x, 'ix, 'p) patternF
 	= PDepTensor of 'p * 'p
 	| POne
@@ -168,7 +147,6 @@ val with's :
 		ctx : 'aTy Context.context option ref,
 		cnstr : constr VRef.vref list VRef.vref, tag : word }
 
-(*type implicits = (string * asyncType) list*)
 datatype typeOrKind = Ty of asyncType | Ki of kind
 datatype decl = ConstDecl of string * int * typeOrKind
 	| TypeAbbrev of string * asyncType
@@ -320,27 +298,11 @@ include SYNTAX_CORE2
 
 type typeLogicVar
 
-(*
-datatype 'ki apxKindF = ApxType
-	| ApxKPi of apxAsyncType * 'ki
-datatype 'aTy apxAsyncTypeF = ApxLolli of 'aTy * 'aTy
-	| ApxTPi of 'aTy * 'aTy
-	| ApxAddProd of 'aTy * 'aTy
-	| ApxTMonad of apxSyncType
-	| ApxTAtomic of string
-	| ApxTAbbrev of string * asyncType
-	| ApxTLogicVar of typeLogicVar
-datatype 'sTy apxSyncTypeF = ApxTTensor of 'sTy * 'sTy
-	| ApxTOne
-	| ApxExists of apxAsyncType * 'sTy
-	| ApxAsync of apxAsyncType
-*)
 datatype ('aTy, 'ki) apxKindFF
 	= ApxType
 	| ApxKPi of 'aTy * 'ki
 datatype ('sTy, 'aTy) apxAsyncTypeFF
 	= ApxLolli of 'sTy * 'aTy
-	(*| ApxTPi of 'aTy * 'aTy*)
 	| ApxAddProd of 'aTy * 'aTy
 	| ApxTMonad of 'sTy
 	| ApxTAtomic of string
@@ -349,7 +311,6 @@ datatype ('sTy, 'aTy) apxAsyncTypeFF
 datatype ('aTy, 'sTy) apxSyncTypeFF
 	= ApxTTensor of 'sTy * 'sTy
 	| ApxTOne
-	(*| ApxExists of 'aTy * 'sTy*)
 	| ApxTDown of 'aTy
 	| ApxTAffi of 'aTy
 	| ApxTBang of 'aTy
@@ -517,9 +478,6 @@ val nfKindToApx : nfKind -> apxKind
 val nfAsyncTypeToApx : nfAsyncType -> apxAsyncType
 val nfSyncTypeToApx : nfSyncType -> apxSyncType
 
-(*val kindFromApx : apxKind -> kind*)
-(*val asyncTypeFromApx : apxAsyncType -> asyncType
-val syncTypeFromApx : apxSyncType -> syncType*)
 val injectApxType : apxAsyncType -> asyncType
 val injectApxSyncType : apxSyncType -> syncType
 val unsafeCast : apxAsyncType -> asyncType
@@ -540,24 +498,12 @@ val unnormalizeExpObj : nfExpObj -> expObj
 
 val etaShortcut : nfObj -> (Context.mode * int) option
 
-(*
-structure Whnf : sig
-	val whnfObj : obj -> (spine, expObj, obj) nfObjFF
-	val whnfExp : expObj -> (spine, monadObj, expObj) nfExpObjFF
-end
-*)
-
 structure Signatur : sig
 	val getSigDelta : unit -> decl list
 	val sigAddDecl : decl -> unit
 	val getImplLength : string -> int
 	val sigLookupKind : string -> kind
 	val sigLookupType : string -> asyncType
-(*	val sigLookupApxKind : string -> apxKind
-	val sigLookupApxType : string -> apxAsyncType
-	val sigNewImplicitsType : string -> obj list
-	val sigNewImplicitsObj : string -> obj list
-	val sigNewTAtomic : string -> asyncType*)
 	val sigGetTypeAbbrev : string -> asyncType option
 	val sigGetObjAbbrev : string -> (obj * asyncType) option
 end

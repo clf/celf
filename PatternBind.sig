@@ -24,12 +24,6 @@ val tpatBind : Syntax.tpattern * Syntax.syncType -> Syntax.asyncType Context.con
 		-> Syntax.asyncType Context.context
 val opatBind : Syntax.opattern * Syntax.syncType -> Syntax.asyncType Context.context
 		-> Syntax.asyncType Context.context
-		(*
-val tpatBind : (Syntax.asyncType -> 'a) -> Syntax.tpattern * Syntax.syncType
-		-> 'a Context.context -> 'a Context.context
-val opatBind : (Syntax.asyncType -> 'a) -> Syntax.opattern * Syntax.syncType
-		-> 'a Context.context -> 'a Context.context
-		*)
 val tpatBindApx : Syntax.tpattern * Syntax.apxSyncType -> Syntax.apxAsyncType Context.context
 		-> Syntax.apxAsyncType Context.context
 val opatBindApx : Syntax.opattern * Syntax.apxSyncType -> Syntax.apxAsyncType Context.context
@@ -41,6 +35,5 @@ val opatBindNf : Syntax.opattern * Syntax.nfSyncType -> Syntax.nfAsyncType Conte
 val depPatBind : {dep : Syntax.asyncType -> 'a, nodep : Syntax.asyncType -> 'a}
 		-> Syntax.tpattern * Syntax.syncType -> 'a Context.context -> 'a Context.context
 val patUnbind : Syntax.opattern * 'a Context.context -> 'a Context.context
-(*val patUnbindOpt : Syntax.opattern * 'a Context.context -> 'a Context.context option*)
 
 end

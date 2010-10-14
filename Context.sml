@@ -23,8 +23,6 @@ struct
 
 exception ExnCtx of string
 
-(*datatype mode = INT | AFF | LIN
-datatype cmode = NOINT | NOAFF | M of mode*)
 datatype mode = INT | AFF | LIN
 type cmode = mode option
 type 'a context = (string * 'a * cmode) list
@@ -91,9 +89,6 @@ fun ctxPop ((_, _, NONE)::ctx) = ctx
   | ctxPop ((x, _, SOME LIN)::ctx) = raise ExnCtx ("Linear variable "^x^" doesn't occur\n")
   | ctxPop [] = raise Fail "Internal error ctxPop: empty context"
 
-(* ctxPopLINopt : 'a context -> 'a context option *)
-(*fun ctxPopLINopt ctx = SOME (ctxPop ctx) handle ExnCtx _ => NONE*)
-
 fun addJoin ((x, A, f1), (_, _, f2)) =
 	let val joinerr = "Contexts can't join: linear variable "^x^" only occurs on one side\n"
 		val f = case (f1, f2) of
@@ -110,9 +105,6 @@ fun addJoin ((x, A, f1), (_, _, f2)) =
 
 (* ctxAddJoin : 'a context * 'a context -> 'a context *)
 fun ctxAddJoin ctxs = listPairMapEq addJoin ctxs
-
-(* ctxAddJoinOpt : 'a context * 'a context -> 'a context option *)
-(*fun ctxAddJoinOpt ctxs = SOME (ctxAddJoin ctxs) handle ExnCtx _ => NONE*)
 
 fun joinAffLin ((x, A, f1), (_, _, f2)) =
 	let val f = case (f1, f2) of
