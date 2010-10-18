@@ -74,51 +74,6 @@ fun etaContract e ob =
 			| _ => raise e
 	in etaC (ob, []) end
 
-(* etaContract : exn -> nfObj -> apxAsyncType -> mode * int *)
-(* assumes that ob does not contain _
- * etaContract e ob ty = (m, n)
- * ob == Var (m, n) : ty
- * or raise e if ob is not an eta-expanded var *)
-(*fun etaContract e ob ty =
-	let datatype etaSpine = LAp of opattern * apxSyncType | Pl | Pr
-		fun nbindsSp sp = foldl (fn (LAp (p, _), n) => n + nbinds p | (_, n) => n) 0 sp
-		fun eq ((x : mode * int), y) = if x=y then x else raise e
-		fun etaEqC (ob, ty, x) = ignore $ eq (etaC (ob, ty, []), x)
-		and etaC (ob, ty, sp) = case etaShortcut ob of NONE => etaC' (ob, ty, sp) | SOME k => k
-		and etaC' (ob, ty, sp) = case (NfObj.prj ob, Util.apxTypePrjAbbrev ty) of
-			  (NfLLam (p, N), ApxLolli (A, B)) => etaC (N, B, (LAp (p, A))::sp)
-			| (NfAddPair (N1, N2), ApxAddProd (A, B)) =>
-				eq (etaC (N1, A, Pl::sp), etaC (N2, B, Pr::sp))
-			| (NfMonad E, ApxTMonad S) =>
-				(case Util.NfExpObjAuxDefs.prj2 E of
-					  NfLet (p, N, NfMon M) =>
-						(etaP (nbinds p, p, M, S); etaC (NfAtomic' N, ApxTAtomic' "", sp))
-					| _ => raise e)
-			| (NfAtomic (Var (M, n), S), ApxTAtomic _) =>
-				let val nb = nbindsSp sp
-					val k = n - nb
-					val () = if k>0 then () else raise e
-					val () = etaSp (nb, S, rev sp)
-				in (M, k) end
-			| (NfAtomic _, ApxTAtomic _) => raise e
-			| _ => raise e
-		and etaP (n, p, m, sty) = case (Pattern.prj p, NfMonadObj.prj m, ApxSyncType.prj sty) of
-			  (PDepTensor (p1, p2), DepPair (M1, M2), ApxTTensor (S1, S2)) =>
-				(etaP (n, p1, M1, S1); etaP (n - nbinds p1, p2, M2, S2))
-			| (POne, One, ApxTOne) => ()
-			| (PDown _, Down N, ApxTDown A) => etaEqC (N, A, (LIN, n))
-			| (PAffi _, Affi N, ApxTAffi A) => etaEqC (N, A, (AFF, n))
-			| (PBang _, Bang N, ApxTBang A) => etaEqC (N, A, (INT, n))
-			| _ => raise e
-		and etaSp (m, Sp, sp) = case (NfSpine.prj Sp, sp) of
-			  (Nil, []) => ()
-			| (LApp (M, S), (LAp (p, ty))::sp) =>
-				(etaSp (m - nbinds p, S, sp); etaP (m, p, M, ty))
-			| (ProjLeft S, Pl::sp) => etaSp (m, S, sp)
-			| (ProjRight S, Pr::sp) => etaSp (m, S, sp)
-			| _ => raise e
-	in etaC (ob, ty, []) end*)
-
 (* etaContractLetMon : nfExpObj -> (nfHead * nfSpine) option *)
 fun etaContractLetMon e = case Util.NfExpObjAuxDefs.prj2 e of
 	  NfLet (p, hS, NfMon M) =>
@@ -154,7 +109,6 @@ fun etaExpand pp (A, H, S) =
 				let val (p, Mf) = etaSyncType S
 					val nb = nbinds p
 				in LLam' (p, eta' (B, n+nb, fn (n, S) => Sf (n+nb, LApp' (Mf n, S)))) end
-		(*| ApxTPi (A, B) => Lam' ("", eta' (B, n+1, fn (n, S) => Sf (n+1, App' (IdxI A n, S))))*)
 			| ApxAddProd (A, B) =>
 				AddPair' (eta' (A, n, fn (n, S) => Sf (n, ProjLeft' S)), 
 				         eta' (B, n, fn (n, S) => Sf (n, ProjRight' S)))
@@ -259,17 +213,6 @@ and etaExpandHead (ctx, h) = case h of
 			let val () = if Subst.isId (#s X) then () else raise Fail "Internal error: eta lvar"
 				val A = etaExpandType (ctx, #ty X)
 			in (LogicVar (X with'ty A), asyncTypeToApx A) end
-
-(* etaExpandImpl : obj list -> obj list *)
-(*
-and etaExpandImpl impl =
-	let fun f ob = case Obj.prj ob of
-			  Atomic (LogicVar X, A', S) =>
-					if Util.isNil S then etaExpand (A', LogicVar (X with'ty etaExpandType (#ty X)), A', S)
-					else raise Fail "Internal error: etaExpandImpl 1"
-			| _ => raise Fail "Internal error: etaExpandImpl 2"
-	in map f impl end
-*)
 
 (* etaExpandSpine : (unit -> string) -> context * spine * apxAsyncType -> spine * apxAsyncType *)
 and etaExpandSpine ppH (ctx, sp, ty) = case (Spine.prj sp, Util.apxTypePrjAbbrev ty) of

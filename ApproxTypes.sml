@@ -74,8 +74,6 @@ fun apxUnify (ty1, ty2, errmsg) = (apxUnifyType (ty1, ty2))
 
 val apxCount = ref 0
 
-(* apxInferPattern : pattern -> apxSyncType *)
-
 (* apxCheckKind : context * kind -> kind *)
 fun apxCheckKind (ctx, ki) = case Kind.prj ki of
 	  Type => Type'
@@ -286,10 +284,5 @@ and apxInferMonadObj (ctx, mob, ty) = case MonadObj.prj mob of
 fun apxCheckKindEC ki = apxCheckKind (emptyCtx, ki)
 fun apxCheckTypeEC ty = apxCheckType (emptyCtx, ty)
 fun apxCheckObjEC (ob, ty) = #2 (apxCheckObj (emptyCtx, ob, ty))
-(*
-fun apxCheckObjEC (ob, ty) = case (Obj.prj o #3 o apxInferObj) (emptyCtx, Constraint' (ob, ty)) of
-		  Constraint obty => obty
-		| _ => raise Fail "Internal error: apxCheckObjEC"
-*)
 
 end

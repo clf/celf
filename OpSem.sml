@@ -125,7 +125,6 @@ fun solve (ctx, ty, sc) =
 and solve' (ctx, ty, sc) = case Util.typePrjAbbrev ty of
 	  TLPi (p, S, A) => solve (pBind (p, S) ctx, A,
 			fn (N, ctxo) => let val p' = Util.patternT2O p in
-				(*Option.app (fn ctxo' => sc (LLam' (p', N), ctxo')) (patUnbindOpt (p', ctxo))*)
 				sc (LLam' (p', N), patUnbind (p', ctxo)) end)
 	(*| AddProd (A, B) => solve (ctx, A,
 			fn (N1, ctxo1) => solve (ctx, B,

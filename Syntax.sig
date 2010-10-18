@@ -21,6 +21,13 @@ signature TLU_SYNTAX = TOP_LEVEL_UTIL
 signature SYNTAX_CORE1 =
 sig
 
+(* subMode is the combination of the two flags occurring on variables
+ * in substitutions:
+ * ID is either II, AA, or LL (we never need to distinguish these cases)
+ * INT4LIN is IL, i.e. substituting an intuitionistic var for a linear one
+ * INT4AFF is IA, i.e. substituting an intuitionistic var for an affine one
+ * AFF4LIN is AL, i.e. substituting an affine var for a linear one
+ *)
 datatype subMode = ID | INT4LIN | INT4AFF | AFF4LIN
 
 type kind

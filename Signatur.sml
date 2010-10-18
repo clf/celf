@@ -47,14 +47,6 @@ fun getKind a = case getKiTy a of
 	  (_, Ty _) => raise ExnDeclError (KindErr, "Object "^a^" is used as a type\n")
 	| (imps, Ki ki) => (imps, ki)
 
-(* newImplicits implicits -> obj list *)
-(*fun newImplicits imps = map (fn (_, A) => newLVar A) imps*)
-
-(* newTSpine : kind -> typeSpine *)
-(*fun newTSpine ki = case Kind.prj ki of
-	  Type => TNil'
-	| KPi (_, A, K) => TApp' (newLVar A, newTSpine K)*)
-
 fun idFromDecl (ConstDecl (s, _, _)) = s
   | idFromDecl (TypeAbbrev (s, _)) = s
   | idFromDecl (ObjAbbrev (s, _, _)) = s
@@ -92,32 +84,9 @@ fun getImplLength c = case getKiTyOpt c of NONE => 0 | SOME (imps, _) => imps
 
 (* sigLookupKind : string -> kind *)
 fun sigLookupKind a = #2 (getKind a)
-	(*let val (imps, ki) = getKind a
-		(*fun im2ki [] = ki
-		  | im2ki ((x, A)::im) = KPi' (x, A, im2ki im)*)
-	in foldr (fn ((x, A), im) => KPi' (SOME x, A, im)) ki imps end*)
 
 (* sigLookupType : string -> asyncType *)
 fun sigLookupType a = #2 (getType a)
-	(*let val (imps, ty) = getType a
-	in foldr (fn ((x, A), im) => TPi' (SOME x, A, im)) ty imps end*)
-
-(* sigLookupApxKind : string -> apxKind *)
-(*fun sigLookupApxKind a = #2 (getKind a)*)
-
-(* sigLookupApxType : string -> apxAsyncType *)
-(*fun sigLookupApxType c = #2 (getType c)*)
-
-(* sigNewImplicitsType : string -> obj list *)
-(*fun sigNewImplicitsType a = newImplicits (#1 (getKind a))*)
-
-(* sigNewImplicitsObj : string -> obj list *)
-(*fun sigNewImplicitsObj a = newImplicits (#1 (getType a))*)
-
-(* sigNewTAtomic : string -> asyncType *)
-(*fun sigNewTAtomic a =
-	let val (imps, ki) = getKind a
-	in TAtomic' (a, foldr TApp' (newTSpine ki) (newImplicits imps)) end*)
 
 (* sigGetTypeAbbrev : string -> asyncType option *)
 fun sigGetTypeAbbrev a =

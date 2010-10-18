@@ -26,14 +26,10 @@ open Syntax
 (* mapKiTy : (kind -> kind) -> (asyncType -> asyncType) -> typeOrKind -> typeOrKind *)
 fun mapKiTy fki fty (Ki ki) = Ki (fki ki)
   | mapKiTy fki fty (Ty ty) = Ty (fty ty)
-(* mapKiTy' : (kind -> kind) -> (asyncType -> asyncType) -> typeOrKind ref -> unit -> unit *)
-(*fun mapKiTy' fki fty r = fn () => r := mapKiTy fki fty (!r)*)
 
 (* appKiTy : (kind -> unit) -> (asyncType -> unit) -> typeOrKind -> unit *)
 fun appKiTy fki fty (Ki ki) = fki ki
   | appKiTy fki fty (Ty ty) = fty ty
-(* appKiTy' : (kind -> unit) -> (asyncType -> unit) -> typeOrKind ref -> unit -> unit *)
-(*fun appKiTy' fki fty r = fn () => appKiTy fki fty (!r)*)
 
 (* mapDecl : (kind -> kind) -> (asyncType -> asyncType) -> (obj * asyncType -> obj) -> decl -> decl *)
 fun mapDecl fk ft fo (ConstDecl (id, imps, Ki ki)) = ConstDecl (id, imps, Ki (fk ki))

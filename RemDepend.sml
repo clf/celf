@@ -114,14 +114,6 @@ and rdMonadObj m = case MonadObj.prj m of
 	| Affi N => map1 Affi' (rdObj N)
 	| Bang N => map1 Bang' (rdObj N)
 	| MonUndef => raise Fail "Internal error: rdMonadObj: MonUndef"
-(*
-and rdPattern p = case Pattern.prj p of
-	  PTensor (p1, p2) => join2 PTensor' (rdPattern p1) (rdPattern p2)
-	| POne => (POne', empty)
-	| PDeepPair (x, A, p) =>
-			join2 (fn (A', p') => PDeepPair' (x, A', p')) (rdType A) (map2 decr (rdPattern p))
-	| PVar (x, A) => map1 (fn A' => PVar' (x, A')) (rdType A)
-	*)
 
 val remDepKind = #1 o rdKind
 val remDepType = #1 o rdType

@@ -273,9 +273,9 @@ and checkExistObj rOccur ob =
 		  | chHead lvCtrlCtx (h as Var (_, n)) = (h, isLvarCtrl n lvCtrlCtx)
 		  | chHead lvCtrlCtx (LogicVar {ctx=ref NONE, tag, ...}) =
 				raise Fail ("Internal error: no context on $"^Word.toString tag)
-		  | chHead lvCtrlCtx (LogicVar (Y as {X=rY, s=sY, ctx=ref (SOME G), ...})) =
+		  | chHead lvCtrlCtx (LogicVar (Y as {X=rY, s=sY, ...})) =
 				if eq (rY, rOccur) then (* X = H . S{X[p]} --> X = H . S{_}  if p is pattern *)
-					if isSome $ patSubOcc rOccur sY (*ctxMap nfAsyncTypeToApx G*) then
+					if isSome $ patSubOcc rOccur sY then
 						raise Subst.ExnUndef
 					else raise ExnOccur
 				else
@@ -340,9 +340,10 @@ fun pruneCtx e pruneType ss G =
 
 (* objExists : nfObj option vref -> nfObj -> nfObj option *)
 (* typeExists : nfAsyncType -> nfAsyncType option *)
-(* force the existence of ob/ty while performing occurs check and pruning
- * subterms outside the pattern fragment with nested undefs get postponed as Exists-constraints
- * possible return values:
+(* Force the existence of ob/ty while performing occurs check and pruning
+ * subterms outside the pattern fragment with nested undefs get postponed
+ * as Exists-constraints.
+ * Possible return values:
  *  SOME ob  - ob exists
  *  NONE     - ob does not exist
  *  ExnOccur - don't know due to occurs check failure outside the pattern fragment *)
@@ -394,8 +395,7 @@ val (objExists, typeExists) =
 				in if Subst.isId w andalso !noNestedUndef then
 					(Y', (false, NfInj.Nil'))
 				else if !noNestedUndef andalso
-						isSome $ Subst.patSub (fn x => (x, true))
-								Eta.etaContract sY' (*ctxMap nfAsyncTypeToApx G*) then
+						isSome $ Subst.patSub (fn x => (x, true)) Eta.etaContract sY' then
 					let val wi = Subst.invert w
 						val G' = pruneCtx Subst.ExnUndef pruneType wi G
 						val A' = pruneType (NfTClos (A, wi))
@@ -501,7 +501,7 @@ fun linPrune (ob, pl) =
 			| (LogicVar (X1 as {X=r, ty=A, s, ctx=ref (SOME G), cnstr=cs, tag}), _) =>
 				let val () = if List.all (isSome o #3) $ ctx2list G then () else
 								raise Fail "Internal error: pAtomic: lvar with non-pruned ctx"
-				in case patSub s (*ctxMap nfAsyncTypeToApx G*) of
+				in case patSub s of
 				  SOME (p1, s1) =>
 					let val s2 = Subst.comp (s1, Subst.lcs2sub p1)
 						val (s3, pp, occ) = Subst.fold
@@ -679,7 +679,7 @@ and unifyObj dryRun (ob1, ob2) =
 					if headCountExp (r, E) = SOME 0 then SOME X else NONE | _ => NONE of
 					  SOME (X as {s, ctx=ref (SOME G), cnstr=cs, ...}) =>
 						if isSome dryRun then (valOf dryRun) := false else
-						(case patSub s (*ctxMap nfAsyncTypeToApx G*) of
+						(case patSub s of
 							  SOME (p, s') => unifyLVar (X with's s', NfMonad' E, p)
 							| NONE => addConstraint (vref (Eqn (NfObj.inj ob1', NfMonad' E)), [cs]))
 					| SOME {ctx=ref NONE, ...} => raise Fail "Internal error: no ctx"
@@ -701,9 +701,8 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 			else unifySpine dryRun (S1, S2)
 	| (LogicVar (X1 as {X=r1, ty=A1, s=s1, ctx=ref (SOME G1), cnstr=cs1, tag=tag1}),
 		LogicVar (X2 as {X=r2, s=s2, cnstr=cs2, ...})) =>
-			let val apxG1 = ctxMap nfAsyncTypeToApx G1
-			in if eq (r1, r2) then
-				case (patSub s1 (*apxG1*), patSub s2 (*apxG1*)) of
+			if eq (r1, r2) then
+				case (patSub s1, patSub s2) of
 				  (NONE, NONE) => (* FIXME: code restructuring? *)
 					let val dryRunIntersect = ref true
 						exception ExnUnifyMaybe
@@ -748,20 +747,17 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 						end
 					end
 			else if isSome dryRun then (valOf dryRun) := false
-			else case patSub s1 (*apxG1*) of
+			else (case patSub s1 of
 				  SOME (p, s') => unifyLVar (X1 with's s', NfAtomic' hS2, p)
 				| NONE =>
-					(case patSub s2 (*apxG1*) of
+					(case patSub s2 of
 					  SOME (p, s') => unifyLVar (X2 with's s', NfAtomic' hS1, p)
-					| NONE => addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs1, cs2]))
-			end
-	| (LogicVar (X as {s, ctx=ref (SOME G), cnstr=cs, ...}), _) =>
+					| NONE => addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs1, cs2])))
+	| (LogicVar (X as {s, cnstr=cs, ...}), _) =>
 			if isSome dryRun then (valOf dryRun) := false else
-			(case patSub s (*ctxMap nfAsyncTypeToApx G*) of
+			(case patSub s of
 				  SOME (p, s') => unifyLVar (X with's s', NfAtomic' hS2, p)
 				| NONE => addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs]))
-	| (LogicVar {ctx=ref NONE, tag, ...}, _) =>
-			raise Fail ("Internal error: no context on $"^Word.toString tag)
 	| (_, LogicVar _) => unifyHead dryRun (hS2, hS1)
 	| _ => raise ExnUnify "Heads differ"
 and unifyLVar (X as {X=r, s, cnstr=cs, tag, ...}, ob, p) =
@@ -829,7 +825,7 @@ and unifyExp dryRun (e1, e2) = case (NfExpObj.prj e1, NfExpObj.prj e2) of
 and unifyLetMon dryRun ((pa, hS, E), M) = case lowerAtomic hS of
 	  (LogicVar (X as {X=r, ty, s, ctx=ref (SOME G), cnstr=cs, tag}), _ (*=Nil*)) =>
 			if isSome dryRun then (valOf dryRun) := false else
-			(case patSub s (*ctxMap nfAsyncTypeToApx G*) of
+			(case patSub s of
 				  NONE => addConstraint (vref (Eqn
 						(NfMonad' $ NfLet' (pa, hS, E), NfMonad' $ NfMon' M)), [cs])
 				| SOME (p', s') =>
@@ -895,8 +891,8 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 						  | notLvar _ = true
 						fun lvarFreeN (_, 0) = true
 						  | lvarFreeN (E, n) = case NfExpObj.prj E of
-							  NfLet (_, (LogicVar {s, ctx=ref G, ...}, _), E') =>
-								n=1 andalso isSome $ patSub s (*ctxMap nfAsyncTypeToApx (valOf G)*)
+							  NfLet (_, (LogicVar {s, ...}, _), E') =>
+								n=1 andalso isSome (patSub s)
 							| NfLet (_, _, E') => lvarFreeN (E', n-1)
 							| NfMon _ => raise Fail "Internal error: lvarFreeN"
 					in if isSome m2 andalso lvarFreeN (E2t, valOf m2) andalso notLvar ob1' then
@@ -1018,8 +1014,8 @@ and matchHeadInLetFixedPos (q, hS, E, pos) =
 					val () = if pos > 1 andalso isLVar N then
 								raise Fail "Internal error: mHILFP: lvar2" else ()
 				in if pos = 1 then if isLVar N then
-					let val (X as {s, ctx=ref G, ...}) = invLVar N
-						val (p', s') = valOf $ patSub s (*ctxMap nfAsyncTypeToApx (valOf G)*)
+					let val (X as {s, ...}) = invLVar N
+						val (p', s') = valOf $ patSub s
 						val (Y, qn, _) = unifyLVarLetPrefix (p, X with's s', p',
 								NfLet' (q, hS, NfMon' NfInj.One'))
 						val E'' = NfLet' (p, invAtomicP Y,
@@ -1047,10 +1043,10 @@ fun matchHeadInLetBranch (same, q, hS, E, sc) =
 							raise Fail "Internal error: matchHeadInLetBranch: assertMon"
 				in if isLVar N then (assertMon () ; if same then () else
 				BackTrack.backtrack (fn () =>
-					let val (X as {s, ctx=ref G, ...}) = invLVar N
+					let val (X as {s, ...}) = invLVar N
 						fun valOf' (SOME x) = x
 						  | valOf' NONE = raise Fail "Internal error: not patsub in mHILBranch"
-						val (p', s') = valOf' $ patSub s (*ctxMap nfAsyncTypeToApx (valOf G)*)
+						val (p', s') = valOf' $ patSub s
 					in case SOME (unifyLVarLetPrefix (p, X with's s', p',
 								NfLet' (q, hS, NfMon' NfInj.One'))) handle ExnUnify _ => NONE of
 						  NONE => ()
@@ -1101,11 +1097,10 @@ fun unifyBranch (ob1, ob2, sc) = case (NfObj.prj ob1, NfObj.prj ob2) of
 			  INR css =>
 				( addConstraint (vref (Eqn (NfMonad' E1, NfMonad' E2)), css)
 				; sc () )
-			| INL ((n1, SOME {X=r1, s=s1, ctx=ref (SOME G1), cnstr=cs1, ...}),
-					(n2, SOME {X=r2, s=s2, ctx=ref (SOME G2), cnstr=cs2, ...})) =>
+			| INL ((n1, SOME {X=r1, s=s1, cnstr=cs1, ...}),
+					(n2, SOME {X=r2, s=s2, cnstr=cs2, ...})) =>
 				if eq (r1, r2) andalso n1<>n2 then () else
-				(case (patSub s1 (*ctxMap nfAsyncTypeToApx G1*),
-						patSub s2 (*ctxMap nfAsyncTypeToApx G2*)) of
+				(case (patSub s1, patSub s2) of
 					  (SOME _, SOME _) =>
 						if n1 <= n2 then unifyBranchExp (eq (r1, r2), n1, E1, E2, sc)
 						else unifyBranchExp (eq (r1, r2), n2, E2, E1, sc)
@@ -1114,7 +1109,6 @@ fun unifyBranch (ob1, ob2, sc) = case (NfObj.prj ob1, NfObj.prj ob2) of
 					| (NONE, NONE) =>
 						( addConstraint (vref (Eqn (NfMonad' E1, NfMonad' E2)), [cs1, cs2])
 						; sc () ))
-			| INL ((n1, SOME _), (n2, SOME _)) => raise Fail "Internal error: unifyBranch: no ctx"
 			| INL ((n1, SOME X1), (n2, NONE)) =>
 				if n1 > n2 then () else unifyBranchExp (false, n1, E1, E2, sc)
 			| INL ((n1, NONE), (n2, SOME X2)) =>

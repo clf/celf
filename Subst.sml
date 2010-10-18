@@ -78,8 +78,6 @@ struct
 	  | subKind (KPi (NONE, A, K), s) = KPi (NONE, TClos (A, s), KClos(K, s))
 	  | subKind (KPi (SOME x, A, K), s) = KPi (SOME x, TClos (A, s), KClos(K, dot1 s))
 	fun subType (TLPi (p, S, A), s) = TLPi (p, STClos (S, s), TClos (A, dotn (nbinds p) s))
-	  (*| subType (TPi (NONE, A, B), s) = TPi (NONE, TClos (A, s), TClos (B, s))
-	  | subType (TPi (SOME x, A, B), s) = TPi (SOME x, TClos (A, s), TClos (B, dot1 s))*)
 	  | subType (AddProd (A, B), s) = AddProd (TClos (A, s), TClos (B, s))
 	  | subType (TMonad S, s) = TMonad (STClos (S, s))
 	  | subType (TAtomic (a, S), s) = TAtomic (a, TSClos (S, s))
@@ -88,8 +86,6 @@ struct
 	  | subTypeSpine (TApp (N, S), s) = TApp (Clos (N, s), TSClos (S, s))
 	fun subSyncType (LExists (p, S1, S2), s) = LExists (p, STClos (S1, s), STClos (S2, dotn (nbinds p) s))
 	  | subSyncType (TOne, _) = TOne
-	  (*| subSyncType (Exists (NONE, A, S), s) = Exists (NONE, TClos (A, s), STClos (S, s))
-	  | subSyncType (Exists (SOME x, A, S), s) = Exists (SOME x, TClos (A, s), STClos (S, dot1 s))*)
 	  | subSyncType (TDown A, s) = TDown (TClos (A, s))
 	  | subSyncType (TAffi A, s) = TAffi (TClos (A, s))
 	  | subSyncType (TBang A, s) = TBang (TClos (A, s))
@@ -106,7 +102,6 @@ struct
 	  | subSpine (LApp (M, S), s) = LApp (MClos (M, s), SClos (S, s))
 	  | subSpine (ProjLeft S, s) = ProjLeft (SClos (S, s))
 	  | subSpine (ProjRight S, s) = ProjRight (SClos (S, s))
-	(*fun subExpObj (Let (p, N, E), s) = Let (PClos (p, s), Clos (N, s), EClos (E, dotn (nbinds p) s))*)
 	fun subExpObj _ (LetRedex (p, S, N, E), s) =
 			LetRedex (p, S, Clos (N, s), EClos (E, dotn (nbinds p) s))
 	  | subExpObj letredex (Let (p, (H, S), E), s) = (case headSub (H, s) of
@@ -119,10 +114,6 @@ struct
 	  | subMonadObj (Affi N, s) = Affi (Clos (N, s))
 	  | subMonadObj (Bang N, s) = Bang (Clos (N, s))
 	  | subMonadObj (MonUndef, _) = MonUndef
-(*	fun subPattern (PTensor (p1, p2), s) = PTensor (PClos (p1, s), PClos (p2, s))
-	  | subPattern (POne, s) = POne
-	  | subPattern (PDepPair (x, A, p), s) = PDepPair (x, TClos (A, s), PClos (p, dot1 s))
-	  | subPattern (PVar (x, A), s) = PVar (x, TClos (A, s))*)
 	
 	fun leftOf (INL l) = l
 	  | leftOf (INR _) = raise Option.Option
@@ -254,7 +245,7 @@ struct
 			  | sorted _ = true
 		in if sorted l then l else qsort' l [] end
 
-	fun modeDiv INT INT = ID (* modeDiv also used in Syntax.sml *)
+	fun modeDiv INT INT = ID (* modeDiv is also used in Syntax.sml *)
 	  | modeDiv INT AFF = INT4AFF
 	  | modeDiv INT LIN = INT4LIN
 	  | modeDiv AFF INT = raise Fail "Internal error: Linearity mismatch patSub"

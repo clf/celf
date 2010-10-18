@@ -36,7 +36,7 @@ fun paren false x = x
 
 fun lookup (x::ctx) 1 = x
   | lookup (_::ctx) n = lookup ctx (n-1)
-  | lookup [] n = Int.toString n (*raise Fail "Internal error: de Bruijn index out of range"*)
+  | lookup [] n = Int.toString n
 
 fun add x ctx =
 	let fun eq (x : string) y = x=y
@@ -73,8 +73,7 @@ and pType ctx pa ty = if isUnknown ty then ["???"] else case AsyncType.prj ty of
 			end)
 	| AddProd (A, B) => paren pa (pType ctx true A @ [" & "] @ pType ctx true B)
 	| TMonad S => ["{"] @ pSyncType ctx false S @ ["}"]
-	| TAtomic (a, S) => (*(fn (a', []) => a' | (a', ts) => paren pa (a' @ ts)) ([a] @ join (map (pObj ctx true) impl), pTypeSpine ctx S)*)
-			[a] @ (*join (map (pObj ctx false) impl) @*) pTypeSpineSkip ctx S (getImplLength a)
+	| TAtomic (a, S) => [a] @  pTypeSpineSkip ctx S (getImplLength a)
 	| TAbbrev (a, ty) => [a]
 and pTypeSpineSkip ctx sp n = if n=0 then pTypeSpine ctx sp else case TypeSpine.prj sp of
 	  TNil => raise Fail "Internal error: pTypeSpineSkip"
@@ -117,7 +116,7 @@ and pObj ctx pa ob = case SOME (Obj.prj ob) handle Subst.ExnUndef => NONE of
 			(fn [] => pObj ctx pa N | s => paren pa (pObj ctx true N @ s)) (pSpine ctx S)
 	| Constraint (N, A) => pObj ctx pa N
 and pHead ctx h = case h of
-	  Const c => [c] (*@ join (map (pObj ctx false) impl)*)
+	  Const c => [c]
 	| Var (M, n) => [lookup ctx n (*, case M of Context.INT => "!" | Context.AFF => "@" | Context.LIN => "L"*)]
 	| UCVar v => ["#"^v]
 	| LogicVar {ty, s, ctx=ref G, tag, ...} =>
@@ -183,21 +182,6 @@ and pTPattern bctx p = case Pattern.prj p of
 	| PAffi () => (["@_"], addNoOccur bctx, false)
 	| PBang NONE => (["!_"], addNoOccur bctx, false)
 	| PBang (SOME x) => let val (x', bctx') = add x bctx in (["!"^x'], bctx', true) end
-(*and pPattern ctx bctx pa p = case Pattern.prj p of
-	  PTensor (p1, p2) =>
-			let val (pP1, bctx') = pPattern ctx bctx true p1
-				val (pP2, bctx'') = pPattern ctx bctx' true p2
-			in (paren pa (pP1 @ [" * "] @ pP2), bctx'') end
-	| POne => (["1"], bctx)
-	| PDepPair (x, A, p) =>
-			let val (x', bctx') = add x bctx
-				val (x'', ctx') = add x' ctx
-				val () = if x' = x'' then () else raise Fail "Internal error: pPattern"
-				val (pP, bctx'') = pPattern ctx' bctx' false p
-			in (["["^x'^": "] @ pType ctx false A @ [", "] @ pP @ ["]"], bctx'') end
-	| PVar (x, A) =>
-			let val (x', bctx') = add x bctx
-			in ([x'^": "] @ pType ctx false A, bctx') end*)
 
 val printKind = String.concat o (pKind [])
 val printType = String.concat o (pType [] false)

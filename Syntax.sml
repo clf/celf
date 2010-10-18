@@ -32,18 +32,6 @@ open VRef
 
 datatype subMode = ID | INT4LIN | INT4AFF | AFF4LIN
 
-(*
-datatype pattern = FixPattern of pattern patternF * int
-and tpattern = FixTPattern of tpattern tpatternF * int * int
-and ('x, 'ix, 'p) patternFF
-	= PDepTensor of 'p * 'p
-	| POne
-	| PDown of 'x
-	| PAffi of 'x
-	| PBang of 'ix
-withtype 'p patternF = (string, string, 'p) patternFF
-and 'p tpatternF = (unit, string option, 'p) patternFF
-*)
 datatype ('x, 'ix, 'p) patternF
 	= PDepTensor of 'p * 'p
 	| POne
@@ -88,8 +76,6 @@ and ('aTy, 'ki) kindFF
 	= Type
 	| KPi of string option * 'aTy * 'ki
 and ('tyS, 'sTy, 'aTy) asyncTypeFF
-	(*= Lolli of 'aTy * 'aTy
-	| TPi of string option * 'aTy * 'aTy*)
 	= TLPi of tpattern * 'sTy * 'aTy
 	| AddProd of 'aTy * 'aTy
 	| TMonad of 'sTy
@@ -99,18 +85,12 @@ and ('o, 'tyS) typeSpineFF
 	= TNil
 	| TApp of 'o * 'tyS
 and ('aTy, 'sTy) syncTypeFF
-	(*= TTensor of 'sTy * 'sTy
-	| TOne
-	| Exists of string option * 'aTy * 'sTy
-	| Async of 'aTy*)
 	= LExists of tpattern * 'sTy * 'sTy
 	| TOne
 	| TDown of 'aTy
 	| TAffi of 'aTy
 	| TBang of 'aTy
 and ('aTy, 'sp, 'e, 'o) objFF
-	(*= LinLam of string * 'o
-	| Lam of string * 'o*)
 	= LLam of opattern * 'o
 	| AddPair of 'o * 'o
 	| Monad of 'e
@@ -118,16 +98,12 @@ and ('aTy, 'sp, 'e, 'o) objFF
 	| Redex of 'o * apxAsyncType * 'sp
 	| Constraint of 'o * 'aTy
 and ('sp, 'e, 'o) nfObjFF
-	(*= NfLinLam of string * 'o
-	| NfLam of string * 'o*)
 	= NfLLam of opattern * 'o
 	| NfAddPair of 'o * 'o
 	| NfMonad of 'e
 	| NfAtomic of nfHead * 'sp
 and ('m, 'sp) spineFF
 	= Nil
-	(*| App of 'o * 'sp
-	| LinApp of 'o * 'sp*)
 	| LApp of 'm * 'sp
 	| ProjLeft of 'sp
 	| ProjRight of 'sp
@@ -145,15 +121,6 @@ and ('o, 'm) monadObjFF
 	| Affi of 'o
 	| Bang of 'o
 	| MonUndef
-	(*= Tensor of 'm * 'm
-	| One
-	| DepPair of 'o * 'm
-	| Norm of 'o*)
-(*and 'p patternF
-	= PTensor of 'p * 'p
-	| POne
-	| PDepPair of string * 'p
-	| PVar of string*)
 
 withtype 'ki kindF = (asyncType, 'ki) kindFF
 and 'aTy asyncTypeF = (typeSpine, syncType, 'aTy) asyncTypeFF
@@ -182,7 +149,6 @@ and apxSyncType = syncType
 
 and typeLogicVar = (*apx*)asyncType option ref * word
 
-(*type implicits = (string * asyncType) list*)
 datatype typeOrKind = Ty of asyncType | Ki of kind
 datatype decl = ConstDecl of string * int * typeOrKind
 	| TypeAbbrev of string * asyncType
@@ -215,7 +181,6 @@ datatype ('aTy, 'ki) apxKindFF
 	| ApxKPi of 'aTy * 'ki
 datatype ('sTy, 'aTy) apxAsyncTypeFF
 	= ApxLolli of 'sTy * 'aTy
-	(*| ApxTPi of 'aTy * 'aTy*)
 	| ApxAddProd of 'aTy * 'aTy
 	| ApxTMonad of 'sTy
 	| ApxTAtomic of string
@@ -224,7 +189,6 @@ datatype ('sTy, 'aTy) apxAsyncTypeFF
 datatype ('aTy, 'sTy) apxSyncTypeFF
 	= ApxTTensor of 'sTy * 'sTy
 	| ApxTOne
-	(*| ApxExists of 'aTy * 'sTy*)
 	| ApxTDown of 'aTy
 	| ApxTAffi of 'aTy
 	| ApxTBang of 'aTy
@@ -274,12 +238,6 @@ fun nextLVarCnt () = (lVarCnt := (!lVarCnt) + 0w1 ; !lVarCnt)
 val tyLVarCnt = ref 0w0
 fun nextTyLVarCnt () = (tyLVarCnt := (!tyLVarCnt) + 0w1 ; !tyLVarCnt)
 
-(*fun newTVar () =
-	let val l = ref []
-		val t = ref (NON l)
-		val () = l := [t]
-	in TLogicVar t end
-fun newApxTVar () = newTVar ()*)
 fun newTVar () = TLogicVar (ref NONE, nextTyLVarCnt ())
 fun newApxTVar () = TLogicVar (ref NONE, nextTyLVarCnt ())
 fun newLVarCtx ctx ty = FixObj (Atomic (LogicVar {X=vref NONE, ty=ty, s=Subst1.id, ctx=ref ctx,
@@ -344,8 +302,6 @@ struct
 	fun newTSpine' ki = case Kind.prj ki of
 		  Type => inj TNil
 		| KPi (_, A, K) => inj (TApp (newLVar (Apx A), newTSpine' K))
-(*		| KPi (_, A, K) => let val N = newLVar A
-			in inj (TApp (N, newTSpine' (KClos (K, Subst1.sub N)))) end*)
 	val newTSpine = newTSpine' o Signatur.sigLookupKind
 end
 (* structure AsyncType : TYP4 where type ('a, 'b, 't) F = ('a, 'b, 't) asyncTypeFF
@@ -740,7 +696,7 @@ struct
 	fun inj (ApxLolli (S, A)) = AsyncType.inj (TLPi (ApxSyncType.syncType2TPattern S, S, A))
 	  | inj (ApxAddProd (A, B)) = AsyncType.inj (AddProd (A, B))
 	  | inj (ApxTMonad S) = AsyncType.inj (TMonad S)
-	  | inj (ApxTAtomic a) = AsyncType.inj (TAtomic (a, TypeSpine.inj TNil)) (*Signatur.sigNewTAtomic a*)
+	  | inj (ApxTAtomic a) = AsyncType.inj (TAtomic (a, TypeSpine.inj TNil))
 	  | inj (ApxTAbbrev aA) = AsyncType.inj (TAbbrev aA)
 	  | inj (ApxTLogicVar X) = TLogicVar X
 	fun prj (TLogicVar (ref (SOME A), _)) = prj A
@@ -779,12 +735,6 @@ structure ApxKindRec = Rec2 (structure T = ApxKind)
 structure ApxAsyncTypeRec = Rec2 (structure T = ApxAsyncType)
 structure ApxSyncTypeRec = Rec2 (structure T = ApxSyncType)
 
-(*fun copyLVar (ref (NON L)) =
-		let val t = ref (NON L)
-			val () = L := t :: !L
-		in t end
-  | copyLVar _ = raise Fail "Internal error: copyLVar called on instantiated LVars"*)
-(*fun eqLVar (ref (NON L1), ref (NON L2)) = L1 = L2*)
 fun eqLVar ((X1 as ref NONE, _), (X2 as ref NONE, _)) = X1 = X2
   | eqLVar _ = raise Fail "Internal error: eqLVar called on instantiated LVars"
 
@@ -798,14 +748,9 @@ fun foldApxKind (fs : ('ki, 'aTy, 'sTy) apxFoldFuns) x =
 and foldApxType fs x = ApxAsyncTypeRec.fold (foldApxSyncType fs) (#faTy fs) x
 and foldApxSyncType fs x = ApxSyncTypeRec.fold (foldApxType fs) (#fsTy fs) x
 
-(*fun cpLVar (ApxTLogicVar X) = ApxTLogicVar (copyLVar X)
-  | cpLVar A = A
-val apxCopyFfs = {fki = ApxKind.inj, faTy = ApxAsyncType.inj o cpLVar, fsTy = ApxSyncType.inj}*)
-
 (* updLVar : typeLogicVar * apxAsyncType -> unit *)
 fun updLVar ((ref (SOME _), _), _) = raise Fail "Internal error: typeLogicVar already updated"
-  | updLVar ((X as ref NONE, _), A) = X := SOME A (*(foldApxType apxCopyFfs A)*)
-  (*| updLVar (ref (NON L), A) = app (fn X => X := SOM (foldApxType apxCopyFfs A)) (!L)*)
+  | updLVar ((X as ref NONE, _), A) = X := SOME A
 
 (* isUnknown : asyncType -> bool *)
 fun isUnknown (TClos (A, _)) = isUnknown A
@@ -822,14 +767,8 @@ fun nfKindToApx x = x
 fun nfAsyncTypeToApx x = x
 fun nfSyncTypeToApx x = x
 
-(*val asyncTypeFromApx = foldApxType apxCopyFfs
-val syncTypeFromApx = foldApxSyncType apxCopyFfs
-val kindFromApx = foldApxKind apxCopyFfs*)
 fun injectApxType x = Apx x
 fun injectApxSyncType x = ApxS x
-(*fun asyncTypeFromApx x = Apx x
-fun syncTypeFromApx x = ApxS x*)
-(*fun kindFromApx x = ApxK x*)
 fun unsafeCast x = x
 fun unsafeCastS x = x
 

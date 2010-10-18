@@ -46,7 +46,6 @@ fun heads ty = case Util.typePrjAbbrev ty of
 
 fun updDecl (ConstDecl (c, _, Ty ty)) =
 		let val hds = heads ty
-			(*val ty = foldr (fn ((x, A), im) => TPi' (SOME x, A, im)) ty imps*)
 		in app (fn (lrs, HdMonad) => candMonad := (c, lrs, ty) :: !candMonad
 				 | (lrs, HdAtom a) => pushAtom a (c, lrs, ty)) hds
 		end

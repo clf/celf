@@ -134,15 +134,6 @@ and inferHead (ctx, h) = case h of
 				val () = checkType ((*ctxIntPart*) lvarCtx, ty)
 				val () = Unify.pruneLVar $ normalizeHead h
 			in (ctx, TClos (ty, s)) end
-				(*val weakenSub = foldr (fn ((_, _, NONE), w) => Subst.comp (w, Subst.shift 1)
-				                        | ((_, _, SOME _), w) => Subst.dot1 w)
-				                Subst.id (ctx2list lvarCtx)
-				val () = if Subst.isId weakenSub then () else
-							let val ss = Subst.invert weakenSub
-								val G = SOME $ calcCtx ss lvarCtx
-								val ty' = TClos (ty, ss)
-								open VRef infix ::=
-							in X ::= SOME $ normalizeObj $ Clos (newLVarCtx G ty', weakenSub) end*)
 
 (* inferSpine : context * spine * asyncType -> context * asyncType *)
 and inferSpine (ctx, sp, ty) = case (Spine.prj sp, Util.typePrjAbbrev ty) of
@@ -188,7 +179,6 @@ and checkMonadObj (ctx, mob, ty) = case (MonadObj.prj mob, SyncType.prj ty) of
 
 fun checkKindEC ki = checkKind (emptyCtx, ki)
 fun checkTypeEC ty = checkType (emptyCtx, ty)
-(*fun checkObjEC (ob, ty) = ignore (checkObj (emptyCtx, Constraint' (ob, ty), ty))*)
 fun checkObjEC (ob, ty) = ignore (checkObj (emptyCtx, ob, ty))
 
 end
