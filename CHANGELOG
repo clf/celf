@@ -5,4 +5,6 @@ Version 2.6
 * Fixed issue concerning reuse of constant names (starting with "-").
 * Cleaned up the error reporting infrastructure and improved error messages to
   include line numbers.
+* Source code restructuring: Added phantom types to distinguish pattern
+  substitutions, pattern substitutions with undefs, and general substitutions.
 

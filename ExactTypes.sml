@@ -125,8 +125,8 @@ and inferHead (ctx, h) = case h of
 			let val calcCtx' = Unify.pruneCtx
 						(Fail "Internal error: inferHead:pruning lin") (fn A => A)
 				fun calcCtx si c = ctxMap unnormalizeType $ calcCtx' si $ ctxMap normalizeType c
-				val () = if Subst.isWeaken s then ()
-							else raise Fail "Internal error: inferHead:unexpected substitution"
+				val s = case Subst.isWeaken s of SOME s => s
+						| NONE => raise Fail "Internal error: inferHead:unexpected substitution"
 				val lvarCtx = calcCtx (Subst.invert s) $ ctxIntPart ctx
 				val () = case !rctx of
 						  NONE => rctx := SOME lvarCtx

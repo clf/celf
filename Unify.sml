@@ -318,7 +318,7 @@ and checkExistObj rOccur ob =
 
 fun patSub s = patSubOcc (vref NONE) s
 
-(* pruneCtx : exn -> (nfAsyncType -> nfAsyncType) -> subst -> nfAsyncType context -> nfAsyncType context *)
+(* pruneCtx : exn -> (nfAsyncType -> nfAsyncType) -> pat_Subst -> nfAsyncType context -> nfAsyncType context *)
 (* pruneCtx calculates G' such that
    G' |- ss : G
    for a strengthening substitution ss
@@ -503,7 +503,7 @@ fun linPrune (ob, pl) =
 								raise Fail "Internal error: pAtomic: lvar with non-pruned ctx"
 				in case patSub s of
 				  SOME (p1, s1) =>
-					let val s2 = Subst.comp (s1, Subst.lcs2sub p1)
+					let val s2 = Subst.comp (Subst.coerce2s s1, Subst.lcs2sub p1)
 						val (s3, pp, occ) = Subst.fold
 							(fn (Ob _, _) => raise Fail "Internal error: not patsub"
 							  | (Undef, (s, pp, occ)) => (Subst.Dot (Undef, s), pp, occ)
@@ -724,10 +724,10 @@ and unifyHead dryRun (hS1 as (h1, S1), hS2 as (h2, S2)) = case (h1, h2) of
 					if isSome dryRun then (valOf dryRun) := false else
 						addConstraint (vref (Eqn (NfAtomic' hS1, NfAtomic' hS2)), [cs1])
 				| (SOME (_, s1'), SOME (_, s2')) => (* we can disregard linear changing subs *)
-					let val s12 = Subst.comp (s1', Subst.invert s2')
+					let val s12 = Subst.comp (Subst.coerce2p_ s1', Subst.invert s2')
 						val w = Subst.intersect s12
 						val wi = Subst.invert w
-						val sp = Subst.comp (w, Subst.comp (s12, wi))
+						val sp = Subst.comp (Subst.coerce2p_ w, Subst.comp (s12, wi))
 					in if Subst.isId w then
 						if Subst.isId sp then ()
 						else if isSome dryRun then (valOf dryRun) := false else
@@ -773,7 +773,7 @@ and unifyLVar (X as {X=r, s, cnstr=cs, tag, ...}, ob, p) =
 			end
 	end handle ExnOccur =>
 		addConstraint (vref (Eqn (NfAtomic' (LogicVar
-				(X with's (Subst.comp (s, Subst.lcs2sub p))), NfInj.Nil'), ob)), [cs])
+				(X with's (Subst.comp (Subst.coerce2s s, Subst.lcs2sub p))), NfInj.Nil'), ob)), [cs])
 and unifySpine dryRun (sp1, sp2) = case (NfSpine.prj sp1, NfSpine.prj sp2) of
 	  (Nil, Nil) => ()
 	| (LApp (M1, S1), LApp (M2, S2)) => (unifyMon dryRun (M1, M2); unifySpine dryRun (S1, S2))
@@ -833,7 +833,7 @@ and unifyLetMon dryRun ((pa, hS, E), M) = case lowerAtomic hS of
 								raise Fail "Internal error: unifyLetMon: lvar with non-pruned ctx"
 						open Subst
 						val (p, newM) = newMonA (ty, G)
-						val lcs = lcs2sub $ lcsComp (lcsDiff (p, lcsComp (p', invert s')), s')
+						val lcs = lcs2sub $ lcsComp (lcsDiff (p, lcsComp (p', invert s')), coerce2p_ s')
 					in ( unifyLVar (X with's id, newM, p)
 					   ; unifyExp NONE (nfletredex (pa, NfClos (newM, s'), E), (* E = E[lcs] *)
 							NfMon' $ NfMClos (M, lcs)) )

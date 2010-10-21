@@ -42,6 +42,11 @@ datatype ('x, 'ix) pattern = FixPattern of ('x, 'ix, ('x, 'ix) pattern) patternF
 type opattern = (string, string) pattern
 type tpattern = (unit, string option) pattern
 
+(* empty types used as phantom type markers on substitutions *)
+datatype pat = PAT of pat
+datatype pat_ = PAT_ of pat_
+datatype gen = GEN of gen
+
 datatype kind = FixKind of kind kindF | KClos of kind * subst
 and asyncType = FixAsyncType of asyncType asyncTypeF | TClos of asyncType * subst
 	| TLogicVar of typeLogicVar | Apx of apxAsyncType
@@ -56,7 +61,7 @@ and expObj = FixExpObj of expObj expObjF | EClos of expObj * subst
 	| IntLetRedex of opattern * obj * expObj
 and monadObj = FixMonadObj of monadObj monadObjF | MClos of monadObj * subst
 
-and subst = Dot of subObj * subst | Shift of int
+and subst' = Dot of subObj * subst' | Shift of int
 and subObj = Ob of Context.mode * nfObj | Idx of subMode * int | Undef
 
 and constr = Solved | Eqn of nfObj * nfObj | Exist of nfObj
@@ -130,6 +135,11 @@ and 'o objF = (asyncType, spine, expObj, 'o) objFF
 and 'sp spineF = (monadObj, 'sp) spineFF
 and 'e expObjF = (obj, spine, monadObj, 'e) expObjFF
 and 'm monadObjF = (obj, 'm) monadObjFF
+
+and 'a substi = subst'
+and subst = gen substi
+and patSubst = pat substi
+and pat_Subst = pat_ substi
 
 and nfKind = kind
 and nfAsyncType = asyncType
@@ -212,7 +222,11 @@ open Syn1
 
 structure Subst1 =
 struct
-	structure Subst' = SubstFun (structure Syn = Syn1 datatype subst = datatype subst)
+	(*structure Subst' = SubstFun (structure Syn = Syn1 datatype substi = datatype substi)*)
+	structure Subst' = SubstFun (
+			type t = subObj
+			datatype subst' = datatype subst'
+			structure Syn = Syn1)
 	open Subst'
 	open Syn1
 	fun dot (M, EtaTag (_, (m, n)), s) = Dot (Idx (modeDiv m M, n), s)

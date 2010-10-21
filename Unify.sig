@@ -27,7 +27,7 @@ val noConstrs : Syntax.obj option -> unit
 val addConstraint : Syntax.constr VRef.vref * Syntax.constr VRef.vref list VRef.vref list -> unit
 val instantiate : Syntax.nfObj option VRef.vref * Syntax.nfObj * Syntax.constr VRef.vref list VRef.vref * word -> unit
 
-val pruneCtx : exn -> (Syntax.nfAsyncType -> Syntax.nfAsyncType) -> Syntax.subst
+val pruneCtx : exn -> (Syntax.nfAsyncType -> Syntax.nfAsyncType) -> Syntax.pat_Subst
 		-> Syntax.nfAsyncType Context.context -> Syntax.nfAsyncType Context.context
 val pruneLVar : Syntax.nfHead -> unit
 

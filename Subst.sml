@@ -19,9 +19,11 @@
 
 signature TLU_SubstFun = TOP_LEVEL_UTIL
 functor SubstFun (
+	type t
+	datatype subst' = Dot of t * subst' | Shift of int
 	structure Syn : SYNTAX_CORE1
-	datatype subst = Dot of Syn.subObj * subst | Shift of int
-	sharing type Syn.subst = subst
+		where type 'a substi = subst'
+	sharing type t = Syn.subObj
 	) =
 struct
 	open Context
@@ -119,6 +121,11 @@ struct
 	  | leftOf (INR _) = raise Option.Option
 	(**************************)
 
+	type lciSub = (subMode * int) list
+
+	fun coerce2s s = s
+	fun coerce2p_ s = s
+
 	val id = Shift 0
 
 	fun shiftHead (H, n) = leftOf $ headSub (H, Shift n)
@@ -166,7 +173,7 @@ struct
 		let fun isWeaken' n (Shift m) = (n <= m)
 			  | isWeaken' n (Dot (Idx (ID, m), s)) = (n+1 <= m) andalso isWeaken' m s
 			  | isWeaken' _ _ = false
-		in isWeaken' 0 s end
+		in if isWeaken' 0 s then SOME s else NONE end
 
 	fun fold f e (Dot (ob, s)) = f (ob, fold f e s)
 	  | fold f e (Shift n) = e n
@@ -197,7 +204,7 @@ struct
 			in "["^(toStr s)^"]" end
 
 	(* intersect s = w
-	 * given pattern G |- s : G
+	 * given pattern (with undefs) G |- s : G
 	 * w o s o w^-1 is a permutation *)
 	fun intersect s =
 		let val w = fold (fn (Undef, w) => comp (w, Shift 1) | (_, w) => dot1 w)

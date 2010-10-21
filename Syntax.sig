@@ -56,7 +56,14 @@ type nfSpine
 type nfExpObj
 type nfMonadObj
 
-type subst
+(* subtyping relation: patSubst < pat_Subst < subst *)
+type pat
+type pat_
+type gen
+type 'a substi
+type patSubst = pat substi (* pattern substitutions *)
+type pat_Subst = pat_ substi (* pattern substitutions with potential Undefs *)
+type subst = gen substi (* general substitutions *)
 datatype subObj = Ob of Context.mode * nfObj | Idx of subMode * int | Undef
 
 datatype constr = Solved | Eqn of nfObj * nfObj | Exist of nfObj
@@ -147,10 +154,10 @@ val with'ty :
 		ctx : 'aTy Context.context option ref,
 		cnstr : constr VRef.vref list VRef.vref, tag : word }
 val with's :
-	{X : nfObj option VRef.vref, ty : 'aTy, s : subst,
+	{X : nfObj option VRef.vref, ty : 'aTy, s : 'b substi,
 		ctx : 'aTy Context.context option ref,
 		cnstr : constr VRef.vref list VRef.vref, tag : word }
-	* subst -> {X : nfObj option VRef.vref, ty : 'aTy, s : subst,
+	* 'a substi -> {X : nfObj option VRef.vref, ty : 'aTy, s : 'a substi,
 		ctx : 'aTy Context.context option ref,
 		cnstr : constr VRef.vref list VRef.vref, tag : word }
 
@@ -163,23 +170,23 @@ datatype decl = ConstDecl of string * int * typeOrKind
 datatype declError = TypeErr | KindErr | AmbigType | UndeclId | GeneralErr
 exception ExnDeclError of declError * string
 
-val KClos : kind * subst -> kind
-val TClos : asyncType * subst -> asyncType
-val TSClos : typeSpine * subst -> typeSpine
-val STClos : syncType * subst -> syncType
-val Clos : obj * subst -> obj
-val SClos : spine * subst -> spine
-val EClos : expObj * subst -> expObj
-val MClos : monadObj * subst -> monadObj
+val KClos : kind * 'a substi -> kind
+val TClos : asyncType * 'a substi -> asyncType
+val TSClos : typeSpine * 'a substi -> typeSpine
+val STClos : syncType * 'a substi -> syncType
+val Clos : obj * 'a substi -> obj
+val SClos : spine * 'a substi -> spine
+val EClos : expObj * 'a substi -> expObj
+val MClos : monadObj * 'a substi -> monadObj
 
-val NfKClos : nfKind * subst -> nfKind
-val NfTClos : nfAsyncType * subst -> nfAsyncType
-val NfTSClos : nfTypeSpine * subst -> nfTypeSpine
-val NfSTClos : nfSyncType * subst -> nfSyncType
-val NfClos : nfObj * subst -> nfObj
-val NfSClos : nfSpine * subst -> nfSpine
-val NfEClos : nfExpObj * subst -> nfExpObj
-val NfMClos : nfMonadObj * subst -> nfMonadObj
+val NfKClos : nfKind * 'a substi -> nfKind
+val NfTClos : nfAsyncType * 'a substi -> nfAsyncType
+val NfTSClos : nfTypeSpine * 'a substi -> nfTypeSpine
+val NfSTClos : nfSyncType * 'a substi -> nfSyncType
+val NfClos : nfObj * 'a substi -> nfObj
+val NfSClos : nfSpine * 'a substi -> nfSpine
+val NfEClos : nfExpObj * 'a substi -> nfExpObj
+val NfMClos : nfMonadObj * 'a substi -> nfMonadObj
 
 val redex : obj * spine -> obj
 
@@ -223,35 +230,37 @@ structure TPatternRec : REC where type 't T.F = (unit, string option, 't) patter
 
 structure Subst : sig
 	exception ExnUndef
-	val id : subst
-	val shift : int -> subst
+	(* lciSub: linear-changing identity substitution (sorted by index) *)
+	type lciSub = (subMode * int) list
+	val id : 'a substi
+	val coerce2s : 'a substi -> subst     (* subtyping coercion *)
+	val coerce2p_ : patSubst -> pat_Subst (* subtyping coercion *)
+	val shift : int -> 'a substi
 	val subI : nfObj -> subst
-	(*val subL : nfObj -> subst*)
 	val subM : nfMonadObj -> subst
-	(*val dot : Context.mode * nfObj * subst -> subst*)
-	val dotMonad : nfMonadObj * subst -> subst
-	val Dot : subObj * subst -> subst
-	val dot1 : subst -> subst
-	val dotn : int -> subst -> subst
-	val comp : subst * subst -> subst
+	val dotMonad : nfMonadObj * 'a substi -> subst
+	val Dot : subObj * 'a substi -> subst
+	val dot1 : 'a substi -> 'a substi
+	val dotn : int -> 'a substi -> 'a substi
+	val comp : 'a substi * 'a substi -> 'a substi
 	val shiftHead : 'aTy headF * int -> 'aTy headF
-	val switchSub : int * int -> subst
-	val intersect : subst -> subst
-	val intersection : ((Context.mode * int, nfObj) sum * nfObj -> bool) -> subst * subst -> subst
-	val invert : (*pat*)subst -> subst
+	val switchSub : int * int -> patSubst
+	val intersect : pat_Subst -> patSubst
+	val intersection : ((Context.mode * int, nfObj) sum * nfObj -> bool) -> subst * subst -> patSubst
+	val invert : patSubst -> pat_Subst
 	val patSub : (nfObj -> nfObj * bool) -> (exn -> nfObj -> Context.mode * int) ->
-			subst -> ((subMode * int) list * (*pat*)subst) option
-	val lcsComp : (subMode * int) list * subst -> (subMode * int) list
-	val lcs2sub : (subMode * int) list -> subst
-	val pruningsub : ('a * int) list -> subst
-	val lcsDiff : (subMode * int) list * (subMode * int) list -> (subMode * int) list
-	val qsort2 : ('a * int) list -> ('a * int) list
-	val isId : subst -> bool
-	val isWeaken : subst -> bool
+			subst -> (lciSub * patSubst) option
+	val lcsComp : lciSub * pat_Subst -> lciSub
+	val lcs2sub : lciSub -> (*lcPat*)subst
+	val pruningsub : ('a * int) list -> pat_Subst (* e.g.: lciSub -> pat_Subst *)
+	val lcsDiff : lciSub * lciSub -> lciSub
+	val qsort2 : ('a * int) list -> ('a * int) list (* e.g.: lciSub(unsorted) -> lciSub *)
+	val isId : 'a substi -> bool
+	val isWeaken : 'a substi -> patSubst option
 	val substToStr : (nfObj -> string) -> subst -> string
 	val fold : (subObj * 'a -> 'a) -> (int -> 'a) -> subst -> 'a
 	val map : (nfObj -> nfObj) -> subst -> subst
-	val hdDef : subst -> bool
+	val hdDef : pat_Subst -> bool
 	val subPrj : subst -> (subObj * subst, int) sum
 end
 
