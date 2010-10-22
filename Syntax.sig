@@ -247,9 +247,9 @@ structure Subst : sig
 	val switchSub : int * int -> patSubst
 	val intersect : pat_Subst -> patSubst
 	val intersection : ((Context.mode * int, nfObj) sum * nfObj -> bool) -> subst * subst -> patSubst
-	val invert : patSubst -> pat_Subst
+	val invert : pat_Subst -> pat_Subst
 	val patSub : (nfObj -> nfObj * bool) -> (exn -> nfObj -> Context.mode * int) ->
-			subst -> (lciSub * patSubst) option
+			subst -> (lciSub * pat_Subst) option
 	val lcsComp : lciSub * pat_Subst -> lciSub
 	val lcs2sub : lciSub -> (*lcPat*)subst
 	val pruningsub : ('a * int) list -> pat_Subst (* e.g.: lciSub -> pat_Subst *)
