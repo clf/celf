@@ -56,10 +56,13 @@ struct
 	  | comp (Shift n, Shift m) = Shift (n+m)
 	  | comp (Dot (N, s), s') = Dot (Clos' (N, s'), comp (s, s'))
 
+	(* Undefs in substitutions are represented explicitly, but outside
+	 * substitutions they are represented as a raised ExnUndef.  This
+	 * ensures automatic propagation up to the nearest handler. *)
 	exception ExnUndef
 
 	fun dot1 s = Dot (Idx (ID, 1), comp (s, Shift 1))
-	fun dotn 0 s = s
+	fun dotn 0 s = s   (* FIXME: easy optimization of dotn is possible *)
 	  | dotn n s = dotn (n-1) (dot1 s)
 
 	(* headSub : head * subst -> (head, obj) sum *)
@@ -76,6 +79,9 @@ struct
 	  | headSub (Var (_, 1), Dot (Undef, s)) = raise ExnUndef
 	  | headSub (Var (M, n), Dot (_, s)) = headSub (Var (M, n-1), s)
 
+	(* subXX : XX * subst -> XX
+	 * Perform one level of evaluation of the closure to expose a
+	 * non-closure constructor.  Any arising redices are further evaluated. *)
 	fun subKind (Type, _) = Type
 	  | subKind (KPi (NONE, A, K), s) = KPi (NONE, TClos (A, s), KClos(K, s))
 	  | subKind (KPi (SOME x, A, K), s) = KPi (SOME x, TClos (A, s), KClos(K, dot1 s))
@@ -121,15 +127,17 @@ struct
 	  | leftOf (INR _) = raise Option.Option
 	(**************************)
 
+	(* lciSub: linear-changing identity substitution (sorted by index) *)
 	type lciSub = (subMode * int) list
 
-	fun coerce2s s = s
-	fun coerce2p_ s = s
+	fun coerce2s s = s  (* subtyping coercion *)
+	fun coerce2p_ s = s (* subtyping coercion *)
 
 	val id = Shift 0
 
 	fun shiftHead (H, n) = leftOf $ headSub (H, Shift n)
 
+	(* switchSub : int * int -> patSubst *)
 	(* Invariant:
 	   Let G1, G2 contexts,
 	   n1 = |G1|, n2 = |G2|
@@ -145,6 +153,7 @@ struct
 			  | switchSub' k = Dot (Idx (ID, n2+n1+1-k), switchSub' (k-1))
 		in switchSub' n1 end
 
+	(* invert : pat_Subst -> pat_Subst *)
 	fun invert s =
 		let fun lookup (_, Shift _, p) = NONE
 			  | lookup (_, Dot (Ob _, _), _) =
@@ -163,31 +172,37 @@ struct
 			  | invert' (n, Dot (_, s')) = invert' (n+1, s')
 		in invert' (0, s) end
 
+	(* isId : subst -> bool *)
 	fun isId s =
 		let fun isId' n (Shift m) = (n = m)
 			  | isId' n (Dot (Idx (ID, m), s)) = (n+1 = m) andalso isId' (n+1) s
 			  | isId' _ _ = false
 		in isId' 0 s end
 
+	(* isWeaken : subst -> patSubst option *)
 	fun isWeaken s =
 		let fun isWeaken' n (Shift m) = (n <= m)
 			  | isWeaken' n (Dot (Idx (ID, m), s)) = (n+1 <= m) andalso isWeaken' m s
 			  | isWeaken' _ _ = false
 		in if isWeaken' 0 s then SOME s else NONE end
 
+	(* fold : (subObj * 'a -> 'a) -> (int -> 'a) -> subst -> 'a *)
 	fun fold f e (Dot (ob, s)) = f (ob, fold f e s)
 	  | fold f e (Shift n) = e n
 
+	(* map : (nfObj -> nfObj) -> subst -> subst *)
 	fun map f (Dot (Ob (M, ob), s)) = Dot (Ob (M, f ob) handle ExnUndef => Undef, map f s)
 	  | map f (Dot (Undef, s)) = Dot (Undef, map f s)
 	  | map f (Dot (Idx n, s)) = Dot (Idx n, map f s)
 	  | map f (Shift n) = Shift n
 
+	(* hdDef : pat_Subst -> bool *)
 	fun hdDef (Dot (Undef, _)) = false
 	  | hdDef (Dot (Ob _, _)) = raise Fail "Internal error: hdDef: not patSub"
 	  | hdDef (Dot (Idx _, _)) = true
 	  | hdDef (Shift _) = true
 
+	(* substToStr : (nfObj -> string) -> subst -> string *)
 	fun substToStr f s = if isId s then "" else
 			let fun m2s LIN = "L"
 				  | m2s AFF = "@"
@@ -203,6 +218,7 @@ struct
 				  | toStr (Shift n) = "^"^(Int.toString n)
 			in "["^(toStr s)^"]" end
 
+	(* intersect : pat_Subst -> patSubst *)
 	(* intersect s = w
 	 * given pattern (with undefs) G |- s : G
 	 * w o s o w^-1 is a permutation *)
@@ -211,6 +227,8 @@ struct
 					(fn _ => id) s
 		in if isId w then id else comp (intersect (comp (w, comp (s, invert w))), w) end
 
+	(* intersection : ((Context.mode * int, nfObj) sum * nfObj -> bool)
+			-> subst * subst -> patSubst *)
 	(* Input:
 	   G1 |- s1 : G2  and  G1 |- s2 : G2
 	   Output:
@@ -243,6 +261,7 @@ struct
 					if n1=n2 then id else raise Fail "Internal error: intersection"
 		in intersect s1s2 end
 
+	(* qsort2 : ('a * int) list -> ('a * int) list    e.g.: lciSub(unsorted) -> lciSub *)
 	fun qsort2 l =
 		let fun qsort' [] a = a
 			  | qsort' (x::xs) a =
@@ -252,6 +271,11 @@ struct
 			  | sorted _ = true
 		in if sorted l then l else qsort' l [] end
 
+	(* modeDiv : Context.mode * Context.mode -> subMode *)
+	(* modeDiv combines two flags to the combined representation
+	 * modeDiv f1 f2
+	 *  f1 : flag on variable
+	 *  f2 : flag on substitution extension *)
 	fun modeDiv INT INT = ID (* modeDiv is also used in Syntax.sml *)
 	  | modeDiv INT AFF = INT4AFF
 	  | modeDiv INT LIN = INT4LIN
@@ -263,7 +287,10 @@ struct
 	  | modeDiv LIN LIN = ID
 	fun modeInvDiv m1 m2 = modeDiv m2 m1
 
-	(* patSub Unify.checkExistObj Eta.etaContract s (G1)
+	(* patSub : (nfObj -> nfObj * bool) -> (exn -> nfObj -> Context.mode * int) ->
+			subst -> (lciSub * pat_Subst) option *)
+	(*
+	 * patSub Unify.checkExistObj Eta.etaContract s (G1)
 	 *    where G |- s : G1 can give three different results:
 	 * NONE
 	 *    s is not a pattern sub
@@ -299,6 +326,8 @@ struct
 					in ps (m, l, Dot (N', s)) end
 		in SOME $ (fn s => (qsort2 (!p), s)) $ ps (0, [], s') handle ExnPatSub => NONE end
 
+	(* lcsComp : lciSub * pat_Subst -> lciSub *)
+	(* composition for lciSubs; undefs are removed *)
 	fun lcsComp (p, s) =
 		let fun f (M, n, Shift m) =
 				if n>=1 then SOME (M, n+m) else raise Fail "Internal error: lcsComp: not patsub"
@@ -307,16 +336,24 @@ struct
 			  | f (M, n, Dot (_, s)) = f (M, n-1, s)
 		in qsort2 $ List.mapPartial (fn (M, n) => f (M, n, s)) p end
 
+	(* lcs2x : conversion of lciSubs to substitutions parameterized by the action
+	 * on the linear changing extensions.  The resulting substitution is the
+	 * identity on all variables except the given. *)
 	fun lcs2x f (n, p1 as (x, k)::p) =
 			if n=k then Dot (f (x, k), lcs2x f (n+1, p))
 			else if n<k then Dot (Idx (ID, n), lcs2x f (n+1, p1))
 			else raise Fail "Internal error: lcs2x: not sorted"
 	  | lcs2x f (n, []) = Shift (n-1)
 
+	(* lcs2sub : lciSub -> subst *)
+	(* representation conversion from list form to substitution *)
 	fun lcs2sub p = lcs2x Idx (1, p)
 
+	(* pruningsub : ('a * int) list -> pat_Subst   e.g.: lciSub -> pat_Subst *)
+	(* build a pruning substitution that prunes all the given indices *)
 	fun pruningsub p = lcs2x (fn _ => Undef) (1, p)
 
+	(* lcsDiff : lciSub * lciSub -> lciSub *)
 	(* lcsDiff (p, p') = p-p' such that
 	 * lcs2sub(p) = lcs2sub(p') o lcs2sub(p-p') *)
 	fun lcsDiff (p, []) = p
@@ -330,6 +367,7 @@ struct
 				| _ => raise Fail "Internal error: lcsDiff 2"
 			else (m, n) :: lcsDiff (p, (m', n')::p')
 
+	(* subPrj : subst -> (subObj * subst, int) sum *)
 	fun subPrj (Dot (N, s)) = INL (N, s)
 	  | subPrj (Shift n) = INR n
 
