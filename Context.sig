@@ -22,6 +22,7 @@ sig
 
 exception ExnCtx of string
 
+(* NONE means used; we never need to distinguish used affine and used linear *)
 datatype mode = INT | AFF | LIN
 type cmode = mode option
 type 'a context
