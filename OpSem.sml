@@ -31,6 +31,10 @@ val allowConstr = ref false
 
 val fcLimit = ref NONE : int option ref
 
+(* The type 'context' represents input and output contexts and the type
+ * 'lcontext' represents the part of the input context that has to occur
+ * at that specific point, i.e. it is not allowed to be passed to the
+ * output context. *)
 type context = (asyncType * (lr list * headType) list) context
 type lcontext = int list (* must-occur context: list of indices *)
 
@@ -59,8 +63,14 @@ fun linDiff ctxs =
 		  | allLin (n, _::ctx) = allLin (n+1, ctx)
 	in (allLin (1, diffctx), list2ctx diffctx) end
 
+(* removeHyp : (lcontext * context) * int -> lcontext * context *)
+(* Removes a variable from both lcontext and context. *)
 fun removeHyp ((l, ctx), k) = (List.filter (fn n => n<>k) l, #1 $ ctxLookupNum (ctx, k))
 
+(* Given a list of linear indices (an lcontext), remove those indices that no
+ * longer occur in the context. *)
+(* linIntersect' : int * lcontext * (string * 'a * cmode) list -> lcontext *)
+(* linIntersect : lcontext * context -> lcontext * context *)
 fun linIntersect' (n, k::l, (x, A, m)::G) =
 		if n=k then
 			if m=SOME LIN then k :: linIntersect' (n+1, l, G)
@@ -70,18 +80,27 @@ fun linIntersect' (n, k::l, (x, A, m)::G) =
   | linIntersect' (_, _::_, []) = raise Fail "Internal error: linIntersect: malformed lctx"
 fun linIntersect (l, ctx) = (linIntersect' (1, l, ctx2list ctx), ctx)
 
+(* cannotConsumeLin : syncType -> bool *)
+(* Checks whether an object of the given type can consume linear resources. *)
 fun cannotConsumeLin sty = case SyncType.prj sty of
 	  LExists (_, S1, S2) => cannotConsumeLin S1 andalso cannotConsumeLin S2
 	| TDown _ => false
 	| _ => true (* TOne, TAffi, TBang *)
 
+(* multSplit : syncType ->
+	{fst : lcontext * context -> lcontext * context,
+	 snd : lcontext * context -> lcontext * context} *)
+(* For a multiplicative context split involving the search for two objects
+ * of type A and B, beginning with the search for A; multSplit B returns two
+ * functions, fst and snd, which determine the lcontext for the individual
+ * searches based on the lcontext for the combined object. *)
 fun multSplit sty2 =
 	if cannotConsumeLin sty2 then
 		{ fst = fn (l, ctx) => (l, ctx),
 		  snd = fn (_, ctxm) => ([], ctxm) }
 	else
 		{ fst = fn (_, ctx) => ([], ctx),
-		  snd = fn (l, ctxm) => linIntersect (l, ctxm) }
+		  snd = linIntersect }
 
 
 fun genMon (ctx : context, p, sty) =
