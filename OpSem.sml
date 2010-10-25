@@ -281,16 +281,8 @@ and leftFocus' (lr, (l, ctx), P, ty, sc) = case Util.typePrjAbbrev ty of
 			| R::lrs => leftFocus (lrs, (l, ctx), P, B, fn (S, ctxo) => sc (ProjRight' S, ctxo)))
 	| TMonad S => raise Fail "Internal error: leftFocus applied to monadic hypothesis!"
 	| P' as TAtomic _ =>
-				(*if l=[] andalso Unify.unifiable (AsyncType.inj P', P)
-				then
-					( if !allowConstr then () else Unify.noConstrs ()
-					; sc (Nil', ctx) )
-				else () *)
-				if l=[] then
-					Unify.unifyAndBranch (AsyncType.inj P', P, fn () => sc (Nil', ctx))
-						(* if !allowConstr then () else Unify.noConstrs ()
-						; sc (Nil', ctx) *)
-				else ()
+		if l=[] then Unify.unifyAndBranch (AsyncType.inj P', P, fn () => sc (Nil', ctx))
+		else ()
 	| TAbbrev _ => raise Fail "Internal error: leftFocus: TAbbrev"
 
 (* monLeftFocus : lr list * context * asyncType * (spine * syncType * context -> unit) -> unit *)
