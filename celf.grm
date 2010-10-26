@@ -38,8 +38,7 @@ fun getline (line, ch) = line
 
 %nonterm Kind of Syntax.kind | AsyncType of Syntax.asyncType
 	| UnifiedType of Parse.unifiedType
-	(*| AtomicType of Syntax.atomicType*)
-	| AtomicType of string * Syntax.obj list (*| SyncType of Syntax.syncType*)
+	| AtomicType of string * Syntax.obj list
 	| Obj of Syntax.obj
 	| ExpObj of Syntax.expObj | MonadObj of Syntax.monadObj
 	| OPattern of Syntax.opattern | OPatternPair of Syntax.opattern * Syntax.opattern
@@ -150,7 +149,6 @@ ExpObj :
 MonadObj :
 	  LBRACKET MonadObj COMMA MonadObj RBRACKET ( Syntax.DepPair'(MonadObj1,MonadObj2) )
 	| ONE                                       ( Syntax.One' )
-(*	| Obj %prec DOT                             ( Syntax.Norm'(Obj) ) *)
 	| Obj %prec APP                             ( Syntax.Down'(Obj) )
 	| AFF Obj                                   ( Syntax.Affi'(Obj) )
 	| BANG Obj                                  ( Syntax.Bang'(Obj) )
@@ -180,13 +178,4 @@ TPatternPair :
 	  TPattern COMMA TPatternPair ( (TPattern, Syntax.PDepTensor' TPatternPair) )
 	| TPattern COMMA TPattern     ( (TPattern1, TPattern2) )
 
-(*
-Pattern :
-	  Pattern TENSOR Pattern             ( (Syntax.PTensor'(#1 Pattern1,#1 Pattern2),Syntax.ApxTTensor'(#2 Pattern1,#2 Pattern2)) )
-	| ONE                                ( (Syntax.POne', Syntax.ApxTOne') )
-	| LBRACKET ID COMMA Pattern RBRACKET ( (Syntax.PDepPair'(ID,#1 Pattern),Syntax.ApxExists'(Syntax.newApxTVar(),#2 Pattern)) )
-	| ID                                 ( (Syntax.PVar'(ID),Syntax.ApxAsync'(Syntax.newApxTVar())) )
-	| ID COLON AsyncType                 ( (Syntax.PVar'(ID),Syntax.ApxAsync'(AsyncType)) )
-	| LPAREN Pattern RPAREN              ( Pattern )
-*)
 
