@@ -184,6 +184,7 @@ and apxInferObj (ctx, ob) = case Util.ObjAuxDefs.prj2 ob of
 				  | atomRedex (INR h, sp) = Redex' (h, A, sp)
 				fun h2str sp = PrettyPrint.printObj $ atomRedex (H', sp)
 				val coerce = case H' of INL (Const _) => true | _ => false
+				(* Modalities ! and @ are optional if the head is a Const *)
 				val (ctxo, S'', B) = apxInferSpine (coerce, ctxm, S', A, h2str)
 			in (ctxo, atomRedex (H', S''), B) end
 	| Redex (N, A, S) =>
@@ -220,6 +221,7 @@ and apxInferSpine (coerce, ctx, sp, ty, h2str) = case Spine.prj sp of
 	| LApp (M, S) =>
 			let val mty = if coerce then case ApxAsyncType.prj ty of ApxLolli (A, _) => SOME A
 							| _ => NONE else NONE
+				(* if coerce then we change Down into Affi and Bang to match the head type *)
 				val (ctxm, M', A) = apxInferMonadObj (ctx, M, mty)
 				val B = newApxTVar ()
 				fun errmsg () = "Object " ^ h2str Nil' ^ " has type " ^
