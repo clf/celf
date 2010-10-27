@@ -146,7 +146,7 @@ struct
 	   G1, G2 |- switchSub (n1,n2) : G2, G1
 	   or:
 	   let {p2} = N2 in let {p1} = N1[^|p2|] in E ==
-	   let {p1} = N1 in let {p2} = N2[^|p1|] in E[switchSub(|p1|,|p2|)
+	   let {p1} = N1 in let {p2} = N2[^|p1|] in E[switchSub(|p1|,|p2|)]
 	*)
 	fun switchSub (n1, n2) =
 		let fun switchSub' 0 = dotn n2 (Shift n1)
