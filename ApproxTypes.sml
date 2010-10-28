@@ -264,6 +264,8 @@ and apxInferExp (ctx, ex) =
 	end
 
 (* apxInferMonadObj : context * monadObj * apxSyncType option -> context * monadObj * apxSyncType *)
+(* If ty is given we try to match the inferred type to the given by adding
+ * intuitionistic and affine modalities. *)
 and apxInferMonadObj (ctx, mob, ty) = case MonadObj.prj mob of
 	  DepPair (M1, M2) =>
 			let val (ty1, ty2) = case Option.map ApxSyncType.prj ty of
