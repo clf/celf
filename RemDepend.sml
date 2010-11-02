@@ -23,16 +23,8 @@ struct
 
 open Syntax infix with'ty
 
-type intset = int list
-val empty = []
-fun singleton n = [n]
-fun decrn n is = List.filter (fn x => x>=1) (map (fn x => x-n) is)
-fun decr is = decrn 1 is
-fun depend is = List.exists (fn x => x=1) is
-fun union (is1, is2) = is1 @ is2
-fun occurFromTo a b = if a <= b then a::occurFromTo (a+1) b else []
-(* splitn n I = (I1, I2) where I1 = intersect(I,{1,..,n}) and I2 = decrn n (I - I1) *)
-fun splitn n is = map2 (map (fn x => x-n)) (List.partition (fn x => x<=n) is)
+open NatSet
+val depend = member 1
 
 fun join2 f (a1, occ1) (a2, occ2) = (f (a1, a2), union (occ1, occ2))
 fun join3 f (a1, occ1) (a2, occ2) (a3, occ3) = (f (a1, a2, a3), union (occ1, union (occ2, occ3)))
@@ -40,8 +32,8 @@ fun joinDep clo f NONE (a1, occ1) (a2, occ2) = (f (NONE, a1, a2), union (occ1, o
   | joinDep clo f (SOME x) (a1, occ1) (a2, occ2) =
 		if depend occ2 then (f (SOME x, a1, a2), union (occ1, decr occ2))
 		else (f (NONE, a1, clo (a2, Subst.invert (Subst.shift 1))), union (occ1, decr occ2))
-fun assertEmpty [] = ()
-  | assertEmpty _ = raise Fail "Internal error: rdPat"
+fun assertEmpty ns = if isEmpty ns then () else raise Fail "Internal error: rdPat"
+
 fun rdPat p occ = case Pattern.prj p of
 	  PDepTensor (p1, p2) =>
 		let val (occ2, occ1) = splitn (nbinds p2) occ

@@ -3,6 +3,8 @@ $(SML_LIB)/mlyacc-lib/mlyacc-lib.mlb
 $(SML_LIB)/smlnj-lib/Util/smlnj-lib.mlb
 TopLevelUtil.sml
 AbstractRecursion.sml
+NatSet.sig
+NatSet.sml
 SymbTable.sig
 SymbTable.sml
 Context.sig

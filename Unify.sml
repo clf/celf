@@ -172,23 +172,18 @@ fun headCountExp (rOccur, ex) = case NfExpObj.prj ex of
 	| NfLet (_, _, E) => headCountExp (rOccur, E)
 	| NfMon _ => 0
 
-type intset = int list
-val empty = []
-fun singleton n = [n]
-fun decrn n is = List.filter (fn x => x>=1) (map (fn x => x-n) is)
-fun union (is1, is2) = is1 @ is2
-fun occurFromTo a b = if a <= b then a::occurFromTo (a+1) b else []
+structure NS = NatSet
 
 fun occurObj ob = case SOME (lowerObj (NfObj.prj ob)) handle Subst.ExnUndef => NONE of
-	  NONE => empty
-	| SOME (NfLLam (p, N)) => decrn (nbinds p) (occurObj N)
-	| SOME (NfAddPair (N1, N2)) => union (occurObj N1, occurObj N2)
+	  NONE => NS.empty
+	| SOME (NfLLam (p, N)) => NS.decrn (nbinds p) (occurObj N)
+	| SOME (NfAddPair (N1, N2)) => NS.union (occurObj N1, occurObj N2)
 	| SOME (NfMonad E) => occurExp E
-	| SOME (NfAtomic (H, S)) => union (occurHead H, occurSpine S)
+	| SOME (NfAtomic (H, S)) => NS.union (occurHead H, occurSpine S)
 and occurHead h = case h of
-	  Const _ => empty
-	| Var (_, n) => singleton n
-	| UCVar _ => empty
+	  Const _ => NS.empty
+	| Var (_, n) => NS.singleton n
+	| UCVar _ => NS.empty
 	| LogicVar {ctx=ref NONE, ...} => raise Fail "Internal error: occurHead: no ctx"
 	| LogicVar {ctx=ref (SOME G), s, ...} => occurSub G s
 and occurSub ctx s =
@@ -197,22 +192,22 @@ and occurSub ctx s =
 					raise Fail "Internal error: occurSub: lvar with non-pruned ctx"
 		val ctxL = length G
 		val subL = Subst.fold (fn (_, n) => n+1) (fn _ => 0) s
-		fun occurSubOb Undef = empty
+		fun occurSubOb Undef = NS.empty
 		  | occurSubOb (Ob (_, ob)) = occurObj ob
-		  | occurSubOb (Idx (_, n)) = singleton n
-	in Subst.fold (union o (map1 occurSubOb)) (fn m => occurFromTo (m+1) (ctxL-subL+m)) s end
+		  | occurSubOb (Idx (_, n)) = NS.singleton n
+	in Subst.fold (NS.union o (map1 occurSubOb)) (fn m => NS.occurFromTo (m+1) (ctxL-subL+m)) s end
 and occurSpine sp = case NfSpine.prj sp of
-	  Nil => empty
-	| LApp (M, S) => union (occurMonadObj M, occurSpine S)
+	  Nil => NS.empty
+	| LApp (M, S) => NS.union (occurMonadObj M, occurSpine S)
 	| ProjLeft S => occurSpine S
 	| ProjRight S => occurSpine S
 and occurExp e = case NfExpObj.prj e of
 	  NfLet (p, (H, S), E) =>
-		union (occurHead H, union (occurSpine S, decrn (nbinds p) (occurExp E)))
+		NS.union (occurHead H, NS.union (occurSpine S, NS.decrn (nbinds p) (occurExp E)))
 	| NfMon M => occurMonadObj M
 and occurMonadObj m = case NfMonadObj.prj m of
-	  DepPair (M1, M2) => union (occurMonadObj M1, occurMonadObj M2)
-	| One => empty
+	  DepPair (M1, M2) => NS.union (occurMonadObj M1, occurMonadObj M2)
+	| One => NS.empty
 	| Down N => occurObj N
 	| Affi N => occurObj N
 	| Bang N => occurObj N
@@ -220,6 +215,7 @@ and occurMonadObj m = case NfMonadObj.prj m of
 
 fun ctxSubList ctx [] = ctx
   | ctxSubList ctx (n::ns) = ctxSubList (#1 $ ctxLookupNum (ctx, n)) ns
+fun ctxSubSet ctx ns = ctxSubList ctx (NS.toList ns)
 
 fun synthHead ctx h = case h of
 	  Const c => (ctx, normalizeType $ Signatur.sigLookupType c)
@@ -232,11 +228,11 @@ fun synthHead ctx h = case h of
 				Subst.shift $ length $ ctx2list ctx))
 	| LogicVar {ctx=ref NONE, ...} => raise Fail "Internal error: synthHead: no ctx"
 	| LogicVar {X, ty, s, ctx=ref (SOME G), ...} =>
-		(ctxSubList ctx (occurSub G s), NfTClos (ty, s))
+		(ctxSubSet ctx (occurSub G s), NfTClos (ty, s))
 fun synthSpine ctx sp ty = case (NfSpine.prj sp, Util.nfTypePrjAbbrev ty) of
 	  (Nil, _) => (ctx, ty)
 	| (LApp (M, S), TLPi (_, _, B)) =>
-		synthSpine (ctxSubList ctx (occurMonadObj M)) S (NfTClos (B, Subst.subM M))
+		synthSpine (ctxSubSet ctx (occurMonadObj M)) S (NfTClos (B, Subst.subM M))
 	| (ProjLeft S, AddProd (A, _)) => synthSpine ctx S A
 	| (ProjRight S, AddProd (_, B)) => synthSpine ctx S B
 	| _ => raise Fail "Internal error: synthSpine match"
@@ -561,8 +557,8 @@ fun linPrune (ob, pl) =
 								in invLVar $ invAtomicP Y end
 					in ((LogicVar (Y with's s3), NfInj.Nil'), occ') end
 				| NONE =>
-					let val occSubAll = decrn n (occurSub G s)
-						fun occurs j = List.exists (fn x => x=j) occSubAll
+					let val occSubAll = NS.decrn n (occurSub G s)
+						fun occurs j = NS.member j occSubAll
 						val occ = map (fn (m, j) => if occurs j then FlexMult else No) p
 					in ((LogicVar X1, NfInj.Nil'), occ) end
 				end

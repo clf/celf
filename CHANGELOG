@@ -7,4 +7,5 @@ Version 2.6
   include line numbers.
 * Source code restructuring: Added phantom types to distinguish pattern
   substitutions, pattern substitutions with undefs, and general substitutions.
+* Source code restructuring: Moved NatSets to their own module.
 

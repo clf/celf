@@ -5,6 +5,8 @@ $/smlnj-lib.cm
 
 TopLevelUtil.sml
 AbstractRecursion.sml
+NatSet.sig
+NatSet.sml
 SymbTable.sig
 SymbTable.sml
 Context.sig
