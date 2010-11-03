@@ -26,6 +26,7 @@ exception ExnCtx of string
 datatype mode = INT | AFF | LIN
 type cmode = mode option
 type 'a context = (string * 'a * cmode) list
+(* TODO: Deterministic skiplists are probably better *)
 
 fun ctx2list ctx = ctx
 fun list2ctx ctx = ctx
