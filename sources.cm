@@ -4,6 +4,8 @@ $/ml-yacc-lib.cm
 $/smlnj-lib.cm
 
 TopLevelUtil.sml
+RandomAccessList.sig
+RandomAccessList.sml
 AbstractRecursion.sml
 NatSet.sig
 NatSet.sml

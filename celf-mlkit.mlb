@@ -1,6 +1,8 @@
 $(SML_LIB)/basis/basis.mlb
 $(SML_LIB)/mlyacc-lib/mlyacc-lib.mlb
 TopLevelUtil.sml
+RandomAccessList.sig
+RandomAccessList.sml
 AbstractRecursion.sml
 Binarymap/Binarymap.mlb
 NatSet.sig

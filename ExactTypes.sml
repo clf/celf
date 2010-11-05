@@ -120,7 +120,7 @@ and inferHead (ctx, h) = case h of
 				val () = if m=m' then () else raise Fail "Internal error: Linearity mismatch"
 			in (ctxo, TClos (A, Subst.shift n)) end
 	| UCVar x =>
-			(ctx, TClos (ImplicitVars.ucLookup x, Subst.shift $ length $ ctx2list ctx))
+			(ctx, TClos (ImplicitVars.ucLookup x, Subst.shift $ ctxLength ctx))
 	| LogicVar {X, ty, s, ctx=rctx, ...} =>
 			let val calcCtx' = Unify.pruneCtx
 						(Fail "Internal error: inferHead:pruning lin") (fn A => A)

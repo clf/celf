@@ -32,6 +32,8 @@ val list2ctx : (string * 'a * cmode) list -> 'a context
 val ctxCons : (string * 'a * cmode) -> 'a context -> 'a context
 val ctxMap : ('a -> 'b) -> 'a context -> 'b context
 
+val ctxLength : 'a context -> int
+
 val emptyCtx : 'a context
 
 val ctxIntPart : 'a context -> 'a context

@@ -23,6 +23,8 @@ struct
 
 open Syntax
 
+structure RAList = RandomAccessList
+
 val printImpl = ref false
 val printLVarCtx = ref 0
 
@@ -34,19 +36,19 @@ val join = (fn [] => [] | xs => ["[["] @ xs @ ["]]"]) o join'
 fun paren false x = x
   | paren true x = ["("] @ x @ [")"]
 
-fun lookup (x::ctx) 1 = x
-  | lookup (_::ctx) n = lookup ctx (n-1)
-  | lookup [] n = Int.toString n
+fun lookup ctx n = RAList.lookup ctx (n-1)
+	handle RAList.Subscript => Int.toString (n - RAList.length ctx)
 
 fun add x ctx =
 	let fun eq (x : string) y = x=y
 		fun add1 n x =
 			let val tryname = x ^ Int.toString n
-			in if List.exists (eq tryname) ctx then add1 (n+1) x else (tryname, tryname::ctx) end
-		fun add' x = if List.exists (eq x) ctx then add1 1 (x^"_") else (x, x::ctx)
+			in if RAList.exists (eq tryname) ctx then add1 (n+1) x
+			else (tryname, RAList.cons tryname ctx) end
+		fun add' x = if RAList.exists (eq x) ctx then add1 1 (x^"_") else (x, RAList.cons x ctx)
 	in if x="" then add1 1 "X" else add' x end
 
-fun addNoOccur ctx = "? Error ?"::ctx
+fun addNoOccur ctx = RAList.cons "? Error ?" ctx
 
 val noSkip = ref false
 fun getImplLength c = if !noSkip then 0 else Signatur.getImplLength c

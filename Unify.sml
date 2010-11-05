@@ -187,10 +187,9 @@ and occurHead h = case h of
 	| LogicVar {ctx=ref NONE, ...} => raise Fail "Internal error: occurHead: no ctx"
 	| LogicVar {ctx=ref (SOME G), s, ...} => occurSub G s
 and occurSub ctx s =
-	let val G = ctx2list ctx
-		val () = if List.all (isSome o #3) G then () else
+	let val () = if List.all (isSome o #3) $ ctx2list ctx then () else
 					raise Fail "Internal error: occurSub: lvar with non-pruned ctx"
-		val ctxL = length G
+		val ctxL = ctxLength ctx
 		val subL = Subst.fold (fn (_, n) => n+1) (fn _ => 0) s
 		fun occurSubOb Undef = NS.empty
 		  | occurSubOb (Ob (_, ob)) = occurObj ob
@@ -225,7 +224,7 @@ fun synthHead ctx h = case h of
 		in (ctxo, NfTClos (A, Subst.shift n)) end
 	| UCVar x =>
 		(ctx, NfTClos (normalizeType $ ImplicitVars.ucLookup x,
-				Subst.shift $ length $ ctx2list ctx))
+				Subst.shift $ ctxLength ctx))
 	| LogicVar {ctx=ref NONE, ...} => raise Fail "Internal error: synthHead: no ctx"
 	| LogicVar {X, ty, s, ctx=ref (SOME G), ...} =>
 		(ctxSubSet ctx (occurSub G s), NfTClos (ty, s))
@@ -938,6 +937,7 @@ and unifyLVarLetPrefix (p1, X1 as {X, ty, s, ctx=ref G, ...}, p, E2) =
 				in (NfLet' (q, hs', E'), y) end
 		val si = Subst.invert s
 		val p' = Subst.lcsComp (p, si) (* X[s][lcs2sub p] = X[lcs2sub p'][s] *)
+		(* FIXME: use ralist lookup *)
 		fun changeMode ((INT4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME INT)::G
 		  | changeMode ((AFF4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME AFF)::G
 		  | changeMode ((INT4AFF, 1), (x, A, SOME AFF)::G) = (x, A, SOME INT)::G

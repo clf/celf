@@ -8,4 +8,5 @@ Version 2.6
 * Source code restructuring: Added phantom types to distinguish pattern
   substitutions, pattern substitutions with undefs, and general substitutions.
 * Source code restructuring: Moved NatSets to their own module.
+* Switched context datastructure from ML lists to Okasakis random access lists.
 

@@ -77,7 +77,7 @@ and rdHead h = case h of
 	| Var n => (Var n, singleton $ #2 n)
 	| UCVar v => (UCVar v, empty)
 	| LogicVar (X as {ctx, s, ty, ...}) =>
-			let val ctxL = length $ Context.ctx2list $ valOf $ !ctx
+			let val ctxL = Context.ctxLength $ valOf $ !ctx
 				val subL = Subst.fold (fn (_, n) => n+1) (fn _ => 0) s
 				fun occurSubOb Undef = empty
 				  | occurSubOb (Ob (_, ob)) = (#2 $ rdObj $ unnormalizeObj ob

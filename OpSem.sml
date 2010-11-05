@@ -71,6 +71,7 @@ fun removeHyp ((l, ctx), k) = (List.filter (fn n => n<>k) l, #1 $ ctxLookupNum (
  * longer occur in the context. *)
 (* linIntersect' : int * lcontext * (string * 'a * cmode) list -> lcontext *)
 (* linIntersect : lcontext * context -> lcontext * context *)
+(* FIXME: improve complexity: use a multilookup in Context based on drop *)
 fun linIntersect' (n, k::l, (x, A, m)::G) =
 		if n=k then
 			if m=SOME LIN then k :: linIntersect' (n+1, l, G)

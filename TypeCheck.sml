@@ -112,7 +112,7 @@ and inferHead (ctx, hd) = case hd of
  *)
 and checkSub (ctx, s', ctx') = case (Subst.subPrj s', ctx') of
 	  (INR n, _::_) => checkSub (ctx, Subst.Dot (Idx (ID, n+1), Subst.shift (n+1)), ctx')
-	| (INR n, []) => if length (ctx2list ctx) = n then ctx else raise Fail "ctx/shift mismatch"
+	| (INR n, []) => if ctxLength ctx = n then ctx else raise Fail "ctx/shift mismatch"
 	| (INL _, []) => raise Fail "Substitution/context mismatch"
 	| (INL (_, s), (_, A, NONE)::G') => checkSub (ctx, s, G')
 	| (INL (Ob (LIN, M), s), (_, A, SOME LIN)::G') =>
