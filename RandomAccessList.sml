@@ -105,10 +105,6 @@ fun drop xs 0 = xs
 
 (* Extra operations *)
 
-fun head [] = raise Empty
-  | head ((size,Leaf x) :: rest) = x
-  | head ((size,Node (x,t1,t2)) :: rest) = x
-
 fun prj [] = NONE
   | prj ((size,Leaf x) :: rest) = SOME (x, rest)
   | prj ((size,Node (x,t1,t2)) :: rest) =
