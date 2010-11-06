@@ -26,6 +26,8 @@ else
 	cp ImplicitVars.sml publish/ver$1/celf/
 	cp ImplicitVarsConvert.sig publish/ver$1/celf/
 	cp ImplicitVarsConvert.sml publish/ver$1/celf/
+	cp NatSet.sig publish/ver$1/celf/
+	cp NatSet.sml publish/ver$1/celf/
 	cp OpSem.sig publish/ver$1/celf/
 	cp OpSem.sml publish/ver$1/celf/
 	cp Parse.sig publish/ver$1/celf/
@@ -36,9 +38,12 @@ else
 	cp PermuteList.sml publish/ver$1/celf/
 	cp PrettyPrint.sig publish/ver$1/celf/
 	cp PrettyPrint.sml publish/ver$1/celf/
+	cp RandomAccessList.sig publish/ver$1/celf/
+	cp RandomAccessList.sml publish/ver$1/celf/
 	cp README publish/ver$1/celf/
 	cp RemDepend.sig publish/ver$1/celf/
 	cp RemDepend.sml publish/ver$1/celf/
+	cp Rnd-mlkit.sml publish/ver$1/celf/
 	cp Rnd-smlnj-mlton.sml publish/ver$1/celf/
 	cp Rnd.sig publish/ver$1/celf/
 	cp Signatur.sml publish/ver$1/celf/
@@ -63,6 +68,7 @@ else
 	cp celf.grm publish/ver$1/celf/
 	cp celf.lex publish/ver$1/celf/
 	cp celf.mlb publish/ver$1/celf/
+	cp celf-mlkit.mlb publish/ver$1/celf/
 	cp license-gpl3.txt publish/ver$1/celf/
 	cp main-export.sml publish/ver$1/celf/
 	cp main-run.sml publish/ver$1/celf/
