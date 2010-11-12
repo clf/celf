@@ -17,14 +17,23 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+(* This is based on Wang and Murphy's Programming with Recursion Schemes
+ * (available from http://www-2.cs.cmu.edu/~tom7/papers).
+ * It has been expanded to support mutually recursive datatypes.
+ *)
+
 signature TYP = sig
+(* abstract type t *)
 type t
+(* public datatype 'a F that reveals the
+   constructors of the type t *)
 type 'a F
+(* isomorphism t = t F *)
 val inj : t F -> t
 val prj : t -> t F
-val Fmap : ('a -> 'b) -> 'a F -> 'b F
 (* Fmap (fn x => x) == (fn x => x)
    Fmap (f o g) == (Fmap f) o (Fmap g) *)
+val Fmap : ('a -> 'b) -> 'a F -> 'b F
 end
 
 signature TYP2 = sig
@@ -34,8 +43,6 @@ type ('a, 't) F
 val inj : (a, t) F -> t
 val prj : t -> (a, t) F
 val Fmap : ('a1 -> 'a2) * ('t1 -> 't2) -> ('a1, 't1) F -> ('a2, 't2) F
-(* Fmap (fn x => x) == (fn x => x)
-   Fmap (f o g) == (Fmap f) o (Fmap g) *)
 end
 
 signature TYP3 = sig
@@ -46,8 +53,6 @@ type ('a, 'b, 't) F
 val inj : (a, b, t) F -> t
 val prj : t -> (a, b, t) F
 val Fmap : (('a1 -> 'a2) * ('b1 -> 'b2)) * ('t1 -> 't2) -> ('a1, 'b1, 't1) F -> ('a2, 'b2, 't2) F
-(* Fmap (fn x => x) == (fn x => x)
-   Fmap (f o g) == (Fmap f) o (Fmap g) *)
 end
 
 signature TYP4 = sig
@@ -60,8 +65,6 @@ val inj : (a, b, c, t) F -> t
 val prj : t -> (a, b, c, t) F
 val Fmap : (('a1 -> 'a2) * ('b1 -> 'b2) * ('c1 -> 'c2)) * ('t1 -> 't2)
 		-> ('a1, 'b1, 'c1, 't1) F -> ('a2, 'b2, 'c2, 't2) F
-(* Fmap (fn x => x) == (fn x => x)
-   Fmap (f o g) == (Fmap f) o (Fmap g) *)
 end
 
 signature REC = sig
