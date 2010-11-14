@@ -884,15 +884,15 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 				| INR m1 => if isSome dryRun then (valOf dryRun) := false else
 					let fun notLvar (LogicVar _, _) = false
 						  | notLvar _ = true
-						fun lvarFreeN (_, 0) = true
-						  | lvarFreeN (E, n) = case NfExpObj.prj E of
-							  NfLet (_, (LogicVar {s, ...}, _), E') =>
-								n=1 andalso isSome (patSub s)
-							| NfLet (_, _, E') => lvarFreeN (E', n-1)
+						fun lvarFreeN Et (_, 0) = true
+						  | lvarFreeN Et (E, n) = case NfExpObj.prj E of
+							  NfLet (_, (LogicVar {X, s, ...}, _), E') =>
+								n=1 andalso isSome (patSub s) andalso headCountExp (X, Et) = 0
+							| NfLet (_, _, E') => lvarFreeN Et (E', n-1)
 							| NfMon _ => raise Fail "Internal error: lvarFreeN"
-					in if isSome m2 andalso lvarFreeN (E2t, valOf m2) andalso notLvar ob1' then
+					in if isSome m2 andalso lvarFreeN E1t (E2t, valOf m2) andalso notLvar ob1' then
 						unifyExp dryRun (E1, matchHeadInLetFixedPos (p1, ob1', E2t, valOf m2))
-					else if isSome m1 andalso lvarFreeN (E1t, valOf m1) andalso notLvar ob2' then
+					else if isSome m1 andalso lvarFreeN E2t (E1t, valOf m1) andalso notLvar ob2' then
 						unifyExp dryRun (matchHeadInLetFixedPos (p2, ob2', E1t, valOf m1), E2)
 					else addConstraint (vref (Eqn
 							(NfMonad' $ NfLet' (p1, ob1', E1),
