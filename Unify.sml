@@ -335,8 +335,8 @@ fun pruneCtx e pruneType ss G =
 
 (* objExists : nfObj option vref -> nfObj -> nfObj option *)
 (* typeExists : nfAsyncType -> nfAsyncType option *)
-(* Force the existence of ob/ty while performing occurs check and pruning
- * subterms outside the pattern fragment with nested undefs get postponed
+(* Force the existence of ob/ty while performing occurs check and pruning.
+ * Subterms outside the pattern fragment with nested undefs get postponed
  * as Exists-constraints.
  * Possible return values:
  *  SOME ob  - ob exists
