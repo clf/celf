@@ -256,6 +256,12 @@ and checkExistObj rOccur ob =
 		fun catch f x =
 			let val nu = !nestedUndef
 			in SOME (f x) handle Subst.ExnUndef => (nestedUndef := nu; NONE) end
+		(* To know whether we can reduce H . S{_} to _ we need to know
+		 * whether H is a logicvar or a var "controlled" by a logicvar,
+		 * i.e. whether a logicvar could potentially be substituted for H.
+		 * This reduction normally happens automatically since _ in terms
+		 * is represented by ExnUndef, so we need to stop it with catch.
+		 *)
 		fun ctrlBind p (lv : bool) [] = [(p, lv)]
 		  | ctrlBind p lv ((p', lv')::lvCtrlCtx) =
 				if lv = lv' then (p+p', lv)::lvCtrlCtx
