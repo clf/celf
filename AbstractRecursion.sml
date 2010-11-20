@@ -25,15 +25,15 @@
 signature TYP = sig
 (* abstract type t *)
 type t
-(* public datatype 'a F that reveals the
+(* public datatype 't F that reveals the
    constructors of the type t *)
-type 'a F
+type 't F
 (* isomorphism t = t F *)
 val inj : t F -> t
 val prj : t -> t F
 (* Fmap (fn x => x) == (fn x => x)
    Fmap (f o g) == (Fmap f) o (Fmap g) *)
-val Fmap : ('a -> 'b) -> 'a F -> 'b F
+val Fmap : ('t1 -> 't2) -> 't1 F -> 't2 F
 end
 
 signature TYP2 = sig

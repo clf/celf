@@ -261,8 +261,6 @@ val newNfLVar = newLVar
 val newNfLVarCtx = newLVarCtx
 
 
-(* structure Pattern : TYP where type 't F = 't patternF
-		and type t = pattern *)
 structure Pattern =
 struct
 	type ('x, 'ix) t = ('x, 'ix) pattern
@@ -318,7 +316,7 @@ struct
 		| KPi (_, A, K) => inj (TApp (newLVar (Apx A), newTSpine' K))
 	val newTSpine = newTSpine' o Signatur.sigLookupKind
 end
-(* structure AsyncType : TYP4 where type ('a, 'b, 't) F = ('a, 'b, 't) asyncTypeFF
+(* structure AsyncType : TYP3 where type ('a, 'b, 't) F = ('a, 'b, 't) asyncTypeFF
 		and type t = asyncType and type a = typeSpine and type b = syncType *)
 structure AsyncType =
 struct
@@ -564,7 +562,7 @@ open Syn2
 
 (* structure NfKind : TYP2 where type ('a, 't) F = ('a, 't) kindFF
 		and type t = nfKind and type a = nfAsyncType *)
-(* structure NfAsyncType : TYP4 where type ('a, 'b, 't) F = ('a, 'b, 't) asyncTypeFF
+(* structure NfAsyncType : TYP3 where type ('a, 'b, 't) F = ('a, 'b, 't) asyncTypeFF
 		and type t = nfAsyncType and type a = nfTypeSpine and type b = nfSyncType *)
 (* structure NfTypeSpine : TYP2 where type ('a, 't) F = ('a, 't) typeSpineFF
 		and type t = nfTypeSpine and type a = nfObj *)
