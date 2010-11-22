@@ -909,7 +909,7 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 	end
 (* unifyLVarLetPrefix (p1, X1[s], p, E2)
  * with E2 = let {q1} = N1 in ... let {qn} = Nn in E3,
- * E3 is either a monadic object M or let {q} = Y[t] in E4,
+ * E3 is either a monadic object M or let {q} = Z[t] in E4,
  * n>=1, Ni not logic variables, and s a pattern sub
  * set X1[s][lcis2sub p] =
  *   {let {q1} = N1 in ... let {qn} = Nn in
