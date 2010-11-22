@@ -125,7 +125,7 @@ fun pat2mon p =
 
 (* ctx2int G = (p, G_I)
  * computes the maximal linear-changing substitution
- * G_I |- lcs2sub(p) : G *)
+ * G_I |- lcis2sub(p) : G *)
 (* ctx2int : context -> (subMode * int) list * context *)
 fun ctx2int G =
 	let val G' = ctx2list G
@@ -153,7 +153,7 @@ fun newMonI (sTy, ctx) = case NfSyncType.prj sTy of
 	| TBang A => NfInj.Bang' (newNfLVarCtx (SOME ctx) A)
 
 (* newMon (S, G) = (p, M)
- * G_I |- lcs2sub(p) : G
+ * G_I |- lcis2sub(p) : G
  * G_I |- M : S           *)
 (* newMon : nfSyncType * context -> (subMode * int) list * nfMonadObj *)
 fun newMon (S, G) =
@@ -425,7 +425,7 @@ fun pruneLVar (LogicVar {X, ty, ctx=ref (SOME G), cnstr, tag, ...}) =
   | pruneLVar _ = raise Fail "Internal error: pruneLVar: no lvar"
 
 (* linPrune : nfObj * (subMode * int) list -> nfObj option *)
-(* tries to solve X[lcs2sub pl] = ob by linearity pruning,
+(* tries to solve X[lcis2sub pl] = ob by linearity pruning,
  * returns the solution to X if successful *)
 fun linPrune (ob, pl) =
 	let datatype occ = No | Rigid | FlexMult | FlexUniq
@@ -504,7 +504,7 @@ fun linPrune (ob, pl) =
 								raise Fail "Internal error: pAtomic: lvar with non-pruned ctx"
 				in case patSub s of
 				  SOME (p1, s1) =>
-					let val s2 = Subst.comp (Subst.coerce2s s1, Subst.lcs2sub p1)
+					let val s2 = Subst.comp (Subst.coerce2s s1, Subst.lcis2sub p1)
 						val (s3, pp, occ) = Subst.fold
 							(fn (Ob _, _) => raise Fail "Internal error: not patsub"
 							  | (Undef, (s, pp, occ)) => (Subst.Dot (Undef, s), pp, occ)
@@ -554,11 +554,11 @@ fun linPrune (ob, pl) =
 									  | pCtx ((x, A, m)::G, pp as (_, j)::_) =
 										let val pp' = sub1 pp
 										in ctxCons (x, pType pp' A, addM j m) (pCtx (G, pp')) end
-									val pp' = Subst.lcsComp (pp, Subst.invert s1)
+									val pp' = Subst.lcisComp (pp, Subst.invert s1)
 									val A' = pType pp' A
 									val G' = pCtx (ctx2list G, pp')
 									val Y = newNfLVarCtx (SOME G') A'
-									val () = instantiate (r, NfClos (Y, Subst.lcs2sub pp'), cs, tag)
+									val () = instantiate (r, NfClos (Y, Subst.lcis2sub pp'), cs, tag)
 								in invLVar $ invAtomicP Y end
 					in ((LogicVar (Y with's s3), NfInj.Nil'), occ') end
 				| NONE =>
@@ -766,15 +766,15 @@ and unifyLVar (X as {X=r, s, cnstr=cs, tag, ...}, ob, p) =
 	in case objExists r (NfClos (ob, si)) of
 		  NONE => raise ExnUnify "Cannot prune"
 		| SOME N => if null p then instantiate (r, N, cs, tag) else
-			let val p' = Subst.lcsComp (p, si)
+			let val p' = Subst.lcisComp (p, si)
 			in case linPrune (N, p') of
 				  NONE => addConstraint (vref (Eqn
-						(NfAtomic' (LogicVar (X with's (Subst.lcs2sub p')), NfInj.Nil'), N)), [cs])
+						(NfAtomic' (LogicVar (X with's (Subst.lcis2sub p')), NfInj.Nil'), N)), [cs])
 				| SOME N' => instantiate (r, N', cs, tag)
 			end
 	end handle ExnOccur =>
 		addConstraint (vref (Eqn (NfAtomic' (LogicVar
-				(X with's (Subst.comp (Subst.coerce2s s, Subst.lcs2sub p))), NfInj.Nil'), ob)), [cs])
+				(X with's (Subst.comp (Subst.coerce2s s, Subst.lcis2sub p))), NfInj.Nil'), ob)), [cs])
 and unifySpine dryRun (sp1, sp2) = case (NfSpine.prj sp1, NfSpine.prj sp2) of
 	  (Nil, Nil) => ()
 	| (LApp (M1, S1), LApp (M2, S2)) => (unifyMon dryRun (M1, M2); unifySpine dryRun (S1, S2))
@@ -834,10 +834,10 @@ and unifyLetMon dryRun ((pa, hS, E), M) = case lowerAtomic hS of
 								raise Fail "Internal error: unifyLetMon: lvar with non-pruned ctx"
 						open Subst
 						val (p, newM) = newMonA (ty, G)
-						val lcs = lcs2sub $ lcsComp (lcsDiff (p, lcsComp (p', invert s')), s')
+						val lcis = lcis2sub $ lcisComp (lcisDiff (p, lcisComp (p', invert s')), s')
 					in ( unifyLVar (X with's id, newM, p)
-					   ; unifyExp NONE (nfletredex (pa, NfClos (newM, s'), E), (* E = E[lcs] *)
-							NfMon' $ NfMClos (M, lcs)) )
+					   ; unifyExp NONE (nfletredex (pa, NfClos (newM, s'), E), (* E = E[lcis] *)
+							NfMon' $ NfMClos (M, lcis)) )
 					end)
 	| (LogicVar {ctx=ref NONE, tag, ...}, _) =>
 			raise Fail ("Internal error: no context on $"^Word.toString tag)
@@ -911,7 +911,7 @@ and unifyLetLet dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
  * with E2 = let {q1} = N1 in ... let {qn} = Nn in E3,
  * E3 is either a monadic object M or let {q} = Y[t] in E4,
  * n>=1, Ni not logic variables, and s a pattern sub
- * set X1[s][lcs2sub p] =
+ * set X1[s][lcis2sub p] =
  *   {let {q1} = N1 in ... let {qn} = Nn in
  *    let {p1} = Y[s'] in p1}
  * where s' = dotn (q1+...+qn) s
@@ -942,7 +942,7 @@ and unifyLVarLetPrefix (p1, X1 as {X, ty, s, ctx=ref G, ...}, p, E2) =
 					val (E', y) = splitLet ctx'' si' E (qn + nbinds q)
 				in (NfLet' (q, hs', E'), y) end
 		val si = Subst.invert s
-		val p' = Subst.lcsComp (p, si) (* X[s][lcs2sub p] = X[lcs2sub p'][s] *)
+		val p' = Subst.lcisComp (p, si) (* X[s][lcis2sub p] = X[lcis2sub p'][s] *)
 		(* FIXME: use ralist lookup *)
 		fun changeMode ((INT4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME INT)::G
 		  | changeMode ((AFF4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME AFF)::G
@@ -950,7 +950,7 @@ and unifyLVarLetPrefix (p1, X1 as {X, ty, s, ctx=ref G, ...}, p, E2) =
 		  | changeMode ((_, 1), _) = raise Fail "Internal error: changeMode: 1"
 		  | changeMode ((m, j), x::G) = x :: changeMode ((m, j-1), G)
 		  | changeMode (_, []) = raise Fail "Internal error: changeMode: []"
-		(* G |- X, G' |- X[lcs2sub p'] *)
+		(* G |- X, G' |- X[lcis2sub p'] *)
 		val G' = list2ctx $ foldl changeMode (ctx2list $ valOf G) p'
 		val (E2Y, (Y, qn, M2)) = splitLet G' si E2 0
 		val () = case Util.NfExpObjAuxDefs.prj2 E2Y of

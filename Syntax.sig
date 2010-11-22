@@ -250,10 +250,10 @@ structure Subst : sig
 	val invert : pat_Subst -> pat_Subst
 	val patSub : (nfObj -> nfObj * bool) -> (exn -> nfObj -> Context.mode * int) ->
 			subst -> (lciSub * pat_Subst) option
-	val lcsComp : lciSub * pat_Subst -> lciSub
-	val lcs2sub : lciSub -> (*lcPat*)subst
+	val lcisComp : lciSub * pat_Subst -> lciSub
+	val lcis2sub : lciSub -> (*lcPat*)subst
 	val pruningsub : ('a * int) list -> pat_Subst (* e.g.: lciSub -> pat_Subst *)
-	val lcsDiff : lciSub * lciSub -> lciSub
+	val lcisDiff : lciSub * lciSub -> lciSub
 	val qsort2 : ('a * int) list -> ('a * int) list (* e.g.: lciSub(unsorted) -> lciSub *)
 	val isId : 'a substi -> bool
 	val isWeaken : 'a substi -> patSubst option

@@ -300,7 +300,7 @@ struct
 	 *    s is equal (modulo flags) to s' which is a pattern sub, but
 	 *    G  |- s : G1
 	 *    G' |- s' : G1
-	 *    s = s' o lcs2sub p
+	 *    s = s' o lcis2sub p
 	 *    G equals G' on the indices not in p
 	 *    (INT4LIN, n) in p => G_n is INT and G'_n is LIN
 	 *    (INT4AFF, n) in p => G_n is INT and G'_n is AFF
@@ -326,46 +326,49 @@ struct
 					in ps (m, l, Dot (N', s)) end
 		in SOME $ (fn s => (qsort2 (!p), s)) $ ps (0, [], s') handle ExnPatSub => NONE end
 
-	(* lcsComp : lciSub * pat_Subst -> lciSub *)
-	(* composition for lciSubs; undefs are removed *)
-	fun lcsComp (p, s) =
+	(* lcisComp : lciSub * pat_Subst -> lciSub *)
+	(* Composition for lciSubs; undefs are removed.  Satisfies the following:
+	 * (lcis2sub p) o s  ==  s o (lcis2sub (lcisComp (p, s)))  and
+	 * s o (lcis2sub p)  ==  (lcis2sub (lcisComp (p, invert s))) o s
+	 *)
+	fun lcisComp (p, s) =
 		let fun f (M, n, Shift m) =
-				if n>=1 then SOME (M, n+m) else raise Fail "Internal error: lcsComp: not patsub"
+				if n>=1 then SOME (M, n+m) else raise Fail "Internal error: lcisComp: not patsub"
 			  | f (M, 1, Dot (Idx (ID, m), _)) = SOME (M, m)
 			  | f (M, 1, Dot (Undef, _)) = NONE
 			  | f (M, n, Dot (_, s)) = f (M, n-1, s)
 		in qsort2 $ List.mapPartial (fn (M, n) => f (M, n, s)) p end
 
-	(* lcs2x : conversion of lciSubs to substitutions parameterized by the action
+	(* lcis2x : conversion of lciSubs to substitutions parameterized by the action
 	 * on the linear changing extensions.  The resulting substitution is the
 	 * identity on all variables except the given. *)
-	fun lcs2x f (n, p1 as (x, k)::p) =
-			if n=k then Dot (f (x, k), lcs2x f (n+1, p))
-			else if n<k then Dot (Idx (ID, n), lcs2x f (n+1, p1))
-			else raise Fail "Internal error: lcs2x: not sorted"
-	  | lcs2x f (n, []) = Shift (n-1)
+	fun lcis2x f (n, p1 as (x, k)::p) =
+			if n=k then Dot (f (x, k), lcis2x f (n+1, p))
+			else if n<k then Dot (Idx (ID, n), lcis2x f (n+1, p1))
+			else raise Fail "Internal error: lcis2x: not sorted"
+	  | lcis2x f (n, []) = Shift (n-1)
 
-	(* lcs2sub : lciSub -> subst *)
+	(* lcis2sub : lciSub -> subst *)
 	(* representation conversion from list form to substitution *)
-	fun lcs2sub p = lcs2x Idx (1, p)
+	fun lcis2sub p = lcis2x Idx (1, p)
 
 	(* pruningsub : ('a * int) list -> pat_Subst   e.g.: lciSub -> pat_Subst *)
 	(* build a pruning substitution that prunes all the given indices *)
-	fun pruningsub p = lcs2x (fn _ => Undef) (1, p)
+	fun pruningsub p = lcis2x (fn _ => Undef) (1, p)
 
-	(* lcsDiff : lciSub * lciSub -> lciSub *)
-	(* lcsDiff (p, p') = p-p' such that
-	 * lcs2sub(p) = lcs2sub(p') o lcs2sub(p-p') *)
-	fun lcsDiff (p, []) = p
-	  | lcsDiff ([], _::_) = raise Fail "Internal error: lcsDiff 1"
-	  | lcsDiff ((m, n : int)::p, (m', n')::p') =
+	(* lcisDiff : lciSub * lciSub -> lciSub *)
+	(* lcisDiff (p, p') = p-p' such that
+	 * lcis2sub(p) = lcis2sub(p') o lcis2sub(p-p') *)
+	fun lcisDiff (p, []) = p
+	  | lcisDiff ([], _::_) = raise Fail "Internal error: lcisDiff 1"
+	  | lcisDiff ((m, n : int)::p, (m', n')::p') =
 			if n = n' then case (m, m') of
-				  (INT4LIN, INT4LIN) => lcsDiff (p, p')
-				| (INT4AFF, INT4AFF) => lcsDiff (p, p')
-				| (AFF4LIN, AFF4LIN) => lcsDiff (p, p')
-				| (INT4LIN, AFF4LIN) => (INT4AFF, n) :: lcsDiff (p, p')
-				| _ => raise Fail "Internal error: lcsDiff 2"
-			else (m, n) :: lcsDiff (p, (m', n')::p')
+				  (INT4LIN, INT4LIN) => lcisDiff (p, p')
+				| (INT4AFF, INT4AFF) => lcisDiff (p, p')
+				| (AFF4LIN, AFF4LIN) => lcisDiff (p, p')
+				| (INT4LIN, AFF4LIN) => (INT4AFF, n) :: lcisDiff (p, p')
+				| _ => raise Fail "Internal error: lcisDiff 2"
+			else (m, n) :: lcisDiff (p, (m', n')::p')
 
 	(* subPrj : subst -> (subObj * subst, int) sum *)
 	fun subPrj (Dot (N, s)) = INL (N, s)
