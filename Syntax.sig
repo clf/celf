@@ -66,7 +66,10 @@ type pat_Subst = pat_ substi (* pattern substitutions with potential Undefs *)
 type subst = gen substi (* general substitutions *)
 datatype subObj = Ob of Context.mode * nfObj | Idx of subMode * int | Undef
 
-datatype constr = Solved | Eqn of nfObj * nfObj | Exist of nfObj
+datatype constr
+	= Solved
+	| Eqn of nfObj * nfObj * (unit -> string)
+	| Exist of nfObj * (unit -> string)
 datatype 'aTy headF
 	= Const of string
 	| Var of Context.mode * int

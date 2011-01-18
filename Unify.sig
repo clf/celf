@@ -31,9 +31,6 @@ val pruneCtx : exn -> (Syntax.nfAsyncType -> Syntax.nfAsyncType) -> Syntax.pat_S
 		-> Syntax.nfAsyncType Context.context -> Syntax.nfAsyncType Context.context
 val pruneLVar : Syntax.nfHead -> unit
 
-val objExists : Syntax.nfObj option VRef.vref -> Syntax.nfObj -> Syntax.nfObj option
-val typeExists : Syntax.nfAsyncType -> Syntax.nfAsyncType option
-
 val unify : Syntax.asyncType * Syntax.asyncType * (unit -> string) -> unit
 val unifiable : Syntax.asyncType * Syntax.asyncType -> bool
 val unifyAndBranch : Syntax.asyncType * Syntax.asyncType * (unit -> unit) -> unit

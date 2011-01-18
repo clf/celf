@@ -64,7 +64,10 @@ and monadObj = FixMonadObj of monadObj monadObjF | MClos of monadObj * subst
 and subst' = Dot of subObj * subst' | Shift of int
 and subObj = Ob of Context.mode * nfObj | Idx of subMode * int | Undef
 
-and constr = Solved | Eqn of nfObj * nfObj | Exist of nfObj
+and constr
+	= Solved
+	| Eqn of nfObj * nfObj * (unit -> string)
+	| Exist of nfObj * (unit -> string)
 and 'aTy headF = Const of string
 	| Var of Context.mode * int
 	| UCVar of string

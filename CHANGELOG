@@ -11,4 +11,5 @@ Version 2.6
 * Switched context datastructure from ML lists to Okasakis random access lists.
 * Fixed non-termination bug in the unification problem
   {let {1} = c1 in let {1} = X in 1} == {let {1} = c2 in let {1} = X in 1}.
+* Attached error printing information to constraints.
 
