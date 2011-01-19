@@ -1142,18 +1142,28 @@ fun solveAwakened () = case !awakenedConstrs of [] => NONE | c::cs =>
 		val unifExn = solveConstr c
 	in if isSome unifExn then unifExn else solveAwakened () end
 
-(* noConstrs : obj option -> unit *)
-fun noConstrs N =
-	let (* Trying to solve leftover constraints here would require code
-		 * restructuring, since we have no handler for ExnUnify here *)
+(* solveLeftoverConstrOpt : obj option -> (string * (unit -> string)) option *)
+fun solveLeftoverConstrOpt N =
+	let val () = awakenedConstrs := !!constraints
+		val unifExn = solveAwakened ()
 		val leftOver = List.mapPartial (fn Solved => NONE | e => SOME e)
 						(map !! (!!constraints))
-	in case leftOver of [] => ()
-	| _::_ => raise ExnDeclError (TypeErr, "Leftover constraints:\n"
+		fun noLeftOver () = case leftOver of [] => NONE
+			| _::_ => raise ExnDeclError (TypeErr, "Leftover constraints:\n"
 			^ concat (map (fn c => "Constr: "^constrToStr c^"\n") leftOver)
 			^ (case N of NONE => "" | SOME N =>
 				"\nduring construction of:\n  " ^ PrettyPrint.printObj N ^ "\n"))
+	in if isSome unifExn then unifExn else noLeftOver ()
 	end
+
+(* constrsSolvable : obj -> bool *)
+fun constrsSolvable N = not $ isSome $ solveLeftoverConstrOpt (SOME N)
+
+(* solveLeftoverConstr : unit -> unit *)
+fun solveLeftoverConstr () = case solveLeftoverConstrOpt NONE of
+	  NONE => ()
+	| SOME (s, errmsg) =>
+		raise ExnDeclError (TypeErr, "Unification failed: " ^ s ^ "\n" ^ errmsg ())
 
 fun branchConstr (c, sc) = case !!c of
 	  Solved => sc ()
