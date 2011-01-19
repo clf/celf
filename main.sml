@@ -75,6 +75,10 @@ fun parseArgs args = case args of
 		( print "traceSolve := 2\n"
 		; OpSem.traceSolve := 2
 		; parseArgs args )
+	| "-tp3"::args =>
+		( print "traceSolve := 3\n"
+		; OpSem.traceSolve := 3
+		; parseArgs args )
 	| "-ac"::args =>
 		( print "allowConstr := true\n"
 		; OpSem.allowConstr := true
@@ -92,7 +96,7 @@ fun parseArgs args = case args of
 				^" -te     : trace eta expansion\n"
 				^" -tt     : trace exact type reconstruction\n"
 				^" -tu     : trace unifications\n"
-				^" -tpL    : trace proof search (L = 1 or 2)\n"
+				^" -tpL    : trace proof search (L = 1, 2 or 3)\n"
 				^" -hquery : show help on queries\n")
 		; "" )
 	| "-hquery"::_ =>

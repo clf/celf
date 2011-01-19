@@ -129,7 +129,7 @@ fun genMon (ctx : context, p, sty) =
 	in case p of NONE => gen' sty | SOME p => gen (p, sty) end
 
 fun traceLeftFocus (h, ty) =
-	if !traceSolve >= 1 then
+	if !traceSolve >= 2 then
 		print ("Trying "^PrettyPrint.printPreObj (Atomic' (h, Nil'))^
 				" : "^PrettyPrint.printType ty^"\n")
 	else ()
@@ -138,7 +138,7 @@ fun traceLeftFocus (h, ty) =
 (* solve : (lcontext * context) * asyncType * (obj * context -> unit) -> unit *)
 (* Right Inversion : Gamma;Delta => A *)
 fun solve (ctx, ty, sc) =
-	( if !traceSolve >= 2 then
+	( if !traceSolve >= 3 then
 		print ("Right Invert ("^PrettyPrint.printType ty^")\n")
 	  else ()
 	; solve' (ctx, ty, sc) )
@@ -161,7 +161,7 @@ and solve' (ctx, ty, sc) = case Util.typePrjAbbrev ty of
 (* matchAtom : (lcontext * context) * asyncType asyncTypeF * (obj * context -> unit) -> unit *)
 (* Choice point: choose hypothesis and switch from Right Inversion to Left Focusing *)
 and matchAtom (ctx, P, sc) =
-	( if !traceSolve >= 1 then
+	( if !traceSolve >= 2 then
 		print ("Subgoal: MatchAtom ("^PrettyPrint.printType (AsyncType.inj P)^")\n")
 	  else ()
 	; matchAtom' (ctx, P, sc) )
@@ -190,7 +190,7 @@ and matchAtom' (ctx, P, sc) =
 
 (* forwardChain : int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)
 and forwardChain (fcLim, ctx, S, sc) =
-	( if !traceSolve >= 1 then
+	( if !traceSolve >= 2 then
 		print ("ForwardChain ("^PrettyPrint.printType (TMonad' S)^")\n")
 	  else ()
 	; forwardChain' (fcLim, ctx, S, sc) )
@@ -240,7 +240,7 @@ and forwardChain' (fcLim, (l, ctx), S, sc) =
 
 (* rightFocus : (lcontext * context) * monadObj * syncType * (monadObj * context -> unit) -> unit *)
 and rightFocus (ctx, m, sty, sc) =
-	( if !traceSolve >= 2 then
+	( if !traceSolve >= 3 then
 		print ("RightFocus ("^PrettyPrint.printType (TMonad' sty)^")\n")
 	  else ()
 	; rightFocus' (ctx, m, sty, sc) )
@@ -265,7 +265,7 @@ and rightFocus' ((l, ctx), m, sty, sc) = case (MonadObj.prj m, SyncType.prj sty)
 (* Left Focusing : Gamma;Delta;A >> P  ~~  leftFocus (LR-Oracle, Gamma;Delta, P, A, SuccCont)
  * Construct the spine corresponding to the chosen hypothesis. *)
 and leftFocus (lr, ctx, P, ty, sc) =
-	( if !traceSolve >= 2 then
+	( if !traceSolve >= 3 then
 		print ("LeftFocus ("^PrettyPrint.printType ty^")\n")
 	  else ()
 	; leftFocus' (lr, ctx, P, ty, sc) )
@@ -289,7 +289,7 @@ and leftFocus' (lr, (l, ctx), P, ty, sc) = case Util.typePrjAbbrev ty of
 
 (* monLeftFocus : lr list * context * asyncType * (spine * syncType * context -> unit) -> unit *)
 and monLeftFocus (lr, ctx, ty, sc) =
-	( if !traceSolve >= 2 then
+	( if !traceSolve >= 3 then
 		print ("monLeftFocus ("^PrettyPrint.printType ty^")\n")
 	  else ()
 	; monLeftFocus' (lr, ctx, ty, sc) )
