@@ -23,7 +23,8 @@ sig
 val outputUnify : bool ref
 
 val resetConstrs : unit -> unit
-val noConstrs : Syntax.obj option -> unit
+val constrsSolvable : Syntax.obj -> bool
+val solveLeftoverConstr : unit -> unit
 val addConstraint : Syntax.constr VRef.vref * Syntax.constr VRef.vref list VRef.vref list -> unit
 val instantiate : Syntax.nfObj option VRef.vref * Syntax.nfObj * Syntax.constr VRef.vref list VRef.vref * word -> unit
 

@@ -79,7 +79,7 @@ fun reconstructDecl (ldec as (_, dec)) =
 			val () = appDecl ExactTypes.checkKindEC
 			                 ExactTypes.checkTypeEC
 			                 ExactTypes.checkObjEC dec
-			val () = Unify.noConstrs NONE
+			val () = Unify.solveLeftoverConstr ()
 			val () = if isQuery dec then () else
 					( appDecl ImplicitVarsConvert.logicVarsToUCVarsKind
 					          ImplicitVarsConvert.logicVarsToUCVarsType
@@ -140,14 +140,14 @@ fun reconstructDecl (ldec as (_, dec)) =
 							fun printInst (x, ob) = print (" #"^x^" = "^PrettyPrint.printObj ob^"\n")
 							exception stopSearchExn
 							val solCount = ref 0
-							fun sc N =
-								( Unify.noConstrs (SOME N)
-								; print ("Solution: "^PrettyPrint.printObj N^"\n")
+							fun sc N = if Unify.constrsSolvable N then
+								( print ("Solution: "^PrettyPrint.printObj N^"\n")
 								; app printInst lvars
 								; solCount := !solCount + 1
 								; if TypeCheck.isEnabled () then
 									TypeCheck.checkObjEC (N, ty) else ()
 								; if l = SOME (!solCount) then raise stopSearchExn else () )
+								else ()
 							val () = OpSem.fcLimit := d
 							fun runQuery 0 = false
 							  | runQuery n = 

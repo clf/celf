@@ -1156,14 +1156,15 @@ fun solveLeftoverConstrOpt N =
 	in if isSome unifExn then unifExn else noLeftOver ()
 	end
 
+fun exportError NONE = ()
+  | exportError (SOME (s, errmsg)) =
+		raise ExnDeclError (TypeErr, "Unification failed: " ^ s ^ "\n" ^ errmsg ())
+
 (* constrsSolvable : obj -> bool *)
 fun constrsSolvable N = not $ isSome $ solveLeftoverConstrOpt (SOME N)
 
 (* solveLeftoverConstr : unit -> unit *)
-fun solveLeftoverConstr () = case solveLeftoverConstrOpt NONE of
-	  NONE => ()
-	| SOME (s, errmsg) =>
-		raise ExnDeclError (TypeErr, "Unification failed: " ^ s ^ "\n" ^ errmsg ())
+fun solveLeftoverConstr () = exportError $ solveLeftoverConstrOpt NONE
 
 fun branchConstr (c, sc) = case !!c of
 	  Solved => sc ()
@@ -1202,10 +1203,7 @@ fun unifyOpt (ty1, ty2, errmsg) =
 fun unifiable (ty1, ty2) = not $ isSome $ unifyOpt (ty1, ty2, fn () => "")
 
 (* unify : asyncType * asyncType * (unit -> string) -> unit *)
-fun unify ty1ty2errmsg = case unifyOpt ty1ty2errmsg of
-	  NONE => ()
-	| SOME (s, errmsg) =>
-		raise ExnDeclError (TypeErr, "Unification failed: " ^ s ^ "\n" ^ errmsg ())
+fun unify ty1ty2errmsg = exportError $ unifyOpt ty1ty2errmsg
 
 (* solveConstrBacktrack : (unit -> unit) -> unit
  * Branch on all ambiguous let-constraints and call sc on all successful leaves *)

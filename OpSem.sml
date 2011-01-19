@@ -198,8 +198,9 @@ and forwardChain' (fcLim, (l, ctx), S, sc) =
 	let fun mlFocus (ctx', lr, A, h) = fn commitExn =>
 					( traceLeftFocus (h, A)
 					; monLeftFocus (lr, ctx', A, fn (S, sty, ctxo) =>
-						( if !allowConstr then () else Unify.noConstrs (SOME $ Atomic' (h, S))
-						; raise commitExn ((h, S), sty, ctxo) ) ) )
+						if !allowConstr orelse Unify.constrsSolvable (Atomic' (h, S))
+						then raise commitExn ((h, S), sty, ctxo)
+						else () ) )
 		fun matchSig (c, lr, A) = fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))
 		fun matchCtx ([], _) = []
 		  | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
