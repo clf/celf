@@ -24,3 +24,17 @@ To compile Celf with MLton:
       mlyacc celf.grm
       mlton celf.mlb
 
+
+TROUBLESHOOTING
+If you get the following error when compiling with SML/NJ
+
+      ["/usr/lib/smlnj/bin/ml-yacc" "" "celf.grm"]
+      Usage: ml-yacc filename
+      sources.cm:25.1-25.9 Error: tool "ML-Yacc" failed: "/usr/lib/smlnj/bin/ml-yacc" "" "celf.grm"
+
+then simply run ml-yacc manually by removing the superfluous argument added by
+the compilation manager and rerun sml:
+
+      /usr/lib/smlnj/bin/ml-yacc celf.grm
+      sml < main-export.sml
+

@@ -16,4 +16,5 @@ Version 2.6
   the README.
 * Disabled the "double ctx instantiation" error, since the case correctly
   occurs after eta-expansion of a logic variable of type A&B.
+  TODO: Perhaps simply disable eta-expansion instead?
 

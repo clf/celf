@@ -130,7 +130,10 @@ and inferHead (ctx, h) = case h of
 				val lvarCtx = calcCtx (Subst.invert s) $ ctxIntPart ctx
 				val () = case !rctx of
 						  NONE => rctx := SOME lvarCtx
-						| SOME prevCtx => raise Fail "Internal error: double ctx instantiation"
+						| SOME prevCtx => (*raise Fail "Internal error: double ctx instantiation"*)
+							(* This can happen by eta-expansion of additive pairs *)
+							if ctxLength prevCtx = ctxLength lvarCtx then () else
+								raise Fail "Internal error: lvar 2x ctx mismatch"
 				val () = checkType ((*ctxIntPart*) lvarCtx, ty)
 				val () = Unify.pruneLVar $ normalizeHead h
 			in (ctx, TClos (ty, s)) end
