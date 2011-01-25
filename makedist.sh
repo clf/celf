@@ -14,6 +14,7 @@ else
 	cp ApproxTypes.sml publish/ver$1/celf/
 	cp BackTrack.sig publish/ver$1/celf/
 	cp BackTrack.sml publish/ver$1/celf/
+	cp CHANGELOG publish/ver$1/celf/
 	cp Context.sig publish/ver$1/celf/
 	cp Context.sml publish/ver$1/celf/
 	cp Conv.sig publish/ver$1/celf/
@@ -77,7 +78,7 @@ else
 	cp .mkexec publish/ver$1/celf/
 
 	echo "ignore cvs comments about celf.lex.sml, celf.grm.sig, and celf.grm.sml"
-	cvs stat README celf.lex celf.grm celf.mlb *.cm .mkexec *.sml *.sig | grep Reposit > publish/ver$1/ver$1.txt
+	cvs stat CHANGELOG README celf.lex celf.grm celf.mlb *.cm .mkexec *.sml *.sig | grep Reposit > publish/ver$1/ver$1.txt
 
 	grep "Celf ver" main.sml
 
