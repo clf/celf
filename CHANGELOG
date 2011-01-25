@@ -12,4 +12,8 @@ Version 2.6
 * Fixed non-termination bug in the unification problem
   {let {1} = c1 in let {1} = X in 1} == {let {1} = c2 in let {1} = X in 1}.
 * Attached error printing information to constraints.
+* Added fix for common ml-yacc / sml/nj compilation manager mismatch error to
+  the README.
+* Disabled the "double ctx instantiation" error, since the case correctly
+  occurs after eta-expansion of a logic variable of type A&B.
 
