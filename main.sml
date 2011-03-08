@@ -112,7 +112,7 @@ fun parseArgs args = case args of
 	| f::_ => f
 
 fun celfMain' args =
-	let val () = print "Celf ver 2.6. Copyright (C) 2011\n"
+	let val () = print "Celf ver 2.7. Copyright (C) 2011\n"
 		val filename = parseArgs args
 	in if filename = "" then OS.Process.success (* -h was given *) else
 	let val () = print ("Reading "^filename^":\n\n")

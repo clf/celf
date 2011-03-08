@@ -891,7 +891,7 @@ and unifyLetLet errmsg dryRun ((p1, ob1, E1), (p2, ob2, E2)) =
 					let fun notLvar (LogicVar _, _) = false
 						  | notLvar _ = true
 						fun lvarFreeN Et (_, 0) = true
-						  | lvarFreeN Et (E, n) = case NfExpObj.prj E of
+						  | lvarFreeN Et (E, n) = case lowerExp $ NfExpObj.prj E of
 							  NfLet (_, (LogicVar {X, s, ...}, _), E') =>
 								n=1 andalso isSome (patSub s) andalso headCountExp (X, Et) = 0
 							| NfLet (_, _, E') => lvarFreeN Et (E', n-1)
@@ -959,6 +959,22 @@ and unifyLVarLetPrefix em (p1, X1 as {X, ty, s, ctx=ref G, ...}, p, E2) =
 		val () = unifyLVar em (X1 with's Subst.id, NfMonad' E2Y, p')
 	in (NfClos (Y, Subst.dotn qn s), qn, M2) end
 and matchHeadInLet (hS, E) =
+	if !outputUnify then
+	( print "matchHeadInLet (hS, E)\nhS = "
+	; print (PrettyPrint.printObj $ unnormalizeObj $ NfAtomic' hS)
+	; print "\nE = "
+	; print (PrettyPrint.printObj $ Monad' $ unnormalizeExpObj E)
+	; print "\n" ;
+	let val result = matchHeadInLet' (hS, E) in
+	  print "matchHeadInLet result: "
+	; (case result of
+		  INL Erest => print "succes\n"
+		| INR NONE => print "multiple\n"
+		| INR (SOME n) => print ("possible at "^Int.toString n^"\n"))
+	; result
+	end handle ExnUnify s => (print "matchHeadInLet failed\n"; raise (ExnUnify s)))
+	else matchHeadInLet' (hS, E)
+and matchHeadInLet' (hS, E) =
 	let (* None n : No match found, looking at let number n
 		 * One n : One possible match found at let number n
 		 * More : Several possible matches found *)
@@ -1004,6 +1020,22 @@ and matchHeadInLet (hS, E) =
 			| _ => raise Fail "Internal error: matchHeadInLet"
 	in matchHead (hS, fn _ => fn e => e, 0, E, E, None 1) end
 and matchHeadInLetFixedPos em (q, hS, E, pos) =
+	if !outputUnify then
+	( print "matchHeadInLetFixedPos (q, hS, E, pos)\nhS = "
+	; print (PrettyPrint.printObj $ unnormalizeObj $ NfAtomic' hS)
+	; print "\nE = "
+	; print (PrettyPrint.printObj $ Monad' $ unnormalizeExpObj E)
+	; print "\npos = "
+	; print (Int.toString pos)
+	; print "\n" ;
+	let val result = matchHeadInLetFixedPos' em (q, hS, E, pos) in
+	  print "matchHeadInLetFixedPos result:\n"
+	; print (PrettyPrint.printObj $ Monad' $ unnormalizeExpObj result)
+	; print "\n"
+	; result
+	end handle ExnUnify s => (print "matchHeadInLetFixedPos failed\n"; raise (ExnUnify s)))
+	else matchHeadInLetFixedPos' em (q, hS, E, pos)
+and matchHeadInLetFixedPos' em (q, hS, E, pos) =
 	let val () = if isLVar hS then raise Fail "Internal error: mHILFP: lvar1" else ()
 		fun matchHead (hS, e, nbe, E, pos) = case NfExpObj.prj E of
 			  NfLet (p, N, E') =>

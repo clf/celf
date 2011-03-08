@@ -1,3 +1,7 @@
+Version 2.7
+* Fixed a unification bug concerning lowering of logic variables in let-head
+  position.
+
 Version 2.6
 * Fixed unification issue with eta-contraction at monadic type.
 * Simplified the implementation of eta-contraction and pattern substitution
