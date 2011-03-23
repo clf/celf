@@ -139,10 +139,9 @@ and 'sp spineF = (monadObj, 'sp) spineFF
 and 'e expObjF = (obj, spine, monadObj, 'e) expObjFF
 and 'm monadObjF = (obj, 'm) monadObjFF
 
-and 'a substi = subst'
-and subst = gen substi
-and patSubst = pat substi
-and pat_Subst = pat_ substi
+and subst = subst'
+and patSubst = subst'
+and pat_Subst = subst'
 
 and nfKind = kind
 and nfAsyncType = asyncType
@@ -161,6 +160,8 @@ and apxAsyncType = asyncType
 and apxSyncType = syncType
 
 and typeLogicVar = (*apx*)asyncType option ref * word
+
+type 'a substi = subst'
 
 datatype typeOrKind = Ty of asyncType | Ki of kind
 datatype decl = ConstDecl of string * int * typeOrKind
