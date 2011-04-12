@@ -197,5 +197,10 @@ fun reconstructDecl (ldec as (_, dec)) =
 (* reconstructSignature : (int * decl) list -> unit *)
 fun reconstructSignature prog = app reconstructDecl prog handle ExnStopCelf => ()
 
+(* resetSignature : unit -> unit *)
+fun resetSignature () =
+	( Signatur.resetSig ()
+	; SignaturTable.resetCands () )
+
 
 end

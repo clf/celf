@@ -25,6 +25,8 @@ datatype headType = HdMonad | HdAtom of string
 
 val heads : Syntax.asyncType -> (lr list * headType) list
 
+val resetCands : unit -> unit
+
 val getCandMonad : unit -> (string * lr list * Syntax.asyncType) list
 val getCandAtomic : string -> (string * lr list * Syntax.asyncType) list
 

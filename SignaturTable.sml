@@ -31,6 +31,10 @@ val candMonad = ref [] : (string * lr list * asyncType) list ref
 
 val candAtom = ref (empty ()) : (string * lr list * asyncType) list Table ref
 
+fun resetCands () =
+	( candMonad := []
+	; candAtom := empty () )
+
 fun lookupAtom a = getOpt (peek (!candAtom, a), [])
 
 fun pushAtom a x = candAtom := insert (!candAtom, a, x :: lookupAtom a)

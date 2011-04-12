@@ -22,5 +22,6 @@ sig
 
 val reconstructDecl : int * Syntax.decl -> unit
 val reconstructSignature : (int * Syntax.decl) list -> unit
+val resetSignature : unit -> unit
 
 end

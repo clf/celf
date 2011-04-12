@@ -29,6 +29,10 @@ open SymbTable
 val sigTable = ref (empty()) : decl Table ref
 val sigDelta = ref [] : decl list ref
 
+fun resetSig () =
+	( sigTable := empty ()
+	; sigDelta := [] )
+
 fun getKiTyOpt c =
 	case peek (!sigTable, c) of
 		NONE => NONE

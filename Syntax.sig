@@ -518,6 +518,7 @@ val unnormalizeExpObj : nfExpObj -> expObj
 val etaShortcut : nfObj -> (Context.mode * int) option
 
 structure Signatur : sig
+	val resetSig : unit -> unit
 	val getSigDelta : unit -> decl list
 	val sigAddDecl : decl -> unit
 	val getImplLength : string -> int
