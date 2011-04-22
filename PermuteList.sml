@@ -56,4 +56,7 @@ fun prj (Append (Append (l1, l2), l3)) = prj (Append (l1, Append (l2, l3)))
 fun findSome f = composePartial (fn (x, xs) =>
 		let val fx = f x in if isSome fx then fx else findSome f xs end, prj)
 
+fun forAll f =  composePartial (fn (x, xs) =>
+		(f x ; forAll f xs), prj)
+
 end

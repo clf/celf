@@ -55,7 +55,7 @@ PermuteList.sml
 SignaturTable.sig
 SignaturTable.sml
 OpSem.sig
-OpSem.sml
+OpSemFair2.sml
 TypeRecon.sig
 TypeRecon.sml
 main.sml
