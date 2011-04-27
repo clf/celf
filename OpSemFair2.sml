@@ -173,19 +173,19 @@ and matchAtom' (ctx, P, sc) =
 					( traceLeftFocus (h, A)
 					; leftFocus (lr, ctx', P', A, fn (S, ctxo) =>
 										sc (Atomic' (h, S), ctxo)) )
-		fun matchSig (c, lr, A) = fn () => SOME (BackTrack.backtrack (lFocus (ctx, lr, A, Const c)))
+		fun matchSig (c, lr, A) = fn () => BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
 		fun matchCtx ([], _) = []
 		  | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
 		  | matchCtx ((x, (A, hds), SOME mode)::G, k) =
 		  		let val ctx' = if mode=INT then ctx else removeHyp (ctx, k)
 					val A' = TClos (A, Subst.shift k)
 					val h = Var (mode, k)
-					val f = fn () => SOME (app (fn (lr, _) => BackTrack.backtrack (lFocus (ctx', lr, A', h)))
-						 	(List.filter (fn (_, HdAtom a) => a=aP | _ => false) hds))
+					val f = fn () => app (fn (lr, _) => BackTrack.backtrack (lFocus (ctx', lr, A', h)))
+						 	(List.filter (fn (_, HdAtom a) => a=aP | _ => false) hds)
 				in f :: matchCtx (G, k+1) end
 	in
-	  (PermuteList.forAll (fn f => f ())
-	  (PermuteList.fromList (matchCtx (ctx2list $ #2 ctx, 1) @ map matchSig (getCandAtomic aP))); ())
+	  PermuteList.forAll (fn f => f ())
+	  (PermuteList.fromList (matchCtx (ctx2list $ #2 ctx, 1) @ map matchSig (getCandAtomic aP)))
 	end
 
 (* forwardChain : int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)
