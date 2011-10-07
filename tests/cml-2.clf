@@ -283,8 +283,8 @@ factorial : exp (arrow !nat !nat)
 
 #query * 1 * 1 evaluate (app !double !(s !z)) V.
 #query * 1 * 1 evaluate (app !(app !plus !(s !z)) !(s !(s !z))) V.
-#query * 1 * 1 evaluate (app !(app !mult !(s !(s !(s !z)))) !(s !(s !z))) V.
-#query * 1 * 1 evaluate (app !factorial !(s !(s !(s !z)))) V.
+% #query * 1 * 1 evaluate (app !(app !mult !(s !(s !(s !z)))) !(s !(s !z))) V.
+% #query * 1 * 1 evaluate (app !factorial !(s !(s !(s !z)))) V.
 
 knot : exp nat
   = llet !(newref !(lam !\!x. z)) !\!f.
