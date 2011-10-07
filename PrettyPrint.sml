@@ -185,6 +185,10 @@ and pTPattern bctx p = case Pattern.prj p of
 	| PBang NONE => (["!_"], addNoOccur bctx, false)
 	| PBang (SOME x) => let val (x', bctx') = add x bctx in (["!"^x'], bctx', true) end
 
+fun printMode Plus = "+"
+  | printMode Minus = "-"
+  | printMode Star = "*"
+
 val printKind = String.concat o (pKind [])
 val printType = String.concat o (pType [] false)
 val printSyncType = String.concat o (pSyncType [] false)
@@ -193,5 +197,6 @@ val printMonadObj = String.concat o (pMonadObj [] false)
 
 fun printPreType ty = ( noSkip := true; printType ty before noSkip := false )
 fun printPreObj ob = ( noSkip := true; printObj ob before noSkip := false )
+
 
 end

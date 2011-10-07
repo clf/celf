@@ -26,11 +26,13 @@ open Syn
 
 open SymbTable
 
+val modeTable = ref (empty()) : modeDecl Table ref
 val sigTable = ref (empty()) : decl Table ref
 val sigDelta = ref [] : decl list ref
 
 fun resetSig () =
-	( sigTable := empty ()
+	( modeTable := empty ()
+        ; sigTable := empty ()
 	; sigDelta := [] )
 
 fun getKiTyOpt c =
@@ -55,13 +57,33 @@ fun idFromDecl (ConstDecl (s, _, _)) = s
   | idFromDecl (TypeAbbrev (s, _)) = s
   | idFromDecl (ObjAbbrev (s, _, _)) = s
   | idFromDecl (Query _) = raise Fail "Internal error: Adding query to sig table"
+  | idFromDecl (Mode _) = raise Fail "Internal error: Adding mode declaration to sig table"
 
 fun declSetId id (ConstDecl (_, imps, kity)) = ConstDecl (id, imps, kity)
   | declSetId id (TypeAbbrev (_, ty)) = TypeAbbrev (id, ty)
   | declSetId id (ObjAbbrev (_, ty, ob)) = ObjAbbrev (id, ty, ob)
   | declSetId id (Query _) = raise Fail "Internal error: Adding query to sig table"
+  | declSetId id (Mode _) = raise Fail "Internal error: Adding mode declaration to sig table"
+
 
 (******************)
+
+(* addModeDecl : decl -> unit *)
+fun addModeDecl (Mode (id, implmd, md)) =
+    let fun checkId x = not $ isSome $ peek (!modeTable, x)
+        val id' = if checkId id then id
+                  else raise ExnDeclError (GeneralErr, "Duplicate mode declaration of "^id^"\n")
+        val allmd = getOpt (implmd, []) @ md
+    in
+        modeTable := insert (!modeTable, id, allmd)
+    end
+  | addModeDecl _ = raise Fail "Internal error: Adding non-mode declaration to mode table"
+
+(* getModeDecl : string -> modeDecl option *)
+fun getModeDecl id = peek (!modeTable, id)
+
+(* hasModeDecl : string -> bool *)
+val hasModeDecl = isSome o getModeDecl
 
 (* getSigDelta : unit -> decl list *)
 fun getSigDelta () = rev (!sigDelta) before sigDelta := []
@@ -100,6 +122,7 @@ fun sigGetTypeAbbrev a =
 	  | SOME (ObjAbbrev _) => raise ExnDeclError (KindErr, "Object "^a^" is used as a type\n")
 	  | SOME (ConstDecl _) => NONE
 	  | SOME (Query _) => raise Fail "Internal error: sigGetTypeAbbrev"
+	  | SOME (Mode _) => raise Fail "Internal error: sigGetTypeAbbrev on mode declaration"
 
 (* sigGetObjAbbrev : string -> (obj * asyncType) option *)
 fun sigGetObjAbbrev c =
@@ -109,5 +132,6 @@ fun sigGetObjAbbrev c =
 	  | SOME (TypeAbbrev _) => raise ExnDeclError (KindErr, "Type "^c^" is used as an object\n")
 	  | SOME (ConstDecl _) => NONE
 	  | SOME (Query _) => raise Fail "Internal error: sigGetObjAbbrev"
+	  | SOME (Mode _) => raise Fail "Internal error: sigGetObjAbbrev on mode declaration"
 
 end

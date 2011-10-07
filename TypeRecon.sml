@@ -38,6 +38,7 @@ fun mapDecl fk ft fo (ConstDecl (id, imps, Ki ki)) = ConstDecl (id, imps, Ki (fk
   | mapDecl fk ft fo (ObjAbbrev (id, ty, ob)) =
 		let val ty' = ft ty in ObjAbbrev (id, ty', fo (ob, ty')) end
   | mapDecl fk ft fo (Query (d, e, l, a, ty)) = Query (d, e, l, a, ft ty)
+  | mapDecl _  _  _  (Mode m) = Mode m
 
 (* appDecl : (kind -> unit) -> (asyncType -> unit) -> (obj * asyncType -> unit) -> decl -> unit *)
 fun appDecl fk ft fo (ConstDecl (_, _, Ki ki)) = fk ki
@@ -45,10 +46,15 @@ fun appDecl fk ft fo (ConstDecl (_, _, Ki ki)) = fk ki
   | appDecl fk ft fo (TypeAbbrev (_, ty)) = ft ty
   | appDecl fk ft fo (ObjAbbrev (_, ty, ob)) = (ft ty ; fo (ob, ty))
   | appDecl fk ft fo (Query (_, _, _, _, ty)) = ft ty
+  | appDecl _  _  _  (Mode _) = ()
 
 (* isQuery : decl -> bool *)
 fun isQuery (Query _) = true
   | isQuery _ = false
+
+(* isModeDecl : decl -> bool *)
+fun isModeDecl (Mode _) = true
+  | isModeDecl _ = false
 
 fun declToStr (linenum, dec) =
 	let val decstr = case dec of
@@ -56,9 +62,62 @@ fun declToStr (linenum, dec) =
 			| TypeAbbrev (id, _) => "declaration of " ^ id
 			| ObjAbbrev (id, _, _) => "declaration of " ^ id
 			| Query _ => "query"
+			| Mode (id,_,_) => "mode declaration of " ^ id
 	in decstr ^ " on line " ^ Int.toString linenum end
 
 exception ExnStopCelf
+
+
+(* We check the following conditions in a mode declaration:
+- The constant is a kind (and not a type)
+- The number of args given coincide with the number of args in the type family
+- The number of args in the type family is greater than 0
+- The modes of implicit arguments (if given) is correct. If not given, they are inferred
+ *)
+fun checkModeDecl (id, implmd, md) =
+    let val K = Signatur.sigLookupKind id
+        (* get number of arguments of the type family *)
+        fun numArgs ki =
+            case Kind.prj ki of
+	        Type => 0
+	      | KPi (_, _, A) => numArgs A + 1
+        val nArgs = numArgs K
+        val nImpl = Signatur.getImplLength id
+        val nExpl = nArgs - nImpl
+        val allmd = getOpt (implmd, []) @ md
+
+        val () =
+            if nArgs = 0
+            then raise Fail ("Invalid mode declaration: "^id^" is not a type family")
+            else ()
+
+        val () =
+            case implmd of
+                     NONE => ()
+                   | SOME ms
+                     => if length ms <> nImpl
+                     then raise Fail ("Wrong number of implicit parameters in mode declaration of "^id^
+                                      " (expected "^Int.toString nImpl^", found "^Int.toString (length ms)^")")
+                     else ()
+        val () =
+            if length md <> nExpl
+            then raise Fail ("Wrong number of parameters in mode declaration of "^id^
+                             " (expected "^Int.toString nExpl^", found "^Int.toString (length md)^")")
+            else ()
+
+        val chkmd =
+            case implmd of
+                NONE => ModeDec.shortToFull (K, nImpl, md)
+              | SOME ms => (ModeDec.checkFull (K, allmd); allmd)
+        val (chkImpl, chkExpl) = (List.take (chkmd, nImpl), List.drop (chkmd, nImpl))
+        val () = ModeDec.checkFull (K, chkmd)
+                 handle Fail s => raise Fail ("Internal error: checkFull: "^s)
+        val PPmd = foldr (fn (m,s) => " "^PrettyPrint.printMode m^s) ""
+    in
+        (print ("#mode "^id^" {"^PPmd chkImpl^" }"^PPmd chkExpl^".\n");
+         Signatur.addModeDecl (Mode (id, SOME chkImpl, chkExpl)))
+    end
+
 
 (* reconstructDecl : int * decl -> unit *)
 fun reconstructDecl (ldec as (_, dec)) =
@@ -80,7 +139,7 @@ fun reconstructDecl (ldec as (_, dec)) =
 			                 ExactTypes.checkTypeEC
 			                 ExactTypes.checkObjEC dec
 			val () = Unify.solveLeftoverConstr ()
-			val () = if isQuery dec then () else
+			val () = if isQuery dec orelse isModeDecl dec then () else
 					( appDecl ImplicitVarsConvert.logicVarsToUCVarsKind
 					          ImplicitVarsConvert.logicVarsToUCVarsType
 					          (ImplicitVarsConvert.logicVarsToUCVarsObj o #1) dec
@@ -103,12 +162,37 @@ fun reconstructDecl (ldec as (_, dec)) =
 				| TypeAbbrev _ => (ImplicitVars.noUCVars () ; dec)
 				| ObjAbbrev _ => (ImplicitVars.noUCVars () ; dec)
 				| Query q => Query q
+                                | Mode m => Mode m
 			val dec = mapDecl Util.forceNormalizeKind
 			                  Util.forceNormalizeType
 			                  (Util.forceNormalizeObj o #1) dec
 			val dec = mapDecl RemDepend.remDepKind
 			                  RemDepend.remDepType
 			                  (RemDepend.remDepObj o #1) dec
+
+                        (* We check that a constant declaration is either a backward-chaining goal
+                           or a forward-chaining goal *)
+                        val () =
+                            case dec of
+                                ConstDecl (id,_,Ty ty) =>
+                                  if GoalMode.isBchain ty orelse GoalMode.isFchain ty
+                                  then ()
+                                  else raise Fail ("Constant "^id^" is not allowed (mixed backward and forward goals)")
+                              | _ => ()
+
+                        (* We check that a constant declaration is mode correct *)
+                        val () =
+                            case dec of
+                                ConstDecl (id,_,Ty ty) =>
+                                  if ModeCheck.isNeeded ty
+                                  then ModeCheck.modeCheckDecl ty
+                                       handle ModeCheck.ModeCheckError s =>
+                                              (print ("In declaration:\n"^id^": "^PrettyPrint.printType ty^
+                                                      "\nMode checking of failed: "^s^"\n");
+                                               raise ExnStopCelf)
+                                  else ()
+                              | _ => ()
+
 			val () = case dec of
 				  ConstDecl (id, imps, kity) =>
 							( print (id^": ")
@@ -126,6 +210,9 @@ fun reconstructDecl (ldec as (_, dec)) =
 						( print (id^": "^(PrettyPrint.printType ty)
 								^" = "^(PrettyPrint.printObj ob)^".\n")
 						; if TypeCheck.isEnabled () then TypeCheck.checkObjEC (ob, ty) else () )
+
+                                | Mode (id, implmd, md) => checkModeDecl (id, implmd, md)
+
 				| Query (d, e, l, a, ty) =>
 						(* d : let-depth-bound * = inf
 						 * e : expected number of solutions * = ?
@@ -150,7 +237,7 @@ fun reconstructDecl (ldec as (_, dec)) =
 								else ()
 							val () = OpSem.fcLimit := d
 							fun runQuery 0 = false
-							  | runQuery n = 
+							  | runQuery n =
 									( solCount := 0
 									; if a > 1 then
 										print ("Iteration "^Int.toString (a+1-n)^"\n")
@@ -176,7 +263,8 @@ fun reconstructDecl (ldec as (_, dec)) =
 						else
 							()
 						end
-			val () = if isQuery dec then () else Signatur.sigAddDecl dec
+			val () = if isQuery dec orelse isModeDecl dec then ()
+                                 else Signatur.sigAddDecl dec
 		in () end handle
 		  ExnDeclError es =>
 			let val decstr = declToStr ldec

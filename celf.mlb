@@ -56,6 +56,14 @@ SignaturTable.sig
 SignaturTable.sml
 OpSem.sig
 OpSemFair2.sml
+GoalMode.sig
+GoalMode.sml
+PatternNormalize.sig
+PatternNormalize.sml
+ModeDec.sig
+ModeDec.sml
+ModeCheck.sig
+ModeCheck.sml
 TypeRecon.sig
 TypeRecon.sml
 main.sml

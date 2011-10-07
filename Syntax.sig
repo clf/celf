@@ -164,11 +164,15 @@ val with's :
 		ctx : 'aTy Context.context option ref,
 		cnstr : constr VRef.vref list VRef.vref, tag : word }
 
+datatype mode = Plus | Minus | Star
+type modeDecl = mode list
+
 datatype typeOrKind = Ty of asyncType | Ki of kind
 datatype decl = ConstDecl of string * int * typeOrKind
 	| TypeAbbrev of string * asyncType
 	| ObjAbbrev of string * asyncType * obj
 	| Query of int option * int option * int option * int * asyncType
+	| Mode of string * modeDecl option * modeDecl
 
 datatype declError = TypeErr | KindErr | AmbigType | UndeclId | GeneralErr
 exception ExnDeclError of declError * string
@@ -520,6 +524,9 @@ val etaShortcut : nfObj -> (Context.mode * int) option
 structure Signatur : sig
 	val resetSig : unit -> unit
 	val getSigDelta : unit -> decl list
+	val addModeDecl : decl -> unit
+	val getModeDecl : string -> modeDecl option
+        val hasModeDecl : string -> bool
 	val sigAddDecl : decl -> unit
 	val getImplLength : string -> int
 	val sigLookupKind : string -> kind

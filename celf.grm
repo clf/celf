@@ -35,6 +35,7 @@ fun getline (line, ch) = line
 	| LANGLE | RANGLE | COMMA | LET | EQUAL | IN | PROJLEFT | PROJRIGHT
 	| LBRACKET | RBRACKET | ARROW | BACKARROW | LPAREN | RPAREN | EOF
 	| QUERY | NUM of int | LPI | LEXISTS | AFFLOLLI | BACKAFFLOLLI | BANG | AFF | APP
+        | MODE | PLUS | MINUS
 
 %nonterm Kind of Syntax.kind | AsyncType of Syntax.asyncType
 	| UnifiedType of Parse.unifiedType
@@ -46,6 +47,9 @@ fun getline (line, ch) = line
 	| Decl of Syntax.decl | DeclList of (int * Syntax.decl) list
 	| Program of (int * Syntax.decl) list
 	| Number of int | NumOpt of int option
+        | ModeDecl of Syntax.modeDecl
+        | OneMode of Syntax.mode
+        | Id of string
 
 %start Program
 
@@ -54,7 +58,7 @@ fun getline (line, ch) = line
 %right LOLLI ARROW AFFLOLLI
 %right TENSOR AMPH
 %nonassoc LPAREN LANGLE LAMBDA LCURLY ID UNDERSCORE
-%nonassoc ONE LBRACKET
+%nonassoc ONE LBRACKET PLUS MINUS
 %left APP PROJLEFT PROJRIGHT BANG AFF
 %nonassoc RPAREN
 
@@ -74,12 +78,28 @@ DeclList :
 	| Decl          ( [(getline Decl1left, Decl)] )
 
 Decl :
-	  ID COLON Kind DOT                        ( Syntax.ConstDecl(ID,0,Syntax.Ki Kind) )
-	| ID COLON AsyncType DOT                   ( Syntax.ConstDecl(ID,0,Syntax.Ty AsyncType) )
-	| ID COLON TYPE EQUAL AsyncType DOT        ( Syntax.TypeAbbrev(ID,AsyncType) )
-	| ID COLON AsyncType EQUAL Obj DOT         ( Syntax.ObjAbbrev(ID,AsyncType,Obj) )
+	  Id COLON Kind DOT                        ( Syntax.ConstDecl(Id,0,Syntax.Ki Kind) )
+	| Id COLON AsyncType DOT                   ( Syntax.ConstDecl(Id,0,Syntax.Ty AsyncType) )
+	| Id COLON TYPE EQUAL AsyncType DOT        ( Syntax.TypeAbbrev(Id,AsyncType) )
+	| Id COLON AsyncType EQUAL Obj DOT         ( Syntax.ObjAbbrev(Id,AsyncType,Obj) )
 	| QUERY NumOpt NumOpt NumOpt Number AsyncType DOT
 			( Syntax.Query(NumOpt1,NumOpt2,NumOpt3,Number,AsyncType) )
+        | MODE Id ModeDecl DOT
+                        ( Syntax.Mode(Id,NONE,ModeDecl) )
+        | MODE Id LCURLY ModeDecl RCURLY ModeDecl DOT
+                        ( Syntax.Mode(Id,SOME ModeDecl1, ModeDecl2) )
+
+Id :      ID               ( ID )
+        | PLUS             ( "+" )
+        | MINUS            ( "-" )
+
+ModeDecl :
+          OneMode ModeDecl ( OneMode :: ModeDecl )
+        | OneMode          ( [OneMode] )
+
+OneMode :
+          PLUS  ( Syntax.Plus )
+        | MINUS ( Syntax.Minus )
 
 Number :
 	  ONE ( 1 )
@@ -92,12 +112,12 @@ NumOpt :
 
 Kind :
 	  TYPE                             ( Syntax.Type' )
-	| PI ID COLON UnifiedType DOT Kind ( Syntax.KPi'(SOME ID,Parse.unif2async UnifiedType,Kind) )
+	| PI Id COLON UnifiedType DOT Kind ( Syntax.KPi'(SOME Id,Parse.unif2async UnifiedType,Kind) )
 	| UnifiedType ARROW Kind           ( Syntax.KPi'(NONE,Parse.unif2async UnifiedType,Kind) )
-	| PI ID DOT Kind                   ( Syntax.KPi'(SOME ID,Syntax.newTVar(),Kind) )
+	| PI Id DOT Kind                   ( Syntax.KPi'(SOME Id,Syntax.newTVar(),Kind) )
 
 AtomicType :
-	  ID                          ( (ID,[]) )
+	  Id                          ( (Id,[]) )
 	| AtomicType Obj %prec APP    ( let val (a,s) = AtomicType in (a,Obj::s) end )
 
 AsyncType :
@@ -111,8 +131,8 @@ UnifiedType :
 	| UnifiedType ARROW UnifiedType           ( Parse.arrow(UnifiedType1,UnifiedType2) )
 	| UnifiedType BACKARROW UnifiedType       ( Parse.arrow(UnifiedType2,UnifiedType1) )
 	| UnifiedType AMPH UnifiedType            ( Parse.addProd(UnifiedType1,UnifiedType2) )
-	| PI ID COLON UnifiedType DOT UnifiedType ( Parse.tPi(ID,UnifiedType1,UnifiedType2) )
-	| PI ID DOT UnifiedType                   ( Parse.tPi'(ID,UnifiedType) )
+	| PI Id COLON UnifiedType DOT UnifiedType ( Parse.tPi(Id,UnifiedType1,UnifiedType2) )
+	| PI Id DOT UnifiedType                   ( Parse.tPi'(Id,UnifiedType) )
 	| LPI TPattern COLON UnifiedType DOT UnifiedType
 	                                          ( Parse.tLPi(TPattern,UnifiedType1,UnifiedType2) )
 	| LCURLY UnifiedType RCURLY               ( Parse.monad UnifiedType )
@@ -120,8 +140,8 @@ UnifiedType :
 	                                            in Parse.Neg(Syntax.TAtomic'(a,objs2spine s)) end )
 	| UnifiedType TENSOR UnifiedType          ( Parse.tensor(UnifiedType1,UnifiedType2) )
 	| ONE                                     ( Parse.one )
-	| EXISTS ID COLON UnifiedType DOT UnifiedType ( Parse.exists(ID,UnifiedType1,UnifiedType2) )
-	| EXISTS ID DOT UnifiedType               ( Parse.exists'(ID,UnifiedType) )
+	| EXISTS Id COLON UnifiedType DOT UnifiedType ( Parse.exists(Id,UnifiedType1,UnifiedType2) )
+	| EXISTS Id DOT UnifiedType               ( Parse.exists'(Id,UnifiedType) )
 	| LEXISTS TPattern COLON UnifiedType DOT UnifiedType
 	                                          ( Parse.lexists(TPattern,UnifiedType1,UnifiedType2) )
 	| AFF UnifiedType                         ( Parse.aff UnifiedType )
@@ -133,7 +153,7 @@ Obj :
 	| LAMBDA OPattern DOT Obj                ( Syntax.LLam'(OPattern,Obj) )
 	| LANGLE Obj COMMA Obj RANGLE            ( Syntax.AddPair'(Obj1,Obj2) )
 	| LCURLY ExpObj RCURLY                   ( Syntax.Monad' ExpObj )
-	| ID                                     ( Parse.headToObj(Syntax.Const(ID)) )
+	| Id                                     ( Parse.headToObj(Syntax.Const(Id)) )
 	| Obj MonadObj %prec APP                 ( Parse.app(Obj,MonadObj) )
 	| Obj PROJLEFT                           ( Parse.projLeft Obj )
 	| Obj PROJRIGHT                          ( Parse.projRight Obj )
@@ -156,9 +176,9 @@ MonadObj :
 OPattern :
 	  ONE                            ( Syntax.POne' )
 	| LBRACKET OPatternPair RBRACKET ( Syntax.PDepTensor' OPatternPair )
-	| ID                             ( Syntax.PDown' ID )
-	| AFF ID                         ( Syntax.PAffi' ID )
-	| BANG ID                        ( Syntax.PBang' ID )
+	| Id                             ( Syntax.PDown' Id )
+	| AFF Id                         ( Syntax.PAffi' Id )
+	| BANG Id                        ( Syntax.PBang' Id )
 	| LPAREN OPattern RPAREN         ( OPattern )
 
 OPatternPair :
@@ -171,7 +191,7 @@ TPattern :
 	| UNDERSCORE                     ( Syntax.PDown' () )
 	| AFF UNDERSCORE                 ( Syntax.PAffi' () )
 	| BANG UNDERSCORE                ( Syntax.PBang' NONE )
-	| BANG ID                        ( Syntax.PBang' (SOME ID) )
+	| BANG Id                        ( Syntax.PBang' (SOME Id) )
 	| LPAREN TPattern RPAREN         ( TPattern )
 
 TPatternPair :

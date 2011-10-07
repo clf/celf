@@ -20,6 +20,8 @@
 signature PRETTYPRINT =
 sig
 
+val printMode : Syntax.mode -> string
+
 val printImpl : bool ref
 val printLVarCtx : int ref
 

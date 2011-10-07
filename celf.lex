@@ -44,7 +44,9 @@ fun keyword (s,p) =
 	  | "let" => Tokens.LET(p,p)
 	  | "in" => Tokens.IN(p,p)
 	  | "#query" => Tokens.QUERY(p,p)
+	  | "#mode" => Tokens.MODE(p,p)
 	  | _ => Tokens.ID(s,p,p))
+
 %%
 %header (functor ClfLexFun(structure Tokens: Clf_TOKENS));
 alpha=[A-Za-z];
@@ -78,6 +80,8 @@ ws = [\ \t];
 "!" => (Tokens.BANG(getpos yypos,getpos yypos));
 "-@" => (Tokens.AFFLOLLI(getpos yypos,getpos yypos));
 "@-" => (Tokens.BACKAFFLOLLI(getpos yypos,getpos yypos));
+"+" => (Tokens.PLUS(getpos yypos,getpos yypos));
+"-" => (Tokens.MINUS(getpos yypos,getpos yypos));
 [0-9]+ => (number (yytext,getpos yypos));
 [-a-zA-Z0-9<>=/|_'*#+&~;$?]+ => (keyword (yytext,getpos yypos));
 . => (let val (l,c) = getpos(yypos) in
