@@ -2,6 +2,7 @@ Group is
 $/basis.cm
 $/ml-yacc-lib.cm
 $/smlnj-lib.cm
+simple/clf.sources.cm
 
 TopLevelUtil.sml
 RandomAccessList.sig
@@ -57,6 +58,7 @@ SignaturTable.sig
 SignaturTable.sml
 OpSem.sig
 OpSemFair2.sml
+SimpleDB.sml
 GoalMode.sig
 GoalMode.sml
 PatternNormalize.sig

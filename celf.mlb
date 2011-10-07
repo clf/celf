@@ -1,6 +1,7 @@
 $(SML_LIB)/basis/basis.mlb
 $(SML_LIB)/mlyacc-lib/mlyacc-lib.mlb
 $(SML_LIB)/smlnj-lib/Util/smlnj-lib.mlb
+simple/clf.sources.mlb
 TopLevelUtil.sml
 RandomAccessList.sig
 RandomAccessList.sml
@@ -64,6 +65,7 @@ ModeDec.sig
 ModeDec.sml
 ModeCheck.sig
 ModeCheck.sml
+SimpleDB.sml
 TypeRecon.sig
 TypeRecon.sml
 main.sml

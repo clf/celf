@@ -265,6 +265,8 @@ fun reconstructDecl (ldec as (_, dec)) =
 						end
 			val () = if isQuery dec orelse isModeDecl dec then ()
                                  else Signatur.sigAddDecl dec
+
+			val () = SimpleDB.add dec
 		in () end handle
 		  ExnDeclError es =>
 			let val decstr = declToStr ldec
@@ -283,7 +285,9 @@ fun reconstructDecl (ldec as (_, dec)) =
 
 
 (* reconstructSignature : (int * decl) list -> unit *)
-fun reconstructSignature prog = app reconstructDecl prog handle ExnStopCelf => ()
+fun reconstructSignature prog = 
+  (app reconstructDecl prog handle ExnStopCelf => ()
+  ; SimpleDB.conclude ())
 
 (* resetSignature : unit -> unit *)
 fun resetSignature () =
