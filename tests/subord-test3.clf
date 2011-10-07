@@ -1,0 +1,4 @@
+foo: type.
+bar: type.
+baz: type.
+c: (foo -o bar) -o {baz}.
