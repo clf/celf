@@ -1,0 +1,25 @@
+nat : type.
+
+z : nat.
+s : nat -> nat.
+
+list : type.
+
+nil : list.
+cons : nat -> list -> list.
+
+nt : nat -> type.
+perm : list -> type.
+goperm : type.
+
+perm/- : goperm -> nt N * perm L -o {perm (cons N L)}.
+#query * * * 25
+  goperm -> nt z -o nt (s z) -o perm nil -o {perm L}.
+
+goperm' : type.
+
+perm'/0 : goperm' -> nt z * perm L -o {perm (cons z L)}.
+perm'/1 : goperm' -> nt (s z) * perm L -o {perm (cons (s z) L)}.
+
+#query * * * 25
+  goperm' -> nt z -o nt (s z) -o perm nil -o {perm L}.

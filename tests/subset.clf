@@ -1,0 +1,24 @@
+% Sublist.
+
+nat : type.
+z : nat.
+s : nat -> nat.
+
+list : type.
+nil : list.
+cons : nat -> list -> list.
+
+element : nat -> type.
+sublist : list -> type.
+
+sublist/nil : sublist nil.
+sublist/cons : sublist (cons N L)
+		@- element N
+		@- sublist L.
+
+
+#query * 5 * 1 element z -@ element (s z) -@ sublist L.
+#query * 16 * 1 element z -@ element (s z) -@ element (s (s z)) -@ sublist L.
+#query * 1 * 1 element z -@ element N -@ sublist (cons z (cons (s z) nil)).
+#query * 1 * 1 element N -@ element z -@ sublist (cons z (cons (s z) nil)).
+#query * 2 * 1 element N -@ element z -@ sublist (cons z nil).

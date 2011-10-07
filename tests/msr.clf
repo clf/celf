@@ -1,0 +1,103 @@
+% Protocol representation with Celf
+% Carsten Schuermann, Anders Schack-Nielsen
+% following CLF Technical Report 2 from CMU.
+
+principal : type.
+nonce : type.
+pubK : principal -> type.
+privK : pubK A -> type.
+
+% Messages
+
+msg :type.
+p2m : principal -> msg.
+n2m : nonce -> msg.
+pk2m : pubK A -> msg.
++ : msg -> msg -> msg.
+pEnc : pubK A -> msg -> msg.
+
+% Network
+
+net : msg -> type.
+
+% Roles
+
+alice : principal -> type.
+bob : principal -> type.
+intruder : principal -> type.
+
+% The princapls memory
+
+brain : type.
+remember : brain -> type.
+
+roleAlice : alice A -o
+            {   Exists L : Pi B : principal. pubK B -> nonce -> brain
+    	      . (Pi B : principal. Pi kB : pubK B.
+    	     	{   Exists nA : nonce
+                  . net (pEnc kB (+ (n2m nA) (p2m A)))
+	          * remember (L !B !kB !nA)
+                  * 1 })
+              * (Pi B : principal. Pi kB : pubK B.
+      	        Pi kA : pubK A. Pi kA' : privK kA.
+    	        Pi nA : nonce. Pi nB : nonce.
+       	             net (pEnc kA (+ (n2m nA) (n2m nB )))
+	     	  -o remember (L !B !kB !nA)
+	     	  -o {   net (pEnc kB (n2m nB ))
+                       * 1 })
+              * 1
+            }.
+
+
+roleBob : bob B -o
+          {   Exists L : principal -> nonce -> brain
+            . (Pi kB : pubK B. Pi kB' : privK kB .
+	      Pi A : principal. Pi kA : pubK A.
+	      Pi nA : nonce.
+	          net (pEnc kB (+ (n2m nA) (p2m A)))
+	      -o {  Exists nB : nonce
+                  . net (pEnc kA (+ (n2m nA) (n2m nB)))
+                  * remember (L !A !nB)
+                  * 1 })
+     	    * (Pi A : principal.
+              Pi kB : pubK B. Pi kB' : privK kB .
+       	      Pi nB : nonce.
+       	          net (pEnc kB (n2m nB))
+       	       -o remember (L !A !nB)
+       	       -o { 1 })
+            * 1
+          }.
+
+
+nspkInt : intruder I -o { Exists L1: brain. Exists L2: brain.
+	     (Pi kI : pubK I. Pi kI' : privK kI.
+	     Pi A : principal. Pi nA: nonce.
+	     Pi B : principal. Pi kB : pubK B.
+	     net (pEnc kI (+ (n2m nA) (p2m A)))
+	     -o {net (pEnc kB (+ (n2m nA) (p2m A))) * remember L1})
+	   * (Pi kI : pubK I. Pi kI' : privK kI.
+	     Pi A : principal. Pi kA : pubK A. Pi nA : nonce.
+	     Pi B : principal. Pi kB : pubK B. Pi nB : nonce.
+       	        net (pEnc kA (+ (n2m nA) (n2m nB )))
+	     	-o remember L1
+	     	-o { net (pEnc kA (+ (n2m nA) (n2m nB))) * remember L2})
+           * (Pi kI : pubK I. Pi kI' : privK kI.
+	     Pi B : principal. Pi kB : pubK B. Pi nB : nonce.
+       	     net (pEnc kI (n2m nB))
+       	     -o remember L2
+       	     -o {net (pEnc kB (n2m nB))})}.
+
+
+a : principal.
+ka : pubK a.
+ka' : privK ka.
+
+b : principal.
+kb : pubK b.
+kb' : privK kb.
+
+i : principal.
+ki : pubK i.
+ki' : privK ki.
+
+#query 16 * * 100 intruder i -o alice a -o bob b  -o {1}.

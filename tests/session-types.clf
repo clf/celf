@@ -1,0 +1,129 @@
+% Formalization of Session Types in Celf.
+% Author: Carsten Schuermann
+
+% Base Language
+exp : type.
+z : exp.
+s : exp -> exp.
+
+
+% Base Types
+tp : type.
+nat : tp.
+
+
+
+% Process Primitives
+channel : type.
+pe : type.
+request : exp -> (channel -> pe) -> pe.
+accept : exp -> (channel -> pe) -> pe.
+send : channel -> exp -> pe -> pe.
+receive : channel -> (exp -> pe) -> pe.
+| : pe -> pe -> pe.
+inact : pe.
+print : exp -> pe.
+newS : tp -> (exp -> pe) -> pe.
+
+
+
+% Session Types
+stp : type.
+down : tp -> stp -> stp.
+up : tp -> stp -> stp.
+end : stp.
+st : stp -> stp -> tp. % Injection into Base Types
+
+% Duality and validity of types
+dual : stp -> stp -> type.
+validtype : tp -> type.
+d1 : dual (down T S) (up T S')
+   <- validtype T
+   <- dual S S'.
+d2 : dual (up T S) (down T S')
+   <- validtype T
+   <- dual S S'.
+d3 : dual end end.
+vnat : validtype nat.
+vst : validtype (st T T')
+   <- dual T T'.
+
+
+% Base Language: Operational Semantics
+eval : exp -> exp -> type.
+evz : eval z z.
+evs : eval (s E) (s V)
+   <- eval E V.
+
+% Operational Semantics
+proc : pe -> type.
+
+link : proc (accept A P1) -o proc (request A P2)
+   -o {Exists k. proc (P1 !k) * proc (P2 !k)}.
+
+com : proc (send K E P1) -o proc (receive K P2)
+   -o eval E V
+   -> {proc P1 * proc (P2 !V)}.
+
+par : proc (| P1 P2) -o {proc P1 * proc P2}.
+
+clean : proc (inact) -o {1}.
+
+introS : proc (newS T P)
+   -o {Exists a. !eval a a * proc (P !a)}.
+
+#query * 1 * 1
+   proc (newS T (\!a.
+    | (accept a (\!k. send k (s z) (receive k \!x. print x)))
+      (request a (\!k. receive k (\!x. send k (s x) inact)))))
+   -o {proc (print X)}.
+
+% Base Language: Static Semantics/Type System
+of : exp -> tp -> type.
+ofz : of z nat.
+ofs : of (s N) nat
+   <- of N nat.
+
+% Sessions: Static Semantics/Type System
+valid : pe -> type.
+c_of : channel -> stp -> type.
+valid' : channel -> pe -> type.
+
+v_ : valid' K P
+   o- valid P
+   o- ((c_of K end -o {1}) -@ {1}).
+
+v_acc: valid (accept A P)
+   <- of A (st S S')
+   o- (Pi k. c_of k S -o valid' k (P !k)).
+
+v_req: valid (request A P)
+   <- of A (st S S')
+   o- (Pi k. c_of k S' -o valid' k (P !k)).
+
+v_send: valid (send K E P)
+   o- c_of K (up T S)
+   <- of E T
+   o- (c_of K S -o valid' K P).
+
+v_receive: valid (receive K P)
+   o- c_of K (down T S)
+   o- (Pi x. of x T -> c_of K S -o valid' K (P !x)).
+
+v_inact: valid inact.
+
+v_print : valid (print E)
+   <- of E T.
+
+v_newS : valid (newS T P)
+   o- (Pi a. of a T -> valid (P !a))
+   <- validtype T.
+
+v_par: valid (| P1 P2)
+   o- valid P1
+   o- valid P2.
+
+#query * 1 * 1
+   valid (newS T (\!a.
+   | (accept a (\!k. send k (s z) (receive k \!x. print x)))
+     (request a (\!k. receive k (\!x. send k (s x) inact))))).

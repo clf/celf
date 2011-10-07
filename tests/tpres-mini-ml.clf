@@ -1,0 +1,255 @@
+% Type preservation for mini-ml
+% Encoded using UTF-8
+
+
+% Types
+tp : type.
+arr : tp -> tp -> tp.     %  T₁ → T₂
+
+% Expressions
+exp: type.
+
+lam : tp -> (exp -> exp) -> exp.
+app : exp -> exp -> exp.
+
+% Values
+value : exp -> type.
+#mode value +.
+
+val/lam : value (lam T (\!x. E !x)).
+
+
+% Linear resources
+
+% ctx is used to represent multisets of resources as the canonical elements of type
+%  (ctx -> {1}). We use Γ to denote multisets of resources
+ctx  : type.
+
+% Destinations are typed
+dest : tp -> type.
+
+% Resources
+eval : ctx -> exp -> dest T -> {1}.                           % (E)^D
+retn : ctx -> exp -> dest T -> {1}.                           % (E)_D
+app1 : ctx -> dest (arr T1 T2) -> dest T1 -> dest T2 -> {1}.  % (D₁ D₂)^D
+
+
+% Well-threading
+% We assume only one computation; destinations form a tree
+% TODO: check that destinations are unique
+
+wt : (ctx -> {1}) -> dest T -> type.
+wt/retn : wt (\!x. { let {1} = retn x E D in 1 }) D.
+wt/eval : wt (\!x. { let {1} = eval x E D in 1 }) D.
+wt/app1 : wt (\!x. { let {1} = app1 x D1 D2 D in
+                     let {1} = CTX1 !x in
+                     let {1} = CTX2 !x in 1 }) D
+          <- wt CTX1 D1
+          <- wt CTX2 D2.
+
+% (\!y. { let {1} = newDest D in
+%                                                         let {1} = S1 y in
+%                                                         let {1} = S2 y in 1 })
+%           <- fresh D S1
+
+
+% wt' : (ctx -> {1}) -> (destSet -> {1}) -> dest T -> type.
+
+%%%% Typing rules
+
+of : exp -> tp -> type.
+#mode of + -.
+
+of/lam : (Pi x. of x T1 -> of (E !x) T2) -> of (lam T1 (\!x. E !x)) (arr T1 T2).
+of/app : of E1 (arr T' T) -> of E2 T' -> of (app E1 E2) T.
+
+
+%%%% Typing rules with destinations
+% We only check one resource at the time.
+typed : (ctx -> {1}) -> type.
+
+%  ⊢ E : T            typed(Γ)
+%  ------------------------------- (D : T), value(E)
+%       typed( (E)_D , Γ )
+typed/retn : Pi CTX : ctx -> {1}.
+             Pi D : dest T. of E T -> value E -> typed CTX ->
+             typed (\!x. { let {1} = retn x E D in
+                           let {1} = CTX !x in 1 }).
+
+%  ⊢ E : T            typed(Γ)
+%  ------------------------------- (D : T)
+%       typed( (E)^D , Γ )
+typed/eval : Pi CTX : ctx -> {1}.
+             Pi D : dest T. of E T -> typed CTX ->
+             typed (\!x. { let {1} = eval x E D in
+                           let {1} = CTX !x in 1 }).
+
+%  D₁ : T₂ → T   D₂ : T₂    D : T         typed(Γ)
+%  ------------------------------------------------
+%       typed( (D₁ D₂)^D , Γ )
+typed/app1 : Pi CTX : ctx -> {1}.
+             Pi D1 : dest (arr T2 T). Pi D2 : dest T2.
+             Pi D : dest T.
+             typed CTX ->
+             typed (\!x. { let {1} = app1 x D1 D2 D in
+                           let {1} = CTX !x in 1 }).
+
+typed/empty : typed (\!x. {1}).
+
+%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%
+test : typed (\!x. { let {1} = eval x E D1 in
+                     let {1} = retn x E D2 in 1 }) -> type.
+
+- : Pi H : of E T. Pi HV : value E.
+    test (typed/eval (\!x. { let {1} = retn x E D2 in 1 })
+                     D1 H
+                     (typed/retn (\!x. {1}) D2 H HV typed/empty)).
+
+- : Pi H : of E T. Pi HV : value E.
+    test (typed/retn (\!x. { let {1} = eval x E D1 in 1 })
+                     D2 H HV
+                     (typed/eval (\!x. {1}) D1 H typed/empty)).
+%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%
+
+
+
+
+%%%% Reduction rules
+%%%% Small step semantics as a type family
+
+smallstep : (ctx -> {1}) -> (ctx -> {1}) -> type.
+% #mode smallstep + -.
+
+sstep/eval : % Pi CTX : ctx -> {1}.
+             Pi D : dest T. value E ->
+             smallstep (\!x. { let {1} = eval x E D in
+                               let {1} = CTX !x in 1 })
+                       (\!x. { let {1} = retn x E D in
+                               let {1} = CTX !x in 1 }).
+sstep/app : Pi CTX : ctx -> {1}.
+            Pi D1 : dest (arr T2 T). Pi D2 : dest T2.
+            Pi D : dest T.
+            smallstep (\!x. { let {1} = eval x (app E1 E2) D in
+                              let {1} = CTX !x in 1 })
+                      (\!x. { let {1} = eval x E1 D1 in
+                              let {1} = eval x E2 D2 in
+                              let {1} = app1 x D1 D2 D in
+                              let {1} = CTX !x in 1 }).
+sstep/beta : Pi CTX : ctx -> {1}.
+             Pi D1 : dest (arr T2 T). Pi D2 : dest T2.
+             Pi D : dest T.
+             smallstep (\!x. { let {1} = retn x (lam T2 \!x. E1 !x) D1 in
+                               let {1} = retn x V2 D2 in
+                               let {1} = app1 x D1 D2 D in
+                               let {1} = CTX !x in 1 })
+                       (\!x. { let {1} = eval x (E1 !V2) D in
+                               let {1} = CTX !x in 1 }).
+
+%%% Inversion of the typing judgment (used in the proof type preservation)
+tp-inv : of (app E1 E2) T -> of E1 (arr T2 T) -> of E2 T2 -> type.
+tp-inv/app : tp-inv (of/app HD1 HD2) D1 D2.
+
+% modes tp-inv -H1 +H2 +H3.
+
+
+
+%%% Type preservation
+%% typed(Γ₁) ∧ Γ₁ ⟿ Γ₂ ⟹ typed(Γ₂)
+tpres : typed (\!x. CTX1 !x) -> smallstep (\!x. CTX1 !x) (\!x. CTX2 !x) ->
+        typed (\!x. CTX2 !x) -> type.
+
+% We proceed by case analysis on the reduction Γ₁ ⟿ Γ₂
+
+% Case  sstep/eval
+%
+% Γ₁ ⟿ Γ₂  is     (E)^D , Γ  ⟿  (E)_D , Γ      if value(E) ∧  (D : T)
+%
+% typed(Γ₁) is     HD ::   ⊢ E : T        HI ::   typed(Γ)
+%       typed/eval --------------------------------------- (D : T)
+%                             typed( (E)^D , Γ )
+%
+% typed(Γ₂) is     HD ::   ⊢ E : T        HI ::   typed(Γ)
+%       typed/retn -------------------------------------- (D : T), value(E)
+%                             typed( (E)_D , Γ )
+tpres/eval : tpres (typed/eval CTX (D : dest T) (HD : of E T) HI)
+                   (sstep/eval D HV)
+                   (typed/retn CTX D HD HV HI).
+
+% Case sstep/app
+%
+% Γ₁ ⟿ Γ₂  is     (E₁ E₂)^D , Γ  ⟿  (E₁)^D₁ , (E₂)^D₂ , (D₁ D₂)^D , Γ
+%                                      where D₁ : arr T₂ T, D₂ : T₂ , D : T
+% typed(Γ₁) is      HD ::  ⊢ (E₁ E₂) : T         HI ::  typed(Γ)
+%                  --------------------------------------------- (D : T)
+%                            typed( (E₁ E₂)^D , Γ )
+%
+% typed(Γ₂) is  (simplified)
+%
+%                    D₁ : arr (T₂ T)   D₂ : T₂   D : T
+%                  --------------------------------------------
+%                          HD1 ::    ⊢ E₁ : arr T₂ T
+%                  --------------------------------------------
+%                          HD2 ::    ⊢ E₂ : T₂
+%                  --------------------------------------------
+%                   typed( (E₁)^D₁,  (E₂)^D₂  , (D₁ D₂)^D , Γ )
+%
+% We use tp-inv to obtain HD1 and HD2 from HD
+tpres/app  : tpres (typed/eval CTX D (HD : of (app E1 E2) T) HI)
+                   (sstep/app CTX D1 D2 D)
+                   (typed/app1
+                      (\!x. { let {1} = eval x E2 D2 in
+                              let {1} = eval x E1 D1 in
+                              let {1} = CTX !x in 1 })
+                      D1 D2 D
+                      (typed/eval (\!x . { let {1} = eval x E2 D2 in
+                                           let {1} = CTX !x in 1 })
+                                  D1 HD1
+                                  (typed/eval !CTX D2 HD2 HI)))
+                <- tp-inv HD HD1 HD2.
+
+% tpres/app' is the same case as above, except that we consider a different order
+% in the typing of the output
+tpres/app' : tpres (typed/eval !CTX D (HD : of (app E1 E2) T) HI)
+                   (sstep/app !CTX D1 D2 D)
+                   (typed/eval
+                      (\!x. { let {1} = eval x E2 D2 in
+                              let {1} = app1 x D1 D2 D in
+                              let {1} = CTX !x in 1 })
+                      D1 HD1
+                      (typed/eval (\!x . { let {1} = app1 x D1 D2 D in
+                                           let {1} = CTX !x in 1 })
+                                  D2 HD2
+                                 (typed/app1 !CTX D1 D2 D HI)))
+                <- tp-inv HD HD1 HD2.
+
+% Case sstep/beta.
+%
+% This is the "inverse" of the previous case. We can consider several orders in
+% the typing of the input
+
+tpres/beta : tpres (typed/retn (\!x. { let {1} = app1 x D1 D2 D in
+                                       let {1} = retn x E2 D2 in
+                                       let {1} = CTX !x in 1 })
+                               D1 (of/lam (\!e. HD1 !e)) val/lam
+                               (typed/retn (\!x . { let {1} = app1 x D1 D2 D in
+                                                    let {1} = CTX !x in 1 })
+                                           D2 HD2 HV2
+                                           (typed/app1 !CTX D1 D2 D HI)))
+                   (sstep/beta !CTX D1 D2 D)
+                   (typed/eval !CTX D (HD1 !E2 !HD2) HI).
+
+
+
+%%% Rules of small step semantics
+
+% step/app : Pi D : dest T. eval (app E1 E2) D -o
+%            of E1 (arr T2 T) -o of E2 T2 -o
+%            { Exists D1 : dest (arr T2 T). Exists D2 : dest T2.
+%              eval E1 D1 * eval E2 D2 * app1 D1 D2 D }.
+% step/beta : retn (lam T \!x. E1 !x) D1 -o retn V2 D2 -o value V2 -o
+%             app1 D1 D2 D -o { eval (E1 !V2) D }.
+% step/eval : eval E D -o value E -o { retn E D }.
+
+

@@ -11,13 +11,13 @@ n : place.
 b : place. 
 c : place. 
 a : place. 
-tp : tok p -o {tok r}. 
-tr : tok r -o {tok p * tok b * tok n}. 
-ta : tok b -o tok b -o tok a -o {tok c}. 
-tc : tok c -o {tok a}. 
+tp : tok p -@ {@tok r}. 
+tr : tok r -@ {@tok p * @tok b * @tok n}. 
+ta : tok b -@ tok b -@ tok a -@ {@tok c}. 
+tc : tok c -@ {@tok a}. 
 
 % We run the following query five times. In the output you will see
 % different proof terms.  The first parameter 12 limits the search
 % depth within the monad.
 
-#query 12 * * 5 tok p -o tok c -o {<T>}.
+#query 12 * * 5 tok p -@ tok c -@ {1}.

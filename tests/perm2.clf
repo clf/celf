@@ -1,0 +1,24 @@
+% Permutations.
+
+nat : type.
+z : nat.
+s : nat -> nat.
+
+list : type.
+nil : list.
+cons : nat -> list -> list.
+
+element : nat -> type.
+perm : list -> type.
+
+perm/nil : perm nil.
+perm/cons : perm (cons N L)
+		o- element N
+		o- perm L.
+
+
+#query * 2 * 1 element z -o element (s z) -o perm L.
+#query * 6 * 1 element z -o element (s z) -o element (s (s z)) -o perm L.
+#query * 1 * 1 element z -o element N -o perm (cons z (cons (s z) nil)).
+#query * 1 * 1 element N -o element z -o perm (cons z (cons (s z) nil)).
+#query * 0 * 1 element N -o element z -o perm (cons z nil).

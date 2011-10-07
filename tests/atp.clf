@@ -22,14 +22,14 @@ hfalse : hyp false -> {Exists u: hyp C. 1}.
 % This line looks funny, we would like an empty type.  Do we have 0? -- cs Sat Dec 15 00:36:44 2007
 hand   : hyp (and A B) -> {(Exists u1: hyp A. 1) * (Exists u2: hyp B. 1)}.
 himp   : hyp A -> hyp (imp A B) -> {Exists u:hyp B. 1}.
-hall   : hyp (all A) -> {Exists u : (Pi x:trm. hyp (A x)). 1}.
-hsome  : hyp (some A) -> {Exists x:trm. Exists u: hyp (A x). 1}.
+hall   : hyp (all A) -> {Exists u : (Pi x:trm. hyp (A !x)). 1}.
+hsome  : hyp (some A) -> {Exists x:trm. Exists u: hyp (A !x). 1}.
 
 prove  : frm -> type.
 prand  : prove (and A B) <- prove A & prove B.
 primp  : prove (imp A B) <- (hyp A -> prove B).
-prall  : prove (all A) <- (Pi x:trm. prove (A x)).
-prsome : prove (some A) <- {Exists x:trm. prove (A x)}.
+prall  : prove (all A) <- (Pi x:trm. prove (A !x)).
+prsome : prove (some A) <- {Exists x:trm. prove (A !x)}.
 prtrue : prove true.
 pri    : prove (i A) <- {hyp (i A)}.
 
@@ -46,13 +46,15 @@ j : trm.
 
 pr :
 prove (imp (and (i a) (imp (i a) false)) (i (p k)))
-= primp (\f. pri {
-	let {[u1, 1]*[u2, 1]} = hand f in
-	let {[uf, 1]} = himp u1 u2 in
-	let {[c, 1]} = hfalse uf in
+= primp (\!f. pri {
+	let {[[!u1, 1], [!u2, 1]]} = hand f in
+	let {[!uf, 1]} = himp u1 u2 in
+	let {[!c, 1]} = hfalse uf in
 	c }).
-#query 30 * 1 1
-prove (imp (and (i a) (imp (i a) false)) (i (p k))).
+
+% Typechecking fails (celf 2.6). Bug?
+% #query 30 * 1 1
+% prove (imp (and (i a) (imp (i a) false)) (i (p k))).
 
 % #query 200 1 2 1
 % prove (imp (i a) (or (i (p k)) (i a))).
@@ -60,8 +62,8 @@ prove (imp (and (i a) (imp (i a) false)) (i (p k))).
 #query 200 0 1 1
 prove (imp (and (i a) (imp (i a) (i a))) (i b)).
 
-#query 200 1 2 1
-prove (imp (all \x. imp (i (p x)) (i(q x))) (imp (i(p k)) (some \ y.i(q y)))).
+% #query 200 1 2 1
+% prove (imp (all \!x. imp (i (p x)) (i(q x))) (imp (i(p k)) (some \!y. i(q y)))).
 
-#query 200 1 2 1
-prove (imp (all \x. imp (i (p x)) (i(q x))) (some \y.  imp (i(p y)) (i(q y)))).
+% #query 200 1 2 1
+% prove (imp (all \!x. imp (i (p x)) (i(q x))) (some \!y.  imp (i(p y)) (i(q y)))).

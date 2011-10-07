@@ -1,6 +1,9 @@
 % Concurrent ML
 % Section 4, A Concurrent Logical Framework II: Examples and Applications
 
+% Parallel evaluation with continuation frames
+
+
 tp : type.
 exp : tp -> type.
 val : tp -> type.
@@ -8,38 +11,42 @@ val : tp -> type.
 dest : tp -> type.
 eval : exp A -> dest A -> type.
 return : val A -> dest A -> type.
-#mode eval {-} - -.
+#mode eval - -.
 #mode return - -.
 
-
 evaluate : exp A -> val A -> type.
-#mode evaluate + -.
-
 run : (Pi d : dest A. eval E d -o {return V d})
         -o evaluate E V.
 
 
-% Values
+%% Values
 
 value : val A -> exp A.
 evvalue : eval (value V) D -o {return V D}.
 
 
-% Recursion
+%% Recursion
 
 fix : (exp A -> exp A) -> exp A.
 evfix : eval (fix \!u. E !u) D -o {eval (E !(fix \!u. E !u)) D}.
 
 
-% Local definitions
+%% Local definitions
 
 llet : exp A -> (val A -> exp S) -> exp S.
+
+% Frames
+flet : dest A -> (val A -> exp S) -> dest S -> type.
+#mode flet - - -.
+
+% Evaluation rules
 evllet : eval (llet E1 (\!x. E2 !x)) D
         -o {Exists d : dest A. eval E1 d
-	   * (Pi V: val A. return V d -o {eval (E2 !V) D})}.
+	   * (flet d (\!x. E2 !x) D)}.
+evflet : return V1 D1 * flet D1 (\!x. E2 !x) D -o {eval (E2 !V1) D}.
 
 
-% Natural numbers
+%% Natural numbers
 
 nat : tp.
 z : exp nat.
@@ -47,54 +54,82 @@ s : exp nat -> exp nat.
 case : exp nat -> exp A -> (val nat -> exp A) -> exp A.
 z' : val nat.
 s' : val nat -> val nat.
+
+% Frames
+fs : dest nat -> dest nat -> type.
+fcase : dest nat -> exp A -> (val nat -> exp A) -> dest A -> type.
+#mode fs + -.
+#mode fcase + - - -.
+
+% Evaluation rules
 evz : eval z D -o {return z' D}.
-evs : eval (s E1) D -o {Exists d1 : dest nat. eval E1 d1 * (Pi V1 : val nat. return V1 d1 -o {return (s' V1 ) D})}.
+evs : eval (s E1) D -o {Exists d1 : dest nat. eval E1 d1 * fs d1 D}.
 evcase : eval (case E1 E2 (\!x. E3 !x)) D -o
            {Exists d1 : dest nat. eval E1 d1
-	    * ((return z' d1 -o {eval E2 D})
-	   & (Pi V1' : val nat. return (s' V1' ) d1 -o {eval (E3 !V1') D}))}.
+	    * fcase d1 E2 (\!x. E3 !x) D}.
+
+evfs : return V1 D1 * fs D1 D -o { return (s' V1) D }.
+evfcasez : return z' D1 * fcase D1 E2 _ D -o { eval E2 D }.
+evfcases : return (s' V1) D1 * fcase D1 _ (\!x. E3 !x) D -o { eval (E3 !V1) D }.
 
 
-% Functions
+%% Functions
 
 arrow : tp -> tp -> tp.
 lam : (val T2 -> exp T1) -> exp (arrow T2 T1).
 app : exp (arrow T2 T1) -> exp T2 -> exp T1.
 lam' : (val T2 -> exp T1 ) -> val (arrow T2 T1 ).
+
+% Frames
+fapp : dest (arrow T2 T1) -> dest T2 -> dest T1 -> type.
+#mode fapp + + -.
+
+% Evaluation rules
 evlam : eval (lam (\!x. E1 !x)) D -o {return (lam' (\!x. E1 !x)) D}.
 evapp : eval (app E1 E2) D -o
-          {Exists d1 : dest (arrow T2 T1). eval E1 d1 *
-	    (Pi E1' : val T2 -> exp T1 . return (lam' (\!x. E1' !x)) d1
-              -o {Exists d2 : dest T2 . eval E2 d2 * (Pi V2 : val T2 . return V2 d2 -o {eval (E1' !V2 ) D})})}.
+          {Exists d1 : dest (arrow T2 T1). Exists d2 : dest T2.
+             eval E1 d1 * eval E2 d2 * fapp d1 d2 D}.
+evfapp : return (lam' (\!x. E1 !x)) D1 * return V2 D2 * fapp D1 D2 D
+           -o { eval (E1 !V2) D }.
 
 
-% Pairs
+%% Pairs
 
 cross : tp -> tp -> tp.
 pair : exp T1 -> exp T2 -> exp (cross T1 T2 ).
 fst : exp (cross T1 T2 ) -> exp T1 .
 snd : exp (cross T1 T2 ) -> exp T2 .
 pair' : val T1 -> val T2 -> val (cross T1 T2 ).
+
+% Frames
+fpair : dest T1 -> dest T2 -> dest (cross T1 T2) -> type.
+ffst : dest (cross T1 T2) -> dest T1 -> type.
+fsnd : dest (cross T1 T2) -> dest T2 -> type.
+#mode fpair + + -.
+#mode ffst + -.
+#mode fsnd + -.
+
+% Evaluation rules
 evpair : eval (pair E1 E2 ) D
-	  -o {Exists d1 : dest T1 . eval E1 d1 * (Pi V1 : val T1 . return V1 d1
-          -o {Exists d2 : dest T2 . eval E2 d2 * (Pi V2 : val T2 . return V2 d2
-          -o {return (pair' V1 V2 ) D})})}.
+	  -o {Exists d1 : dest T1 . Exists d2 : dest T2 .
+              eval E1 d1 * eval E2 d2 * fpair d1 d2 D}.
 evfst : eval (fst E1 ) D
-          -o {Exists d1 : dest (cross T1 T2 ). eval E1 d1
-             * (Pi V1 : val T1 . Pi V2 : val T2 . return (pair' V1 V2 ) d1
-             -o {return V1 D})}.
+          -o {Exists d1 : dest (cross T1 T2 ). eval E1 d1 * ffst d1 D}.
 evsnd : eval (snd E1 ) D
-	  -o {Exists d1 : dest (cross T1 T2 ). eval E1 d1
-             * (Pi V1 : val T1 . Pi V2 : val T2 . return (pair' V1 V2 ) d1
-             -o {return V2 D})}.
+	  -o {Exists d1 : dest (cross T1 T2 ). eval E1 d1 * fsnd d1 D}.
 
+evfpair : return V1 D1 * return V2 D2 * fpair D1 D2 D -o
+           { return (pair' V1 V2) D }.
+evffst : return (pair' V1 _) D1 * ffst D1 D -o { return V1 D }.
+evfsnd : return (pair' _ V2) D1 * fsnd D1 D -o { return V2 D }.
 
-% Unit
+%% Unit
 
 oone : tp.
 unit : exp oone.
 unit' : val oone.
 evone : eval (unit) D -o {return (unit') D}.
+
 
 
 % Lazy computations
@@ -115,24 +150,32 @@ evforce : eval (force E1 ) D
               * (Pi L1 : dest A. return (thunk L1 ) d1 -o {read L1 D})}.
 
 
-% Futures
-
-future : exp A -> exp A.
-promise : dest A -> val A.
-
-deliver : val A -> dest A -> type.
-#mode deliver - -.
-
-evfuture : eval (future E1 ) D
-	    -o {Exists d1 : dest A. return (promise d1 ) D
-               * eval E1 d1
-               * (Pi V1 : val A. return V1 d1 -o {Exists u:deliver V1 d1. 1})}.
-retdeliver : deliver V D1
-	      -> return (promise D1 ) D
-	      -o {return V D}.
 
 
-% References
+
+% %% Futures
+
+% future : exp A -> exp A.
+% promise : dest A -> val A.
+% deliver : val A -> dest A -> type.
+
+% % Frames
+% ffuture : dest A -> type.
+
+% % Evaluation rules
+% evfuture : eval (future E1 ) D
+% 	    -o {Exists d1 : dest A. return (promise d1 ) D
+%                * eval E1 d1
+%                * ffuture D1}.
+% evffuture : return V1 D1 * ffuture D1 -o { deliver V1 D1 }.
+
+% retdeliver : deliver V D1
+% 	      -> return (promise D1 ) D
+% 	      -o {return V D}.
+
+
+
+%% References
 
 ref : tp -> tp.
 newref : exp A -> exp (ref A).
@@ -143,24 +186,33 @@ cell : dest A -> val (ref A).
 contains : dest A -> val A -> type.
 #mode contains - -.
 
+% Frames
+fnewref : dest A -> dest (ref A) -> type.
+fassign : dest (ref A) -> dest A -> dest oone -> type.
+fderef  : dest (ref A) -> dest A -> type.
+#mode fnewref + -.
+#mode fassign + + -.
+#mode fderef { + } + -.
+      
+% Evaluation rules
 evnewref : eval (newref E1) D
-	    -o {Exists d1 : dest A. eval E1 d1 * (Pi V1 : val A. return V1 d1
-            -o {Exists c : dest A. @contains c V1 * return (cell c) D})}.
+	    -o {Exists d1 : dest A. eval E1 d1 * fnewref d1 D}.
+evfnewref : return V1 D1 * fnewref D1 D
+             -o { Exists c : dest A. @contains c V1 * return (cell c) D }.
 evassign : eval (assign E1 E2) D
-            -o {Exists d1 : dest (ref A). eval E1 d1
-               * (Pi C1 : dest A. return (cell C1 ) d1
-            -o {Exists d2 : dest A. eval E2 d2
-               * (Pi V2 : val A. return V2 d2
-            -o Pi V1 : val A. contains C1 V1
-            -@ {@contains C1 V2 * return (unit') D})})}.
+            -o {Exists d1 : dest (ref A). Exists d2 : dest A.
+                eval E1 d1 * eval E2 d2 * fassign d1 d2 D}.
+evfassign : return (cell C1) D1 * return V2 D2 * contains C1 V1
+             * fassign D1 D2 D
+             -o { @contains C1 V2 * return unit' D }.
 evderef : eval (deref E1) D
-	   -o {Exists d1 : dest (ref A). eval E1 d1
-              * (Pi C1 : dest A. return (cell C1) d1
-                -o Pi V1 : val A. contains C1 V1
-                -@ {@contains C1 V1 * return V1 D})}.
+	   -o {Exists d1 : dest (ref A). eval E1 d1 * fderef d1 D}.
+evfderef : return (cell C1) D1 * contains C1 V1 * fderef D1 D
+            -o { @contains C1 V1 * return V1 D }.
 
 
-% Concurrency
+
+%% Concurrency
 
 chan : tp -> tp.
 event : tp -> tp.
@@ -187,50 +239,70 @@ wrap' : val (event A1 ) -> (val A1 -> exp A2) -> val (event A2).
 synch : val (event A) -> dest A -> type.
 #mode synch - -.
 
+% Frames
+fspawn : dest A -> type.
+
+fsync : dest (event A) -> dest A -> type.
+falwaysEvt : dest A -> dest (event A) -> type.
+frecvEvt : dest (chan A) -> dest (event A) -> type.
+fsendEvt : dest (chan A) -> dest A -> dest (event oone) -> type.
+fchoose : dest (event A) -> dest (event A) -> dest (event A) -> type.
+fwrap : dest (event A1) -> (val A1 -> exp A2) -> dest (event A2) -> type.
+
+#mode fsync + -.
+#mode falwaysEvt + -.
+#mode frecvEvt + -.
+#mode fsendEvt + + -.
+#mode fchoose + + -.
+#mode fwrap {+ -} + - -.
+
+
+% Evaluation rules
 evspawn : eval (spawn E1 ) D -o {return (unit' ) D
-             * (Exists d1 : dest A. eval E1 d1 * (Pi V1 . return V1 d1 -o {1}))}.
+             * (Exists d1 : dest A. eval E1 d1 * fspawn d1)}.
+evfspawn : return V1 D1 * fspawn D1 -o {1}.
 
 evsync : eval (sync E1 ) D
-	   -o {Exists d1 : dest (event A). eval E1 d1
-            * (Pi W1 : val (event A). return W1 d1
-               -o {synch W1 D})}.
+	   -o {Exists d1 : dest (event A). eval E1 d1 * fsync d1 D}.
+evfsync : return W1 D1 * fsync D1 D -o { synch W1 D }.
+
 evchannel : eval (channel) D
 	      -o {Exists K : ch A. return (chn K) D}.
 
 evalwaysEvt : eval (alwaysEvt E1 ) D
-		-o {Exists d1 : dest A. eval E1 d1
-                   * (Pi V1 : val A. return V1 d1
-                     -o {return (alwaysEvt' V1 ) D })}.
+		-o {Exists d1 : dest A. eval E1 d1 * falwaysEvt d1 D}.
+evfalwaysEvt : return V1 D1 * falwaysEvt D1 D -o { return (alwaysEvt' V1) D }.
 
 evrecvEvt : eval (recvEvt E1 ) D
-	     -o {Exists d1 : dest (chan A). eval E1 d1
-                * (Pi K : ch A. return (chn K) d1
-             -o {return (recvEvt' (chn K)) D})}.
+	     -o {Exists d1 : dest (chan A). eval E1 d1 * frecvEvt d1 D }.
+evfrecvEvt : return (chn K) D1 * frecvEvt D1 D
+              -o { return (recvEvt' (chn K)) D }.
 
 evsendEvt : eval (sendEvt E1 E2 ) D
-              -o {Exists d1 : dest (chan A). eval E1 d1
-                 * (Pi K : ch A. return (chn K) d1
-              -o {Exists d2 : dest A. eval E2 d2
-                 * (Pi V2 : val A. return V2 d2
-                 -o {return (sendEvt' (chn K) V2 ) D})})}.
+              -o {Exists d1 : dest (chan A). Exists d2 : dest A.
+                  eval E1 d1 * eval E2 d2 * fsendEvt d1 d2 D }.
+evfsendEvt : return (chn K) D1 * return V2 D2 * fsendEvt D1 D2 D
+              -o { return (sendEvt' (chn K) V2) D }.
 
 evchoose : eval (choose E1 E2 ) D
-	    -o {Exists d1 : dest (event A). eval E1 d1
-               * (Pi W1 : val (event A). return W1 d1
-            -o {Exists d2 : dest (event A). eval E2 d2
-               * (Pi W2 : val (event A). return W2 d2
-            -o {return (choose' W1 W2 ) D})})}.
+	    -o {Exists d1 : dest (event A). Exists d2 : dest (event A).
+                eval E1 d1 * eval E2 d2 * fchoose d1 d2 D}.
+evfchoose : return W1 D1 * return W2 D2 * fchoose D1 D2 D
+             -o { return (choose' W1 W2) D }.
 
 evneverEvt : eval (neverEvt) D
 	      -o {return (neverEvt' ) D}.
 
 evwrap : eval (wrap E1 (\!x. E2 !x)) D
-          -o {Exists d1 : dest (event A1). eval E1 d1
-             * (Pi W1 : val (event A1). return W1 d1
-                -o {return (wrap' W1 (\!x. E2 !x)) D})}.
+          -o {Exists d1 : dest (event A1).
+              eval E1 d1 * fwrap d1 (\!x. E2 !x) D}.
+evfwrap : return W1 D1 * fwrap D1 (\!x. E2 !x) D
+           -o { return (wrap' W1 (\!x. E2 !x)) D }.
+
+
 
 action : val (event A) -> val (event S) -> (val S -> exp A) -> type.
-#mode action { + - } + - -.
+#mode action + - -.
 
 actT : action (alwaysEvt' V) (alwaysEvt' V) (\!x. value !x).
 actex : action (sendEvt' (chn K) V) (sendEvt' (chn K) V) (\!x. value !x).
@@ -249,7 +321,7 @@ synch2 : synch W1 D1
 
 
 
-% Examples.
+%% Examples
 
 #query * 1 * 1 evaluate (app (fix \!f. lam \!x. case (value x) z (\!y. s (s (app f (value y))))) (s (s z))) V.
 #query * 1 * 1 evaluate (llet (newref z) (\!f.

@@ -2,28 +2,35 @@ node : type.
 
 nodeset : type = (node -> {1}) -> {1}.
 
-nempty : nodeset = \n. {1}.
-ncons : node -> nodeset -> nodeset = \x. \ns. \n. {let {1} = n x in let {1} = ns n in 1}.
-n2 : node -> node -> nodeset = \x. \y. ncons x (ncons y nempty).
-nunion : nodeset -> nodeset -> nodeset = \ns1. \ns2. \n. {let {1} = ns1 n in let {1} = ns2 n in 1}.
+nempty : nodeset = \!n. {1}.
+ncons : node -> nodeset -> nodeset
+      = \!x. \!ns. \!n. {let {1} = n !x in let {1} = ns !n in 1}.
+
+n2 : node -> node -> nodeset
+   = \!x. \!y. ncons !x !(ncons !y !nempty).
+nunion : nodeset -> nodeset -> nodeset
+       = \!ns1. \!ns2. \!n. {let {1} = ns1 !n in let {1} = ns2 !n in 1}.
 
 edge : nodeset -> nodeset -> type.
 
-e : Pi X. Pi Y. edge (n2 X Y) (nunion (n2 X Y) NS).
+e : Pi X. Pi Y. edge (n2 !X !Y) (nunion !(n2 !X !Y) !NS).
 
 graph : nodeset -> type.
 
 gr : ((Pi E. edge E NS -> {1}) -> {1}) -> graph NS.
 
-g_add_nodes : Pi E:nodeset. graph NS -> graph (nunion E NS) -> type.
-gan_emp  : g_add_nodes E (gr \f.{1}) (gr \f.{1}).
-gan_edge : g_add_nodes E (gr \f.{let {1} = f (n2 Y X) (e X Y) in let {1} = G' f in 1})
-                         (gr \f.{let {1} = f (n2 X Y) (e X Y) in let {1} = G f in 1})
-	<- g_add_nodes E (gr G') (gr G).
+g_add_nodes : Pi E:nodeset. graph NS -> graph (nunion !E !NS) -> type.
+gan_emp  : g_add_nodes E (gr \!f.{1}) (gr \!f.{1}).
+
+gan_edge : g_add_nodes E (gr \!f.{let {1} = f !(n2 !Y !X) !(e !X !Y) in let {1} = G' f in 1})
+                         (gr \!f.{let {1} = f !(n2 !X !Y) !(e !X !Y) in let {1} = G f in 1})
+	<- g_add_nodes E (gr (\!f. G' f)) (gr (\!f. G f)).
+                              %% eta-expansion needed for typechecking
 
 tree : graph NS -> type.
-tr_emp  : tree (gr \f.{1} : graph (ncons X nempty)).
-tr_edge : tree (gr \f.{let {1} = f (n2 X Y) E in let {1} = G f in 1} : graph (nunion (n2 X Y) NS))
-	<- g_add_nodes (ncons X nempty) G' (gr G)
+tr_emp  : tree (gr \!f.{1} : graph (ncons !X !nempty)).
+tr_edge : tree (gr \!f.{let {1} = f !(n2 !X !Y) !E in let {1} = G f in 1} : graph (nunion !(n2 !X !Y) !NS))
+	<- g_add_nodes (ncons !X !nempty) G' (gr (\!f. G f))
+%%% eta-expansion needed for typechecking
 	<- tree G'.
 

@@ -1,0 +1,55 @@
+principal : type.
+nonce : type.
+pubK : principal -> type.
+privK : pubK A -> type.
+msg :type.
+
+p2m : principal -> msg.
+n2m : nonce -> msg.
+pk2m : pubK A -> msg.
+
++ : msg -> msg -> msg.
+pEnc : pubK A -> msg -> msg.
+
+net : msg -> type.
+rspArg : type.
+rsp : rspArg -> type.
+
+init : principal -> type.
+resp : principal -> type.
+
+nspkInit : init A -o { Exists L : Pi B : principal. pubK B -> nonce -> rspArg.
+    	     (Pi B : principal. Pi kB : pubK B.
+    	     	{ Exists nA : nonce. net (pEnc kB (+ (n2m nA) (p2m A)))
+		  * rsp (L !B !kB !nA)})
+           * (Pi B : principal. Pi kB : pubK B.
+      	     Pi kA : pubK A. Pi kA' : privK kA.
+    	     Pi nA : nonce. Pi nB : nonce.
+       	        net (pEnc kA (+ (n2m nA) (n2m nB )))
+	     	-o rsp (L !B !kB !nA)
+	     	-o { net (pEnc kB (n2m nB )) })}.
+
+
+nspkResp : resp B -o { Exists L : principal -> nonce -> rspArg.
+	     (Pi kB : pubK B. Pi kB' : privK kB .
+	     Pi A : principal. Pi kA : pubK A.
+	     Pi nA : nonce.
+	     net (pEnc kB (+ (n2m nA) (p2m A)))
+	     -o {Exists nB : nonce. net (pEnc kA (+ (n2m nA) (n2m nB))) & rsp (L !A !nB)})
+     	   * (Pi A : principal. Pi kB : pubK B. Pi kB' : privK kB .
+       	     Pi nB : nonce.
+       	     net (pEnc kB (n2m nB))
+       	     -o rsp (L !A !nB )
+       	     -o { 1 })}.
+
+
+a : principal.
+ka : pubK a.
+ka' : privK ka.
+
+b : principal.
+kb : pubK b.
+kb' : privK kb.
+
+% Runs with -s 100
+#query * * * 1 init a -o resp b -o {1}.

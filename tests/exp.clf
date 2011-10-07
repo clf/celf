@@ -1,0 +1,238 @@
+% Concurrent ML
+% Section 5, A Concurrent Logical Framework II: Examples and Applications
+
+tp : type. 
+exp : tp -> type. 
+val : tp -> type. 
+
+dest : tp -> type. 
+eval : exp A -> dest A -> type. 
+return : val A -> dest A -> type. 
+
+evaluate : exp A -> val A -> type. 
+run : (Pi d : dest A. eval E d -o {return V d @ T}) 
+        -o evaluate E V. 
+% typo in the paper
+
+% Adding values
+
+value : val A -> exp A. 
+evvalue : eval (value V) D -o {return V D}. 
+
+% Adding recursion
+
+fix : (exp A -> exp A) -> exp A. 
+evfix : eval (fix \u. E u) D -o {eval (E (fix \u. E u)) D}. 
+
+% Adding local definitions
+
+llet : exp A -> (val A -> exp S) -> exp S. 
+evllet : eval (llet E1 (\x. E2 x)) D 
+        -o {Exists d : dest A. eval E1 d
+	   @ (Pi V: val A. return V d -o {eval (E V) D})}.
+
+
+% Adding natural numbers
+
+nat : tp. 
+z : exp nat. 
+s : exp nat -> exp nat. 
+case : exp nat -> exp A -> (val nat -> exp A) -> exp A. 
+z' : val nat. 
+s' : val nat -> val nat. 
+evz : eval z D -o {return z' D}. 
+evs : eval (s E1) D -o {Exists d1 : dest nat. eval E1 d1 @ (Pi V1 : val nat. return V1 d1 -o {return (s' V1 ) D})}. 
+evcase : eval (case E1 E2 (\x. E3 x)) D -o 
+           {Exists d1 : dest nat. eval E1 d1 
+	    @ ((return z' d1 -o {eval E2 D}) 
+	   & (Pi V1' : val nat. return (s' V1' ) d1 -o {eval (E3 V1') D}))}. 
+% typo in the rule formulation in the paper	   
+
+
+% Adding Function types
+
+arrow : tp -> tp -> tp. 
+lam : (val T2 -> exp T1) -> exp (arrow T2 T1). 
+app : exp (arrow T2 T1) -> exp T2 -> exp T1. 
+lam' : (val T2 -> exp T1 ) -> val (arrow T2 T1 ). 
+evlam : eval (lam (\x. E1 x)) D -o {return (lam' (\x. E1 x)) D}. 
+evapp : eval (app E1 E2) D -o 
+          {Exists d1 : dest (arrow T2 T1). eval E1 d1 @ 
+	    (Pi E1' : val T2 -> exp T1 . return (lam' (\x. E1' x)) d1 
+              -o {Exists d2 : dest T2 . eval E2 d2 @ (Pi V2 : val T2 . return V2 d2 -o {eval (E1' V2 ) D})})}. 
+% typo
+
+% Adding Pairs
+
+cross : tp -> tp -> tp. 
+pair : exp T1 -> exp T2 -> exp (cross T1 T2 ). 
+fst : exp (cross T1 T2 ) -> exp T1 . 
+snd : exp (cross T1 T2 ) -> exp T2 . 
+pair' : val T1 -> val T2 -> val (cross T1 T2 ). 
+evpair : eval (pair E1 E2 ) D 
+	  -o {Exists d1 : dest T1 . eval E1 d1 @ (Pi V1 : val T1 . return V1 d1 
+          -o {Exists d2 : dest T2 . eval E2 d2 @ (Pi V2 : val T2 . return V2 d2 
+          -o {return (pair' V1 V2 ) D})})}. 
+evfst : eval (fst E1 ) D 
+          -o {Exists d1 : dest (cross T1 T2 ). eval E1 d1 
+             @ (Pi V1 : val T1 . Pi V2 : val T2 . return (pair' V1 V2 ) d1 
+             -o {return V1 D})}. 
+evsnd : eval (snd E1 ) D 
+	  -o {Exists d1 : dest (cross T1 T2 ). eval E1 d1 
+             @ (Pi V1 : val T1 . Pi V2 : val T2 . return (pair' V1 V2 ) d1 
+             -o {return V2 D})}.
+
+% Adding Unit.
+
+oone : tp. 
+unit : exp oone. 
+unit' : val oone. 
+evone : eval (unit) D -o {return (unit') D}. 
+
+% Adding Memoization.
+
+susp : tp -> tp. 
+delay : exp A -> exp (susp A). 
+force : exp (susp A) -> exp A. 
+thunk : dest A -> val (susp A). 
+read : dest A -> dest A -> type. 
+evdelay : eval (delay E1) D 
+	   -o {Exists l1 : dest A. return (thunk l1) D 
+            @ (Pi D' : dest A. read l1 D' 
+           -o {Exists d1 : dest A. eval E1 d1 
+            @ (Pi V1 : val A. return V1 d1 -o {return V1 D' 
+            @ Exists u:(Pi D'' : dest A. read l1 D'' -o {return V1 D'' }).1})})}. 
+evforce : eval (force E1 ) D 
+	   -o {Exists d1 : dest (susp A). eval E1 d1 
+              @ (Pi L1 : dest A. return (thunk L1 ) d1 -o {read L1 D})}. 
+%typo
+
+future : exp A -> exp A. 
+promise : dest A -> val A. 
+deliver : val A -> dest A -> type. 
+evfuture : eval (future E1 ) D 
+	    -o {Exists d1 : dest A. return (promise d1 ) D 
+               @ eval E1 d1 
+               @ (Pi V1 : val A. return V1 d1 -o {Exists u:deliver V1 d1. 1})}. 
+%typo
+retdeliver : deliver V D1 
+	      -> return (promise D1 ) D 
+	      -o return V D. 
+
+
+ref : tp -> tp. 
+newref : exp A -> exp (ref A). 
+assign : exp (ref A) -> exp A -> exp (oone). 
+deref : exp (ref A) -> exp A. 
+cell : dest A -> val (ref A). 
+contains : dest A -> val A -> type. 
+evnewref : eval (newref E1) D 
+	    -o {Exists d1 : dest A. eval E1 d1 @ (Pi V1 : val A. return V1 d1 
+            -o {Exists c : dest A. contains c V1 @ return (cell C) D})}. 
+evassign : eval (assign E1 E2) D 
+            -o {Exists d1 : dest (ref A). eval E1 d1 
+               @ (Pi C1 : dest A. return (cell C1 ) d1 
+            -o {Exists d2 : dest A. eval E2 d2 
+               @ (Pi V2 : val A. return V2 d2 
+            -o Pi V1 : val A. contains C1 V1 
+            -o {contains C1 V2 @ return (unit') D})})}. 
+evderef : eval (deref E1) D 
+	   -o {Exists d1 : dest (ref A). eval E1 d1 
+              @ (Pi C1 : dest A. return (cell C1) d1 
+                -o Pi V1 : val A. contains C1 V1 
+                -o {contains C1 V1 @ return V1 D})}. 
+
+chan : tp -> tp. 
+event : tp -> tp. 
+
+spawn : exp A -> exp (oone). 
+sync : exp (event A) -> exp A. 
+channel : exp (chan A). 
+alwaysEvt : exp A -> exp (event A). 
+recvEvt : exp (chan A) -> exp (event A). 
+sendEvt : exp (chan A) -> exp A -> exp (event (oone)). 
+choose : exp (event A) -> exp (event A) -> exp (event A). 
+neverEvt : exp (event A). 
+wrap : exp (event A1 ) -> (val A1 -> exp A2 ) -> exp (event A2 ). 
+
+
+ch : tp -> type. 
+chn : ch A -> val (chan A). 
+alwaysEvt' : val A -> val (event A). 
+recvEvt' : val (chan A) -> val (event A). 
+sendEvt' : val (chan A) -> val A -> val (event (oone)). 
+choose' : val (event A) -> val (event A) -> val (event A). 
+neverEvt' : val (event A). 
+wrap' : val (event A1 ) -> (val A1 -> exp A2) -> val (event A2). 
+
+synch : val (event A) -> dest A -> type. 
+evspawn : eval (spawn E1 ) D -o {return (unit' ) D 
+             @ (Exists d1 : dest A. eval E1 d1 @ (Pi V1 . return V1 d1 -o {1}))}. 
+
+%typo.
+evsync : eval (sync E1 ) D 
+	   -o {Exists d1 : dest (event A). eval E1 d1 
+            @ (Pi W1 : val (event A). return W1 d1 
+               -o {synch W1 D})}. 
+evchannel : eval (channel) D 
+	      -o {Exists K : ch A. return (chn K) D}. 
+
+
+
+evalwaysEvt : eval (alwaysEvt E1 ) D 
+		-o {Exists d1 : dest A. eval E1 d1 
+                   @ (Pi V1 : val A. return V1 d1 
+                     -o {return (alwaysEvt' V1 ) D })}. 
+
+%typo.
+evrecvEvt : eval (recvEvt E1 ) D 
+	     -o {Exists d1 : dest (chan A). eval E1 d1 
+                @ (Pi K : ch A. return (chn K) d1 
+             -o {return (recvEvt' (chn K)) D})}. 
+
+evsendEvt : eval (sendEvt E1 E2 ) D 
+              -o {Exists d1 : dest (chan A). eval E1 d1 
+                 @ (Pi K : ch A. return (chn K) d1 
+              -o {Exists d2 : dest A. eval E2 d2 
+                 @ (Pi V2 : val A. return V2 d2 
+                 -o {return (sendEvt' (chn K) V2 ) D})})}. 
+
+evchoose : eval (choose E1 E2 ) D 
+	    -o {Exists d1 : dest (event A). eval E1 d1 
+               @ (Pi W1 : val (event A). return W1 d1 
+            -o {Exists d2 : dest (event A). eval E2 d2 
+               @ (Pi W2 : val (event A). return W2 d2 
+            -o {return (choose' W1 W2 ) D})})}. 
+
+evneverEvt : eval (neverEvt) D 
+	      -o {return (neverEvt' ) D}. 
+
+evwrap : eval (wrap E1 (\x. E2 x)) D 
+          -o {Exists d1 : dest (event A1). eval E1 d1 
+             @ (Pi W1 : val (event A1). return W1 d1 
+                -o {return (wrap' W1 (\x. E2 x)) D})}. 
+
+
+action : val (event A) -> val (event S) -> (val S -> exp A) -> type. 
+actT : action (alwaysEvt' V) (alwaysEvt' V) (\x. value x). 
+actex : action (sendEvt' (chn K) V) (sendEvt' (chn K) V) (\x. value x). 
+actqu : action (recvEvt' (chn K)) (recvEvt' (chn K)) (\x. value x). 
+act+1 : action (choose' W1 W2 ) A (\x. E x) <- action W1 A (\x. E x). 
+act+2 : action (choose' W1 W2 ) A (\x. E x) <- action W2 A (\x. E x). 
+act=> : action (wrap' W (\x2 . E2 x2 )) A (\x1 . llet (E1 x1 ) (\x2 . E2 x2 )) 
+   <- action W A (\x1 . E1 x1 ). 
+
+synch1 : synch W D -o action W (alwaysEvt' V) (\x. E x) -> {eval (E V) D}. 
+synch2 : synch W1 D1 
+	  -o synch W2 D2 
+	  -o action W1 (sendEvt' (chn K) V) (\x1 . E1 x1 ) 
+          -> action W2 (recvEvt' (chn K)) (\x2 . E2 x2 ) 
+          -> {eval (E1 unit' ) D1 @ eval (E2 V) D2 }. 
+
+
+
+% Examples.
+
+#query 1000 2 3 evaluate z V.
+#query 1000 2 3 evaluate (s z) V.
+% #query 1000 2 3 evaluate (app (fix \f. lam \x. case (value x) z (\y. s (s (app f (value y))))) (s (s z))) V.

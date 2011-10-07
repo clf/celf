@@ -1,0 +1,161 @@
+% Mini-ML
+% translation between destination-passing-style and big-step semantics
+
+exp : type.
+
+z : exp.
+s : exp -> exp.
+p : exp -> exp.
+case : exp -> exp -> (exp -> exp) -> exp.
+lam : (exp -> exp) -> exp.
+app : exp -> exp -> exp.
+fix : (exp -> exp) -> exp.
+
+
+ev : exp -> exp -> type.
+#mode ev + -.
+
+ev_z   : ev z z.
+ev_s   : ev E V -> ev (s E) (s V).
+ev_p_z : ev E z -> ev (p E) z.
+ev_p_s : ev E (s V) -> ev (p E) V.
+ev_case_z : ev E2 V -> ev E1 z -> ev (case E1 E2 E3) V.
+ev_case_s :  ev (E3 !V') V -> ev E1 (s V') -> ev (case E1 E2 E3) V.
+ev_lam : ev (lam E) (lam E).
+ev_app : ev (E1' !V2) V -> ev E2 V2 -> ev E1 (lam E1') -> ev (app E1 E2) V.
+ev_fix : ev (E !(fix E)) V -> ev (fix E) V.
+
+
+dest : type.
+return : exp -> dest -> type.
+eval : exp -> dest -> type.
+evaluate : exp -> exp -> type.
+#mode eval - -.
+#mode evaluate + -.
+#mode return - -.
+
+
+run : (Pi d:dest. eval E d -o {return V d}) -> evaluate E V.
+
+eval_z : eval z D -o {return z D}.
+eval_s : eval (s E) D -o {Exists d':dest. eval E d' *
+       	      Pi V:exp. return V d' -o {return (s V) D}}.
+eval_p : eval (p E) D -o {Exists d':dest. eval E d' *
+		( (return z d' -o {return z D}) &
+			 (Pi V:exp. return (s V) d' -o {return V D})
+			)}.
+eval_case : eval (case E1 E2 (\!x. E3 !x)) D -o
+		{Exists d':dest. eval E1 d' *
+			( (return z d' -o {eval E2 D}) &
+			  (Pi V':exp. return (s V') d' -o {eval (E3 !V') D})
+			)}.
+eval_lam : eval (lam (\!x. E !x)) D -o {return (lam (\!x. E !x)) D}.
+eval_app : eval (app E1 E2) D -o
+		{Exists d':dest. eval E1 d' *
+			(Pi E1':exp -> exp. return (lam (\!x. E1' !x)) d' -o
+				{Exists d'':dest. eval E2 d'' *
+					(Pi V2:exp. return V2 d'' -o {eval (E1' !V2) D})
+				}
+			)
+		}.
+eval_fix : eval (fix (\!x. E !x)) D -o {eval (E !(fix !(\!x. E !x))) D}.
+
+
+
+test : evaluate E V -> type.
+ttt1 : test (run (\!d. \u: eval z d. {let {r} = eval_z u in r})).
+ttt2 : test (run (\!d. \u: eval (s z) d.
+		{let {[!d3, [u3, f3]]} = eval_s u in
+		let {r2} = eval_z u3 in
+		let {r3} = f3 !_ r2 in r3})).
+ttt3 : test (run
+(\!d. \u:eval (app (lam \!x. case x z \!y.y) (s z)) d.
+	{let {[!d1, [p1 , f1]]} = eval_app u in
+	let {r1} = eval_lam p1 in
+	let {[!d2, [u2 , f2]]} = f1 !_ r1 in
+		let {[!d3, [u3 , f3]]} = eval_s u2 in
+		let {r2} = eval_z u3 in
+		let {r3} = f3 !_ r2 in
+	let {u4} = f2 !_ r3 in
+	let {[!d4, [u5 , f4]]} = eval_case u4 in
+		let {[!d5, [u6 , f5]]} = eval_s u5 in
+		let {r4} = eval_z u6 in
+		let {r5} = f5 !_ r4 in
+	let {u7} = f4 #2 !_ r5 in
+	let {r6} = eval_z u7 in
+	r6})).
+
+% completeness of destination-passing-style w.r.t. the big-step semantics
+% translation between destination-passing-style and big-step semantics
+
+tr : ev E V -> evaluate E V -> type.
+% tr +EV -RUN.
+#mode tr + -.
+
+tr_z : tr ev_z (run \!d. \u:eval z d. {let {r} = eval_z u in r}).
+tr_s : tr (ev_s D) (run \!d. \u:eval (s E) d.
+		{let {[!d', [p1 , f1]]} = eval_s u in
+                 let {r'} = P !d' p1 in
+                 let {r} = f1 !V r' in
+                 r})
+       <- tr (D : ev E V) (run \!d. \u:eval E d. {let {r} = P !d u in r}).
+tr_p_z : tr (ev_p_z D) (run \!d. \u:eval (p E) d.
+                {let {[!d', [p1 , f1]]} = eval_p u in
+                let {r'} = P !d' p1 in
+                let {r} = f1 #1 r' in
+                r})
+        <- tr D (run \!d. \u:eval E d. {let {r} = P !d u in r}).
+tr_p_s : tr (ev_p_s D) (run \!d. \u:eval (p E) d.
+                {let {[!d', [p1 , f1]]} = eval_p u in
+                let {r'} = P !d' p1 in
+                let {r} = f1 #2 !V r' in
+                r})
+        <- tr D (run \!d. \u:eval E d. {let {r} = P !d u in r}).
+tr_case_z : tr (ev_case_z D2 D1) (run \!d. \u:eval (case E1 E2 E3) d.
+                {let {[!d',[p1 , f1]]} = eval_case u in
+                let {r'} = P1 !d' p1 in
+                let {p2} = f1 #1 r' in
+                let {r} = P2 !d p2 in
+                r})
+        <- tr D1 (run \!d. \u:eval E1 d. {let {r} = P1 !d u in r})
+        <- tr D2 (run \!d. \u:eval E2 d. {let {r} = P2 !d u in r}).
+tr_case_s : tr (ev_case_s D2 D1) (run \!d. \u:eval (case E1 E2 E3) d.
+                {let {[!d', [p1 , f1]]} = eval_case u in
+                let {r'} = P1 !d' p1 in
+                let {p2} = f1 #2 !V' r' in
+                let {r} = P2 !d p2 in
+                r})
+        <- tr D1 (run \!d. \u:eval E1 d. {let {r} = P1 !d u in r})
+        <- tr D2 (run \!d. \u:eval (E3 !V') d. {let {r} = P2 !d u in r}).
+tr_lam : tr ev_lam (run \!d. \u:eval (lam E) d.
+                   {let {r} = eval_lam u in r}).
+tr_app : tr (ev_app D3 D2 D1) (run \!d. \u:eval (app E1 E2) d.
+                {let {[!d', [p1 , f1]]} = eval_app u in
+                let {r'} = P1 !d' p1 in
+                let {[!d'', [p2 , f2]]} = f1 !E1' r' in
+                let {r''} = P2 !d'' p2 in
+                let {p3} = f2 !V2 r'' in
+                let {r} = P3 !d p3 in
+                r})
+        <- tr D1 (run \!d. \u:eval E1 d. {let {r} = P1 !d u in r})
+        <- tr D2 (run \!d. \u:eval E2 d. {let {r} = P2 !d u in r})
+        <- tr D3 (run \!d. \u:eval (E1' !V2) d. {let {r} = P3 !d u in r}).
+tr_fix : tr (ev_fix D) (run \!d. \u:eval (fix E) d.
+                {let {p1} = eval_fix u in
+                let {r} = P !d p1 in
+                r})
+        <- tr D (run \!d. \u:eval (E !(fix E)) d. {let {r} = P !d u in r}).
+
+
+
+
+
+
+#query * 1 * 1 ev (app (fix \!f. lam \!x. case x z (\!y. s (s (app f y)))) (s (s z))) V.
+
+d : ev (app (fix \!f. lam \!x. case x z (\!y. s (s (app f y)))) (s (s z))) _ = (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_z ev_z ev_z) ev_z (ev_fix ev_lam)))) (ev_s ev_z)) (ev_s ev_z) (ev_fix ev_lam)))) (ev_s (ev_s ev_z))) (ev_s (ev_s ev_z)) (ev_fix ev_lam)).
+
+#query * 1 * 1 tr ((ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_s (ev_s (ev_s (ev_app (ev_case_z ev_z ev_z) ev_z (ev_fix ev_lam)))) (ev_s ev_z)) (ev_s ev_z) (ev_fix ev_lam)))) (ev_s (ev_s ev_z))) (ev_s (ev_s ev_z)) (ev_fix ev_lam)) : ev (app (fix \!f. lam \!x. case x z (\!y. s (s (app f y)))) (s (s z))) _) X.
+
+
+#query * 1 * 1 evaluate (app (fix \!f. lam \!x. case x z (\!y. s (s (app f y)))) (s (s z))) V.

@@ -12,7 +12,10 @@ out : chan -> chan -> expr.
 cin : chan -> (chan -> expr) -> expr.
 
 proc : expr -> type.
+#mode proc -.
+
 msg : chan -> chan -> type.
+#mode msg + -.
 
 p_zero : proc zero -o {1}.
 p_par  : proc (par P Q) -o {proc P * proc Q}.

@@ -1,0 +1,13 @@
+person : type.
+carsten : person.
+kapil : person.
+
+car : type.
+c1 : car.
+c2 : car.
+
+own : person -> car -> type.
+
+sell : Pi P. Pi C. own P C -o {1}.
+
+#query * 1 * 1 own carsten c1 -o {1}.

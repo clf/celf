@@ -44,7 +44,7 @@ evapp2 :  eflag
 
 evaluate : exp A -> val A -> type.
 run : evaluate E V o- (Pi d0:dest A. eval E d0 -o eflag -> {is d0 V}).
-
+%mode evaluate +E -V.
 #query * 1 * 1 evaluate (app (lam \!x. x) (lam \!y. y)) V.
 
 sflag : type.
