@@ -1,0 +1,36 @@
+Meeting with Frank
+
+- Saturation (talk to rob)
+- Subordination (bw: call graph) (type checking: strengthenin, fwd: stratefication)
+- Mode checker,
+
+  o bw chaining 
+        trickyness here : P |- P > P'   linear changing  linear pattern, inside monad
+
+  o fwd chaining
+    	important : no logic vars free
+	question : forall qunatiefied variables in facts for  fowrad chaing 
+
+   Theorem: 
+
+   bw: If fact in G+ ground, and - goal ground
+   fw: If fact in G+ ground and  we amke a fwd step G ' is still 
+
+   
+Terminiation checker
+
+bw like in twelf
+fw subterm prop complexity analysi    nat (s N) => { nat N}  saturation
+stratification (subordination)        nat (s N) => {nat (s N)}
+linear?   - exhaust lin aff assumption
+
+
+Coverage checker
+bw: progress for op'l semantic   we quey one case applies, reduce goals to subogal w/o failure
+fw : progress out right
+     productivity.
+
+State invariants.
+
+
+
