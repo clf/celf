@@ -1,0 +1,21 @@
+Library
+   structure Symbol
+   structure ClfTerms
+   structure ClfTables
+   structure ClfSearch
+   structure MapI
+   structure MapII
+   structure MapP
+   structure MapS
+   structure MapX
+is
+   $/basis.cm
+   $/smlnj-lib.cm
+   disctree.sml
+   symbol.sml
+   sets-maps.sml
+   clf.terms-sig.sml
+   clf.terms.sml
+   clf.tables.sml
+   clf.search-sig.sml
+   clf.search.sml

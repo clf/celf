@@ -1,0 +1,94 @@
+// $ elton -d simple -p clf types.l10
+
+// CLF has three modes, or levels of reasoning
+mode: type.
+per: mode. // persistent (called INT for intuitionstic in Anders' code)
+aff: mode. // affine
+lin: mode. // linear 
+
+// The simple, polarized types of CLF
+pos: type.
+neg: type.
+down:   mode -> neg -> pos.  // !A, @A, A, depending on mode
+one:    pos.                 // 1
+tensor: pos -> pos -> pos.   // S1 * S2
+atom:   t -> neg.            // p
+monad:  pos -> neg.          // {S}
+lolli:  pos -> neg -> neg.   // S -o A
+with:   neg -> neg -> neg.   // A1 & A2
+
+// Declared types are loaded into the "type" relation; declared constants
+// are loaded into the "con" relation.
+wSgn: world.
+typ: t -> rel @ wSgn.
+con: t -> neg -> rel @ wSgn.
+
+
+// Heads can be monadic or atomic
+head: type.
+monadic: head.
+atomic: t -> head.
+
+// If right-positive focused or right-negative inverting, the end result will
+// be one or more stable sequents (a negative atomic proposition or a lax 
+// judgment). By a similar token, if left-negative-focused, the left-focus
+// will eventually blur (requiring that the conclusion be lax) or reach a 
+// negative atomic proposition (requiring that that negative atomic 
+// proposition be at the head). These "ultimate outcomes" are the head(s) of 
+// the proposition, and are calculuated by these relations.
+wHeadS: pos -> world.
+wHeadA: neg -> world.
+headS: {S: pos} {H: head} rel @ wHeadS S.
+headA: {A: neg} {H: head} rel @ wHeadA A.
+
+headA (atom Q) (atomic Q).
+headA (monad B) monadic.
+headA A H -> headA (lolli B A) H.
+headA A H -> headA (with A B) H.
+headA A H -> headA (with B A) H.
+headA A H -> headS (down B A) H.
+headS A H -> headS (tensor A B) H.
+headS A H -> headS (tensor B A) H.
+
+// L10 can't currently handle this, should be able to:
+// wHC: world.
+// headC: t -> head -> rel @ wHC.
+// con C A -> head A H -> headC C H.
+
+
+// Deriving subordination information from types
+wSubordS: pos -> world.
+wSubordA: neg -> world.
+
+subordS: {S: pos} {H1: head} {H2: head} rel @ wSubordS S.
+subordA: {A: neg} {H1: head} {H2: head} rel @ wSubordA A.
+
+// Key: the head of a premise is subordinate to the head of a conclusion
+headS S H1, headA A H2
+  -> subordA (lolli S A) H1 H2.
+
+// These other rules just look through a signature constant looking for
+// subordination information to learn. 
+subordA A H1 H2 -> subordS (down P A) H1 H2.
+subordS S H1 H2 -> subordS (tensor S S2) H1 H2.
+subordS S H1 H2 -> subordS (tensor S1 S) H1 H2.
+subordS S H1 H2 -> subordA (monad S) H1 H2.
+subordA A H1 H2 -> subordA (lolli S A) H1 H2.
+subordS S H1 H2 -> subordA (lolli S A) H1 H2.
+
+
+// The actual subordination relation is populated explicitly by assertions
+wSubord: world.
+subord: head -> head -> rel @ wSubord.
+
+subord H1 H2, subord H2 H3 -> subord H1 H3.
+
+wPosAtom: world.
+posAtom: t -> rel @ wPosAtom.
+typ Q, 
+subord (atomic Q) monadic, 
+not (subord _ (atomic Q)) 
+  -> posAtom Q.
+
+// Oh so dumb, just to get an index
+posAtom Q -> posAtom Q.
