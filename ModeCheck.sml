@@ -18,7 +18,6 @@ datatype status = Ground
                 | Unknown
                 | Universal
 
-
 (* A groundness context is a list indicating the groundness status of bound
    variables and a boolean indicating an obligation to be ground *)
 type context = (string * (status * bool)) RAList.ralist
@@ -42,9 +41,9 @@ fun varJoin ((st1,g1),(st2,g2)) = (stJoin (st1,st2),g1 andalso g2)
 fun varMeet ((st1,g1),(st2,g2)) = (stMeet (st1,st2),g1 orelse g2)
 
 (* the above operations extend to gcontexts of a given length *)
-fun gcJoin x = 
+fun gcJoin x =
   RAList.pairMapEq (fn ((x, st1), (_, st2)) => (x, varJoin (st1, st2))) x
-fun gcMeet x = 
+fun gcMeet x =
   RAList.pairMapEq (fn ((x, st1), (_, st2)) => (x, varMeet (st1, st2))) x
 
 
@@ -57,6 +56,16 @@ fun stPush id st ctx = RAList.cons (id, (st, false)) ctx
 val stPushNO = stPush "" Universal
 (* fun stPop : context -> context *)
 val stPop = RAList.tail
+
+
+(* isUniversal : context * int -> bool *)
+fun isUniversal (ctx, k) = let val (_, (st, _)) = RAList.lookup ctx (k-1)
+                           in
+                               case st of
+                                   Universal => true
+                                 | _ => false
+                           end
+
 
 
 
@@ -108,6 +117,9 @@ fun pushOPattern st (ctx, p) =
       lookup (ctx, k-1) = (x, (Unknown, b)) /\ k \in FV(ob)
             ==> lookup (ctx',k-1) = (x, (Ground, b))
  *)
+(* The implementation of gInfer* and associated functions below
+   is based on the Twelf implementation *)
+
 
 (* mkGround : context -> int -> context *)
 fun mkGround ctx n = let val (x, (st, oblig)) = RAList.lookup ctx (n-1)
@@ -117,6 +129,56 @@ fun mkGround ctx n = let val (x, (st, oblig)) = RAList.lookup ctx (n-1)
                            | _ => ctx
                      end
 
+(* unique (k, ks) = B
+
+   Invariant:
+   B iff k does not occur in ks
+ *)
+fun unique (k, nil) = true
+  | unique (k, k'::ks) = (k <> k') andalso unique (k, ks)
+
+exception Eta
+
+(* isPattern : context * int * spine -> bool
+
+   isPattern (D, k, mS) = B
+
+   Invariant:
+   B iff k > k' for all k' in mS
+         and for all k in mS: k is parameter
+         and for all k', k'' in mS: k' <> k''
+ *)
+fun checkPattern (ctx, k, args, sp) =
+    let fun checkPatternObj (ctx, k, args, ob, sp) =
+            let
+	        val (_, k') = Eta.etaContract Eta (normalizeObj ob)
+            in
+	        if (k > k')
+                   andalso isUniversal (ctx, k')
+	           andalso unique (k', args)
+	        then checkPattern (ctx, k, k'::args, sp)
+	        else raise Eta
+            end
+    in
+        case Spine.prj sp of
+            Nil => ()
+          | LApp (M, S) =>
+            (case MonadObj.prj M of
+                 DepPair _ => raise Eta
+               | One => checkPattern (ctx, k, args, S)
+               | Down N => checkPatternObj (ctx, k, args, N, S)
+               | Affi N => checkPatternObj (ctx, k, args, N, S)
+               | Bang N => checkPatternObj (ctx, k, args, N, S)
+               | MonUndef => raise Fail "Internal error: checkPattern on MonUndef")
+          | ProjLeft S => checkPattern (ctx, k, args, S)
+          | ProjRight S => checkPattern (ctx, k, args, S)
+    end
+
+fun isPattern (ctx, k, S) =
+    (checkPattern (ctx, k, nil, S); true)
+    handle Eta => false
+
+
 fun gInferObj (ctx, ob) =
     case Obj.prj ob of
         LLam (p, N) => let val (ctx', k) = pushOPattern Universal (ctx, PatternNormalize.opatNormalize p)
@@ -124,29 +186,19 @@ fun gInferObj (ctx, ob) =
                            RAList.drop (gInferObj (ctx', N)) k
                        end
       | AddPair (N1, N2) => gcMeet (gInferObj (ctx, N1), gInferObj (ctx, N2))
-      | Monad E => gInferExpObj (ctx, E)
+      | Monad E => ctx (* Monadic objects are ignored for the moment -- js *)
       | Atomic (H, S) => (case H of
                               Const x => gInferSpine (ctx, S)
-                            | Var (_, n) => gInferSpine (mkGround ctx n, S)
+                            | Var (_, n) => if isUniversal (ctx, n)
+                                            then gInferSpine (ctx, S)
+                                            else if isPattern (ctx, n, S)
+                                                 then mkGround ctx n
+                                                 else ctx
                             | UCVar _ => raise Fail "Internal error: gInferObj on UCVar"
                             | LogicVar _ => raise Fail "Internal error: gInferObj on LogicVar")
 
       | _ => raise Fail "Internal error: gInferObj on Redex or Constraint"
 
-and gInferExpObj (ctx, ob) =
-    case ExpObj.prj ob of
-        Let (p, (H, S), E)
-        => (case H of
-                Const x => let val ctx' = gInferSpine (ctx, S)
-                               val (ctx'', k) = pushOPattern Universal (ctx', PatternNormalize.opatNormalize p)
-                           in
-                               RAList.drop (gInferExpObj (ctx'', E)) k
-                           end
-              | Var (_,n) => gInferSpine (mkGround ctx n, S)
-              | UCVar _ => raise Fail "Internal error: gInferExpObj on UCVar"
-              | LogicVar _ => raise Fail "Internal error: gInferExpObj on LogicVar")
-      | Mon M => gInferMonadObj (ctx, M)
-      | LetRedex _ => raise Fail "Internal error: gInferExpObj on LetRedex"
 
 and gInferMonadObj (ctx, ob) =
     case MonadObj.prj ob of
@@ -389,7 +441,7 @@ and goalType (ctx, ty) =
                                NONE => raise Fail ("Mode declaration of "^a^" not defined")
                              | SOME m => goalAtomic (ctx, S, m)
                           )
-      | AddProd (A1, A2) => gcJoin (goalType (ctx, A1), goalType (ctx, A2))
+      | AddProd (A1, A2) => goalType (goalType (ctx, A1), A2)
       | TLPi (p, A, B) => let val (p', A') = PatternNormalize.tpatNormalize (p, A) in
                               goalPatType (ctx, p', A', B)
                           end

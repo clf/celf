@@ -29,7 +29,7 @@ fun gmType ty =
       | TAtomic (_,_) => BACKWARD
       | _ => raise Fail "Internal error: gmType TAbbrev"
 
-(* gmType : syncType -> goalMode *)
+(* gmSyncType : syncType -> bool *)
 and gmSyncType sty =
     case SyncType.prj sty of
         LExists (_, S1, S2) => gmSyncType S1 andalso gmSyncType S2
