@@ -37,7 +37,7 @@ llet : exp A -> (val A -> exp S) -> exp S.
 
 % Frames
 flet : dest A -> (val A -> exp S) -> dest S -> type.
-#mode flet - - -.
+#mode flet + - -.
 
 % Evaluation rules
 evllet : eval (llet E1 (\!x. E2 !x)) D
@@ -184,7 +184,7 @@ deref : exp (ref A) -> exp A.
 cell : dest A -> val (ref A).
 
 contains : dest A -> val A -> type.
-#mode contains - -.
+#mode contains + -.
 
 % Frames
 fnewref : dest A -> dest (ref A) -> type.
