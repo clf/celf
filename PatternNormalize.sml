@@ -3,6 +3,42 @@ struct
 
 open Syntax
 
+fun sync2async sty =
+    case SyncType.prj sty of
+        TDown A => A
+      | TAffi A => A
+      | TBang A => A
+      |  _ => raise Fail "Internal error sync2async: pattern not normalized?"
+
+fun syncNormalize sty =
+    case SyncType.prj sty of
+        TOne => TOne'
+
+      | LExists (p1, S1, S2)
+        => (case (Pattern.prj p1, SyncType.prj S1) of
+                (POne, TOne) => syncNormalize S2
+
+              | (PDepTensor (p1a, p1b), LExists (_, S1a, S1b)) (* _ = p1a *)
+                => syncNormalize (LExists' (p1a, S1a, LExists' (p1b, S1b, S2)))
+
+              | (PDown x, TDown A) => (* x = () *)
+                let val S2' = syncNormalize S2 in
+                    LExists' (PDown' x, TDown' A, S2')
+                end
+              | (PAffi x, TAffi A) => (* x = () *)
+                let val S2' = syncNormalize S2 in
+                    LExists' (PAffi' x, TAffi' A, S2')
+                end
+              | (PBang x, TBang A) => (* x : string option *)
+                let val S2' = syncNormalize S2 in
+                    LExists' (PBang' x, TBang' A, S2')
+                end
+              | _ => raise Fail "Internal error: syncNormalize: internal patterns do not match")
+
+      | TDown A => LExists' (PDown' (), TDown' A, TOne')
+      | TAffi A => LExists' (PAffi' (), TAffi' A, TOne')
+      | TBang A => LExists' (PBang' NONE, TBang' A, TOne')
+
 fun tpatNormalize (p,sty) =
     case (Pattern.prj p, SyncType.prj sty) of
         (POne, TOne) => (POne', TOne')

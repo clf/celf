@@ -56,10 +56,10 @@ SignaturTable.sig
 SignaturTable.sml
 OpSem.sig
 OpSemFair2.sml
-GoalMode.sig
-GoalMode.sml
 PatternNormalize.sig
 PatternNormalize.sml
+GoalMode.sig
+GoalMode.sml
 ModeDec.sig
 ModeDec.sml
 ModeCheck.sig

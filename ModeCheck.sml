@@ -3,6 +3,7 @@ struct
 
 open Syntax
 open Context
+open PatternNormalize
 structure RAList = RandomAccessList
 
 exception ModeCheckError of string
@@ -70,13 +71,6 @@ fun isUniversal (ctx, k) = let val (_, _, (st, _)) = RAList.lookup ctx (k-1)
                                  | _ => false
                            end
 
-
-
-
-fun sync2async (TDown A) = A
-  | sync2async (TAffi A) = A
-  | sync2async (TBang A) = A
-  | sync2async _ = raise Fail "Internal error sync2async: pattern not normalized?"
 
 
 fun pushTPattern st (ctx, p) =
@@ -186,7 +180,7 @@ fun isPattern (ctx, k, S) =
 
 fun gInferObj (ctx, ob) =
     case Obj.prj ob of
-        LLam (p, N) => let val (ctx', k) = pushOPattern Universal (ctx, PatternNormalize.opatNormalize p)
+        LLam (p, N) => let val (ctx', k) = pushOPattern Universal (ctx, opatNormalize p)
                        in
                            RAList.drop (gInferObj (ctx', N)) k
                        end
@@ -246,7 +240,7 @@ fun addOblig ctx n = let val (x, m, (st, oblig)) = RAList.lookup ctx (n-1)
 
 fun gObligObj (ctx, ob) =
     case Obj.prj ob of
-        LLam (p, N) => let val (ctx', k) = pushOPattern Universal (ctx, PatternNormalize.opatNormalize p)
+        LLam (p, N) => let val (ctx', k) = pushOPattern Universal (ctx, opatNormalize p)
                        in
                            RAList.drop (gObligObj (ctx', N)) k
                        end
@@ -265,12 +259,12 @@ and gObligExpObj (ctx, ob) =
         Let (p, (H, S), E)
         => (case H of
                 Const x => let val ctx' = gObligSpine (ctx, S)
-                               val (ctx'', k) = pushOPattern Universal (ctx', PatternNormalize.opatNormalize p)
+                               val (ctx'', k) = pushOPattern Universal (ctx', opatNormalize p)
                            in
                                RAList.drop (gObligExpObj (ctx'', E)) k
                            end
               | Var (_,n) => let val ctx' = gObligSpine (addOblig ctx n, S)
-                                 val (ctx'', k) = pushOPattern Universal (ctx', PatternNormalize.opatNormalize p)
+                                 val (ctx'', k) = pushOPattern Universal (ctx', opatNormalize p)
                              in
                                  RAList.drop (gObligExpObj (ctx'', E)) k
                              end
@@ -309,7 +303,7 @@ and gObligSpine (ctx, ob) =
  *)
 fun gCheckObj (ctx, ob) =
     case Obj.prj ob of
-        LLam (p, N) => gCheckObj (#1 (pushOPattern Universal (ctx, PatternNormalize.opatNormalize p)), N)
+        LLam (p, N) => gCheckObj (#1 (pushOPattern Universal (ctx, opatNormalize p)), N)
       | AddPair (N1, N2) => (gCheckObj (ctx, N1); gCheckObj (ctx, N2))
       | Monad E => gCheckExpObj (ctx, E)
       | Atomic (H, S) => (case H of
@@ -330,7 +324,7 @@ and gCheckExpObj (ctx, ob) =
         Let (p, (H, S), E)
         => (case H of
                 Const x => (gCheckSpine (ctx, S);
-                            gCheckExpObj (#1 (pushOPattern Universal (ctx, PatternNormalize.opatNormalize p)), E))
+                            gCheckExpObj (#1 (pushOPattern Universal (ctx, opatNormalize p)), E))
               | Var (_,n) => let val (x, _, (st, _)) = RAList.lookup ctx (n-1)
                              in
                                  case st of
@@ -404,7 +398,7 @@ fun bwdType (ctx, ty) =
                             in
                                 mcJoin (ctx1, ctx2)
                             end
-      | TLPi (p, A, B) => let val (p', A') = PatternNormalize.tpatNormalize (p, A) in
+      | TLPi (p, A, B) => let val (p', A') = tpatNormalize (p, A) in
                               bwdPatType (ctx, p', A', B)
                           end
       | TMonad _ =>  raise Fail "Internal error: bwdType on forward goal"
@@ -432,9 +426,9 @@ and bwdPatType (ctx, p, sty, ty) =
                               | Universal => raise Fail "Internal error: bwdPatType: Unknown changed to Univ"
                        else ctxRet
                    end
-              | (_, S)  (* _ is PDown, PAffi, or PBang NONE, since patterns are normalized *)
+              | (_, _)  (* _ is PDown, PAffi, or PBang NONE, since patterns are normalized *)
                 => let val ctx1 = bwdPatType (mctxPushNO ctx, p2, S2, ty)
-                   in goalType (mctxPop ctx1, sync2async S) end
+                   in goalType (mctxPop ctx1, sync2async S1) end
            )
       | _ => raise Fail "Internal error: bwdPatType: pattern not normalized"
 
@@ -447,7 +441,7 @@ and goalType (ctx, ty) =
                              | SOME m => goalAtomic (ctx, S, m)
                           )
       | AddProd (A1, A2) => goalType (goalType (ctx, A1), A2)
-      | TLPi (p, A, B) => let val (p', A') = PatternNormalize.tpatNormalize (p, A) in
+      | TLPi (p, A, B) => let val (p', A') = tpatNormalize (p, A) in
                               goalPatType (ctx, p', A', B)
                           end
       | TMonad S => goalSyncType (ctx, S)
@@ -458,13 +452,13 @@ and goalType (ctx, ty) =
 and goalSyncType (ctx, sty) =
     case SyncType.prj sty of
         TOne => ctx
-      | LExists (p, S1, S2) => let val (p', _) = PatternNormalize.tpatNormalize (p, S1)
+      | LExists (p, S1, S2) => let val (p', _) = tpatNormalize (p, S1)
                                    val (ctx', k) = pushTPattern Unknown (ctx, p')
                                in
                                    RAList.drop (goalSyncType (ctx', S2)) k
                                end
-      | S (* TDown, TAffi, TBang *)
-        => goalType (ctx, sync2async S)
+      | _ (* TDown, TAffi, TBang *)
+        => goalType (ctx, sync2async sty)
 
 
 (* goalPatType : mcontext * pattern * syncType * asyncType -> mcontext *)
@@ -479,8 +473,8 @@ and goalPatType (ctx, p, sty, ty) =
         => (case (Pattern.prj p1, SyncType.prj S1) of
                 (PBang (SOME x), TBang A) => mctxPop (goalPatType (mctxPush (x, INT) Universal ctx, p2, S2, ty))
 
-              | (_, S) (* _ is PDown, PAffi, or PBang NONE, since patterns are normalized *)
-                => (modeCheckDeclInt (ctx, sync2async S);
+              | (_, _) (* _ is PDown, PAffi, or PBang NONE, since patterns are normalized *)
+                => (modeCheckDeclInt (ctx, sync2async S1);
                     mctxPop (goalPatType (mctxPushNO ctx, p2, S2, ty))))
 
       | _ => raise Fail "Internal error: goalPatType: pattern not normalized"
@@ -490,7 +484,7 @@ and goalPatType (ctx, p, sty, ty) =
 (* Entry point for forward-chaining declarations *)
 and fwdType (ctx, ty) =
     case AsyncType.prj ty of
-        TLPi (p, A, B) => let val (p', A') = PatternNormalize.tpatNormalize (p, A) in
+        TLPi (p, A, B) => let val (p', A') = tpatNormalize (p, A) in
                               fwdPatType (ctx, p', A', B)
                           end
       | AddProd (A, B) => (fwdType (ctx, A); fwdType (ctx, B))
@@ -503,13 +497,13 @@ and fwdType (ctx, ty) =
 and fwdSyncType (ctx, sty) =
     case SyncType.prj sty of
         TOne => ()
-      | LExists (p, S1, S2) => let val (p', _) = PatternNormalize.tpatNormalize (p, S1)
+      | LExists (p, S1, S2) => let val (p', _) = tpatNormalize (p, S1)
                                    val (ctx', _) = pushTPattern Universal (ctx, p')
                                in
                                    fwdSyncType (ctx', S2)
                                end
-      | S (* TDown, TAffi, TBang *)
-        => modeCheckDeclInt (ctx, sync2async S)
+      | _ (* TDown, TAffi, TBang *)
+        => modeCheckDeclInt (ctx, sync2async sty)
 
 
 (* fwdPatType : mcontext * tpattern * syncType * asyncType -> unit *)
@@ -523,8 +517,8 @@ and fwdPatType (ctx, p, sty, ty) =
       | (PDepTensor (p1, p2), LExists (_, S1, S2))
         => (case (Pattern.prj p1, SyncType.prj S1) of
                 (PBang (SOME x), TBang A) => fwdPatType (mctxPush (x, INT) Unknown ctx, p2, S2, ty)
-              | (_, S) (* _ is PDown, PAffi, or PBang NONE, since patterns are normalized *)
-                => fwdPatType (mctxPushNO (goalType (ctx, sync2async S)), p2, S2, ty))
+              | (_, _) (* _ is PDown, PAffi, or PBang NONE, since patterns are normalized *)
+                => fwdPatType (mctxPushNO (goalType (ctx, sync2async S1)), p2, S2, ty))
       | _ => raise Fail "Internal error: fwdPatType: pattern not normalized"
 
 
@@ -556,7 +550,7 @@ fun isNeeded ty =
             case SyncType.prj sty of
                 TOne => false
               | LExists (p, S1, S2) => isNeededSyncType S2
-              | S => isNeededType (sync2async S)
+              | _ => isNeededType (sync2async sty)
     in
         isNeededType ty
     end
