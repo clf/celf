@@ -21,7 +21,7 @@ datatype status = Ground
 
 (* A groundness context is a list indicating the groundness status of bound
    variables and a boolean indicating an obligation to be ground *)
-type mcontext = (string * mode * (status * bool)) RAList.ralist
+type mcontext = (string * modality * (status * bool)) RAList.ralist
 
 (* status has the following join and meet (partial) operations *)
 fun stJoin (Unknown,_) = Unknown
@@ -48,7 +48,7 @@ fun mcJoin x =
 fun mcMeet x =
   RAList.pairMapEq (fn ((x, m, st1), (_, _, st2)) => (x, m, varMeet (st1, st2))) x
 
-(* mctxPush : string * mode -> status -> mcontext -> mcontext *)
+(* mctxPush : string * modality -> status -> mcontext -> mcontext *)
 fun mctxPush (x, m) st ctx = RAList.cons (x, m, (st, false)) ctx
 
 (* mctxPushNO : mcontext -> mcontext *)
@@ -57,11 +57,11 @@ fun mctxPushNO ctx = mctxPush ("", INT) Universal ctx
 (* mctxPop : mcontext -> mcontext *)
 val mctxPop = RAList.tail
 
-(* getMode : mcontext * int -> mode *)
-fun getMode (ctx, k) = let val (_, m, (_, _)) = RAList.lookup ctx (k-1)
-                       in
-                           m
-                       end
+(* getModality : mcontext * int -> modality *)
+fun getModality (ctx, k) = let val (_, m, (_, _)) = RAList.lookup ctx (k-1)
+                           in
+                               m
+                           end
 
 (* isUniversal : mcontext * int -> bool *)
 fun isUniversal (ctx, k) = let val (_, _, (st, _)) = RAList.lookup ctx (k-1)
@@ -74,7 +74,7 @@ fun isUniversal (ctx, k) = let val (_, _, (st, _)) = RAList.lookup ctx (k-1)
 
 
 fun pushTPattern st (ctx, p) =
-    let fun patNameMode p =
+    let fun patNameModality p =
             case Pattern.prj p of
                 PDown _ => ("", LIN)
               | PAffi _ => ("", AFF)
@@ -83,14 +83,14 @@ fun pushTPattern st (ctx, p) =
         fun pushTPatternInt (ctx, n, p) =
             case Pattern.prj p of
                 POne => (ctx, n)
-              | PDepTensor (p1, p2) => pushTPatternInt (mctxPush (patNameMode p1) st ctx, n+1, p2)
+              | PDepTensor (p1, p2) => pushTPatternInt (mctxPush (patNameModality p1) st ctx, n+1, p2)
               | _ => raise Fail "Internal error: pushTPattern: pattern not normalized"
     in
         pushTPatternInt (ctx, 0, p)
     end
 
 fun pushOPattern st (ctx, p) =
-    let fun patNameMode p =
+    let fun patNameModality p =
             case Pattern.prj p of
                 PDown x => (x, LIN)
               | PAffi x => (x, AFF)
@@ -99,7 +99,7 @@ fun pushOPattern st (ctx, p) =
         fun pushOPatternInt (ctx, n, p) =
             case Pattern.prj p of
                 POne => (ctx, n)
-              | PDepTensor (p1, p2) => pushOPatternInt (mctxPush (patNameMode p1) st ctx, n+1, p2)
+              | PDepTensor (p1, p2) => pushOPatternInt (mctxPush (patNameModality p1) st ctx, n+1, p2)
               | _ => raise Fail "Internal error: pushOPattern: pattern not normalized"
     in
         pushOPatternInt (ctx, 0, p)
@@ -154,7 +154,7 @@ fun checkPattern (ctx, k, args, sp) =
 	        if (k > k')
                    andalso isUniversal (ctx, k')
 	           andalso unique (k', args)
-                   andalso getMode (ctx, k') = m
+                   andalso getModality (ctx, k') = m
 	        then checkPattern (ctx, k, k'::args, sp)
 	        else raise Eta
             end

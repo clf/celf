@@ -30,7 +30,7 @@ open VRef
 
 (*type 'a h = 'a HashCons.hash_consed*)
 
-datatype subMode = ID | INT4LIN | INT4AFF | AFF4LIN
+datatype subModality = ID | INT4LIN | INT4AFF | AFF4LIN
 
 datatype ('x, 'ix, 'p) patternF
 	= PDepTensor of 'p * 'p
@@ -54,7 +54,7 @@ and typeSpine = FixTypeSpine of typeSpine typeSpineF | TSClos of typeSpine * sub
 and syncType = FixSyncType of syncType syncTypeF | STClos of syncType * subst
 	| ApxS of apxSyncType
 
-and obj = FixObj of obj objF | Clos of obj * subst | EtaTag of obj * (Context.mode * int)
+and obj = FixObj of obj objF | Clos of obj * subst | EtaTag of obj * (Context.modality * int)
 	| IntRedex of obj * spine
 and spine = FixSpine of spine spineF | SClos of spine * subst
 and expObj = FixExpObj of expObj expObjF | EClos of expObj * subst
@@ -62,14 +62,14 @@ and expObj = FixExpObj of expObj expObjF | EClos of expObj * subst
 and monadObj = FixMonadObj of monadObj monadObjF | MClos of monadObj * subst
 
 and subst' = Dot of subObj * subst' | Shift of int
-and subObj = Ob of Context.mode * nfObj | Idx of subMode * int | Undef
+and subObj = Ob of Context.modality * nfObj | Idx of subModality * int | Undef
 
 and constr
 	= Solved
 	| Eqn of nfObj * nfObj * (unit -> string)
 	| Exist of nfObj * (unit -> string)
 and 'aTy headF = Const of string
-	| Var of Context.mode * int
+	| Var of Context.modality * int
 	| UCVar of string
 	| LogicVar of {
 		X     : nfObj option vref,

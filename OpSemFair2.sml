@@ -69,7 +69,7 @@ fun removeHyp ((l, ctx), k) = (List.filter (fn n => n<>k) l, #1 $ ctxLookupNum (
 
 (* Given a list of linear indices (an lcontext), remove those indices that no
  * longer occur in the context. *)
-(* linIntersect' : int * lcontext * (string * 'a * cmode) list -> lcontext *)
+(* linIntersect' : int * lcontext * (string * 'a * cmodality) list -> lcontext *)
 (* linIntersect : lcontext * context -> lcontext * context *)
 (* FIXME: improve complexity: use a multilookup in Context based on drop *)
 fun linIntersect' (n, k::l, (x, A, m)::G) =
@@ -176,10 +176,10 @@ and matchAtom' (ctx, P, sc) =
 		fun matchSig (c, lr, A) = fn () => BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
 		fun matchCtx ([], _) = []
 		  | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
-		  | matchCtx ((x, (A, hds), SOME mode)::G, k) =
-		  		let val ctx' = if mode=INT then ctx else removeHyp (ctx, k)
+		  | matchCtx ((x, (A, hds), SOME modality)::G, k) =
+		  		let val ctx' = if modality=INT then ctx else removeHyp (ctx, k)
 					val A' = TClos (A, Subst.shift k)
-					val h = Var (mode, k)
+					val h = Var (modality, k)
 					val f = fn () => app (fn (lr, _) => BackTrack.backtrack (lFocus (ctx', lr, A', h)))
 						 	(List.filter (fn (_, HdAtom a) => a=aP | _ => false) hds)
 				in f :: matchCtx (G, k+1) end
@@ -204,13 +204,13 @@ and forwardChain' (fcLim, (l, ctx), S, sc) =
 		fun matchSig (c, lr, A) = fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))
 		fun matchCtx ([], _) = []
 		  | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
-		  | matchCtx ((x, (A, hds), SOME mode)::G, k) =
-		  		let val ctx' = if mode=INT then ctx else #2 $ removeHyp (([], ctx), k)
+		  | matchCtx ((x, (A, hds), SOME modality)::G, k) =
+		  		let val ctx' = if modality=INT then ctx else #2 $ removeHyp (([], ctx), k)
 					val A' = TClos (A, Subst.shift k)
 				in List.mapPartial
 						(fn (_, HdAtom _) => NONE
 						  | (lr, HdMonad) => SOME (fn () =>
-							BackTrack.backtrackC (mlFocus (ctx', lr, A', Var (mode, k)))))
+							BackTrack.backtrackC (mlFocus (ctx', lr, A', Var (modality, k)))))
 						hds
 					@ matchCtx (G, k+1)
 				end
