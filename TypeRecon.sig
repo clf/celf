@@ -20,6 +20,8 @@
 signature TYPERECON =
 sig
 
+exception ReconError of (Syntax.declError * string) * (int * Syntax.decl)
+exception QueryFailed of int
 val reconstructDecl : int * Syntax.decl -> unit
 val reconstructSignature : (int * Syntax.decl) list -> unit
 val resetSignature : unit -> unit

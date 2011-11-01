@@ -14,5 +14,8 @@ fun listPairMapEq f ([], []) = []
 fun curry f x y = f (x, y)
 fun uncurry f (x, y) = f x y
 
+val quiet = ref false
+val print = fn s => if !quiet then () else print s
+
 (* empty signature used to generate a depency in the compilation manager *)
 signature TOP_LEVEL_UTIL = sig end

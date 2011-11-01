@@ -56,17 +56,9 @@ fun isQuery (Query _) = true
 fun isModeDecl (Mode _) = true
   | isModeDecl _ = false
 
-fun declToStr (linenum, dec) =
-	let val decstr = case dec of
-			  ConstDecl (id, _, _) => "declaration of " ^ id
-			| TypeAbbrev (id, _) => "declaration of " ^ id
-			| ObjAbbrev (id, _, _) => "declaration of " ^ id
-			| Query _ => "query"
-			| Mode (id,_,_) => "mode declaration of " ^ id
-	in decstr ^ " on line " ^ Int.toString linenum end
 
-exception ExnStopCelf
-
+exception ReconError of (declError * string) * (int * Syntax.decl)
+exception QueryFailed of int
 
 (* We check the following conditions in a mode declaration:
 - The constant is a kind (and not a type)
@@ -186,10 +178,6 @@ fun reconstructDecl (ldec as (_, dec)) =
                                 ConstDecl (id,_,Ty ty) =>
                                   if ModeCheck.isNeeded ty
                                   then ModeCheck.modeCheckDecl ty
-                                       handle ModeCheck.ModeCheckError s =>
-                                              (print ("In declaration:\n"^id^": "^PrettyPrint.printType ty^
-                                                      "\nMode checking of failed: "^s^"\n");
-                                               raise ExnStopCelf)
                                   else ()
                               | _ => ()
 
@@ -259,31 +247,19 @@ fun reconstructDecl (ldec as (_, dec)) =
 							print "Query ok.\n"
 						else if isSome e then
 							( print "Query failed\n"
-							; raise ExnStopCelf )
+							; raise QueryFailed (#1 ldec))
 						else
 							()
 						end
 			val () = if isQuery dec orelse isModeDecl dec then ()
                                  else Signatur.sigAddDecl dec
-		in () end handle
-		  ExnDeclError es =>
-			let val decstr = declToStr ldec
-				val d = case es of
-					  (UndeclId, c) => "\nUndeclared identifier \"" ^ c ^ "\" in " ^ decstr ^ "\n\n"
-					| (TypeErr, s) => "\nType-checking failed in " ^ decstr ^ ":\n" ^ s ^ "\n"
-					| (KindErr, s) => "\nKind-checking failed in " ^ decstr ^ ":\n" ^ s ^ "\n"
-					| (AmbigType, "") => "\nAmbiguous typing in " ^ decstr ^ "\n\n"
-					| (AmbigType, s) => "\nAmbiguous typing in " ^ decstr ^ ":\n" ^ s ^ "\n"
-					| (GeneralErr, s) => "\nError in " ^ decstr ^ ":\n" ^ s ^ "\n"
-			in print d ; raise ExnStopCelf end
-		| Context.ExnCtx s =>
-			( print ("\nType-checking failed in " ^ declToStr ldec ^ ":\n" ^ s ^ "\n")
-			; raise ExnStopCelf )
-		(*| ExnConv s =>*)
-
+		in () end 
+handle ExnDeclError es => raise ReconError (es, ldec)
+     | Context.ExnCtx s => raise ReconError ((TypeErr, s), ldec)
+     | ModeCheck.ModeCheckError s => raise ReconError ((ModeErr, s), ldec)
 
 (* reconstructSignature : (int * decl) list -> unit *)
-fun reconstructSignature prog = app reconstructDecl prog handle ExnStopCelf => ()
+fun reconstructSignature prog = app reconstructDecl prog 
 
 (* resetSignature : unit -> unit *)
 fun resetSignature () =

@@ -174,7 +174,13 @@ datatype decl = ConstDecl of string * int * typeOrKind
 	| Query of int option * int option * int option * int * asyncType
 	| Mode of string * modeDecl option * modeDecl
 
-datatype declError = TypeErr | KindErr | AmbigType | UndeclId | GeneralErr
+datatype declError =
+   TypeErr 
+ | KindErr 
+ | AmbigType 
+ | UndeclId 
+ | ModeErr
+ | GeneralErr
 exception ExnDeclError of declError * string
 
 val KClos : kind * 'a substi -> kind

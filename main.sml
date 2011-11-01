@@ -126,8 +126,48 @@ fun celfMain' args =
 		val () = TypeRecon.reconstructSignature result
 	in OS.Process.success end end
 
-fun celfMain (_, args) = celfMain' args handle e =>
-	( print ("Unhandled exception:\n"^exnMessage e^"\n")
-	; OS.Process.failure )
+fun declToStr (linenum, dec) =
+let 
+   val decstr = 
+      case dec of
+         Syntax.ConstDecl (id, _, _) => "declaration of " ^ id
+       | Syntax.TypeAbbrev (id, _) => "declaration of " ^ id
+       | Syntax.ObjAbbrev (id, _, _) => "declaration of " ^ id
+       | Syntax.Query _ => "query"
+       | Syntax.Mode (id,_,_) => "mode declaration of " ^ id
+in
+   decstr ^ " on line " ^ Int.toString linenum
+end
 
+fun celfMain (_, args) = celfMain' args 
+handle TypeRecon.ReconError (es, ldec) =>
+       let
+          val decstr = declToStr ldec
+          val d = 
+             case es of
+                (Syntax.UndeclId, c) => 
+                   "Undeclared identifier \"" ^ c ^ "\" in " ^ decstr
+              | (Syntax.TypeErr, s) => 
+                   "Type-checking failed in " ^ decstr ^ ":\n" ^ s 
+              | (Syntax.KindErr, s) => 
+                   "Kind-checking failed in " ^ decstr ^ ":\n" ^ s 
+              | (Syntax.AmbigType, "") => 
+                   "Ambiguous typing in " ^ decstr
+              | (Syntax.AmbigType, s) => 
+                   "Ambiguous typing in " ^ decstr ^ ":\n" ^ s
+              | (Syntax.ModeErr, s) =>
+                   "Mode checking failed in " ^ decstr ^ ":\n"^s
+              | (Syntax.GeneralErr, s) => 
+                   "Error in " ^ decstr ^ ":\n" ^ s 
+       in 
+        ( print ("\n" ^ d ^ "\n\n")
+        ; OS.Process.failure)
+       end
+     | TypeRecon.QueryFailed n =>
+        ( print ("\nQuery failed on line " ^ Int.toString n ^ "\n\n")
+        ; OS.Process.failure)
+     | exn => 
+        ( print ("Unhandled exception " ^ exnName exn ^ ":\n")
+        ; print (exnMessage exn^"\n")
+	; OS.Process.failure)
 end
