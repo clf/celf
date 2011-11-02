@@ -15,6 +15,8 @@ return : val A -> dest A -> type.
 #mode return - -.
 
 evaluate : exp A -> val A -> type.
+#mode evaluate + -.
+
 run : (Pi d : dest A. eval E d -o {return V d})
         -o evaluate E V.
 
@@ -139,6 +141,8 @@ delay : exp A -> exp (susp A).
 force : exp (susp A) -> exp A.
 thunk : dest A -> val (susp A).
 read : dest A -> dest A -> type.
+#mode read - -.
+
 evdelay : eval (delay E1) D
 	   -o {Exists l1 : dest A. return (thunk l1) D
             * (Pi D' : dest A. read l1 D'
@@ -249,6 +253,7 @@ fsendEvt : dest (chan A) -> dest A -> dest (event oone) -> type.
 fchoose : dest (event A) -> dest (event A) -> dest (event A) -> type.
 fwrap : dest (event A1) -> (val A1 -> exp A2) -> dest (event A2) -> type.
 
+#mode fspawn +.
 #mode fsync + -.
 #mode falwaysEvt + -.
 #mode frecvEvt + -.

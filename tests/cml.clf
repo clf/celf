@@ -104,6 +104,8 @@ delay : exp A -> exp (susp A).
 force : exp (susp A) -> exp A.
 thunk : dest A -> val (susp A).
 read : dest A -> dest A -> type.
+#mode read - -.
+
 evdelay : eval (delay E1) D
 	   -o {Exists l1 : dest A. return (thunk l1) D
             * (Pi D' : dest A. read l1 D'

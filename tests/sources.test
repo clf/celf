@@ -21,7 +21,7 @@ parseErr exp.clf
 typeErr fj.clf
 success fol.clf
 success fptp.clf
-success graph.clf
+modeErr graph.clf
 typeErr guide.clf
 typeErr handbook.clf
 parseErr incll.clf
@@ -48,4 +48,4 @@ parseErr talt.clf
 parseErr tapl-ch13.clf
 success test-fair.clf
 # success test.clf BIZARRE LEXER WARNINGS
-success tpres-mini-ml.clf
+modeErr tpres-mini-ml.clf
