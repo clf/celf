@@ -63,6 +63,12 @@ fun getModality (ctx, k) = let val (_, m, (_, _)) = RAList.lookup ctx (k-1)
                                m
                            end
 
+(* getStatus : mcontext * int -> mode *)
+fun getStatus (ctx, k) = let val (_, _, (st, _)) = RAList.lookup ctx (k-1)
+                         in
+                             st
+                         end
+
 (* isUniversal : mcontext * int -> bool *)
 fun isUniversal (ctx, k) = let val (_, _, (st, _)) = RAList.lookup ctx (k-1)
                            in
@@ -70,6 +76,7 @@ fun isUniversal (ctx, k) = let val (_, _, (st, _)) = RAList.lookup ctx (k-1)
                                    Universal => true
                                  | _ => false
                            end
+
 
 
 
@@ -104,6 +111,67 @@ fun pushOPattern st (ctx, p) =
     in
         pushOPatternInt (ctx, 0, p)
     end
+
+
+(* Check groundness information for objects *)
+(* gCheck* : mcontext * object -> unit *)
+(* gCheck* (ctx, ob) raises ModeCheckError if
+
+      exists k. k \in FV(ob) /\ lookup (ctx, k-1) = (_, (Unknown, _))
+
+   or returns () if no such k exists.
+ *)
+fun gCheckObj (ctx, ob) =
+    case Obj.prj ob of
+        LLam (p, N) => gCheckObj (#1 (pushOPattern Universal (ctx, opatNormalize p)), N)
+      | AddPair (N1, N2) => (gCheckObj (ctx, N1); gCheckObj (ctx, N2))
+      | Monad E => gCheckExpObj (ctx, E)
+      | Atomic (H, S) => (case H of
+                              Const x => gCheckSpine (ctx, S)
+                            | Var (_, n) => let val (x, _, (st, _)) = RAList.lookup ctx (n-1)
+                                            in
+                                                case st of
+                                                    Unknown => raise ModeCheckError (x^" not necessarily ground1")
+                                                  | _ => gCheckSpine (ctx, S)
+                                            end
+                            | UCVar _ => raise Fail "Internal error: gCheckObj on UCVar"
+                            | LogicVar _ => raise Fail "Internal error: gCheckObj on LogicVar")
+
+      | _ => raise Fail "Internal error: gCheckObj on Redex or Constraint"
+
+and gCheckExpObj (ctx, ob) =
+    case ExpObj.prj ob of
+        Let (p, (H, S), E)
+        => (case H of
+                Const x => (gCheckSpine (ctx, S);
+                            gCheckExpObj (#1 (pushOPattern Universal (ctx, opatNormalize p)), E))
+              | Var (_,n) => let val (x, _, (st, _)) = RAList.lookup ctx (n-1)
+                             in
+                                 case st of
+                                     Unknown => raise ModeCheckError (x^" not necessarily ground2")
+                                   | _ => gCheckSpine (ctx, S)
+                             end
+              | UCVar _ => raise Fail "Internal error: gCheckExpObj on UCVar"
+              | LogicVar _ => raise Fail "Internal error: gCheckExpObj on LogicVar")
+      | Mon M => gCheckMonadObj (ctx, M)
+      | LetRedex _ => raise Fail "Internal error: gCheckExpObj on LetRedex"
+
+and gCheckMonadObj (ctx, ob) =
+    case MonadObj.prj ob of
+        DepPair (M1, M2) => (gCheckMonadObj (ctx, M1); gCheckMonadObj (ctx, M2))
+      | One => ()
+      | Down N => gCheckObj (ctx, N)
+      | Affi N => gCheckObj (ctx, N)
+      | Bang N => gCheckObj (ctx, N)
+      | MonUndef => raise Fail "Internal error: gCheckMonadObj on MonUndef"
+
+
+and gCheckSpine (ctx, ob) =
+    case Spine.prj ob of
+        Nil => ()
+      | LApp (M, S) => (gCheckMonadObj (ctx, M); gCheckSpine (ctx, S))
+      | ProjLeft S => gCheckSpine (ctx, S)
+      | ProjRight S => gCheckSpine (ctx, S)
 
 
 (* Infer groundness information for objects *)
@@ -216,7 +284,35 @@ and gInferSpine (ctx, sp) =
       | ProjLeft S => gInferSpine (ctx, S)
       | ProjRight S => gInferSpine (ctx, S)
 
-
+and gInferExpObj (ctx, ob) =
+    case ExpObj.prj ob of
+        Let (p, (H, S), E)
+        => (case H of
+                Const x => let val ctx' = gInferSpine (ctx, S)
+                               val (ctx'', k) = pushOPattern Universal (ctx', opatNormalize p)
+                           in
+                               RAList.drop (gInferExpObj (ctx'', E)) k
+                           end
+              | Var (_, n) => (case getStatus (ctx, n) of
+                                   Universal => let val ctx' = gInferSpine (ctx, S)
+                                                    val (ctx'', k) = pushOPattern Universal (ctx', opatNormalize p)
+                                                in
+                                                    RAList.drop (gInferExpObj (ctx'', E)) k
+                                                end
+                                 | Ground    => let val patMode = (gCheckSpine (ctx, S); Ground)
+                                                                  handle ModeCheckError _ => Unknown
+                                                    val (ctx', k) = pushOPattern patMode (ctx, opatNormalize p)
+                                                in
+                                                    RAList.drop (gInferExpObj (ctx', E)) k
+                                                end
+                                 | Unknown   => let val (ctx', k) = pushOPattern Unknown (ctx, opatNormalize p)
+                                                in
+                                                    RAList.drop (gInferExpObj (ctx', E)) k
+                                                end)
+              | UCVar _ => raise Fail "Internal error: gInferExpObj on UCVar"
+              | LogicVar _ => raise Fail "Internal error: gInferExpObj on LogicVar")
+      | Mon M => gInferMonadObj (ctx, M)
+      | LetRedex _ => raise Fail "Internal error: gInferMonadObj on LetRedex"
 
 (* Request groundness obligation for objects *)
 (* gOblig* : mcontext * object -> mcontext *)
@@ -291,67 +387,6 @@ and gObligSpine (ctx, ob) =
       | ProjRight S => gObligSpine (ctx, S)
 
 
-
-
-(* Check groundness information for objects *)
-(* gCheck* : mcontext * object -> unit *)
-(* gCheck* (ctx, ob) raises ModeCheckError if
-
-      exists k. k \in FV(ob) /\ lookup (ctx, k-1) = (_, (Unknown, _))
-
-   or returns () if no such k exists.
- *)
-fun gCheckObj (ctx, ob) =
-    case Obj.prj ob of
-        LLam (p, N) => gCheckObj (#1 (pushOPattern Universal (ctx, opatNormalize p)), N)
-      | AddPair (N1, N2) => (gCheckObj (ctx, N1); gCheckObj (ctx, N2))
-      | Monad E => gCheckExpObj (ctx, E)
-      | Atomic (H, S) => (case H of
-                              Const x => gCheckSpine (ctx, S)
-                            | Var (_, n) => let val (x, _, (st, _)) = RAList.lookup ctx (n-1)
-                                            in
-                                                case st of
-                                                    Unknown => raise ModeCheckError (x^" not necessarily ground1")
-                                                  | _ => gCheckSpine (ctx, S)
-                                            end
-                            | UCVar _ => raise Fail "Internal error: gCheckObj on UCVar"
-                            | LogicVar _ => raise Fail "Internal error: gCheckObj on LogicVar")
-
-      | _ => raise Fail "Internal error: gCheckObj on Redex or Constraint"
-
-and gCheckExpObj (ctx, ob) =
-    case ExpObj.prj ob of
-        Let (p, (H, S), E)
-        => (case H of
-                Const x => (gCheckSpine (ctx, S);
-                            gCheckExpObj (#1 (pushOPattern Universal (ctx, opatNormalize p)), E))
-              | Var (_,n) => let val (x, _, (st, _)) = RAList.lookup ctx (n-1)
-                             in
-                                 case st of
-                                     Unknown => raise ModeCheckError (x^" not necessarily ground2")
-                                   | _ => gCheckSpine (ctx, S)
-                             end
-              | UCVar _ => raise Fail "Internal error: gCheckExpObj on UCVar"
-              | LogicVar _ => raise Fail "Internal error: gCheckExpObj on LogicVar")
-      | Mon M => gCheckMonadObj (ctx, M)
-      | LetRedex _ => raise Fail "Internal error: gCheckExpObj on LetRedex"
-
-and gCheckMonadObj (ctx, ob) =
-    case MonadObj.prj ob of
-        DepPair (M1, M2) => (gCheckMonadObj (ctx, M1); gCheckMonadObj (ctx, M2))
-      | One => ()
-      | Down N => gCheckObj (ctx, N)
-      | Affi N => gCheckObj (ctx, N)
-      | Bang N => gCheckObj (ctx, N)
-      | MonUndef => raise Fail "Internal error: gCheckMonadObj on MonUndef"
-
-
-and gCheckSpine (ctx, ob) =
-    case Spine.prj ob of
-        Nil => ()
-      | LApp (M, S) => (gCheckMonadObj (ctx, M); gCheckSpine (ctx, S))
-      | ProjLeft S => gCheckSpine (ctx, S)
-      | ProjRight S => gCheckSpine (ctx, S)
 
 
 
