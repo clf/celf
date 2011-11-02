@@ -1,0 +1,162 @@
+%% Celf implementation of the D'Hondt voting protocol
+%% Author: Henry DeYoung
+%% Reference: en.wikipedia.org/wiki/D'Hondt_method
+
+%% Natural numbers.
+nat : type.
+
+z : nat.
+s : nat -> nat.
+
+
+% Strict inequality.
+nat-less : nat -> nat -> type.
+#mode nat-less + +.
+
+nat-less/z : nat-less z (s _).
+nat-less/s : nat-less (s M) (s N)
+              <- nat-less M N.
+
+
+% Inequality.
+nat-lesseq : nat -> nat -> type.
+#mode nat-lesseq + +.
+
+nat-lesseq/z : nat-lesseq z _.
+nat-lesseq/s : nat-lesseq (s M) (s N)
+                <- nat-lesseq M N.
+
+
+% Subtraction.
+nat-minus : nat -> nat -> nat -> type.
+#mode nat-minus + + -.
+
+nat-minus/z : nat-minus M z M.
+nat-minus/s : nat-minus (s M) (s N) N'
+               <- nat-minus M N N'.
+
+
+% Division.
+nat-divmod : nat -> nat -> nat -> nat -> type.
+#mode nat-divmod + + - -.
+
+nat-divmod/less  : nat-divmod M N z M
+                    <- nat-less M N.
+nat-divmod/gtreq : nat-divmod M N (s Q) R
+                    <- nat-lesseq N M
+                    <- nat-minus M N M'
+                    <- nat-divmod M' N Q R.
+
+
+
+party : type.
+
+
+uncounted-ballot : party -> type.
+#mode uncounted-ballot -.
+
+tally : party -> nat -> type.
+#mode tally - -.
+
+count-ballots : nat -> nat -> nat -> type.
+#mode count-ballots - - -.
+
+init-dhondt : nat -> nat -> nat -> type.
+#mode init-dhondt - - -.
+
+total : party -> nat -> type.
+#mode total + -.
+
+seats : party -> nat -> type.
+#mode seats + -.
+
+quotient : party -> nat -> type.
+#mode quotient - -.
+
+find-max : nat -> nat -> nat -> type.
+#mode find-max - - -.
+
+maximum : party -> nat -> type.
+#mode maximum - -.
+
+find-max' : nat -> nat -> nat -> type.
+#mode find-max' - - -.
+
+done : type.
+
+
+count/1 : count-ballots S (s T) (s U) *
+          uncounted-ballot P *
+          tally P N
+           -o {tally P (s N) *
+               count-ballots S (s T) U}.
+
+count/2 : count-ballots S T z
+           -o {init-dhondt S T z}.
+
+init-dhondt/s : init-dhondt S (s T1) T2 *
+                tally P N *
+                !nat-divmod N (s z) Q _
+                 -o {!total P N *
+                     seats P z *
+                     quotient P Q *
+                     init-dhondt S T1 (s T2)}.
+
+init-dhondt/z : init-dhondt S z T2 
+                 -o {find-max S T2 z}.
+
+find-max/s/s : find-max (s S) (s T) M *
+               quotient P Q
+                -o {maximum P Q *
+                    find-max (s S) T (s M)}.
+
+find-max/s/z : find-max (s S) z M
+                -o {find-max' (s S) z M}.
+
+find-max'/ss : find-max' (s S) T (s (s M)) *
+               maximum P Q *
+               maximum P' Q' *
+               !nat-lesseq Q' Q
+                -o {maximum P Q *
+                    quotient P' Q' *
+                    find-max' (s S) (s T) (s M)}.
+
+find-max'/sz : find-max' (s S) T (s z) *
+               maximum P _ *
+               seats P A *
+               !total P N *
+               !nat-divmod N (s (s A)) Q _
+                -o {seats P (s A) *
+                    quotient P Q *
+                    find-max S (s T) z}.
+
+find-max/z : find-max z T z
+              -o {!done}.
+
+cleanup/- : !done *
+            quotient P Q
+             -o {1}.
+
+
+
+%% Sample query
+
+a : party.
+b : party.
+c : party.
+d : party.
+
+#query * 1 * 1
+  uncounted-ballot a -o uncounted-ballot a -o uncounted-ballot a -o
+  uncounted-ballot a -o uncounted-ballot a -o uncounted-ballot a -o
+  uncounted-ballot a -o uncounted-ballot a -o uncounted-ballot a -o
+  uncounted-ballot a -o uncounted-ballot a -o uncounted-ballot a -o
+  uncounted-ballot a -o uncounted-ballot a -o 
+  uncounted-ballot b -o uncounted-ballot b -o uncounted-ballot b -o
+  uncounted-ballot b -o uncounted-ballot b -o uncounted-ballot b -o
+  uncounted-ballot c -o uncounted-ballot c -o uncounted-ballot c -o
+  tally a z -o tally b z -o tally c z -o tally d z -o
+  count-ballots (s (s (s z)))
+                (s (s (s (s z))))
+                (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))) -o
+    {seats a (s (s z)) * seats b (s z) * seats c z * seats d z}.
