@@ -61,9 +61,7 @@ exception ReconError of (declError * string) * (int * Syntax.decl)
 exception QueryFailed of int
 
 (* We check the following conditions in a mode declaration:
-- The constant is a kind (and not a type)
 - The number of args given coincide with the number of args in the type family
-- The number of args in the type family is greater than 0
 - The modes of implicit arguments (if given) is correct. If not given, they are inferred
  *)
 fun checkModeDecl (id, implmd, md) =
@@ -77,11 +75,6 @@ fun checkModeDecl (id, implmd, md) =
         val nImpl = Signatur.getImplLength id
         val nExpl = nArgs - nImpl
         val allmd = getOpt (implmd, []) @ md
-
-        val () =
-            if nArgs = 0
-            then raise Fail ("Invalid mode declaration: "^id^" is not a type family")
-            else ()
 
         val () =
             case implmd of

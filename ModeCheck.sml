@@ -426,7 +426,7 @@ fun goalAtomic (ctx, sp, m) =
 fun bwdType (ctx, ty) =
     case AsyncType.prj ty of
         TAtomic (a, S) => (case Signatur.getModeDecl a of
-                               NONE => raise ModeCheckError ("mode declaration of "^a^" not defined")
+                               NONE => raise ModeCheckError ("No mode declaration for "^a)
                              | SOME m => bwdHead (ctx, S, m))
       | AddProd (A1, A2) => let val ctx1 = bwdType (ctx, A1)
                                 val ctx2 = bwdType (ctx, A2)
@@ -472,7 +472,7 @@ and bwdPatType (ctx, p, sty, ty) =
 and goalType (ctx, ty) =
     case AsyncType.prj ty of
         TAtomic (a, S) => (case Signatur.getModeDecl a of
-                               NONE => raise Fail ("Mode declaration of "^a^" not defined")
+                               NONE => raise ModeCheckError ("No mode declaration for "^a)
                              | SOME m => goalAtomic (ctx, S, m)
                           )
       | AddProd (A1, A2) => goalType (goalType (ctx, A1), A2)
@@ -576,7 +576,7 @@ and modeCheckDeclInt (ctx, ty) =
 fun isNeeded ty =
     let fun isNeededType ty =
             case AsyncType.prj ty of
-                TLPi (p, A, B) => isNeeded B
+                TLPi (p, A, B) => isNeeded B orelse isNeededSyncType A
               | AddProd (A, B) => isNeeded A orelse isNeeded B
               | TMonad A => isNeededSyncType A
               | TAtomic (x, S) => Signatur.hasModeDecl x
@@ -584,7 +584,7 @@ fun isNeeded ty =
         and isNeededSyncType sty =
             case SyncType.prj sty of
                 TOne => false
-              | LExists (p, S1, S2) => isNeededSyncType S2
+              | LExists (p, S1, S2) => isNeededSyncType S1 orelse isNeededSyncType S2
               | _ => isNeededType (sync2async sty)
     in
         isNeededType ty

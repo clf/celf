@@ -95,7 +95,7 @@ Id :      ID               ( ID )
 
 ModeDecl :
           OneMode ModeDecl ( OneMode :: ModeDecl )
-        | OneMode          ( [OneMode] )
+        |                  ( [] )
 
 OneMode :
           PLUS  ( Syntax.Plus )
