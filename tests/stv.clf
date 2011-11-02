@@ -86,6 +86,7 @@ count-ballots : nat -> nat -> nat -> type.
 #mode count-ballots - - -.
 
 elect-all : type.
+#mode elect-all.
 
 defeat-min : nat -> nat -> nat -> type.
 #mode defeat-min - - -.

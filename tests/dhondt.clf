@@ -83,6 +83,7 @@ find-max' : nat -> nat -> nat -> type.
 #mode find-max' - - -.
 
 done : type.
+#mode done.
 
 
 count/1 : count-ballots S (s T) (s U) *

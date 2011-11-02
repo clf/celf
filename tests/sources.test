@@ -16,9 +16,11 @@ typeErr cxm.clf
 parseErr debruijn.clf
 parseErr debruijn1.clf
 success demo.clf
+success dhondt.clf
 parseErr exp.clf
 typeErr fj.clf
 success fol.clf
+success fptp.clf
 success graph.clf
 typeErr guide.clf
 typeErr handbook.clf
@@ -40,6 +42,7 @@ success pi-async.clf
 typeErr polylam.clf
 typeErr prop-calc.clf
 success session-types.clf
+success stv.clf
 success subset.clf
 parseErr talt.clf
 parseErr tapl-ch13.clf
