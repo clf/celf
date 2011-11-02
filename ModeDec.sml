@@ -43,15 +43,6 @@ datatype Arg = Implicit | Explicit | Local
 
 type mcontext = (mode * Arg) list
 
-(* debuggin *)
-fun pparg Implicit = "I"
-  | pparg Explicit = "E"
-  | pparg Local = "L"
-
-fun PPm [] = "\n"
-  | PPm ((m,a)::t) = PrettyPrint.printMode m^pparg a^", "^PPm t
-
-
 (* modeConsistent (m1, m2) = true
    iff it is consistent for a variable x with mode m1
    to occur as an index object in the type of a variable y:V(x) with mode m2
@@ -240,8 +231,7 @@ fun inferMode ((mctx, ki), ms) =
     *)
     fun shortToFull (ki, impl, mS) =
         let val (a, b) = empty (impl, [], ki)
-            val () = print (PPm a^ PrettyPrint.printKind b^"\n")
-        in 
+        in
             abstractMode (inferMode (empty (impl, [], ki), mS), mS)
         end
 

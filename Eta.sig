@@ -24,7 +24,7 @@ val traceEta : bool ref
 
 type context
 
-val etaContract : exn -> Syntax.nfObj -> Context.mode * int
+val etaContract : exn -> Syntax.nfObj -> Context.modality * int
 val etaContractLetMon : Syntax.nfExpObj -> (Syntax.nfHead * Syntax.nfSpine) option
 
 val etaExpand : (unit -> string) -> Syntax.apxAsyncType * Syntax.head * Syntax.spine -> Syntax.obj

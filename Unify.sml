@@ -126,7 +126,7 @@ fun pat2mon p =
 (* ctx2int G = (p, G_I)
  * computes the maximal linear-changing substitution
  * G_I |- lcis2sub(p) : G *)
-(* ctx2int : context -> (subMode * int) list * context *)
+(* ctx2int : context -> (subModality * int) list * context *)
 fun ctx2int G =
 	let val G' = ctx2list G
 		fun ctx2int' n [] = ([], emptyCtx)
@@ -155,12 +155,12 @@ fun newMonI (sTy, ctx) = case NfSyncType.prj sTy of
 (* newMon (S, G) = (p, M)
  * G_I |- lcis2sub(p) : G
  * G_I |- M : S           *)
-(* newMon : nfSyncType * context -> (subMode * int) list * nfMonadObj *)
+(* newMon : nfSyncType * context -> (subModality * int) list * nfMonadObj *)
 fun newMon (S, G) =
 	let val (p, GI) = ctx2int G
 	in (p, newMonI (S, GI)) end
 
-(* newMonA : nfAsyncType * context -> (subMode * int) list * nfObj *)
+(* newMonA : nfAsyncType * context -> (subModality * int) list * nfObj *)
 fun newMonA (A, ctx) = case NfAsyncType.prj A of
 	  TMonad S => map2 (NfMonad' o NfMon') (newMon (S, ctx))
 	| _ => raise Fail "Internal error: newMonA"
@@ -327,15 +327,15 @@ fun patSub s = patSubOcc (vref NONE) s
 *)
 fun pruneCtx e pruneType ss G =
 	let fun pruneCtx' ss [] = emptyCtx
-		  | pruneCtx' ss ((x, A, mode)::G) =
+		  | pruneCtx' ss ((x, A, modality)::G) =
 				if Subst.hdDef ss then
 					let val si = Subst.invert (Subst.shift 1)
 						val ss' = Subst.comp (Subst.comp (Subst.shift 1, ss), si)
 						val A' = pruneType (NfTClos (A, ss'))
-					in ctxCons (x, A', mode) (pruneCtx' ss' G) end
-				else if mode = SOME LIN then (* and hd ss = Undef *)
+					in ctxCons (x, A', modality) (pruneCtx' ss' G) end
+				else if modality = SOME LIN then (* and hd ss = Undef *)
 					raise e
-				else (* mode <> LIN and hd ss = Undef *)
+				else (* modality <> LIN and hd ss = Undef *)
 					pruneCtx' (Subst.comp (Subst.shift 1, ss)) G
 	in pruneCtx' ss (ctx2list G) end
 
@@ -424,7 +424,7 @@ fun pruneLVar (LogicVar {X, ty, ctx=ref (SOME G), cnstr, tag, ...}) =
 	in instantiate (X, NfClos (newNfLVarCtx G' ty', weakenSub), cnstr, tag) end end
   | pruneLVar _ = raise Fail "Internal error: pruneLVar: no lvar"
 
-(* linPrune : (unit -> string) -> nfObj * (subMode * int) list -> nfObj option *)
+(* linPrune : (unit -> string) -> nfObj * (subModality * int) list -> nfObj option *)
 (* tries to solve X[lcis2sub pl] = ob by linearity pruning,
  * returns the solution to X if successful *)
 fun linPrune errmsg (ob, pl) =
@@ -944,14 +944,14 @@ and unifyLVarLetPrefix em (p1, X1 as {X, ty, s, ctx=ref G, ...}, p, E2) =
 		val si = Subst.invert s
 		val p' = Subst.lcisComp (p, si) (* X[s][lcis2sub p] = X[lcis2sub p'][s] *)
 		(* FIXME: use ralist lookup *)
-		fun changeMode ((INT4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME INT)::G
-		  | changeMode ((AFF4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME AFF)::G
-		  | changeMode ((INT4AFF, 1), (x, A, SOME AFF)::G) = (x, A, SOME INT)::G
-		  | changeMode ((_, 1), _) = raise Fail "Internal error: changeMode: 1"
-		  | changeMode ((m, j), x::G) = x :: changeMode ((m, j-1), G)
-		  | changeMode (_, []) = raise Fail "Internal error: changeMode: []"
+		fun changeModality ((INT4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME INT)::G
+		  | changeModality ((AFF4LIN, 1), (x, A, SOME LIN)::G) = (x, A, SOME AFF)::G
+		  | changeModality ((INT4AFF, 1), (x, A, SOME AFF)::G) = (x, A, SOME INT)::G
+		  | changeModality ((_, 1), _) = raise Fail "Internal error: changeModality: 1"
+		  | changeModality ((m, j), x::G) = x :: changeModality ((m, j-1), G)
+		  | changeModality (_, []) = raise Fail "Internal error: changeModality: []"
 		(* G |- X, G' |- X[lcis2sub p'] *)
-		val G' = list2ctx $ foldl changeMode (ctx2list $ valOf G) p'
+		val G' = list2ctx $ foldl changeModality (ctx2list $ valOf G) p'
 		val (E2Y, (Y, qn, M2)) = splitLet G' si E2 0
 		val () = case Util.NfExpObjAuxDefs.prj2 E2Y of
 			  NfLet (_, _, NfLet _) => ()

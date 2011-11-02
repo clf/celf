@@ -128,7 +128,7 @@ struct
 	(**************************)
 
 	(* lciSub: linear-changing identity substitution (sorted by index) *)
-	type lciSub = (subMode * int) list
+	type lciSub = (subModality * int) list
 
 	fun coerce2s s = s  (* subtyping coercion *)
 	fun coerce2p_ s = s (* subtyping coercion *)
@@ -271,7 +271,7 @@ struct
 			  | sorted _ = true
 		in if sorted l then l else qsort' l [] end
 
-	(* modeDiv : Context.mode * Context.mode -> subMode *)
+	(* modeDiv : Context.mode * Context.mode -> subModality *)
 	(* modeDiv combines two flags to the combined representation
 	 * modeDiv f1 f2
 	 *  f1 : flag on variable

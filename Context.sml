@@ -25,9 +25,9 @@ structure RAList = RandomAccessList
 
 exception ExnCtx of string
 
-datatype mode = INT | AFF | LIN
-type cmode = mode option
-type 'a context = (string * 'a * cmode) RAList.ralist
+datatype modality = INT | AFF | LIN
+type cmodality = modality option
+type 'a context = (string * 'a * cmodality) RAList.ralist
 
 fun ctx2list ctx = RAList.toList ctx
 fun list2ctx ctx = RAList.fromList ctx
@@ -59,7 +59,7 @@ fun use _ (SOME INT) = SOME INT
   | use _ (SOME LIN) = NONE
   | use y NONE = raise ExnCtx ("Linear/affine variable "^y^" occurs in illegal position\n")
 
-(* ctxLookupNum : 'a context * int -> 'a context * mode * 'a *)
+(* ctxLookupNum : 'a context * int -> 'a context * modality * 'a *)
 (*fun ctxLookupNum (ctx, n) =
 	let fun ctxLookup' (i, ctxfront, []) = raise Fail "Internal error: End of context"
 		  | ctxLookup' (1, ctxfront, (x, A, f)::ctx) = (* getOpt = valOf because of "use" *)
@@ -71,7 +71,7 @@ fun ctxLookupNum (ctx, n) =
 		val ctxo = if f = SOME INT then ctx else RAList.update ctx (n-1) (x, A, use x f)
 	in (ctxo, valOf f, A) end
 
-(* ctxLookupName : 'a context * string -> (int * mode * 'a * 'a context) option *)
+(* ctxLookupName : 'a context * string -> (int * modality * 'a * 'a context) option *)
 fun ctxLookupName (ctx, y) =
 	let fun revAppend (xs, l) = foldl (uncurry RAList.cons) l xs
 		fun ctxLookup' (i, ctx, NONE) = NONE
@@ -81,7 +81,7 @@ fun ctxLookupName (ctx, y) =
 				else ctxLookup' (i+1, (x, A, f)::ctxfront, RAList.prj ctx)
 	in ctxLookup' (1, [], RAList.prj ctx) end
 
-(* ctxPush : string * mode * 'a * 'a context -> 'a context *)
+(* ctxPush : string * modality * 'a * 'a context -> 'a context *)
 fun ctxPush (x, m, A, ctx) = RAList.cons (x, A, SOME m) ctx
 
 (* ctxPushNO : 'a * 'a context -> 'a context *)

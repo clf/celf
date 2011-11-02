@@ -1,0 +1,185 @@
+% Kruskal's algorithm.
+% this time in Celf.
+% Author: Carsten Schürmann
+
+nat : type.
+z : nat.
+s : nat -> nat.
+
+node: type.
+isnode : node -> type.
+edge : nat -> node -> node -> type.
+
+
+le : nat -> nat -> type.
+le0 : le z N.
+les : le (s N) (s M)
+       <- le N M.
+
+add : nat -> nat -> nat -> type.
+add/z : add z N N.
+add/s : add (s M) N (s K)
+	 <- add M N K.
+
+ktree : type.
+component : (ktree -> {1}) -> type.
+itree : ktree -> node -> {1}.
+kedge : ktree -> nat -> node -> node -> {1}.
+
+
+% Find the minimal edge in a graph
+% Invariant: the context contains a complete graph
+min : nat -> node -> node -> type.
+mflag : type.
+min/edge : mflag -> edge N A B -o {min N A B}.
+min/min  : mflag -> min N A B -o min M _ _ -o le N M -> {min N A B}.
+
+% #query * 1 * 1 edge (s z) a b
+%   -o edge (s (s z)) b c
+%   -o edge (s (s z)) c a
+%   -o {min N A B}.
+
+kruskal : (ktree -> {1}) -> type.
+build : nat -> node -> node -> (ktree -> {1}) -> type.
+
+build/1 : build N A B C
+	   o- edge N A B
+	   o- isnode A
+	   o- isnode B
+	   o- (component (\!c. {let {1} = itree c A in
+			     let {1} = itree c B in
+			     let {1} = kedge c N A B in 1}) -@ kruskal C).
+
+build/2 : build N A B C
+	   o- edge N A B
+	   o- isnode A
+	   @- component (\!c. {let {1} = itree c B in
+			       let {1} = (K !c) in 1})
+	   o- (component (\!c. {let {1} = itree c B in
+				let {1} = itree c A in
+				let {1} = kedge c N A B in
+				let {1} = (K !c) in 1})  -@ kruskal C).
+
+build/3 : build N A B C
+	   o- edge N A B
+	   o- isnode B
+	   @- component (\!c. {let {1} = itree c A in
+			       let {1} = (K !c) in 1})
+	   o- (component (\!c. {let {1} = itree c A in
+				let {1} = itree c B in
+				let {1} = kedge c N A B in
+				let {1} = (K !c) in 1})  -@ kruskal C).
+
+build/4 : build N A B C
+	   o- edge N A B
+	   @- component (\!c. {let {1} = itree c A in
+			       let {1} = itree c B in
+			       let {1} = (K !c) in 1})
+	   o- (component (\!c. {let {1} = itree c A in
+			        let {1} = itree c B in
+			        let {1} = (K !c) in 1}) -@ kruskal C).
+
+build/5 : build N A B C
+	   o- edge N A B
+	   @- component (\!c. {let {1} = itree c A in
+			       let {1} = (K1 !c) in 1})
+	   @- component (\!c. {let {1} = itree c B in
+			       let {1} = (K2 !c) in 1})
+	   o- (component (\!c. {let {1} = itree c A in
+			        let {1} = itree c B in
+				let {1} = kedge c N A B in
+			        let {1} = (K1 !c) in
+			        let {1} = (K2 !c) in 1}) -@ kruskal C).
+
+run : kruskal C
+       o- (mflag -> {min N A B}) & build N A B C.
+
+stop  : kruskal C
+	 @- component C.
+
+a : node.
+b : node.
+c : node.
+
+#query * * * 1
+     isnode a
+  -@ isnode b
+  -@ isnode c
+  -@ edge (s (s (s z))) a b
+  -o edge (s (s z)) b c
+  -o edge (s (s (s (s z)))) c a
+  -o kruskal C.
+
+d : node.
+e : node.
+f : node.
+g : node.
+
+
+zero : nat = z.
+one : nat = s zero.
+two : nat = s one.
+three : nat = s two.
+four : nat = s three.
+five : nat = s four.
+six : nat = s five.
+seven : nat = s six.
+eight : nat = s seven.
+nine : nat = s eight.
+ten : nat = s nine.
+eleven : nat = s ten.
+twelve : nat = s eleven.
+thirteen : nat = s twelve.
+fourteen : nat = s thirteen.
+fifteen : nat = s fourteen.
+
+#query * * * 1
+     isnode a
+  -@ isnode b
+  -@ isnode c
+  -@ isnode d
+  -@ isnode e
+  -@ isnode f
+  -@ isnode g
+  -@ edge seven a b
+  -o edge five a d
+  -o edge nine d b
+  -o edge eight b c
+  -o edge seven b e
+  -o edge five c e
+  -o edge fifteen d e
+  -o edge six d f
+  -o edge eight e f
+  -o edge eleven f g
+  -o edge nine e g
+  -o kruskal C.
+
+
+solution : ktree -> {1} = \!X1. {
+    let {1} = itree !X1 !d in
+    let {1} = itree !X1 !e in
+    let {1} = itree !X1 !f in
+    let {1} = itree !X1 !g in
+    let {1} = kedge !X1 !(s !(s !(s !(s !(s !(s !(s !(s !(s !z))))))))) !e !g in
+    let {1} = itree !X1 !b in
+    let {1} = itree !X1 !c in
+    let {1} = kedge !X1 !(s !(s !(s !(s !(s !(s !(s !z))))))) !b !e in
+    let {1} = itree !X1 !a in
+    let {1} = kedge !X1 !(s !(s !(s !(s !(s !(s !(s !z))))))) !a !b in
+    let {1} = kedge !X1 !(s !(s !(s !(s !(s !(s !z)))))) !d !f in
+    let {1} = kedge !X1 !(s !(s !(s !(s !(s !z))))) !a !d in
+    let {1} = kedge !X1 !(s !(s !(s !(s !(s !z))))) !c !e in 1}.
+
+
+weight : (ktree -> {1}) -> nat -> type.
+weight/done : weight (\!c. {1}) z.
+weight/itree : weight (\!c. {let {1} = itree c _ in
+                             let {1} = (C !c) in 1}) N
+   <- weight C N.
+weight/kedge : weight (\!c. {let {1} = kedge c N _ _ in
+                             let {1} = (C !c) in 1}) K
+   <- weight C M
+   <- add N M K.
+
+#query * * 1 1 weight solution N.
+

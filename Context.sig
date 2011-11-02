@@ -23,13 +23,13 @@ sig
 exception ExnCtx of string
 
 (* NONE means used; we never need to distinguish used affine and used linear *)
-datatype mode = INT | AFF | LIN
-type cmode = mode option
+datatype modality = INT | AFF | LIN
+type cmodality = modality option
 type 'a context
 
-val ctx2list : 'a context -> (string * 'a * cmode) list
-val list2ctx : (string * 'a * cmode) list -> 'a context
-val ctxCons : (string * 'a * cmode) -> 'a context -> 'a context
+val ctx2list : 'a context -> (string * 'a * cmodality) list
+val list2ctx : (string * 'a * cmodality) list -> 'a context
+val ctxCons : (string * 'a * cmodality) -> 'a context -> 'a context
 val ctxMap : ('a -> 'b) -> 'a context -> 'b context
 
 val ctxLength : 'a context -> int
@@ -39,10 +39,10 @@ val emptyCtx : 'a context
 val ctxIntPart : 'a context -> 'a context
 val ctxAffPart : 'a context -> 'a context
 
-val ctxLookupNum : 'a context * int -> 'a context * mode * 'a
-val ctxLookupName : 'a context * string -> (int * mode * 'a * 'a context) option
+val ctxLookupNum : 'a context * int -> 'a context * modality * 'a
+val ctxLookupName : 'a context * string -> (int * modality * 'a * 'a context) option
 
-val ctxPush : string * mode * 'a * 'a context -> 'a context
+val ctxPush : string * modality * 'a * 'a context -> 'a context
 val ctxPushNO : 'a * 'a context -> 'a context
 val ctxCondPushINT : string option * 'a * 'a context -> 'a context
 val ctxPop : 'a context -> 'a context

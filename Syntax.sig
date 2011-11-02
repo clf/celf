@@ -21,14 +21,14 @@ signature TLU_SYNTAX = TOP_LEVEL_UTIL
 signature SYNTAX_CORE1 =
 sig
 
-(* subMode is the combination of the two flags occurring on variables
+(* subModality is the combination of the two flags occurring on variables
  * in substitutions:
  * ID is either II, AA, or LL (we never need to distinguish these cases)
  * INT4LIN is IL, i.e. substituting an intuitionistic var for a linear one
  * INT4AFF is IA, i.e. substituting an intuitionistic var for an affine one
  * AFF4LIN is AL, i.e. substituting an affine var for a linear one
  *)
-datatype subMode = ID | INT4LIN | INT4AFF | AFF4LIN
+datatype subModality = ID | INT4LIN | INT4AFF | AFF4LIN
 
 type kind
 type asyncType
@@ -64,7 +64,7 @@ type 'a substi
 type patSubst = pat substi (* pattern substitutions *)
 type pat_Subst = pat_ substi (* pattern substitutions with potential Undefs *)
 type subst = gen substi (* general substitutions *)
-datatype subObj = Ob of Context.mode * nfObj | Idx of subMode * int | Undef
+datatype subObj = Ob of Context.modality * nfObj | Idx of subModality * int | Undef
 
 datatype constr
 	= Solved
@@ -72,7 +72,7 @@ datatype constr
 	| Exist of nfObj * (unit -> string)
 datatype 'aTy headF
 	= Const of string
-	| Var of Context.mode * int
+	| Var of Context.modality * int
 	| UCVar of string
 	| LogicVar of {
 		X     : nfObj option VRef.vref,
@@ -174,7 +174,13 @@ datatype decl = ConstDecl of string * int * typeOrKind
 	| Query of int option * int option * int option * int * asyncType
 	| Mode of string * modeDecl option * modeDecl
 
-datatype declError = TypeErr | KindErr | AmbigType | UndeclId | GeneralErr
+datatype declError =
+   TypeErr 
+ | KindErr 
+ | AmbigType 
+ | UndeclId 
+ | ModeErr
+ | GeneralErr
 exception ExnDeclError of declError * string
 
 val KClos : kind * 'a substi -> kind
@@ -238,7 +244,7 @@ structure TPatternRec : REC where type 't T.F = (unit, string option, 't) patter
 structure Subst : sig
 	exception ExnUndef
 	(* lciSub: linear-changing identity substitution (sorted by index) *)
-	type lciSub = (subMode * int) list
+	type lciSub = (subModality * int) list
 	val id : 'a substi
 	val coerce2s : 'a substi -> subst     (* subtyping coercion *)
 	val coerce2p_ : patSubst -> pat_Subst (* subtyping coercion *)
@@ -253,9 +259,9 @@ structure Subst : sig
 	val shiftHead : 'aTy headF * int -> 'aTy headF
 	val switchSub : int * int -> patSubst
 	val intersect : pat_Subst -> patSubst
-	val intersection : ((Context.mode * int, nfObj) sum * nfObj -> bool) -> subst * subst -> patSubst
+	val intersection : ((Context.modality * int, nfObj) sum * nfObj -> bool) -> subst * subst -> patSubst
 	val invert : pat_Subst -> pat_Subst
-	val patSub : (nfObj -> nfObj * bool) -> (exn -> nfObj -> Context.mode * int) ->
+	val patSub : (nfObj -> nfObj * bool) -> (exn -> nfObj -> Context.modality * int) ->
 			subst -> (lciSub * pat_Subst) option
 	val lcisComp : lciSub * pat_Subst -> lciSub
 	val lcis2sub : lciSub -> (*lcPat*)subst
@@ -403,7 +409,7 @@ val nfredex : nfObj * nfSpine -> nfObj
 val nfletredex : opattern * nfObj * nfExpObj -> nfExpObj
 
 
-val EtaTag : obj * (Context.mode * int) -> obj
+val EtaTag : obj * (Context.modality * int) -> obj
 
 
 structure ApxKind : TYP2 where type ('a, 't) F = ('a, 't) apxKindFF
@@ -519,7 +525,7 @@ val unnormalizeSyncType : nfSyncType -> syncType
 val unnormalizeObj : nfObj -> obj
 val unnormalizeExpObj : nfExpObj -> expObj
 
-val etaShortcut : nfObj -> (Context.mode * int) option
+val etaShortcut : nfObj -> (Context.modality * int) option
 
 structure Signatur : sig
 	val resetSig : unit -> unit

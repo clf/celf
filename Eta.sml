@@ -30,7 +30,7 @@ val traceEta = ref false
 
 type context = apxAsyncType context
 
-(* etaContract : exn -> nfObj -> mode * int *)
+(* etaContract : exn -> nfObj -> modality * int *)
 (* assumes that ob does not contain _
  * etaContract e ob = (m, n)
  * ob == Var (m, n)
@@ -38,7 +38,7 @@ type context = apxAsyncType context
 fun etaContract e ob =
 	let datatype etaSpine = LAp of opattern | Pl | Pr
 		fun nbindsSp sp = foldl (fn (LAp p, n) => n + nbinds p | (_, n) => n) 0 sp
-		fun eq ((x : mode * int), y) = if x=y then x else raise e
+		fun eq ((x : modality * int), y) = if x=y then x else raise e
 		fun etaEqC (ob, x) = ignore $ eq (etaC (ob, []), x)
 		and etaC (ob, sp) = case etaShortcut ob of NONE => etaC' (ob, sp) | SOME k => k
 		and etaC' (ob, sp) = case NfObj.prj ob of
