@@ -82,6 +82,7 @@ ws = [\ \t];
 "@-" => (Tokens.BACKAFFLOLLI(getpos yypos,getpos yypos));
 "+" => (Tokens.PLUS(getpos yypos,getpos yypos));
 "-" => (Tokens.MINUS(getpos yypos,getpos yypos));
+"-D" => (Tokens.MINUSD(getpos yypos,getpos yypos));
 [0-9]+ => (number (yytext,getpos yypos));
 [-a-zA-Z0-9<>=/|_'*#+&~;$?]+ => (keyword (yytext,getpos yypos));
 . => (let val (l,c) = getpos(yypos) in

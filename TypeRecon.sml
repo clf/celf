@@ -169,9 +169,10 @@ fun reconstructDecl (ldec as (_, dec)) =
                         val () =
                             case dec of
                                 ConstDecl (id,_,Ty ty) =>
-                                  if ModeCheck.isNeeded ty
-                                  then ModeCheck.modeCheckDecl ty
-                                  else ()
+                                  ( if ModeCheck.isNeeded ty
+                                    then ModeCheck.modeCheckDecl ty
+                                    else ()
+                                  ; DestCheck.destCheckDecl (Syntax.normalizeType ty))
                               | _ => ()
 
 			val () = case dec of

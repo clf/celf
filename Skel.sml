@@ -60,7 +60,7 @@ fun asyncPatterns tyA =
       in
          map (fn (skel2, patCtx2, head) =>
                  (LApp (skel1, skel2), patCtx1 @ patCtx2, head))
-            (asyncPatterns tyA)
+            (asyncPatterns tyA2)
       end 
     | Syntax.AddProd (tyA1, tyA2) => 
       let
