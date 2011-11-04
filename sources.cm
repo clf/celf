@@ -65,6 +65,8 @@ ModeDec.sig
 ModeDec.sml
 ModeCheck.sig
 ModeCheck.sml
+Skel.sig
+Skel.sml
 TypeRecon.sig
 TypeRecon.sml
 main.sml
