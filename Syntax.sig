@@ -164,7 +164,8 @@ val with's :
 		ctx : 'aTy Context.context option ref,
 		cnstr : constr VRef.vref list VRef.vref, tag : word }
 
-datatype mode = Plus | Minus | Star
+datatype modeModifier = Normal | Destination
+datatype mode = Plus | Minus of modeModifier | Star
 type modeDecl = mode list
 
 datatype typeOrKind = Ty of asyncType | Ki of kind

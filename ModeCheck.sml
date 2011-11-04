@@ -397,7 +397,7 @@ fun bwdHead (ctx, sp, m) =
         (TNil, []) => ctx
       | (TApp (N,S), (h::t)) => let val ctx' = case h of
                                                    Plus => gInferObj (ctx, N)
-                                                 | Minus => gObligObj (ctx, N)
+                                                 | Minus _ => gObligObj (ctx, N)
                                                  | Star => raise Fail "Internal error: * mode in bwdHead"
                                     val ctx'' = bwdHead (ctx, S, t)
                                 in
@@ -412,7 +412,7 @@ fun goalAtomic (ctx, sp, m) =
         (TNil, []) => ctx
       | (TApp (N,S), (h::t)) => let val ctx' = case h of
                                                    Plus => (gCheckObj (ctx,N); ctx)
-                                                 | Minus => gInferObj (ctx, N)
+                                                 | Minus _ => gInferObj (ctx, N)
                                                  | Star => raise Fail "Internal error: * mode in goalAtomic"
                                     val ctx'' = goalAtomic (ctx, S, t)
                                 in

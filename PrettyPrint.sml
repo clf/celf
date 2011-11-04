@@ -186,7 +186,8 @@ and pTPattern bctx p = case Pattern.prj p of
 	| PBang (SOME x) => let val (x', bctx') = add x bctx in (["!"^x'], bctx', true) end
 
 fun printMode Plus = "+"
-  | printMode Minus = "-"
+  | printMode (Minus Normal) = "-"
+  | printMode (Minus Destination) = "-D"
   | printMode Star = "*"
 
 val printKind = String.concat o (pKind [])

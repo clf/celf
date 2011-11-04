@@ -56,7 +56,7 @@ type mcontext = (mode * Arg) list
  *)
 fun modeConsistent (Star, _) = raise Fail "Internal error: declared mode *"
       | modeConsistent (_, Star) = raise Fail "Internal error: declared mode *2"
-      | modeConsistent (Minus, Plus) = false   (* m1 should be Plus *)
+      | modeConsistent (Minus _, Plus) = false   (* m1 should be Plus *)
       | modeConsistent _ = true
 
 (* fun empty : int * mcontext * kind -> (mcontext, kind)

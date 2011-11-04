@@ -35,7 +35,7 @@ fun getline (line, ch) = line
 	| LANGLE | RANGLE | COMMA | LET | EQUAL | IN | PROJLEFT | PROJRIGHT
 	| LBRACKET | RBRACKET | ARROW | BACKARROW | LPAREN | RPAREN | EOF
 	| QUERY | NUM of int | LPI | LEXISTS | AFFLOLLI | BACKAFFLOLLI | BANG | AFF | APP
-        | MODE | PLUS | MINUS
+        | MODE | PLUS | MINUS | MINUSD
 
 %nonterm Kind of Syntax.kind | AsyncType of Syntax.asyncType
 	| UnifiedType of Parse.unifiedType
@@ -92,6 +92,7 @@ Decl :
 Id :      ID               ( ID )
         | PLUS             ( "+" )
         | MINUS            ( "-" )
+        | MINUSD           ( "-D" )
 
 ModeDecl :
           OneMode ModeDecl ( OneMode :: ModeDecl )
@@ -99,7 +100,8 @@ ModeDecl :
 
 OneMode :
           PLUS  ( Syntax.Plus )
-        | MINUS ( Syntax.Minus )
+        | MINUS ( Syntax.Minus Syntax.Normal )
+        | MINUSD ( Syntax.Minus Syntax.Destination )
 
 Number :
 	  ONE ( 1 )

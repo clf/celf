@@ -163,7 +163,8 @@ and typeLogicVar = (*apx*)asyncType option ref * word
 
 type 'a substi = subst'
 
-datatype mode = Plus | Minus | Star
+datatype modeModifier = Normal | Destination
+datatype mode = Plus | Minus of modeModifier | Star
 type modeDecl = mode list
 
 datatype typeOrKind = Ty of asyncType | Ki of kind
