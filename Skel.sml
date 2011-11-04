@@ -37,10 +37,10 @@ fun syncPatterns (pat, tyS) =
          val (skel1, patCtx1) = syncPatterns (pat1, tyS1)
          val (skel2, patCtx2) = syncPatterns (pat2, tyS2)
       in
-       ( print ("Strange case: overlapping patterns.\n")
+       ( (*print ("Strange case: overlapping patterns.\n")
        ; print ("Pattern in externally-bound pattern: "^patString pat1^"\n")
        ; print ("Pattern in internally-bound pattern: "^patString pat1'^"\n\n")
-       ; (DepPair (skel1, skel2), patCtx1 @ patCtx2))
+       ; *)(DepPair (skel1, skel2), patCtx1 @ patCtx2))
       end
     | (Syntax.POne, Syntax.TOne) => 
          (One, [])
