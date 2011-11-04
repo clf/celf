@@ -1,0 +1,59 @@
+-- requires simple-types.l10
+
+-- index, indexStructured, indexSearched, indexBound, and transfers (EDB)
+{-
+index P I:
+  - "p: {x0:A0}...{xN:AN} type" is in the signature and 0 <= I <= N
+
+indexStructured C P I
+  - in the monadic head of "C", there is a conclusion "P X0 ... XI ... XN"
+    where "XI" is a structured term (not a universally or existentially bound
+    variable)
+
+indexSearched C P I
+  - in the mondaic head of "C", there is a conclusion "P X0 ... XI ... XN"
+    where "XI" is not bound in a positive proposition in the premise (positive
+    defined according to posAtom in polarity.l10)
+
+indexBound C P I
+  - in the monadic head of "C", there is a conclusion "P X0 ... XI ... XN" 
+    where "XI" is existentially bound in the head.
+
+transfers C P I P' I'
+  - 
+this means anything that is
+1) not bound in a "dest" 
+
+-}
+
+wDestInfo: world.
+index: predicate -> nat -> rel @ wDestInfo.
+indexStructured: constructor -> predicate -> nat -> rel @ wDestInfo.
+indexSearched: constructure -> predicate -> 
+
+transfers: constant -> predicate -> nat -> predicate -> nat -> rel @ wDest.
+
+{- These rules are critical to the whole point of what we want from nonDest -}
+index P I, not (posAtom P) -> nonDest P I.
+indexStructured C P I -> nonDest P I. 
+
+{- 
+This could be relaxed; imagine "c: f X -o g X -o {h X}" where "dest f 0" will
+eventually hold but "notDest g 0" will eventually hold: we'll have both
+"transfers c f 1 h 1" and "transfers c g 1 h 1". 
+-}
+nonDest P I, transfers _ P I P' I' -> nonDest P' I'.
+
+{- This could be relaxed; imagine "f X -o id X Y -o {g Y}" -}
+indexSearched C P I -> nonDest P I. 
+
+-- notDest 
+
+-- dest (EDB) - the negation of nonDest
+wDest: world.
+dest: predicate -> nat -> rel @ wDest.
+
+index P I, not (nonDest P I) -> dest P I.
+
+{-# QUERY dest dest + + #-}
+{-# QUERY dests dest + - #-}

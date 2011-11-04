@@ -1,0 +1,15 @@
+-- requires simple-types.l10
+-- requires simple-heads.l10
+-- requires subordination.l10
+
+-- Positive polarity (IDB)
+
+wPosAtom: world.
+posAtom: predicate -> rel @ wPosAtom.
+
+typ Q, 
+subord (atomic Q) monadic, 
+not (subord _ (atomic Q)) 
+  -> posAtom Q.
+
+{-# QUERY posAtoms posAtom - #-}

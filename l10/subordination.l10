@@ -1,0 +1,50 @@
+-- requires simple-types.l10
+-- requires simple-heads.l10
+
+-- Propositional subordination (IDB)
+
+wSubordS: pos -> world.
+wSubordA: neg -> world.
+subordS: {S: pos} {H1: hd} {H2: hd} rel @ wSubordS S.
+subordA: {A: neg} {H1: hd} {H2: hd} rel @ wSubordA A.
+
+-- Key rule: the head of a premise is subordinate to the head of a conclusion
+headS S H1, headA A H2
+  -> subordA (lolli S A) H1 H2.
+
+-- These other rules just look through a signature constant looking for
+-- subordination information to learn. 
+subordA A H1 H2 -> subordS (down P A) H1 H2.
+subordS S H1 H2 -> subordS (tensor S S2) H1 H2.
+subordS S H1 H2 -> subordS (tensor S1 S) H1 H2.
+subordS S H1 H2 -> subordA (monad S) H1 H2.
+subordA A H1 H2 -> subordA (lolli S A) H1 H2.
+subordS S H1 H2 -> subordA (lolli S A) H1 H2.
+
+{-# QUERY subordA subordA + - - #-}
+
+-- Head subordination (EDB)
+{-
+We'd like to be able to compute signature subordination as an IDB, but we run
+into the same probelm we did with the "headC" rule, because we want the 
+following:
+
+con C A, 
+subordA A H1 H2
+ -> subord H1 H2.
+
+Again, this would require con C A to "output" an A during backward search. 
+The fix is a relatively pleasing pattern, however: it's unproblematic to use
+the ML program as the outer level of proof search: when we get a new signature
+constant, we run the "subordA" query and populate the "subord" database with
+the facts we learn.
+-}
+
+wSubord: world.
+subord: hd -> hd -> rel @ wSubord.
+
+subord H1 H2, subord H2 H3 -> subord H1 H3.
+
+{-# QUERY subord subord + + #-}
+{-# QUERY subordToMe subord + - #-}
+{-# QUERY imSubordTo subord - + #-}

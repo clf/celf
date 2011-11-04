@@ -1,0 +1,74 @@
+-- requires simple-types.l10
+
+-- Heads (IDB)
+{-
+If right-positive focused or right-negative inverting, the end result will be 
+one or more stable sequents (a negative atomic proposition or a lax judgment). 
+By a similar token, if left-negative-focused, the left-focus will eventually 
+blur (requiring that the conclusion be lax) or reach a negative atomic 
+proposition (requiring that that negative atomic proposition be at the head). 
+These "ultimate outcomes" are the head(s) of the proposition, and are 
+calculuated by these relations.
+-}
+
+-- Heads can be monadic or atomic
+hd: type.
+monadic: hd.
+atomic: predicate -> hd.
+
+wPartS: pos -> world.
+wPartA: neg -> world.
+headS: {S: pos} {H: hd} rel @ wPartS S.
+headA: {A: neg} {H: hd} rel @ wPartA A.
+premA: {A: neg} {H: hd} rel @ wPartA A.
+inHeadA: {A: neg} {H: hd} rel @ wPartA A.
+inHeadS: {S: pos} {H: hd} rel @ wPartS S.
+
+{-# QUERY heads headA + - #-}
+{-# QUERY headheads inHeadA + - #-}
+
+headA (atom Q) (atomic Q). -- write S where appropriate here (and elsewhere)
+headA (monad B) monadic.
+headA A H -> headA (lolli _ A) H.
+headA A H -> headA (with A _) H.
+headA A H -> headA (with _ A) H.
+
+headA A H -> headS (down _ A) H.
+headS A H -> headS (tensor A _) H.
+headS A H -> headS (tensor _ A) H.
+
+headS A H -> premA (lolli A _) H.
+premA A H -> premA (lolli _ A) H.
+premA A H -> premA (with A _) H.
+premA A H -> premA (with _ A) H.
+
+{-
+It would be nice do write the following as something like
+headA A (monadic B), headS B H -> inHead A H.
+but we can't do that; that's a backtracking logic programming.
+-}
+
+headS A H -> inHeadA (monad A) H.
+inHeadS A H -> inHeadA (monad A) H.
+inHeadA A H -> inHeadA (lolli _ A) H.
+inHeadA A H -> inHeadA (with A _) H.
+inHeadA A H -> inHeadA (with _ A) H.
+
+inHeadA A H -> inHeadS (down _ A) H.
+inHeadS A H -> inHeadS (tensor A _) H.
+inHeadS A H -> inHeadS (tensor _ A) H.
+
+{-
+How could L10 handle the following gracefully?
+
+con C A, headA A H -> head C H.
+con C A, premA A H -> prem C H.
+con C A, inHeadA A H -> inHead C H.
+
+It's a bit of a conflict for the demand-driven model of L10.
+-}
+
+wPart: world.
+head: constant -> hd -> rel @ wPart.
+prem: constant -> hd -> rel @ wPart.
+inHead: constant -> hd -> rel @ wPart.

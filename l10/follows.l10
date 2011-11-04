@@ -1,0 +1,62 @@
+
+-- Conditional (IDB)
+{-
+conditional P
+ - Atomic propositions of the form "P" are never introduced into the context,
+   and so are effectively potential "Anders trick" enablers that distinguish
+   signatures by the existance of a specific persistant proposition.
+
+We could specifiy conditionals, since this approach will lead to wasted 
+computation in that essentially all first-order terms will be treated as 
+conditionals.
+-}
+
+wCond: world.
+conditional: predicate -> rel @ wCond.
+posAtom P, not (inHead _ (atomic P)), not (head _ (atomic P)) -> conditional P.
+
+-- Followers and conditional followers (IDB)
+{-
+follows Q1 Q2
+ - Holds if Q1 could possibly be part of a causal chain leading to Q2. 
+   Conversely, if Q2 appears in a result context, it wasn't there in
+   the beginning but Q1 was, if and "follows Q1 Q2" does not hold then
+   Q1's existance or not is irrelevant to the presence of Q2 later on.
+
+Proposition:
+If
+  x:a, Delta ~~> y:b, Delta'
+then either
+  Exists ep1, ep2, Delta''
+    ep = ep1 o ep2
+    ep1: x:a, Delta ~~> x:a, y,b, Delta''
+    ep2: x:a, y,b, Delta'' ~~> y:b, Delta'
+or 
+  follows a b
+
+condFollows Pcond Q1 Q2
+ - A refinement of the follows relation that only cares about the situation
+   in which the conditional Pcond is also active in the context.
+-}
+
+wFollow: world.
+follows: predicate -> predicate -> rel @ wFollow.
+condFollows: predicate -> predicate -> predicate -> rel @ wFollow.
+
+prem C (atomic Q1),
+inHead C (atomic Q2) 
+ -> follows Q1 Q2.
+
+follows Q1 Q2, 
+follows Q2 Q3 
+ -> follows Q1 Q3.
+
+prem C (atomic Pcond), 
+prem C (atomic Q1), 
+inHead C (atomic Q2)
+ -> condFollows Pcond Q1 Q2.
+
+condFollows Pcond Q1 Q2,
+condFollows Pcond Q2 Q3
+ -> condFollows Pcond Q1 Q3.
+

@@ -1,0 +1,16 @@
+
+-- Conditional (EDB)
+{-
+I should be able to calculate the dependency as follows:
+
+-}
+
+wCond: world.
+conditional: predicate -> rel @ wCond.
+posAtom P, not (inHead _ P) -> conditional P.
+
+
+posAtom P, head 
+
+con C A,
+prem A (
