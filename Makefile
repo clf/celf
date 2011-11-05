@@ -12,5 +12,6 @@ smlnj: *.sml *.sig */*.sml */*.sig *.cm
 	./.mkexec `which sml` `pwd` celf
 
 install: 
+	rm -Rf $(DESTDIR)/bin/celf.new
 	cp celf $(DESTDIR)/bin/celf.new
-	mv $(DESTDIR)/bin/celf.new $(DESTDIR)/bin/twelf-server
+	mv $(DESTDIR)/bin/celf.new $(DESTDIR)/bin/celf

@@ -3,6 +3,12 @@ Celf README
 Celf can be compiled with several different ML compilers.
 Here is instructions for a few of them:
 
+To compile with Smackage:
+
+      $ smackage get celf
+      $ smackage make celf smlnj (or mlton)
+      $ smackage make celf install
+
 To compile Celf with SML/NJ:
 
 1. Compile the source into a heapimage (.heapimg.<arch>-<opsys>):
