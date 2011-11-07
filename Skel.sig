@@ -18,10 +18,9 @@ datatype asyncSkel =
  | ProjLeft of asyncSkel
  | ProjRight of asyncSkel
 
-type patternCtx = (string option * Syntax.nfAsyncType * Context.modality) list
+type patCtx = (string option * Syntax.nfAsyncType * Context.modality) list
 
 (* "Patterns" decomposes an asynchronous type into its skeleton *)
-val patterns: 
-   Syntax.nfAsyncType -> (asyncSkel * patternCtx * head) list
+val patterns: Syntax.nfAsyncType -> (asyncSkel * patCtx * head) list
 
 end
