@@ -37,6 +37,8 @@ fun syncPatterns (pat, tyS) =
          val (skel1, patCtx1) = syncPatterns (pat1, tyS1)
          val (skel2, patCtx2) = syncPatterns (pat2, tyS2)
       in
+       (* In this case, "pat1" and "pat1'" essentially overlap. However, in
+        * terms of the  *)
        ( (*print ("Strange case: overlapping patterns.\n")
        ; print ("Pattern in externally-bound pattern: "^patString pat1^"\n")
        ; print ("Pattern in internally-bound pattern: "^patString pat1'^"\n\n")

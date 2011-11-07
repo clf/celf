@@ -12,8 +12,11 @@ c2: (EXISTS [!X,!Y] : !nat * !nat. foo X Y) -o bar X Y.
 c3: (EXISTS [!X,!_] : !nat * !foo X X. 1) -o bar X Y.
 c4: (EXISTS [!X,[!Y,!_]] : !nat * (EXISTS !Z : !nat. !foo Y Z). 1) -o bar X Y.
 c5: (EXISTS [!Y,!_] : (EXISTS !Z : !nat. !foo Y Z). 1) -o bar Z Y.
-
 c6: PI [!X, _] : Exists Y. foo Y Y. bar X X.
+c7: PI [!x, [!y, _]] : (Exists x. Exists y. foo x x). bar y y.
+c8: PI [!x, [!y, _]] : (Exists x. Exists y. foo x y). bar y y.
+c9: PI [!x, [!y, _]] : (Exists x. Exists y. foo x x). bar x y.
+cA: PI [!x, [!y, _]] : (Exists x. Exists y. foo x y). bar x y.
 
 a: foo z z.
 b: bar X X -> type.
