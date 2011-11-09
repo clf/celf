@@ -4,6 +4,7 @@ s: nat -> nat.
 
 foo: nat -> nat -> type.
 bar: nat -> nat -> type.
+baz: type.
 
 c0: (EXISTS !X : !nat. foo X X) -o bar X X.
 c0': PI !X : !nat. foo X X -o bar X X.
@@ -17,6 +18,10 @@ c7: PI [!x, [!y, _]] : (Exists x. Exists y. foo x x). bar y y.
 c8: PI [!x, [!y, _]] : (Exists x. Exists y. foo x y). bar y y.
 c9: PI [!x, [!y, _]] : (Exists x. Exists y. foo x x). bar x y.
 cA: PI [!x, [!y, _]] : (Exists x. Exists y. foo x y). bar x y.
+cB: PI [!x, [!y, _]] : (Exists x. Exists y. foo y y). baz -@ bar x y.
+cC: PI [!x, [!y, _]] : (Exists x. Exists y. foo y y). 
+      ( (baz -> baz -o baz -@ bar x x)
+      & (Pi z. bar x z)).
 
 a: foo z z.
 b: bar X X -> type.

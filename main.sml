@@ -96,7 +96,7 @@ fun parseArgs args = case args of
 				^" -te     : trace eta expansion\n"
 				^" -tt     : trace exact type reconstruction\n"
 				^" -tu     : trace unifications\n"
-				^" -tpL    : trace proof search (L = 1, 2 or 3)\n"
+				^" -tpL    : trace proof search (L = 1, 2 or 3)\n" 
 				^" -hquery : show help on queries\n")
 		; "" )
 	| "-hquery"::_ =>

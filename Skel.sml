@@ -160,10 +160,11 @@ let
      | f (SOME x, tyA, Context.INT) = x ^ ": " ^ asyncTypeString tyA
      | f _ = raise Fail "context formation: Skel.patterns"
 in
- ( app (fn (skel, patCtx, head) => 
-         ( print ("\nSkeleton:        " ^ asyncString skel ^ "\
-                  \\nPattern context: " ^ concat (map f patCtx) ^ "\
-                  \\nHead type:       " ^ headString head ^ "\n")))
+ ( print "\n=====\n"
+ ; app (fn (skel, patCtx, head) => 
+         ( print ("Skeleton:        " ^ asyncString skel ^ "\
+                 \\nPattern context: " ^ concat (map f patCtx) ^ "\
+                 \\nHead type:       " ^ headString head ^ "\n")))
        pats
  ; pats)
 end
