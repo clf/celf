@@ -111,6 +111,7 @@ fun parseArgs args = case args of
 		; "" )
 	| f::_ => f
 
+(* Regular invocation of Celf; called from celfMain and celfRegression *)
 fun celfMain' args =
 	let val () = print "Celf ver 2.7. Copyright (C) 2011\n"
 		val filename = parseArgs args
@@ -126,11 +127,16 @@ fun celfMain' args =
 		val () = TypeRecon.reconstructSignature result
 	in OS.Process.success end end
 
-(* Regression testing infrastructure *)
+(* Regression testing infrastructure; invoked from celfMain if the first
+ * command-line argument to celf is "regression". *)
 fun celfRegression args = 
 let
    datatype result = 
-      Success | Err of Syntax.declError | QueryFailed | ParseErr
+      Success 
+    | Err of Syntax.declError
+    | QueryFailed 
+    | ParseErr 
+    | DoubleCheck of result
 
    fun parse arg = 
       case arg of
@@ -156,6 +162,9 @@ let
        | Err Syntax.GeneralErr => "generalErr"
        | QueryFailed => "queryFailed"
        | ParseErr => "parseErr"
+       | DoubleCheck outcome => "DOUBLE-CHECK FAILURE: " ^ str outcome
+
+   fun printErr s = TextIO.output (TextIO.stdErr, s)
 
    fun getOutcome args = 
     ( Syntax.Signatur.resetSig ()
@@ -168,22 +177,27 @@ let
 
    fun test (outcome, args) =
    let
-      val () = TextIO.output (TextIO.stdErr
-                              , "celf " ^ String.concatWith " " args 
-                                ^ " (expecting `"^str outcome^"')... ") 
-      val outcome' = getOutcome args 
+      val () = printErr ("celf " ^ String.concatWith " " args 
+                         ^ " (expecting `"^str outcome^"')... ") 
+      val outcome'' = 
+         case getOutcome args of 
+            Success => 
+             ( printErr "doublecheck... "
+             ; case getOutcome ("-d" :: args) of
+                  Success => Success
+                | out => DoubleCheck out)
+          | outcome' => outcome'
    in
-      if outcome = outcome' 
-      then ( TextIO.output (TextIO.stdErr, "yes\n")
-           ; NONE)
-      else ( TextIO.output (TextIO.stdErr, "failed, got `"^str outcome'^"'\n")
-           ; SOME (args, "expected `"^str outcome^"`, got `"^str outcome'^"'"))
+      if outcome = outcome''
+      then (printErr "yes\n"; NONE)
+      else ( printErr ("failed, got `"^str outcome''^"'\n")
+           ; SOME (args, "expected `"^str outcome^"`, got `"^str outcome''^"'"))
    end
    handle exn => 
-           ( TextIO.output (TextIO.stdErr, "failed, got unexpected error\n")
+           ( printErr "failed, got unexpected error\n"
            ; SOME (args, "expected `" ^ str outcome ^ "', got unexpected \
                              \failure `" ^ exnMessage exn ^ "'"))
-
+ 
    fun testfile file accum = 
    let fun mapper line = 
           case String.fields (fn x => x = #"#") line of 
@@ -228,18 +242,6 @@ end handle exn =>
             ; print ("\nREGRESSION ERROR: " ^ exnMessage exn ^ "\n\n")
             ; OS.Process.failure)
 
-fun declToStr (linenum, dec) =
-let 
-   val decstr = 
-      case dec of
-         Syntax.ConstDecl (id, _, _) => "declaration of " ^ id
-       | Syntax.TypeAbbrev (id, _) => "declaration of " ^ id
-       | Syntax.ObjAbbrev (id, _, _) => "declaration of " ^ id
-       | Syntax.Query _ => "query"
-       | Syntax.Mode (id,_,_) => "mode declaration of " ^ id
-in
-   decstr ^ " on line " ^ Int.toString linenum
-end
 
 fun celfMain (_, args) = 
    if not (null args) andalso hd args = "regression" 
@@ -247,7 +249,21 @@ fun celfMain (_, args) =
    else celfMain' args 
 handle TypeRecon.ReconError (es, ldec) =>
        let
+          fun declToStr (linenum, dec) =
+          let 
+             val decstr = 
+                case dec of
+                   Syntax.ConstDecl (id, _, _) => "declaration of " ^ id
+                 | Syntax.TypeAbbrev (id, _) => "declaration of " ^ id
+                 | Syntax.ObjAbbrev (id, _, _) => "declaration of " ^ id
+                 | Syntax.Query _ => "query"
+                 | Syntax.Mode (id,_,_) => "mode declaration of " ^ id
+          in
+             decstr ^ " on line " ^ Int.toString linenum
+          end
+
           val decstr = declToStr ldec
+
           val d = 
              case es of
                 (Syntax.UndeclId, c) => 
