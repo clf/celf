@@ -1,8 +1,8 @@
 signature GOALMODE =
 sig
 
-    val okGoal   : Syntax.asyncType -> bool
-    val isBchain : Syntax.asyncType -> bool
-    val isFchain : Syntax.asyncType -> bool
+    val okGoal   : Syntax.nfAsyncType -> bool
+    val isBchain : Syntax.nfAsyncType -> bool
+    val isFchain : Syntax.nfAsyncType -> bool
 
 end

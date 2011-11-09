@@ -4,70 +4,70 @@ struct
 open Syntax
 
 fun sync2async sty =
-    case SyncType.prj sty of
+    case NfSyncType.prj sty of
         TDown A => A
       | TAffi A => A
       | TBang A => A
       |  _ => raise Fail "Internal error sync2async: pattern not normalized?"
 
 fun syncNormalize sty =
-    case SyncType.prj sty of
-        TOne => TOne'
+    case NfSyncType.prj sty of
+        TOne => NfInj.TOne'
 
       | LExists (p1, S1, S2)
-        => (case (Pattern.prj p1, SyncType.prj S1) of
+        => (case (Pattern.prj p1, NfSyncType.prj S1) of
                 (POne, TOne) => syncNormalize S2
 
               | (PDepTensor (p1a, p1b), LExists (_, S1a, S1b)) (* _ = p1a *)
-                => syncNormalize (LExists' (p1a, S1a, LExists' (p1b, S1b, S2)))
+                => syncNormalize (NfInj.LExists' (p1a, S1a, NfInj.LExists' (p1b, S1b, S2)))
 
               | (PDown x, TDown A) => (* x = () *)
                 let val S2' = syncNormalize S2 in
-                    LExists' (PDown' x, TDown' A, S2')
+                    NfInj.LExists' (PDown' x, NfInj.TDown' A, S2')
                 end
               | (PAffi x, TAffi A) => (* x = () *)
                 let val S2' = syncNormalize S2 in
-                    LExists' (PAffi' x, TAffi' A, S2')
+                    NfInj.LExists' (PAffi' x, NfInj.TAffi' A, S2')
                 end
               | (PBang x, TBang A) => (* x : string option *)
                 let val S2' = syncNormalize S2 in
-                    LExists' (PBang' x, TBang' A, S2')
+                    NfInj.LExists' (PBang' x, NfInj.TBang' A, S2')
                 end
               | _ => raise Fail "Internal error: syncNormalize: internal patterns do not match")
 
-      | TDown A => LExists' (PDown' (), TDown' A, TOne')
-      | TAffi A => LExists' (PAffi' (), TAffi' A, TOne')
-      | TBang A => LExists' (PBang' NONE, TBang' A, TOne')
+      | TDown A => NfInj.LExists' (PDown' (), NfInj.TDown' A, NfInj.TOne')
+      | TAffi A => NfInj.LExists' (PAffi' (), NfInj.TAffi' A, NfInj.TOne')
+      | TBang A => NfInj.LExists' (PBang' NONE, NfInj.TBang' A, NfInj.TOne')
 
 fun tpatNormalize (p,sty) =
-    case (Pattern.prj p, SyncType.prj sty) of
-        (POne, TOne) => (POne', TOne')
+    case (Pattern.prj p, NfSyncType.prj sty) of
+        (POne, TOne) => (POne', NfInj.TOne')
 
       | (PDepTensor (p1, p2), LExists (_, S1, S2)) (* _ = p1 *)
-        => (case (Pattern.prj p1, SyncType.prj S1) of
+        => (case (Pattern.prj p1, NfSyncType.prj S1) of
                 (POne, TOne) => tpatNormalize (p2, S2)
 
               | (PDepTensor (p1a, p1b), LExists (_, S1a, S1b)) (* _ = p1a *)
                 => tpatNormalize (PDepTensor' (p1a, PDepTensor' (p1b, p2)),
-                                  LExists' (p1a, S1a, LExists' (p1b, S1b, S2)))
+                                  NfInj.LExists' (p1a, S1a, NfInj.LExists' (p1b, S1b, S2)))
 
               | (PDown x, TDown A) => (* x = () *)
                 let val (p2', S2') = tpatNormalize (p2, S2) in
-                    (PDepTensor' (PDown' x, p2'), LExists' (PDown' x, TDown' A, S2'))
+                    (PDepTensor' (PDown' x, p2'), NfInj.LExists' (PDown' x, NfInj.TDown' A, S2'))
                 end
               | (PAffi x, TAffi A) => (* x = () *)
                 let val (p2', S2') = tpatNormalize (p2, S2) in
-                    (PDepTensor' (PAffi' x, p2'), LExists' (PAffi' x, TAffi' A, S2'))
+                    (PDepTensor' (PAffi' x, p2'), NfInj.LExists' (PAffi' x, NfInj.TAffi' A, S2'))
                 end
               | (PBang x, TBang A) => (* x : string option *)
                 let val (p2', S2') = tpatNormalize (p2, S2) in
-                    (PDepTensor' (PBang' x, p2'), LExists' (PBang' x, TBang' A, S2'))
+                    (PDepTensor' (PBang' x, p2'), NfInj.LExists' (PBang' x, NfInj.TBang' A, S2'))
                 end
               | _ => raise Fail "Internal error: tpatNormalize: internal patterns do not match")
 
-      | (PDown x, TDown A) => (PDepTensor' (PDown' x, POne'), LExists' (PDown' x, TDown' A, TOne'))
-      | (PAffi x, TAffi A) => (PDepTensor' (PAffi' x, POne'), LExists' (PAffi' x, TAffi' A, TOne'))
-      | (PBang x, TBang A) => (PDepTensor' (PBang' x, POne'), LExists' (PBang' x, TBang' A, TOne'))
+      | (PDown x, TDown A) => (PDepTensor' (PDown' x, POne'), NfInj.LExists' (PDown' x, NfInj.TDown' A, NfInj.TOne'))
+      | (PAffi x, TAffi A) => (PDepTensor' (PAffi' x, POne'), NfInj.LExists' (PAffi' x, NfInj.TAffi' A, NfInj.TOne'))
+      | (PBang x, TBang A) => (PDepTensor' (PBang' x, POne'), NfInj.LExists' (PBang' x, NfInj.TBang' A, NfInj.TOne'))
 
       | _ => raise Fail "Internal error: tpatNormalize: patterns do not match"
 

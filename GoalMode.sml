@@ -4,9 +4,9 @@ struct
 open Syntax
 open PatternNormalize
 
-(* okGoal : asyncType -> bool *)
+(* okGoal : nfAsyncType -> bool *)
 fun okGoal ty =
-    case AsyncType.prj ty of
+    case Util.nfTypePrjAbbrev ty of
         TAtomic (_, _) => true
       | TMonad A => okGoalSync (syncNormalize A)
       | AddProd (A, B) => okGoal A andalso okGoal B
@@ -16,19 +16,19 @@ fun okGoal ty =
                           end
       | TAbbrev _ => raise Fail "Internal error: okGoal TAbbrev"
 
-(* okGoalSync : syncType -> bool *)
+(* okGoalSync : nfSyncType -> bool *)
 and okGoalSync sty =
-    case SyncType.prj sty of
+    case NfSyncType.prj sty of
         TOne => true
       | LExists (p1, S1, S2)
-        => (case (Pattern.prj p1, SyncType.prj S1) of
+        => (case (Pattern.prj p1, NfSyncType.prj S1) of
                 (PBang (SOME _), TBang _) => okGoalSync S2
               | (_, _) => okGoal (sync2async S1) andalso okGoalSync S2)
       | S => raise Fail "Internal error: okGoalSync: pattern not normalized"
 
-(* isBchain : asyncType -> bool *)
+(* isBchain : nfAsyncType -> bool *)
 and isBchain ty =
-    case AsyncType.prj ty of
+    case Util.nfTypePrjAbbrev ty of
         TAtomic (_,_) => true
       | AddProd (A, B) => isBchain A andalso isBchain B
       | TLPi (p, A, B) => let val (_, A') = tpatNormalize (p, A)
@@ -38,9 +38,9 @@ and isBchain ty =
       | TMonad _ => false
       | _ => raise Fail "Internal error: isBchain TAbbrev"
 
-(* isFchain : asyncType -> bool *)
+(* isFchain : nfAsyncType -> bool *)
 and isFchain ty =
-    case AsyncType.prj ty of
+    case Util.nfTypePrjAbbrev ty of
         TAtomic (_,_) => false
       | AddProd (A, B) => isFchain A andalso isFchain B
       | TLPi (p, A, B) => let val (_, A') = tpatNormalize (p, A)
@@ -52,12 +52,12 @@ and isFchain ty =
 
 and okChain ty = isBchain ty orelse isFchain ty
 
-(* okChainSync : syncType -> bool *)
+(* okChainSync : nfSyncType -> bool *)
 and okChainSync sty =
-    case SyncType.prj sty of
+    case NfSyncType.prj sty of
         TOne => true
       | LExists (p1, S1, S2)
-        => (case (Pattern.prj p1, SyncType.prj S1) of
+        => (case (Pattern.prj p1, NfSyncType.prj S1) of
                 (PBang (SOME _), TBang _) => okChainSync S2
               | (_, _) => okChain (sync2async S1) andalso okChainSync S2)
       | _ => raise Fail "Internal error: okChainSync: pattern not normalized"

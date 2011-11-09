@@ -21,7 +21,7 @@ parseErr exp.clf
 typeErr fj.clf
 success fol.clf
 success fptp.clf
-modeErr graph.clf
+success graph.clf
 typeErr guide.clf
 typeErr handbook.clf
 parseErr incll.clf

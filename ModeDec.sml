@@ -72,7 +72,7 @@ fun modeConsistent (Star, _) = raise Fail "Internal error: declared mode *"
 
 fun empty (0, ms, K) = (ms, K)
   | empty (n, ms, ki) =
-    case Kind.prj ki of
+    case NfKind.prj ki of
         Type => raise Fail "Internal error: more implicit args than actual args"
       | KPi (_, _, B) => empty (n-1, (Star, Implicit) :: ms, B)
 
@@ -114,7 +114,7 @@ fun inferVar ((Star, Implicit)::ms, m, 1) = (m, Implicit) :: ms
 
 (* fun inferSyncType : mcontext * mode * syncType -> mcontext *)
 fun inferSyncType (ms, m, sty) =
-    case SyncType.prj sty of
+    case NfSyncType.prj sty of
         LExists (p, S1, S2)
         => let val nb = nbinds p in
                List.drop (inferSyncType (pushLocal (nb, inferPatType (ms, m, p, S1)), m, S2), nb)
@@ -126,7 +126,7 @@ fun inferSyncType (ms, m, sty) =
 
 (* fun inferPatType : mcontext * mode * tpattern * syncType -> mcontext *)
 and inferPatType (ms, m, p, sty) =
-    case (Pattern.prj p, SyncType.prj sty) of
+    case (Pattern.prj p, NfSyncType.prj sty) of
         (PDepTensor (p1, p2), LExists (_, S1, S2))
         => let val nb = nbinds p in
                List.drop (inferPatType (pushLocal (nb, inferPatType (ms, m, p1, S1)), m, p2, S2), nb)
@@ -139,7 +139,7 @@ and inferPatType (ms, m, p, sty) =
 
 (* fun inferTypeSpine : mcontext * mode * typeSpine -> mcontext *)
 and inferTypeSpine (ms, m, sp) =
-    case TypeSpine.prj sp of
+    case NfTypeSpine.prj sp of
         TNil => ms
       | TApp (N, S) => inferTypeSpine (inferObj (ms, m, N), m, S)
 
@@ -151,26 +151,24 @@ and inferHeadSpine (ms, m, H, sp) =
       | LogicVar _ => raise Fail "Internal error: inferHeadSpine on LogicVar"
 
 and inferObj (ms, m, ob) =
-    case Obj.prj ob of
-        LLam (p, N)
+    case NfObj.prj ob of
+        NfLLam (p, N)
         => let val nb = nbinds p in
                List.drop (inferObj (pushLocal (nb, ms), m, N), nb)
            end
-      | AddPair (N1, N2) => inferObj (inferObj (ms, m, N1), m, N2)
-      | Monad E => inferExpObj (ms, m, E)
-      | Atomic (H, S) => inferHeadSpine (ms, m, H, S)
-      | Redex _ => raise Fail "Internal error: inferObj on Redex"
-      | Constraint _ => raise Fail "Internal error: inferObj on Constraint"
+      | NfAddPair (N1, N2) => inferObj (inferObj (ms, m, N1), m, N2)
+      | NfMonad E => inferExpObj (ms, m, E)
+      | NfAtomic (H, S) => inferHeadSpine (ms, m, H, S)
 
 and inferSpine (ms, m, sp) =
-    case Spine.prj sp of
+    case NfSpine.prj sp of
         Nil => ms
       | LApp (M, S) => inferSpine (inferMonObj (ms, m, M), m, S)
       | ProjLeft S => inferSpine (ms, m, S)
       | ProjRight S => inferSpine (ms, m, S)
 
 and inferMonObj (ms, m, ob) =
-    case MonadObj.prj ob of
+    case NfMonadObj.prj ob of
         DepPair (M1, M2) => inferMonObj (inferMonObj (ms, m, M1), m, M2)
       | One => ms
       | Down N => inferObj (ms, m, N)
@@ -179,17 +177,16 @@ and inferMonObj (ms, m, ob) =
       | MonUndef => raise Fail "Internal error: inferMonObj on MonUndef"
 
 and inferExpObj (ms, m, ob) =
-    case ExpObj.prj ob of
-        Let (p, (H, S), E)
+    case NfExpObj.prj ob of
+        NfLet (p, (H, S), E)
         => let val nb = nbinds p in
                List.drop (inferExpObj (pushLocal (nb, inferHeadSpine (ms, m, H, S)), m, E), nb)
            end
-      | Mon M => inferMonObj (ms, m, M)
-      | LetRedex _ => raise Fail "Internal error: inferExpObj on LetRedex"
+      | NfMon M => inferMonObj (ms, m, M)
 
 (* fun inferType : mcontext * mode * asyncType -> mcontext *)
 and inferType (ms, m, ty) =
-    case AsyncType.prj ty of
+    case Util.nfTypePrjAbbrev ty of
         TLPi (p, A, B) => List.tl (inferType ((Star, Local) :: inferPatType (ms, m, p, A), m, B))
       | AddProd (A, B) => inferType (inferType (ms, m, A), m, B)
       | TMonad S => inferSyncType (ms, m, S)
@@ -199,7 +196,7 @@ and inferType (ms, m, ty) =
 
 (* fun inferMode : (mcontext * kind) * mcontext -> mcontext *)
 fun inferMode ((mctx, ki), ms) =
-    case (Kind.prj ki, ms) of
+    case (NfKind.prj ki, ms) of
         (Type, []) => mctx
       | (KPi (x, A, B), (m'::ms'))
         => (case x of
