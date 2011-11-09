@@ -122,26 +122,24 @@ fun pushOPattern st (ctx, p) =
    or returns () if no such k exists.
  *)
 fun gCheckObj (ctx, ob) =
-    case Obj.prj ob of
-        LLam (p, N) => gCheckObj (#1 (pushOPattern Universal (ctx, opatNormalize p)), N)
-      | AddPair (N1, N2) => (gCheckObj (ctx, N1); gCheckObj (ctx, N2))
-      | Monad E => gCheckExpObj (ctx, E)
-      | Atomic (H, S) => (case H of
-                              Const x => gCheckSpine (ctx, S)
-                            | Var (_, n) => let val (x, _, (st, _)) = RAList.lookup ctx (n-1)
-                                            in
-                                                case st of
-                                                    Unknown => raise ModeCheckError (x^" not necessarily ground1")
-                                                  | _ => gCheckSpine (ctx, S)
-                                            end
-                            | UCVar _ => raise Fail "Internal error: gCheckObj on UCVar"
-                            | LogicVar _ => raise Fail "Internal error: gCheckObj on LogicVar")
-
-      | _ => raise Fail "Internal error: gCheckObj on Redex or Constraint"
+    case NfObj.prj ob of
+        NfLLam (p, N) => gCheckObj (#1 (pushOPattern Universal (ctx, opatNormalize p)), N)
+      | NfAddPair (N1, N2) => (gCheckObj (ctx, N1); gCheckObj (ctx, N2))
+      | NfMonad E => gCheckExpObj (ctx, E)
+      | NfAtomic (H, S) => (case H of
+                                Const x => gCheckSpine (ctx, S)
+                              | Var (_, n) => let val (x, _, (st, _)) = RAList.lookup ctx (n-1)
+                                              in
+                                                  case st of
+                                                      Unknown => raise ModeCheckError (x^" not necessarily ground1")
+                                                    | _ => gCheckSpine (ctx, S)
+                                              end
+                              | UCVar _ => raise Fail "Internal error: gCheckObj on UCVar"
+                              | LogicVar _ => raise Fail "Internal error: gCheckObj on LogicVar")
 
 and gCheckExpObj (ctx, ob) =
-    case ExpObj.prj ob of
-        Let (p, (H, S), E)
+    case NfExpObj.prj ob of
+        NfLet (p, (H, S), E)
         => (case H of
                 Const x => (gCheckSpine (ctx, S);
                             gCheckExpObj (#1 (pushOPattern Universal (ctx, opatNormalize p)), E))
@@ -153,11 +151,10 @@ and gCheckExpObj (ctx, ob) =
                              end
               | UCVar _ => raise Fail "Internal error: gCheckExpObj on UCVar"
               | LogicVar _ => raise Fail "Internal error: gCheckExpObj on LogicVar")
-      | Mon M => gCheckMonadObj (ctx, M)
-      | LetRedex _ => raise Fail "Internal error: gCheckExpObj on LetRedex"
+      | NfMon M => gCheckMonadObj (ctx, M)
 
 and gCheckMonadObj (ctx, ob) =
-    case MonadObj.prj ob of
+    case NfMonadObj.prj ob of
         DepPair (M1, M2) => (gCheckMonadObj (ctx, M1); gCheckMonadObj (ctx, M2))
       | One => ()
       | Down N => gCheckObj (ctx, N)
@@ -167,7 +164,7 @@ and gCheckMonadObj (ctx, ob) =
 
 
 and gCheckSpine (ctx, ob) =
-    case Spine.prj ob of
+    case NfSpine.prj ob of
         Nil => ()
       | LApp (M, S) => (gCheckMonadObj (ctx, M); gCheckSpine (ctx, S))
       | ProjLeft S => gCheckSpine (ctx, S)
@@ -217,7 +214,7 @@ exception Eta
 fun checkPattern (ctx, k, args, sp) =
     let fun checkPatternObj (ctx, k, args, ob, m, sp) =
             let
-	        val (_, k') = Eta.etaContract Eta (normalizeObj ob)
+	        val (_, k') = Eta.etaContract Eta ob
             in
 	        if (k > k')
                    andalso isUniversal (ctx, k')
@@ -227,10 +224,10 @@ fun checkPattern (ctx, k, args, sp) =
 	        else raise Eta
             end
     in
-        case Spine.prj sp of
+        case NfSpine.prj sp of
             Nil => ()
           | LApp (M, S) =>
-            (case MonadObj.prj M of
+            (case NfMonadObj.prj M of
                  DepPair _ => raise Eta
                | One => checkPattern (ctx, k, args, S)
                | Down N => checkPatternObj (ctx, k, args, N, LIN, S)
@@ -247,28 +244,26 @@ fun isPattern (ctx, k, S) =
 
 
 fun gInferObj (ctx, ob) =
-    case Obj.prj ob of
-        LLam (p, N) => let val (ctx', k) = pushOPattern Universal (ctx, opatNormalize p)
-                       in
-                           RAList.drop (gInferObj (ctx', N)) k
-                       end
-      | AddPair (N1, N2) => mcMeet (gInferObj (ctx, N1), gInferObj (ctx, N2))
-      | Monad E => ctx (* Monadic objects are ignored for the moment -- js *)
-      | Atomic (H, S) => (case H of
-                              Const x => gInferSpine (ctx, S)
-                            | Var (_, n) => if isUniversal (ctx, n)
-                                            then gInferSpine (ctx, S)
-                                            else if isPattern (ctx, n, S)
-                                                 then mkGround ctx n
-                                                 else ctx
-                            | UCVar _ => raise Fail "Internal error: gInferObj on UCVar"
-                            | LogicVar _ => raise Fail "Internal error: gInferObj on LogicVar")
-
-      | _ => raise Fail "Internal error: gInferObj on Redex or Constraint"
+    case NfObj.prj ob of
+        NfLLam (p, N) => let val (ctx', k) = pushOPattern Universal (ctx, opatNormalize p)
+                         in
+                             RAList.drop (gInferObj (ctx', N)) k
+                         end
+      | NfAddPair (N1, N2) => mcMeet (gInferObj (ctx, N1), gInferObj (ctx, N2))
+      | NfMonad E => ctx (* Monadic objects are ignored for the moment -- js *)
+      | NfAtomic (H, S) => (case H of
+                                Const x => gInferSpine (ctx, S)
+                              | Var (_, n) => if isUniversal (ctx, n)
+                                              then gInferSpine (ctx, S)
+                                              else if isPattern (ctx, n, S)
+                                                   then mkGround ctx n
+                                                   else ctx
+                              | UCVar _ => raise Fail "Internal error: gInferObj on UCVar"
+                              | LogicVar _ => raise Fail "Internal error: gInferObj on LogicVar")
 
 
 and gInferMonadObj (ctx, ob) =
-    case MonadObj.prj ob of
+    case NfMonadObj.prj ob of
         DepPair (M1, M2) => mcMeet (gInferMonadObj (ctx, M1), gInferMonadObj (ctx, M2))
       | One => ctx
       | Down N => gInferObj (ctx, N)
@@ -278,15 +273,15 @@ and gInferMonadObj (ctx, ob) =
 
 
 and gInferSpine (ctx, sp) =
-    case Spine.prj sp of
+    case NfSpine.prj sp of
         Nil => ctx
       | LApp (M, S) => mcMeet (gInferMonadObj (ctx, M), gInferSpine (ctx, S))
       | ProjLeft S => gInferSpine (ctx, S)
       | ProjRight S => gInferSpine (ctx, S)
 
 and gInferExpObj (ctx, ob) =
-    case ExpObj.prj ob of
-        Let (p, (H, S), E)
+    case NfExpObj.prj ob of
+        NfLet (p, (H, S), E)
         => (case H of
                 Const x => let val ctx' = gInferSpine (ctx, S)
                                val (ctx'', k) = pushOPattern Universal (ctx', opatNormalize p)
@@ -311,8 +306,7 @@ and gInferExpObj (ctx, ob) =
                                                 end)
               | UCVar _ => raise Fail "Internal error: gInferExpObj on UCVar"
               | LogicVar _ => raise Fail "Internal error: gInferExpObj on LogicVar")
-      | Mon M => gInferMonadObj (ctx, M)
-      | LetRedex _ => raise Fail "Internal error: gInferMonadObj on LetRedex"
+      | NfMon M => gInferMonadObj (ctx, M)
 
 (* Request groundness obligation for objects *)
 (* gOblig* : mcontext * object -> mcontext *)
@@ -335,24 +329,22 @@ fun addOblig ctx n = let val (x, m, (st, oblig)) = RAList.lookup ctx (n-1)
 
 
 fun gObligObj (ctx, ob) =
-    case Obj.prj ob of
-        LLam (p, N) => let val (ctx', k) = pushOPattern Universal (ctx, opatNormalize p)
-                       in
-                           RAList.drop (gObligObj (ctx', N)) k
-                       end
-      | AddPair (N1, N2) => mcMeet (gObligObj (ctx, N1), gObligObj (ctx, N2))
-      | Monad E => gObligExpObj (ctx, E)
-      | Atomic (H, S) => (case H of
-                              Const x => gObligSpine (ctx, S)
-                            | Var (_, n) => gObligSpine (addOblig ctx n, S)
-                            | UCVar _ => raise Fail "Internal error: gObligObj on UCVar"
-                            | LogicVar _ => raise Fail "Internal error: gObligObj on LogicVar")
-
-      | _ => raise Fail "Internal error: gObligObj on Redex or Constraint"
+    case NfObj.prj ob of
+        NfLLam (p, N) => let val (ctx', k) = pushOPattern Universal (ctx, opatNormalize p)
+                         in
+                             RAList.drop (gObligObj (ctx', N)) k
+                         end
+      | NfAddPair (N1, N2) => mcMeet (gObligObj (ctx, N1), gObligObj (ctx, N2))
+      | NfMonad E => gObligExpObj (ctx, E)
+      | NfAtomic (H, S) => (case H of
+                                Const x => gObligSpine (ctx, S)
+                              | Var (_, n) => gObligSpine (addOblig ctx n, S)
+                              | UCVar _ => raise Fail "Internal error: gObligObj on UCVar"
+                              | LogicVar _ => raise Fail "Internal error: gObligObj on LogicVar")
 
 and gObligExpObj (ctx, ob) =
-    case ExpObj.prj ob of
-        Let (p, (H, S), E)
+    case NfExpObj.prj ob of
+        NfLet (p, (H, S), E)
         => (case H of
                 Const x => let val ctx' = gObligSpine (ctx, S)
                                val (ctx'', k) = pushOPattern Universal (ctx', opatNormalize p)
@@ -366,11 +358,10 @@ and gObligExpObj (ctx, ob) =
                              end
               | UCVar _ => raise Fail "Internal error: gObligExpObj on UCVar"
               | LogicVar _ => raise Fail "Internal error: gObligExpObj on LogicVar")
-      | Mon M => gObligMonadObj (ctx, M)
-      | LetRedex _ => raise Fail "Internal error: gObligExpObj on LetRedex"
+      | NfMon M => gObligMonadObj (ctx, M)
 
 and gObligMonadObj (ctx, ob) =
-    case MonadObj.prj ob of
+    case NfMonadObj.prj ob of
         DepPair (M1, M2) => mcMeet (gObligMonadObj (ctx, M1), gObligMonadObj (ctx, M2))
       | One => ctx
       | Down N => gObligObj (ctx, N)
@@ -380,7 +371,7 @@ and gObligMonadObj (ctx, ob) =
 
 
 and gObligSpine (ctx, ob) =
-    case Spine.prj ob of
+    case NfSpine.prj ob of
         Nil => ctx
       | LApp (M, S) => mcMeet (gObligMonadObj (ctx, M), gObligSpine (ctx, S))
       | ProjLeft S => gObligSpine (ctx, S)
@@ -393,7 +384,7 @@ and gObligSpine (ctx, ob) =
 (* fun bwdHead : mcontext * typeSpine * modeDecl -> mcontext *)
 (* bwdHead calls gInfer* for input arguments and gOblig* for output arguments in the spine *)
 fun bwdHead (ctx, sp, m) =
-    case (TypeSpine.prj sp, m) of
+    case (NfTypeSpine.prj sp, m) of
         (TNil, []) => ctx
       | (TApp (N,S), (h::t)) => let val ctx' = case h of
                                                    Plus => gInferObj (ctx, N)
@@ -408,7 +399,7 @@ fun bwdHead (ctx, sp, m) =
 (* goalAtomic : mcontext * typeSpine * modeDecl -> mcontext *)
 (* goalAtomic calls gCheck* for input arguments and gInfer* for output arguments in the spine *)
 fun goalAtomic (ctx, sp, m) =
-    case (TypeSpine.prj sp, m) of
+    case (NfTypeSpine.prj sp, m) of
         (TNil, []) => ctx
       | (TApp (N,S), (h::t)) => let val ctx' = case h of
                                                    Plus => (gCheckObj (ctx,N); ctx)
@@ -421,10 +412,10 @@ fun goalAtomic (ctx, sp, m) =
       | _ => raise Fail "Internal error: goalAtomic spine and mode declaration length do not coincide"
 
 
-(* bwdType : mcontext * asyncType -> mcontext *)
+(* bwdType : mcontext * nfAsyncType -> mcontext *)
 (* Entry point for checking backward-chaining declarations *)
 fun bwdType (ctx, ty) =
-    case AsyncType.prj ty of
+    case Util.nfTypePrjAbbrev ty of
         TAtomic (a, S) => (case Signatur.getModeDecl a of
                                NONE => raise ModeCheckError ("No mode declaration for "^a)
                              | SOME m => bwdHead (ctx, S, m))
@@ -440,16 +431,16 @@ fun bwdType (ctx, ty) =
       | TAbbrev _ => raise Fail "Internal error: bwdType on TAbbrev"
 
 
-(* bwdPatType : mcontext * tpattern * syncType * asyncType -> unit *)
+(* bwdPatType : mcontext * tpattern * nfSyncType * nfAsyncType -> unit *)
 (* Precondition  bwdPatType (ctx, p, sty, ty)
       - p must be normalized
       - p and sty must be related
  *)
 and bwdPatType (ctx, p, sty, ty) =
-    case (Pattern.prj p, SyncType.prj sty) of
+    case (Pattern.prj p, NfSyncType.prj sty) of
         (POne, TOne) => bwdType (ctx, ty)
       | (PDepTensor (p1, p2), LExists (_, S1, S2))
-        => (case (Pattern.prj p1, SyncType.prj S1) of
+        => (case (Pattern.prj p1, NfSyncType.prj S1) of
                 (PBang (SOME x), TBang A)
                 => let val ctx' = bwdPatType (mctxPush (x, INT) Unknown ctx, p2, S2, ty)
                        val ((x, _, (st, oblig)), ctxRet) = valOf (RAList.prj ctx')
@@ -468,9 +459,9 @@ and bwdPatType (ctx, p, sty, ty) =
       | _ => raise Fail "Internal error: bwdPatType: pattern not normalized"
 
 
-(* fun goalType : mcontext * asyncType -> mcontext *)
+(* fun goalType : mcontext * nfAsyncType -> mcontext *)
 and goalType (ctx, ty) =
-    case AsyncType.prj ty of
+    case Util.nfTypePrjAbbrev ty of
         TAtomic (a, S) => (case Signatur.getModeDecl a of
                                NONE => raise ModeCheckError ("No mode declaration for "^a)
                              | SOME m => goalAtomic (ctx, S, m)
@@ -485,7 +476,7 @@ and goalType (ctx, ty) =
 
 (* fun goalSyncType : mcontext * synctType -> mcontext *)
 and goalSyncType (ctx, sty) =
-    case SyncType.prj sty of
+    case NfSyncType.prj sty of
         TOne => ctx
       | LExists (p, S1, S2) => let val (p', _) = tpatNormalize (p, S1)
                                    val (ctx', k) = pushTPattern Unknown (ctx, p')
@@ -496,16 +487,16 @@ and goalSyncType (ctx, sty) =
         => goalType (ctx, sync2async sty)
 
 
-(* goalPatType : mcontext * pattern * syncType * asyncType -> mcontext *)
+(* goalPatType : mcontext * pattern * nfSyncType * nfAsyncType -> mcontext *)
 (* Precondition  goalPatType (ctx, p, sty, ty)
       - p must be normalized
       - p and sty must be related
  *)
 and goalPatType (ctx, p, sty, ty) =
-    case (Pattern.prj p, SyncType.prj sty) of
+    case (Pattern.prj p, NfSyncType.prj sty) of
         (POne, TOne) => goalType (ctx, ty)
       | (PDepTensor (p1, p2), LExists (_, S1, S2))
-        => (case (Pattern.prj p1, SyncType.prj S1) of
+        => (case (Pattern.prj p1, NfSyncType.prj S1) of
                 (PBang (SOME x), TBang A) => mctxPop (goalPatType (mctxPush (x, INT) Universal ctx, p2, S2, ty))
 
               | (_, _) (* _ is PDown, PAffi, or PBang NONE, since patterns are normalized *)
@@ -515,10 +506,10 @@ and goalPatType (ctx, p, sty, ty) =
       | _ => raise Fail "Internal error: goalPatType: pattern not normalized"
 
 
-(* fwdType : mcontext * asyncType -> unit *)
+(* fwdType : mcontext * nfAsyncType -> unit *)
 (* Entry point for forward-chaining declarations *)
 and fwdType (ctx, ty) =
-    case AsyncType.prj ty of
+    case Util.nfTypePrjAbbrev ty of
         TLPi (p, A, B) => let val (p', A') = tpatNormalize (p, A) in
                               fwdPatType (ctx, p', A', B)
                           end
@@ -528,9 +519,9 @@ and fwdType (ctx, ty) =
       | TAbbrev _ => raise Fail "Internal error: fwdType on TAbbrev"
 
 
-(* fwdSyncType : mcontext * syncType -> unit *)
+(* fwdSyncType : mcontext * nfSyncType -> unit *)
 and fwdSyncType (ctx, sty) =
-    case SyncType.prj sty of
+    case NfSyncType.prj sty of
         TOne => ()
       | LExists (p, S1, S2) => let val (p', _) = tpatNormalize (p, S1)
                                    val (ctx', _) = pushTPattern Universal (ctx, p')
@@ -541,23 +532,23 @@ and fwdSyncType (ctx, sty) =
         => modeCheckDeclInt (ctx, sync2async sty)
 
 
-(* fwdPatType : mcontext * tpattern * syncType * asyncType -> unit *)
+(* fwdPatType : mcontext * tpattern * nfSyncType * nfAsyncType -> unit *)
 (* Precondition  fwdPatType (ctx, p, sty, ty)
       - p must be normalized
       - p and sty must be related
  *)
 and fwdPatType (ctx, p, sty, ty) =
-    case (Pattern.prj p, SyncType.prj sty) of
+    case (Pattern.prj p, NfSyncType.prj sty) of
         (POne, TOne) => fwdType (ctx, ty)
       | (PDepTensor (p1, p2), LExists (_, S1, S2))
-        => (case (Pattern.prj p1, SyncType.prj S1) of
+        => (case (Pattern.prj p1, NfSyncType.prj S1) of
                 (PBang (SOME x), TBang A) => fwdPatType (mctxPush (x, INT) Unknown ctx, p2, S2, ty)
               | (_, _) (* _ is PDown, PAffi, or PBang NONE, since patterns are normalized *)
                 => fwdPatType (mctxPushNO (goalType (ctx, sync2async S1)), p2, S2, ty))
       | _ => raise Fail "Internal error: fwdPatType: pattern not normalized"
 
 
-(* modeCheckDeclInt : mcontext * asyncType -> unit *)
+(* modeCheckDeclInt : mcontext * nfAsyncType -> unit *)
 (* Main entry point for mode-checking declarations.
    Calls bwdType or fwdType if the declarations is backward-chaining or forward-chaining, resp.
    Returns () if the declaration is mode-correct.
@@ -571,18 +562,17 @@ and modeCheckDeclInt (ctx, ty) =
     else raise Fail "Internal error: modeCheckDeclInt on MIXED goal"
 
 
-(* fun isNeeded : asyncType -> bool *)
-(* TODO: check this function *)
+(* fun isNeeded : nfAsyncType -> bool *)
 fun isNeeded ty =
     let fun isNeededType ty =
-            case AsyncType.prj ty of
+            case Util.nfTypePrjAbbrev ty of
                 TLPi (p, A, B) => isNeeded B orelse isNeededSyncType A
               | AddProd (A, B) => isNeeded A orelse isNeeded B
               | TMonad A => isNeededSyncType A
               | TAtomic (x, S) => Signatur.hasModeDecl x
               | TAbbrev _ => raise Fail "Internal error: mode checking on TAbbrev"
         and isNeededSyncType sty =
-            case SyncType.prj sty of
+            case NfSyncType.prj sty of
                 TOne => false
               | LExists (p, S1, S2) => isNeededSyncType S1 orelse isNeededSyncType S2
               | _ => isNeededType (sync2async sty)
@@ -591,7 +581,7 @@ fun isNeeded ty =
     end
 
 
-(* modeCheckDecl : asyncType -> unit *)
+(* modeCheckDecl : nfAsyncType -> unit *)
 fun modeCheckDecl ty = modeCheckDeclInt (RAList.empty, ty)
 
 end

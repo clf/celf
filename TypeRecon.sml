@@ -65,10 +65,10 @@ exception QueryFailed of int
 - The modes of implicit arguments (if given) is correct. If not given, they are inferred
  *)
 fun checkModeDecl (id, implmd, md) =
-    let val K = Signatur.sigLookupKind id
+    let val K = Syntax.normalizeKind (Signatur.sigLookupKind id)
         (* get number of arguments of the type family *)
         fun numArgs ki =
-            case Kind.prj ki of
+            case NfKind.prj ki of
 	        Type => 0
 	      | KPi (_, _, A) => numArgs A + 1
         val nArgs = numArgs K
@@ -160,19 +160,27 @@ fun reconstructDecl (ldec as (_, dec)) =
                         val () =
                             case dec of
                                 ConstDecl (id,_,Ty ty) =>
-                                  if GoalMode.isBchain ty orelse GoalMode.isFchain ty
-                                  then ()
-                                  else raise Fail ("Constant "^id^" is not allowed (mixed backward and forward goals)")
+                                  let
+                                      val nTy = Syntax.normalizeType ty
+                                  in
+                                      if GoalMode.isBchain nTy orelse GoalMode.isFchain nTy
+                                      then ()
+                                      else raise Fail ("Constant "^id^" is not allowed (mixed backward and forward goals)")
+                                  end
                               | _ => ()
 
                         (* We check that a constant declaration is mode correct *)
                         val () =
                             case dec of
                                 ConstDecl (id,_,Ty ty) =>
-                                  ( if ModeCheck.isNeeded ty
-                                    then ModeCheck.modeCheckDecl ty
-                                    else ()
-                                  ; DestCheck.destCheckDecl (Syntax.normalizeType ty))
+                                  let
+                                      val nTy = Syntax.normalizeType ty
+                                  in
+                                      ( if ModeCheck.isNeeded nTy
+                                        then ModeCheck.modeCheckDecl nTy
+                                        else ()
+                                      ; DestCheck.destCheckDecl nTy)
+                                  end
                               | _ => ()
 
 			val () = case dec of

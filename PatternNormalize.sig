@@ -1,11 +1,11 @@
 signature PATTERNNORMALIZE =
 sig
 
-    val sync2async : Syntax.syncType -> Syntax.asyncType
+    val sync2async : Syntax.nfSyncType -> Syntax.nfAsyncType
 
-    val syncNormalize : Syntax.syncType -> Syntax.syncType
+    val syncNormalize : Syntax.nfSyncType -> Syntax.nfSyncType
 
-    val tpatNormalize : Syntax.tpattern * Syntax.syncType -> Syntax.tpattern * Syntax.syncType
+    val tpatNormalize : Syntax.tpattern * Syntax.nfSyncType -> Syntax.tpattern * Syntax.nfSyncType
 
     val opatNormalize : Syntax.opattern -> Syntax.opattern
 
