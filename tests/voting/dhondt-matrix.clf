@@ -1,0 +1,157 @@
+%% Natural numbers.
+nat : type.
+
+z : nat.
+s : nat -> nat.
+
+%worlds () (nat).
+
+
+% Strict inequality.
+nat-less : nat -> nat -> type.
+%mode nat-less +M +N.
+
+nat-less/z : nat-less z (s _).
+nat-less/s : nat-less (s M) (s N)
+              <- nat-less M N.
+
+%worlds () (nat-less _ _).
+%terminates M (nat-less M _).
+
+
+% Inequality.
+nat-lesseq : nat -> nat -> type.
+%mode nat-lesseq +M +N.
+
+nat-lesseq/z : nat-lesseq z _.
+nat-lesseq/s : nat-lesseq (s M) (s N)
+                <- nat-lesseq M N.
+
+%worlds () (nat-lesseq _ _).
+%terminates M (nat-lesseq M _).
+
+
+% Subtraction.
+nat-minus : nat -> nat -> nat -> type.
+%mode nat-minus +M +N -O.
+
+nat-minus/z : nat-minus M z M.
+nat-minus/s : nat-minus (s M) (s N) N'
+               <- nat-minus M N N'.
+
+%worlds () (nat-minus _ _ _).
+%terminates M (nat-minus M _ _).
+
+
+% Division.
+nat-divmod : nat -> nat -> nat -> nat -> type.
+%mode nat-divmod +M +N -Q -R.
+
+nat-divmod/less  : nat-divmod M N z M
+                    <- nat-less M N.
+nat-divmod/gtreq : nat-divmod M N (s Q) R
+                    <- nat-lesseq N M
+                    <- nat-minus M N M'
+                    <- nat-divmod M' N Q R.
+
+%worlds () (nat-divmod _ _ _ _).
+
+
+
+party : type.
+
+
+list : type.
+
+nil : list.
+cons : party -> nat -> list -> list.
+
+
+uncounted-ballot : party -> type.
+total : party -> nat -> type.
+count-ballots : nat -> nat -> nat -> type.
+divide-totals : nat -> nat -> nat -> type.
+divide-total-by : party -> nat -> nat -> nat -> nat -> nat -> type.
+entry : party -> nat -> type.
+find-winners : nat -> nat -> type.
+restore-entries : list -> nat -> nat -> type.
+
+
+count/1 : count-ballots S (s T) (s U) *
+          uncounted-ballot P *
+          total P N
+           -o {total P (s N) *
+               count-ballots S (s T) U}.
+
+count/2 : count-ballots S T z
+           -o {divide-totals S T z}.
+
+divide-totals/1 : divide-totals S (s T) E *
+                  total P N
+                   -o {divide-total-by P N S E S T}.
+
+divide-total-by/1 : divide-total-by P N (s J) E S T *
+                    !nat-divmod N (s J) Q _
+                     -o {entry P Q *
+                         divide-total-by P N J (s E) S T}.
+
+divide-total-by/2 : divide-total-by P N z E S T
+                     -o {divide-totals S T E}.
+
+divide-totals/2 : divide-totals S z E
+                   -o {find-winners S E}.
+
+
+
+
+
+entries-larger : nat -> nat -> list -> type.
+%mode entries-larger +E +N -L.
+
+entries-larger/s : entries-larger (s E) N (cons P N' L)
+                    o- entry P N'
+                    <- nat-lesseq N N'
+                    o- entries-larger E N L.
+
+entries-larger/z : entries-larger z N nil.
+
+
+
+find-winners/1 : find-winners S (s E) *
+                 !nat-less S (s E) *
+                 entry P N *
+                 entries-larger S N L
+                  -o {restore-entries L S E}.
+
+restore-entries/cons : restore-entries (cons P N L) S E
+                        -o {entry P N *
+                            restore-entries L S E}.
+
+restore-entries/nil : restore-entries nil S E
+                       -o {find-winners S E}.
+
+find-winners/2 : find-winners S E *
+                 !nat-lesseq E S
+                  -o {1}.
+
+
+
+a : party.
+b : party.
+c : party.
+d : party.
+
+#query * 6 * 1
+  uncounted-ballot a -o uncounted-ballot a -o uncounted-ballot a -o
+  uncounted-ballot a -o uncounted-ballot a -o uncounted-ballot a -o
+  uncounted-ballot a -o uncounted-ballot a -o uncounted-ballot a -o
+  uncounted-ballot a -o uncounted-ballot a -o uncounted-ballot a -o
+  uncounted-ballot a -o uncounted-ballot a -o 
+  uncounted-ballot b -o uncounted-ballot b -o uncounted-ballot b -o
+  uncounted-ballot b -o uncounted-ballot b -o uncounted-ballot b -o
+  uncounted-ballot c -o uncounted-ballot c -o uncounted-ballot c -o
+  total a z -o total b z -o total c z -o total d z -o
+  count-ballots (s (s (s z)))
+                (s (s (s (s z))))
+                (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s (s z))))))))))))))))))))))) -o
+    {entry W1 _ * entry W2 _ * entry W3 _}.
