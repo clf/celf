@@ -1,0 +1,72 @@
+%% Natural numbers.
+nat : type.
+
+z : nat.
+s : nat -> nat.
+
+
+nat-lesseq : nat -> nat -> type.
+
+nat-lesseq/z : nat-lesseq z _.
+nat-lesseq/s : nat-lesseq (s M) (s N)
+                <- nat-lesseq M N.
+
+
+%% Candidate names.
+
+candidate : type.
+
+
+%% FPTP predicates (Table 1).
+
+uncounted-ballot : candidate -> type.
+hopeful : candidate -> nat -> type.
+defeated : candidate -> type.
+elected : candidate -> type.
+count-ballots : nat -> nat -> type.
+determine-max : nat -> type.
+
+
+%% FPTP axioms (Figure 2).
+
+count/run : count-ballots (s U) H *
+            uncounted-ballot C *
+            hopeful C N
+              -o {hopeful C (s N) *
+                  count-ballots U H}.
+
+count/done : count-ballots z H
+               -o {determine-max H}.
+
+max/run : determine-max (s H) *
+          hopeful C N *
+          hopeful C' N' *
+          !nat-lesseq N' N
+            -o {hopeful C N *
+                !defeated C' *
+                determine-max H}.
+
+max/done : determine-max (s z) *
+           hopeful C N
+             -o {!elected C}.
+
+
+%% Sample queries.
+
+a : candidate.
+b : candidate.
+c : candidate.
+
+#query * * * 1
+  hopeful a z * hopeful b z * hopeful c z *
+  uncounted-ballot a * uncounted-ballot b * uncounted-ballot a *
+  uncounted-ballot c * uncounted-ballot b * uncounted-ballot a *
+  count-ballots (s (s (s (s (s (s z)))))) (s (s (s z))) -o
+    {!elected C}.
+
+#query * * * 8
+  hopeful a z * hopeful b z * hopeful c z *
+  uncounted-ballot a * uncounted-ballot b * uncounted-ballot a *
+  uncounted-ballot b * uncounted-ballot b * uncounted-ballot a *
+  count-ballots (s (s (s (s (s (s z)))))) (s (s (s z))) -o
+    {!elected C}.

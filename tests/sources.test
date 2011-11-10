@@ -2,7 +2,7 @@ success alloc-sem.clf
 success arith.clf
 success atp.clf
 modeErr bigstep.clf
-parseErr ccc.clf
+typeErr ccc.clf
 typeErr church-rosser.clf
 parseErr cls.clf
 # success cml-2.clf NONTERMINATION
@@ -49,3 +49,5 @@ parseErr tapl-ch13.clf
 success test-fair.clf
 # success test.clf BIZARRE LEXER WARNINGS
 modeErr tpres-mini-ml.clf
+success sill/full_sill.clf
+success sill/funcomp_cbn_cbv.clf

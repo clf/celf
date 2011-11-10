@@ -1,0 +1,377 @@
+
+
+
+% Lambda Calculus
+
+% Types
+tp : type.
+tau : tp.
+arrow : tp -> tp -> tp.
+
+
+% Terms - intrinsically typed.
+term : tp -> type.
+hyp : tp -> type.
+
+var : hyp A -> term A.
+lam : (hyp A -> term B) -> term (arrow A B).
+app : term (arrow A B) -> term A -> term B.
+
+
+% Plotkin's CBV CPS Transform
+
+% CPS CBV Type Transform
+
+answer : tp.
+
+cps_cbv_type_transform : tp -> tp -> type.
+cps_cbv_type_transform_aux : tp -> tp -> type.
+cps_cbv_type_transform/- : cps_cbv_type_transform T (arrow (arrow (T') answer) answer)
+			   <- cps_cbv_type_transform_aux T T'.
+cps_cbv_type_transform/tau : cps_cbv_type_transform_aux tau tau.
+cps_cbv_type_transform/arr : cps_cbv_type_transform_aux (arrow T1 T2) (arrow T1' T2')
+			   <- cps_cbv_type_transform T2 T2'
+			   <- cps_cbv_type_transform_aux T1 T1'.
+
+
+% CPS CBV Term Transform
+
+cps_cbv_transform : term T -> cps_cbv_type_transform T LT -> term LT -> type.
+cps_cbv_v_transform : term T -> cps_cbv_type_transform_aux T LT -> term LT -> type.
+cps_cbv_h_transform : hyp T -> cps_cbv_type_transform_aux T LT -> hyp LT -> type.
+
+
+cps_cbv_transform/lam : cps_cbv_transform (lam (\!x. M !x)) (cps_cbv_type_transform/- (cps_cbv_type_transform/arr TT1 TT2)) 
+		      	(lam (\!k.app (var !k) V'))
+		  <- cps_cbv_v_transform (lam (\!x. M !x)) (cps_cbv_type_transform/arr TT1 TT2) V'.
+cps_cbv_transform/var : cps_cbv_transform (var H) (cps_cbv_type_transform/- TT) (lam (\!k.app (var !k) (var H')))
+		  <- cps_cbv_h_transform H TT H'.
+
+cps_cbv_transform/app : cps_cbv_transform (app M N) (cps_cbv_type_transform/- TT2)
+		    (lam (\!k. app M' (lam (\!v. app N' (lam (\!w. app (app (var !v) (var !w)) (var !k) ))))))
+		  <- cps_cbv_transform M (cps_cbv_type_transform/- (cps_cbv_type_transform/arr TT1 (cps_cbv_type_transform/- TT2))) M'
+		  <- cps_cbv_transform N (cps_cbv_type_transform/- TT1) N'.
+
+cps_cbv_v_transform/var : cps_cbv_v_transform (var H) TT (var H')
+			<- cps_cbv_h_transform H TT H'.
+
+cps_cbv_v_transform/lam : cps_cbv_v_transform (lam (\!x. M !x)) 
+			            (cps_cbv_type_transform/arr TT1 TT2) (lam (\!x. M' !x))
+		    <- (Pi x.Pi x'. cps_cbv_h_transform x TT1 x' -> cps_cbv_transform (M !x) TT2 (M' !x')).
+
+% CPS CBN Type Transform
+
+cps_cbn_type_transform : tp -> tp -> type.
+cps_cbn_type_transform_aux : tp -> tp -> type.
+
+cps_cbn_type_transform/- : cps_cbn_type_transform T (arrow (arrow (T') answer) answer)
+			 <- cps_cbn_type_transform_aux T T'.
+
+cps_cbn_type_transform/tau : cps_cbn_type_transform_aux tau tau.
+cps_cbn_type_transform/arr : cps_cbn_type_transform_aux (arrow T1 T2) (arrow T1' T2')
+			 <- cps_cbn_type_transform T2 T2'
+			 <- cps_cbn_type_transform T1 T1'.
+
+% CPS CBN Term Transform
+			   	
+cps_cbn_transform : term T -> cps_cbn_type_transform T LT -> term LT -> type.
+cps_cbn_v_transform : term T -> cps_cbn_type_transform_aux T LT -> term LT -> type.
+cps_cbn_h_transform : hyp T -> cps_cbn_type_transform T LT -> hyp LT -> type.
+		
+cps_cbn_transform/var : cps_cbn_transform (var H) D (var H')
+		      <- cps_cbn_h_transform H D H'.
+cps_cbn_transform/app : cps_cbn_transform (app M N) (cps_cbn_type_transform/- TT2) 
+		      			  (lam (\!k. app M' (lam (\!v. app (app (var !v) N') (var !k)))))
+		      <- cps_cbn_transform M (cps_cbn_type_transform/- (cps_cbn_type_transform/arr 
+		      	 		     			       (cps_cbn_type_transform/- TT1) (cps_cbn_type_transform/- TT2)))
+					   M'
+		      <- cps_cbn_transform N (cps_cbn_type_transform/- TT1) N'.			   
+cps_cbn_transform/lam : cps_cbn_transform (lam (\!x. M !x)) (cps_cbn_type_transform/- (cps_cbn_type_transform/arr TT1 TT2))
+		        		  (lam (\!k. app (var !k) (lam (\!v. M' !v)) ))
+	              <- (Pi x.Pi x'.cps_cbn_h_transform x TT1 x' -> cps_cbn_transform (M !x) TT2 (M' !x')).
+
+
+
+
+% Linear Lambda Calculus with !
+
+% Types
+lin_tp : type.
+ltau : lin_tp.
+lanswer : lin_tp.
+lolli : lin_tp -> lin_tp -> lin_tp.
+bang  : lin_tp -> lin_tp.
+
+% Terms - intrinsically typed.
+lterm : lin_tp -> type.
+lhyp : lin_tp -> type.
+uhyp : lin_tp -> type.
+
+uvar : uhyp A -> lterm A.
+lvar : lhyp A -o lterm A.
+llam : (lhyp A -o lterm B) -o lterm (lolli A B).
+lapp : lterm (lolli A B) -o lterm A -o lterm B.
+bng  : !(lterm A) -o lterm (bang A).
+letbng : lterm (bang A) -o (uhyp A -> lterm C) -o lterm C.
+
+% CBN Type Translation
+cbn_type_trans : tp -> lin_tp -> type.
+cbn_type_trans/arrow : cbn_type_trans (arrow T1 T2) (lolli (bang LT1) LT2)
+			<- cbn_type_trans T2 LT2
+			<- cbn_type_trans T1 LT1.
+cbn_type_trans/tau : cbn_type_trans tau ltau.
+cbn_type_trans/answer : cbn_type_trans answer lanswer.
+
+% CBN Term Translation
+cbn_term_trans : term A -> cbn_type_trans A TA -> lterm TA -> type.
+cbn_hyp_trans : hyp A -> cbn_type_trans A TA -> uhyp TA -> type.
+
+cbn_term_trans/var  : cbn_term_trans (var H) (D : cbn_type_trans T LT) (uvar LH)
+		       <- cbn_hyp_trans H D LH.					      
+cbn_term_trans/llam : cbn_term_trans 
+		      (lam (\!x : !(hyp T1). D !x)) 
+                      (cbn_type_trans/arrow (TransT1 : cbn_type_trans T1 LT1) (TransT2 : cbn_type_trans T2 LT2)) 
+                      (llam (\x : (lhyp (bang LT1)). letbng (lvar x) (\!u : !(uhyp LT1). TransD !u)))
+              <- (Pi x.Pi u. cbn_hyp_trans x TransT1 u -> cbn_term_trans (D !x) TransT2 (TransD !u)).
+cbn_term_trans/app  : cbn_term_trans
+		      (app D E)
+		      (TTransB)
+	              (lapp (TransD) (bng (TransE)))
+	      <- cbn_term_trans D (cbn_type_trans/arrow TTransA TTransB) TransD
+	      <- cbn_term_trans E TTransA TransE.
+
+
+% CBV Type Translation
+cbv_type_trans_dag : tp -> lin_tp -> type.
+cbv_type_trans_ddag : tp -> lin_tp -> type.
+
+cbv_type_trans_dag/- : cbv_type_trans_dag T (bang LT)
+			   <- cbv_type_trans_ddag T LT.
+cbv_type_trans_ddag/tau : cbv_type_trans_ddag tau ltau.
+cbv_type_trans_ddag/answer : cbv_type_trans_ddag answer lanswer.
+cbv_type_trans_ddag/arrow : cbv_type_trans_ddag (arrow A B) (lolli LA LB)
+				<- cbv_type_trans_dag B LB
+				<- cbv_type_trans_dag A LA.
+
+% CBV Term Translation
+cbv_term_trans_dag : term A -> cbv_type_trans_dag A LA -> lterm LA -> type.
+cbv_term_trans_ddag : term A -> cbv_type_trans_ddag A LA -> lterm LA -> type.
+cbv_hyp_trans : hyp A -> cbv_type_trans_ddag A LA -> uhyp LA -> type.
+
+cbv_term_trans_dag/app : cbv_term_trans_dag (app M N) (D : cbv_type_trans_dag B LB) 
+		       	 		    (lapp (letbng LM (\!u.uvar !u)) LN)
+		         <- cbv_term_trans_dag M (cbv_type_trans_dag/- 
+			    		           (cbv_type_trans_ddag/arrow (E : cbv_type_trans_dag A LA) D))
+					       LM
+		         <- cbv_term_trans_dag N E LN.	  
+
+cbv_term_trans_dag/- : cbv_term_trans_dag V (cbv_type_trans_dag/- (TransTV)) (bng LV)
+		       <- cbv_term_trans_ddag V TransTV LV.
+
+cbv_term_trans_ddag/var : cbv_term_trans_ddag (var H) (D : cbv_type_trans_ddag T LT) (uvar LH)
+		       <- cbv_hyp_trans H D LH.
+		       
+cbv_term_trans_ddag/lam : cbv_term_trans_ddag (lam (\!x : !(hyp A). D !x))
+			  		      (cbv_type_trans_ddag/arrow (cbv_type_trans_dag/- (TransA)) TransB )
+					      (llam (\x.letbng (lvar x) (\!u. LD !u)))
+		       <- (Pi x.Pi u. cbv_hyp_trans x TransA u -> cbv_term_trans_dag (D !x) TransB (LD !u)).
+	
+
+
+
+	
+
+
+% DILL Sequent calculus
+
+left : lin_tp -> type.        % Linear Hyp.
+right : lin_tp -> type. 	 % Conclusions
+leftb : lin_tp -> type.
+
+
+lolliL : left (lolli A B) -o right A -o (left B -o right C) -o right C.
+lolliR : (left A -o right B) -o right (lolli A B).
+
+bangL : left (bang A) -o (!(leftb A) -o right C) -o right C.
+bangR : !(right A) -o right (bang A).
+
+copy : !leftb A -o (left A -o right C) -o right C.
+
+cut :  right A -o (left A -o right C) -o right C.
+cutB : !(right A) -o (leftb A -> right C) -o right C.
+id  : left A -o right A.
+
+% From Linear Lambda to Sequent Calculus
+
+llambda_to_seq : lterm T -> right T -> type.
+llambda_to_seq/hyp : lhyp H -> left H -> type.
+llambda_to_seq/uhyp : uhyp H -> leftb H -> type.
+
+llambda_to_seq/var : llambda_to_seq (lvar H) (id LH)
+		    <- llambda_to_seq/hyp H LH.
+
+llambda_to_seq/uvar : llambda_to_seq (uvar H) (copy UH (\x. id x))
+		    <- llambda_to_seq/uhyp H UH.
+
+llambda_to_seq/llam : llambda_to_seq (llam (\x.D x)) (lolliR (\x'.LD x'))
+		    <- (Pi x.Pi x'. llambda_to_seq/hyp x x' -> llambda_to_seq (D x) (LD x')).
+
+llambda_to_seq/lapp : llambda_to_seq (lapp D E) (cut LD (\x.lolliL x LE (\x. id x)))
+		    <- llambda_to_seq D LD
+		    <- llambda_to_seq E LE.
+
+llambda_to_seq/bng : llambda_to_seq (bng D) (bangR LD)
+		    <- llambda_to_seq D LD.
+
+llambda_to_seq/letbng : llambda_to_seq (letbng D (\!u. E !u)) (cut LD (\x. bangL x (\!u. LE !u)))
+		    <- llambda_to_seq D LD
+		    <- (Pi x.Pi x'. llambda_to_seq/uhyp x x' -> llambda_to_seq (E !x) (LE !x')).
+
+
+
+% Synchronous pi-calculus 
+
+ch : type.
+expr : type.
+
+par : expr -> expr -> expr.
+
+inp : ch -> (ch -> expr) -> expr.
+out : ch -> ch -> expr -> expr.
+rep : ch -> (ch -> expr) -> expr.
+
+new : (ch -> expr) -> expr.
+
+subst : ch -> ch -> expr.
+
+% Type System piDILL
+
+proc : (ch -> expr) -> lin_tp -> type. % proc (\!z.P !z) T - process P uses z as type T (only in conclusions).
+chan : ch -> lin_tp -> type. % chan C T - channel C has type T (only as linear assumptions).
+chanB : ch -> lin_tp -> type. % chan C T - channel C has type T (only as unrestricted assumptions)
+
+tSubst : Pi x.chan x A -o proc (\!z. subst !x !z) A. 
+
+tLolliR : (Pi y.chan y A -o proc (\!x. P !y !x) B)
+          -o proc (\!x. inp !x (\!y. P !y !x)) (lolli A B).
+
+tLolliL : (proc (\!y.P !y) A) -o (Pi x.chan x B -o proc (\!z.Q !x !z) C) -o
+         (Pi x.chan x (lolli A B) -o proc (\!z.new (\!y. out !x !y (par (P !y) (Q !x !z)))) C).
+
+tCut : (proc (\!x.P !x) A) -o (Pi x.chan x A -o proc (\!z.Q !x !z) C) -o
+       (proc (\!z.new (\!x.par (P !x) (Q !x !z))) C).
+
+tCopy : (Pi y.chan y A -o proc (\!z.P !y !z) C) -o
+        (Pi u.chanB u A -> proc (\!z.new (\!y. out !u !y (P !y !z))) C). 
+
+tBangR : (proc (\!y.Q !y) A) -> (proc (\!x.rep !x (\!u.Q !u)) (bang A)).
+tBangL : (Pi u.chanB u A -> proc (\!z.P !u !z) C) -o
+       	 (Pi x.chan x (bang A) -o proc (\!z.P !x !z) C).
+
+% Translation from sequents to typed processes
+
+extrR : right C -> proc (\!z. P !z) C -> type.
+extrL : left A -> Pi X:ch.chan X A -> type.
+extrLB: leftb A -> Pi U:ch.chanB U A -> type.
+
+extr_id : extrR (id H) (tSubst X LH)
+	 <- extrL H X LH.
+
+extr_cut : extrR (cut D (\x. E x)) (tCut P (\!x'.\cx. Q !x' cx))
+	 <- extrR D P
+	 <- (Pi x.Pi x'.Pi cx.extrL x x' cx -> extrR (E x) (Q !x' cx)). 
+
+extr_lolliR : extrR (lolliR (\y. D y)) (tLolliR (\!y'.\cy. P !y' cy))
+	   <- (Pi y.Pi y'.Pi cy. extrL y y' cy -> extrR (D y) (P !y' cy)).
+
+ 
+extr_lolliL : extrR (lolliL X D (\x. E x)) (tLolliL P (\!y'.\cy. Q !y' cy) X' CX)
+	   <- extrR D P
+	   <- (Pi y.Pi y':ch.Pi cy.extrL y y' cy -> extrR (E y)  (Q !y' cy))
+	   <- extrL X X' CX.
+
+extr_bangR : extrR (bangR D) (tBangR P)
+	   <- extrR D P.
+
+extr_bangL : extrR (bangL X (\!x. D !x)) (tBangL (\!u.\!cu. P !u !cu) X' CX)
+	   <- extrL X X' CX
+	   <- (Pi u.Pi u'. Pi cu.extrLB u u' cu -> extrR (D !u) (P !u' !cu)).
+
+extr_copy : extrR (copy U (\y. D y)) (tCopy (\!y'.\cy. P !y' cy) !U' !CU)
+	  <- (Pi y.Pi y'.Pi cy. extrL y y' cy -> extrR (D y) (P !y' cy))
+	  <- extrLB U U' CU.
+
+% Test Area
+
+print_proc : proc (\!z. P !z) A -> (ch -> expr) -> type.
+- : print_proc (D : proc P A) P.
+
+
+% Lambda -> CBN Linear Lambda -> DILL Sequent -> Process
+
+%#query * 1 * 1 cbn_term_trans (lam (\!x : !(hyp tau). var !x)) (cbn_type_trans/arrow cbn_type_trans/tau cbn_type_trans/tau) X.
+%#query * 1 * 1 llambda_to_seq (llam (\x. letbng (lvar x) (\!u. uvar !u))) Y.
+%#query * 1 * 1 extrR (lolliR (\x'. cut (id x') (\x. bangL x (\!u. copy !u (\x_1. id x_1))))) Z.
+#query * 1 * 1 print_proc (tLolliR (\!y'. \cy. tCut (tSubst !y' cy) (\!x'. \cx. tBangL (\!u. \!cu. tCopy (\!y'_1. \cy_1. tSubst !y'_1 cy_1) !u !cu) !x' cx))) P.
+
+% Lambda -> CBV Linear Lambda -> DILL Sequent -> Process
+
+%#query * 1 * 1 cbv_term_trans_dag (lam (\!x : !(hyp tau). var !x)) 
+%       	        (cbv_type_trans_dag/- (cbv_type_trans_ddag/arrow 
+%				      (cbv_type_trans_dag/- (cbv_type_trans_ddag/tau))
+%				      (cbv_type_trans_dag/- (cbv_type_trans_ddag/tau)))) Y.
+
+%#query * 1 * 1 llambda_to_seq (bng !(llam (\x. letbng (lvar x) (\!u. bng !(uvar !u))))) X.
+%#query * 1 * 1 extrR (bangR !(lolliR (\x'. cut (id x') (\x. bangL x (\!u. bangR !(copy !u (\x_1. id x_1))))))) Z.
+#query * 1 * 1 print_proc (tBangR !(tLolliR (\!y'. \cy. tCut (tSubst !y' cy) (\!x'. \cx. tBangL (\!u. \!cu. tBangR !(tCopy (\!y'_1. \cy_1. tSubst !y'_1 cy_1) !u !cu)) !x' cx)))) P.
+
+
+% Lambda -> CBV CPS -> CBV Linear Lambda -> DILL Sequent -> Process
+
+
+%#query * 1 * 1 cps_cbv_transform (lam (\!x : !(hyp tau). var !x))
+%			         (cps_cbv_type_transform/- (cps_cbv_type_transform/arr cps_cbv_type_transform/tau 
+%				 			   			      (cps_cbv_type_transform/- cps_cbv_type_transform/tau)))
+%				 X.
+%#query * 1 * 1 cps_cbv_type_transform (arrow tau tau) T.
+%#query * 1 * 1 cbv_type_trans_dag (arrow !(arrow !(arrow !tau !(arrow !(arrow !tau !answer) !answer)) !answer) !answer) T.
+%#query * 1 * 1 cbv_term_trans_dag (lam !(\!k. app !(var !k) !(lam !(\!x. lam !(\!k_1. app !(var !k_1) !(var !x))))))
+%	      			   (cbv_type_trans_dag/- !(cbv_type_trans_ddag/arrow !(cbv_type_trans_dag/- !(cbv_type_trans_ddag/arrow !(cbv_type_trans_dag/- !(cbv_type_trans_ddag/arrow !(cbv_type_trans_dag/- !cbv_type_trans_ddag/tau) !(cbv_type_trans_dag/- !(cbv_type_trans_ddag/arrow !(cbv_type_trans_dag/- !(cbv_type_trans_ddag/arrow !(cbv_type_trans_dag/- !cbv_type_trans_ddag/tau) !(cbv_type_trans_dag/- !cbv_type_trans_ddag/answer))) !(cbv_type_trans_dag/- !cbv_type_trans_ddag/answer))))) !(cbv_type_trans_dag/- !cbv_type_trans_ddag/answer))) !(cbv_type_trans_dag/- !cbv_type_trans_ddag/answer)))
+%				   Y.
+%#query * 1 * 1 llambda_to_seq (bng !(llam (\x. letbng (lvar x) (\!u. lapp (letbng (bng !(uvar !u)) (\!u_1. uvar !u_1)) (bng !(llam (\x_1. letbng (lvar x_1) (\!u_1. bng !(llam (\x_2. letbng (lvar x_2) (\!u_2. lapp (letbng (bng !(uvar !u_2)) (\!u_3. uvar !u_3)) (bng !(uvar !u_1))))))))))))) Z.			
+%#query * 1 * 1 extrR (bangR !(lolliR (\x'. cut (id x') (\x. bangL x (\!u. cut (cut (bangR !(copy !u (\x_1. id x_1))) (\x_1. bangL x_1 (\!u_1. copy !u_1 (\x_2. id x_2)))) (\x_1. lolliL x_1 (bangR !(lolliR (\x'_1. cut (id x'_1) (\x_2. bangL x_2 (\!u_1. bangR !(lolliR (\x'_2. cut (id x'_2) (\x_3. bangL x_3 (\!u_2. cut (cut (bangR !(copy !u_2 (\x_4. id x_4))) (\x_4. bangL x_4 (\!u_3. copy !u_3 (\x_5. id x_5)))) (\x_4. lolliL x_4 (bangR !(copy !u_1 (\x_5. id x_5))) (\x_5. id x_5))))))))))) (\x_2. id x_2))))))) Z.
+%#query * 1 * 1 print_proc (tBangR !(tLolliR (\!y'. \cy. tCut (tSubst !y' cy) (\!x'. \cx. tBangL (\!u. \!cu. tCut (tCut (tBangR !(tCopy (\!y'_1. \cy_1. tSubst !y'_1 cy_1) !u !cu)) (\!x'_1. \cx_1. tBangL (\!u_1. \!cu_1. tCopy (\!y'_1. \cy_1. tSubst !y'_1 cy_1) !u_1 !cu_1) !x'_1 cx_1)) (\!x'_1. \cx_1. tLolliL (tBangR !(tLolliR (\!y'_1. \cy_1. tCut (tSubst !y'_1 cy_1) (\!x'_2. \cx_2. tBangL (\!u_1. \!cu_1. tBangR !(tLolliR (\!y'_2. \cy_2. tCut (tSubst !y'_2 cy_2) (\!x'_3. \cx_3. tBangL (\!u_2. \!cu_2. tCut (tCut (tBangR !(tCopy (\!y'_3. \cy_3. tSubst !y'_3 cy_3) !u_2 !cu_2)) (\!x'_4. \cx_4. tBangL (\!u_3. \!cu_3. tCopy (\!y'_3. \cy_3. tSubst !y'_3 cy_3) !u_3 !cu_3) !x'_4 cx_4)) (\!x'_4. \cx_4. tLolliL (tBangR !(tCopy (\!y'_3. \cy_3. tSubst !y'_3 cy_3) !u_1 !cu_1)) (\!y'_3. \cy_3. tSubst !y'_3 cy_3) !x'_4 cx_4)) !x'_3 cx_3)))) !x'_2 cx_2)))) (\!y'_1. \cy_1. tSubst !y'_1 cy_1) !x'_1 cx_1)) !x' cx)))) P.
+
+% Lambda -> CBV CPS -> CBN Linear Lambda -> DILL Sequent -> Process
+
+%#query * 1 * 1 cps_cbv_transform (lam (\!x : !(hyp tau). var !x))
+%			         (cps_cbv_type_transform/- (cps_cbv_type_transform/arr cps_cbv_type_transform/tau 
+%				 			   			      (cps_cbv_type_transform/- cps_cbv_type_transform/tau)))
+%				 X.
+%#query * 1 * 1 cps_cbv_type_transform (arrow tau tau) T.
+%#query * 1 * 1 cbn_type_trans (arrow !(arrow !(arrow !tau !(arrow !(arrow !tau !answer) !answer)) !answer) !answer) T.
+%#query * 1 * 1 cbn_term_trans ((lam !(\!k. app !(var !k) !(lam !(\!x. lam !(\!k_1. app !(var !k_1) !(var !x)))))))
+%			      (cbn_type_trans/arrow !(cbn_type_trans/arrow !(cbn_type_trans/arrow !cbn_type_trans/tau !(cbn_type_trans/arrow %!(cbn_type_trans/arrow !cbn_type_trans/tau !cbn_type_trans/answer) !cbn_type_trans/answer)) !cbn_type_trans/answer) !cbn_type_trans/answer) X.
+%#query * 1 * 1 llambda_to_seq (llam (\x. letbng (lvar x) (\!u. lapp (uvar !u) (bng !(llam (\x_1. letbng (lvar x_1) (\!u_1. llam (\x_2. letbng (lvar x_2) (\!u_2. lapp (uvar !u_2) (bng !(uvar !u_1))))))))))) Y.
+%#query * 1 * 1 extrR (lolliR (\x'. cut (id x') (\x. bangL x (\!u. cut (copy !u (\x_1. id x_1)) (\x_1. lolliL x_1 (bangR !(lolliR (\x'_1. cut (id x'_1) (\x_2. bangL x_2 (\!u_1. lolliR (\x'_2. cut (id x'_2) (\x_3. bangL x_3 (\!u_2. cut (copy !u_2 (\x_4. id x_4)) (\x_4. lolliL x_4 (bangR !(copy !u_1 (\x_5. id x_5))) (\x_5. id x_5)))))))))) (\x_2. id x_2)))))) Z.
+
+#query * 1 * 1 print_proc (tLolliR (\!y'. \cy. tCut (tSubst !y' cy) (\!x'. \cx. tBangL (\!u. \!cu. tCut (tCopy (\!y'_1. \cy_1. tSubst !y'_1 cy_1) !u !cu) (\!x'_1. \cx_1. tLolliL (tBangR !(tLolliR (\!y'_1. \cy_1. tCut (tSubst !y'_1 cy_1) (\!x'_2. \cx_2. tBangL (\!u_1. \!cu_1. tLolliR (\!y'_2. \cy_2. tCut (tSubst !y'_2 cy_2) (\!x'_3. \cx_3. tBangL (\!u_2. \!cu_2. tCut (tCopy (\!y'_3. \cy_3. tSubst !y'_3 cy_3) !u_2 !cu_2) (\!x'_4. \cx_4. tLolliL (tBangR !(tCopy (\!y'_3. \cy_3. tSubst !y'_3 cy_3) !u_1 !cu_1)) (\!y'_3. \cy_3. tSubst !y'_3 cy_3) !x'_4 cx_4)) !x'_3 cx_3))) !x'_2 cx_2)))) (\!y'_1. \cy_1. tSubst !y'_1 cy_1) !x'_1 cx_1)) !x' cx))) P.
+
+
+% Lambda -> CBN CPS -> CBV Linear Lambda -> DILL Sequent -> Process
+
+%#query * 1 * 1 cps_cbn_type_transform (arrow tau tau) T.
+%#query * 1 * 1 cps_cbn_transform (lam (\!x : !(hyp tau). var !x)) (cps_cbn_type_transform/- !(cps_cbn_type_transform/arr !(cps_cbn_type_transform/- !cps_cbn_type_transform/tau) !(cps_cbn_type_transform/- !cps_cbn_type_transform/tau))) X.
+%#query * 1 * 1 cbv_type_trans_dag (arrow !(arrow !(arrow !(arrow !(arrow !tau !answer) !answer) !(arrow !(arrow !tau !answer) !answer)) !answer) !answer) T.
+%#query * 1 * 1 cbv_term_trans_dag (lam !(\!k. app !(var !k) !(lam !(\!v. var !v)))) (cbv_type_trans_dag/- !(cbv_type_trans_ddag/arrow !(cbv_type_trans_dag/- !(cbv_type_trans_ddag/arrow !(cbv_type_trans_dag/- !(cbv_type_trans_ddag/arrow !(cbv_type_trans_dag/- !(cbv_type_trans_ddag/arrow !(cbv_type_trans_dag/- !(cbv_type_trans_ddag/arrow !(cbv_type_trans_dag/- !cbv_type_trans_ddag/tau) !(cbv_type_trans_dag/- !cbv_type_trans_ddag/answer))) !(cbv_type_trans_dag/- !cbv_type_trans_ddag/answer))) !(cbv_type_trans_dag/- !(cbv_type_trans_ddag/arrow !(cbv_type_trans_dag/- !(cbv_type_trans_ddag/arrow !(cbv_type_trans_dag/- !cbv_type_trans_ddag/tau) !(cbv_type_trans_dag/- !cbv_type_trans_ddag/answer))) !(cbv_type_trans_dag/- !cbv_type_trans_ddag/answer))))) !(cbv_type_trans_dag/- !cbv_type_trans_ddag/answer))) !(cbv_type_trans_dag/- !cbv_type_trans_ddag/answer))) X.	
+%#query * 1 * 1 llambda_to_seq (bng !(llam (\x. letbng (lvar x) (\!u. lapp (letbng (bng !(uvar !u)) (\!u_1. uvar !u_1)) (bng !(llam (\x_1. letbng (lvar x_1) (\!u_1. bng !(uvar !u_1))))))))) X.
+%#query * 1 * 1 extrR (bangR !(lolliR (\x'. cut (id x') (\x. bangL x (\!u. cut (cut (bangR !(copy !u (\x_1. id x_1))) (\x_1. bangL x_1 (\!u_1. copy !u_1 (\x_2. id x_2)))) (\x_1. lolliL x_1 (bangR !(lolliR (\x'_1. cut (id x'_1) (\x_2. bangL x_2 (\!u_1. bangR !(copy !u_1 (\x_3. id x_3))))))) (\x_2. id x_2))))))) X.
+#query * 1 * 1 print_proc (tBangR !(tLolliR (\!y'. \cy. tCut (tSubst !y' cy) (\!x'. \cx. tBangL (\!u. \!cu. tCut (tCut (tBangR !(tCopy (\!y'_1. \cy_1. tSubst !y'_1 cy_1) !u !cu)) (\!x'_1. \cx_1. tBangL (\!u_1. \!cu_1. tCopy (\!y'_1. \cy_1. tSubst !y'_1 cy_1) !u_1 !cu_1) !x'_1 cx_1)) (\!x'_1. \cx_1. tLolliL (tBangR !(tLolliR (\!y'_1. \cy_1. tCut (tSubst !y'_1 cy_1) (\!x'_2. \cx_2. tBangL (\!u_1. \!cu_1. tBangR !(tCopy (\!y'_2. \cy_2. tSubst !y'_2 cy_2) !u_1 !cu_1)) !x'_2 cx_2)))) (\!y'_1. \cy_1. tSubst !y'_1 cy_1) !x'_1 cx_1)) !x' cx)))) P.					      
+% Lambda -> CBN CPS -> CBN Linear Lambda -> DILL Sequent -> Process
+
+%#query * 1 * 1 cbn_type_trans (arrow !(arrow !(arrow !(arrow !(arrow !tau !answer) !answer) !(arrow !(arrow !tau !answer) !answer)) !answer) !answer) T.
+%#query * 1 * 1 cbn_term_trans (lam !(\!k. app !(var !k) !(lam !(\!v. var !v)))) (cbn_type_trans/arrow !(cbn_type_trans/arrow !(cbn_type_trans/arrow !(cbn_type_trans/arrow !(cbn_type_trans/arrow !cbn_type_trans/tau !cbn_type_trans/answer) !cbn_type_trans/answer) !(cbn_type_trans/arrow !(cbn_type_trans/arrow !cbn_type_trans/tau !cbn_type_trans/answer) !cbn_type_trans/answer)) !cbn_type_trans/answer) !cbn_type_trans/answer) X.
+%#query * 1 * 1 llambda_to_seq (llam (\x. letbng (lvar x) (\!u. lapp (uvar !u) (bng !(llam (\x_1. letbng (lvar x_1) (\!u_1. uvar !u_1))))))) X.
+%#query * 1 * 1 extrR (lolliR (\x'. cut (id x') (\x. bangL x (\!u. cut (copy !u (\x_1. id x_1)) (\x_1. lolliL x_1 (bangR !(lolliR (\x'_1. cut (id x'_1) (\x_2. bangL x_2 (\!u_1. copy !u_1 (\x_3. id x_3)))))) (\x_2. id x_2)))))) T.
+
+%#query * 1 * 1 print_proc (tLolliR (\!y'. \cy. tCut (tSubst !y' cy) (\!x'. \cx. tBangL (\!u. \!cu. tCut (tCopy (\!y'_1. \cy_1. tSubst !y'_1 cy_1) !u !cu) (\!x'_1. \cx_1. tLolliL (tBangR !(tLolliR (\!y'_1. \cy_1. tCut (tSubst !y'_1 cy_1) (\!x'_2. \cx_2. tBangL (\!u_1. \!cu_1. tCopy (\!y'_2. \cy_2. tSubst !y'_2 cy_2) !u_1 !cu_1) !x'_2 cx_2)))) (\!y'_1. \cy_1. tSubst !y'_1 cy_1) !x'_1 cx_1)) !x' cx))) P.
