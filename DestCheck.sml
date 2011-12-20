@@ -39,7 +39,7 @@ fun destCheckDecl tyA =
 let
    val patterns = Skel.patterns tyA
 in
-   raise Match
+   ()
 end
 
 end

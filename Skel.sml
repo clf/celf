@@ -34,8 +34,8 @@ fun asyncString skel =
     | ProjLeft skel1 => "#1 " ^ asyncString skel1
     | ProjRight skel1 => "#2 " ^ asyncString skel1
 
-(* Other hacky toString functions *)
 
+(* Useful, de Bruijn-exposing  *)
 and termString n = 
    case Syntax.NfObj.prj n of 
       Syntax.NfLLam _ => "(\\...)"
