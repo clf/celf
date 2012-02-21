@@ -1,24 +1,87 @@
-// $ elton -d simple -p clf types.l10
+// Reasoning about simply-typed CLF signatures
+// Robert J. Simmons
+
+t: extensible.
 
 // CLF has three modes, or levels of reasoning
-mode: type.
+mode: type. {-# TYPE mode transparent #-}
 per: mode. // persistent (called INT for intuitionstic in Anders' code)
 aff: mode. // affine
 lin: mode. // linear 
 
 // The simple, polarized types of CLF
-pos: type.
-neg: type.
+pos: type. {-# TYPE pos transparent #-}
+neg: type. {-# TYPE neg transparent #-} 
 down:   mode -> neg -> pos.  // !A, @A, A, depending on mode
 one:    pos.                 // 1
 tensor: pos -> pos -> pos.   // S1 * S2
-atom:   t -> neg.            // p
+atom:   t -> neg.            // Q
 monad:  pos -> neg.          // {S}
 lolli:  pos -> neg -> neg.   // S -o A
 with:   neg -> neg -> neg.   // A1 & A2
 
 // Declared types are loaded into the "type" relation; declared constants
 // are loaded into the "con" relation.
+wSgn: world.
+typ: t -> rel @ wSgn.
+con: t -> neg -> rel @ wSgn.
+ 
+// Heads can be monadic or atomic
+headtp: type.
+monadic: pos -> headtp.
+atomic: t -> headtp.
+
+
+
+
+{-
+  HEADS OF ATOMIC PROPOSITIONS
+  
+  If a right-inverting, the end result will be one or more stable sequents 
+  (a negative atomic proposition `Q true` or a lax judgment `S lax`). By the 
+  same token, left-focus will eventually blur (requiring that the conclusion be
+  lax) or reach a negative atomic proposition (requiring that the ultimate 
+  proposition be that same atomic proposition).
+
+  These ultimate outcomes are the head(s) of the proposition, and are 
+  calculated by these relations.
+-}
+
+wHead: world.
+head: {C: t} {H: headtp} rel @ wHead.
+
+// Compute the heads
+wHeadA: neg -> world.
+headA: {A: neg} {H: headtp} rel @ wHeadA A.
+
+headA (atom Q) (atomic Q).
+headA (monad S) (monadic S).
+headA A H -> headA (lolli _ A) H.
+headA A H -> headA (with A _) H.
+headA A H -> headA (with _ A) H.
+
+// Store the head(s) of every declared constant
+con C A, headA A H -> head C H.
+
+
+
+
+{- 
+  SUBORDINATION
+-}
+
+// We need to extend the head relation calculation to positive types as they
+// might appear in right-focus or left-inversion.
+wHeadS: pos -> world.
+headS: {S: pos} {H: headtp} rel @ wHeadS S.
+headA A H -> headS (down _ A) H.
+headS S H -> headS (tensor S _) H.
+headS S H -> headS (tensor _ S) H.
+
+{-
+
+
+
 wSgn: world.
 typ: t -> rel @ wSgn.
 con: t -> neg -> rel @ wSgn.
@@ -92,3 +155,5 @@ not (subord _ (atomic Q))
 
 // Oh so dumb, just to get an index
 posAtom Q -> posAtom Q.
+
+-}
