@@ -17,6 +17,7 @@ parseErr debruijn.clf
 parseErr debruijn1.clf
 success demo.clf
 success dhondt.clf
+success exex.clf
 parseErr exp.clf
 typeErr fj.clf
 success fol.clf
@@ -51,3 +52,7 @@ success test-fair.clf
 modeErr tpres-mini-ml.clf
 success sill/full_sill.clf
 success sill/funcomp_cbn_cbv.clf
+success voting/dhondt-incremental.clf
+success voting/dhondt-matrix.clf
+success voting/fptp-voteid.clf
+success voting/stv-voteid.clf
