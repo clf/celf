@@ -144,6 +144,10 @@ fun solve (ctx, ty, sc) =
 	; solve' (ctx, ty, sc) )
 and solve' (ctx, ty, sc) = case Util.typePrjAbbrev ty of
 	  TLPi (p, S, A) => solve (pBind (p, S) ctx, A,
+			(* The pattern p is a type pattern, which means that 
+			   it only names dependent variables. We need to create
+			   p', the term pattern, which binds all the 
+			   variables; Util.patternT2O does this. *)
 			fn (N, ctxo) => let val p' = Util.patternT2O p in
 				sc (LLam' (p', N), patUnbind (p', ctxo)) end)
 	(*| AddProd (A, B) => solve (ctx, A,
@@ -214,11 +218,18 @@ and forwardChain' (fcLim, (l, ctx), S, sc) =
 						hds
 					@ matchCtx (G, k+1)
 				end
-	in case if fcLim <> SOME 0 then
-				PermuteList.findSome (fn f => f ())
-					(PermuteList.fromList
-						(matchCtx (ctx2list $ ctx, 1) @ map matchSig (getCandMonad ())))
-			else NONE of
+	in case (if fcLim <> SOME 0 
+		 (* matchCtx and matchSig are going to give us the different ways of trying to foward chain one step
+		    in the current context as functions unit -> a term that can be derived, the synchronous type
+		    that left-focusing on this term will dump into the context, and presumably the new, modified context.
+
+		    Each of these functions implement 
+		    "if I try this rule, what progress do I make in the current context?" The PermuteList stuff allows
+		    us to then try all the possibilities in some (unspecified) order. *)
+		 then PermuteList.findSome (fn f => f ())
+			(PermuteList.fromList
+				(matchCtx (ctx2list $ ctx, 1) @ map matchSig (getCandMonad ())))
+		 else NONE) of
 			  NONE => rightFocus ((l, ctx), genMon (ctx, NONE, S), S,
 			  			fn (M, ctxo) => sc (Mon' M, ctxo))
 			| SOME (N, sty, ctxm) =>
