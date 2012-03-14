@@ -39,6 +39,10 @@ fun parseArgs args = case args of
 		( print "Enabling double checking\n"
 		; TypeCheck.enable ()
 		; parseArgs args )
+	| "-dfc"::args =>
+		( print "Enabling stepwise debugging during forward chaining\n"
+		; OpSem.debugForwardChaining := true
+		; parseArgs args )
 	| "-pi"::args =>
 		( print "printImpl := true\n"
 		; PrettyPrint.printImpl := true
@@ -56,6 +60,10 @@ fun parseArgs args = case args of
 		; Unify.outputUnify := true
 		; parseArgs args )
 	| "-ta"::args =>
+		( print "traceApx := true\n"
+		; ApproxTypes.traceApx := true
+		; parseArgs args )
+	| "-tc"::args =>
 		( print "traceApx := true\n"
 		; ApproxTypes.traceApx := true
 		; parseArgs args )
@@ -89,6 +97,7 @@ fun parseArgs args = case args of
 				^" -s seed : set random seed\n"
 				^" -h      : show this\n"
 				^" -d      : enable double checking\n"
+				^" -dfc    : debug contexts in monadic forward chaining\n"
 				^" -ac     : allow leftover constraints in proof search\n"
 				^" -pi     : print implicit arguments\n"
 				^" -pcL    : print logicvar contexts (L = 1 or 2)\n"

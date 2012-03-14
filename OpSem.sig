@@ -21,6 +21,7 @@ signature OPSEM =
 sig
 
 val traceSolve : int ref
+val debugForwardChaining : bool ref
 val allowConstr : bool ref
 val fcLimit : int option ref
 

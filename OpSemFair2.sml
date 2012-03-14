@@ -28,6 +28,7 @@ open SignaturTable
 
 val traceSolve = ref 0
 val allowConstr = ref false
+val debugForwardChaining = ref false
 
 val fcLimit = ref NONE : int option ref
 
@@ -192,62 +193,101 @@ and matchAtom' (ctx, P, sc) =
 	  (PermuteList.fromList (matchCtx (ctx2list $ #2 ctx, 1) @ map matchSig (getCandAtomic aP)))
 	end
 
+and printCtx (lcontext, context) = 
+   print "I am a banana context!\n"
+
 (* forwardChain : int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)
 and forwardChain (fcLim, ctx, S, sc) =
-	( if !traceSolve >= 2 then
-		print ("ForwardChain ("^PrettyPrint.printType (TMonad' S)^")\n")
-	  else ()
-	; forwardChain' (fcLim, ctx, S, sc) )
-and forwardChain' (fcLim, (l, ctx), S, sc) =
-	let fun mlFocus (ctx', lr, A, h) = fn commitExn =>
-					( traceLeftFocus (h, A)
-					; monLeftFocus (lr, ctx', A, fn (S, sty, ctxo) =>
-						if !allowConstr orelse Unify.constrsSolvable (Atomic' (h, S))
-						then raise commitExn ((h, S), sty, ctxo)
-						else () ) )
-		fun matchSig (c, lr, A) = fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))
-		fun matchCtx ([], _) = []
-		  | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
-		  | matchCtx ((x, (A, hds), SOME modality)::G, k) =
-		  		let val ctx' = if modality=INT then ctx else #2 $ removeHyp (([], ctx), k)
-					val A' = TClos (A, Subst.shift k)
-				in List.mapPartial
-						(fn (_, HdAtom _) => NONE
-						  | (lr, HdMonad) => SOME (fn () =>
-							BackTrack.backtrackC (mlFocus (ctx', lr, A', Var (modality, k)))))
-						hds
-					@ matchCtx (G, k+1)
-				end
-	in case (if fcLim <> SOME 0 
-		 (* matchCtx and matchSig are going to give us the different ways of trying to foward chain one step
-		    in the current context as functions unit -> a term that can be derived, the synchronous type
-		    that left-focusing on this term will dump into the context, and presumably the new, modified context.
+ ( if !traceSolve >= 2 
+   then print ("ForwardChain ("^PrettyPrint.printType (TMonad' S)^")\n")
+   else ()
+ ; forwardChain' (fcLim, ctx, S, sc) )
 
-		    Each of these functions implement 
-		    "if I try this rule, what progress do I make in the current context?" The PermuteList stuff allows
-		    us to then try all the possibilities in some (unspecified) order. *)
-		 then PermuteList.findSome (fn f => f ())
-			(PermuteList.fromList
-				(matchCtx (ctx2list $ ctx, 1) @ map matchSig (getCandMonad ())))
-		 else NONE) of
-			  NONE => rightFocus ((l, ctx), genMon (ctx, NONE, S), S,
-			  			fn (M, ctxo) => sc (Mon' M, ctxo))
-			| SOME (N, sty, ctxm) =>
-				let fun syncType2pat sty = case SyncType.prj sty of
-						  LExists (p, _, S2) => PDepTensor' (p, syncType2pat S2)
-						| TOne => POne'
-						| TDown A => PDown' () | TAffi A => PAffi' () | TBang A => PBang' NONE
-					val p = syncType2pat sty
-					val p' = Util.patternT2O p
-					val () = if !traceSolve >= 1 then
-						print ("Committing:\n   let {_} = "^PrettyPrint.printObj (Atomic' N)^
-								" : {"^PrettyPrint.printSyncType sty^"}\n") else ()
-				in forwardChain' (Option.map (fn x => x - 1) fcLim,
-					pBind (p, sty) $ linIntersect (l, ctxm),
-					STClos (S, Subst.shift $ nbinds p),
-					fn (E, ctxo) => sc (Let' (p', N, E), patUnbind (p', ctxo)))
-				end
-	end
+and forwardChain' (fcLim, (l, ctx), S, sc) =
+let 
+   fun mlFocus (ctx', lr, A, h) = 
+      fn commitExn =>
+       ( traceLeftFocus (h, A)
+       ; monLeftFocus (lr, ctx', A, 
+                       fn (S, sty, ctxo) =>
+                          if !allowConstr orelse 
+                             Unify.constrsSolvable (Atomic' (h, S))
+                          then raise commitExn ((h, S), sty, ctxo)
+                          else () ) )
+
+   fun matchSig (c, lr, A) =
+      fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))
+
+   fun matchCtx ([], _) = []
+     | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
+     | matchCtx ((x, (A, hds), SOME modality)::G, k) =
+       let 
+          val ctx' = if modality=INT then ctx else #2 $ removeHyp (([], ctx), k)
+          val A' = TClos (A, Subst.shift k)
+       in List.mapPartial
+             (fn (_, HdAtom _) => NONE
+               | (lr, HdMonad) => 
+                    SOME (fn () =>
+                             BackTrack.backtrackC 
+                                (mlFocus (ctx', lr, A', Var (modality, k)))))
+             hds 
+          @ matchCtx (G, k+1)
+       end
+
+(* matchCtx and matchSig are going to give us the different ways of
+   trying to foward chain one step in the current context as functions
+   unit -> a term that can be derived, the synchronous type that
+   left-focusing on this term will dump into the context, and
+   presumably the new, modified context.
+
+   Each of these candidate functions implement "if I try this rule,
+   what progress do I make in the current context?" The PermuteList
+   stuff allows us to then try all the possibilities in some
+   (unspecified) order. *)
+
+val nextStep = 
+   case fcLim of
+      SOME 0 => NONE
+    | _ => 
+      let 
+         val candidates = 
+            matchCtx (ctx2list $ ctx, 1) @ map matchSig (getCandMonad ())
+
+         val () = print (Int.toString (length candidates) ^ " candidates\n")
+         val () = printCtx (l, ctx)
+         val () = ignore (TextIO.inputLine TextIO.stdIn)
+      in
+         PermuteList.findSome (fn f => f ())
+            (PermuteList.fromList candidates)
+      end
+
+in case nextStep of 
+      NONE => 
+         rightFocus ((l, ctx), genMon (ctx, NONE, S), S,
+                     fn (M, ctxo) => sc (Mon' M, ctxo))
+    | SOME (N, sty, ctxm) => 
+      let 
+         fun syncType2pat sty = 
+            case SyncType.prj sty of
+               LExists (p, _, S2) => PDepTensor' (p, syncType2pat S2)
+             | TOne => POne'
+             | TDown A => PDown' () 
+             | TAffi A => PAffi' () 
+             | TBang A => PBang' NONE
+         val p = syncType2pat sty
+         val p' = Util.patternT2O p
+         val () = if !traceSolve >= 1 
+                  then print ("Committing:\n   let {_} = "
+                              ^PrettyPrint.printObj (Atomic' N)
+                              ^" : {"^PrettyPrint.printSyncType sty^"}\n") 
+                  else ()
+      in forwardChain' (Option.map (fn x => x - 1) fcLim,
+                        pBind (p, sty) $ linIntersect (l, ctxm),
+                        STClos (S, Subst.shift $ nbinds p),
+                        fn (E, ctxo) => 
+                           sc (Let' (p', N, E), patUnbind (p', ctxo)))
+      end
+end
 
 (* rightFocus : (lcontext * context) * monadObj * syncType * (monadObj * context -> unit) -> unit *)
 and rightFocus (ctx, m, sty, sc) =
