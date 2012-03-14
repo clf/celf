@@ -253,9 +253,13 @@ val nextStep =
          val candidates = 
             matchCtx (ctx2list $ ctx, 1) @ map matchSig (getCandMonad ())
 
-         val () = print (Int.toString (length candidates) ^ " candidates\n")
-         val () = printCtx (l, ctx)
-         val () = ignore (TextIO.inputLine TextIO.stdIn)
+         val () = 
+            if !debugForwardChaining
+            then 
+             ( print (Int.toString (length candidates) ^ " candidates\n")
+             ; printCtx (l, ctx)
+             ;ignore (TextIO.inputLine TextIO.stdIn))
+            else ()
       in
          PermuteList.findSome (fn f => f ())
             (PermuteList.fromList candidates)
