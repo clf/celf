@@ -258,7 +258,7 @@ val nextStep =
             then 
              ( print (Int.toString (length candidates) ^ " candidates\n")
              ; printCtx (l, ctx)
-             ;ignore (TextIO.inputLine TextIO.stdIn))
+             ; ignore (TextIO.inputLine TextIO.stdIn))
             else ()
       in
          PermuteList.findSome (fn f => f ())
