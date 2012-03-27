@@ -219,7 +219,8 @@ fun checkPattern (ctx, k, args, sp) =
 	        if (k > k')
                    andalso isUniversal (ctx, k')
 	           andalso unique (k', args)
-                   andalso getModality (ctx, k') = m
+                   (* The next line disallows linear-changing pattern substitutions *)
+                   (* andalso getModality (ctx, k') = m *)
 	        then checkPattern (ctx, k, k'::args, sp)
 	        else raise Eta
             end
