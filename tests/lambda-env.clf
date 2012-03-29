@@ -1,0 +1,28 @@
+dest: type.
+exp: type.
+lam: (exp -> exp) -> exp.
+app: exp -> exp -> exp.
+var: dest -> exp.
+
+bind: dest -> exp -> type.
+susp: dest -> exp -> type.
+eval: dest -> exp -> type.
+retn: dest -> exp -> type.
+cont: dest -> (exp -> exp) -> dest -> type.
+
+elam:  eval D (lam \!x. E !x) -o { retn D (lam \!x. E !x) }.
+
+eapp:  eval D (app E1 E2) -o
+        { Exists d1. eval d1 E1 * cont d1 (\!x. app x E2) D }.
+eapp1: retn D1 (lam \!x. E !x) * cont D1 (\!x. app x E2) D -o
+        { Exists dx. eval D (E !(var dx)) * @susp dx E2 }. 
+
+ebind: eval D (var Dx) * bind Dx V -o { retn D V }.
+
+esusp: eval D (var Dx) * susp Dx E -o 
+        { eval Dx E * cont Dx (\!x. x) D }.
+esusp1: retn Dx V * cont Dx (\!x. x) D -o
+         { retn D V * !bind Dx V }.
+
+#query * 1 * 1 
+   Pi d. eval d (app (lam \!x. app x x) (lam \!x. app x x)) -o { retn D E }.
