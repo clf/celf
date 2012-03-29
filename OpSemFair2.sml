@@ -52,7 +52,7 @@ type lcontext = int list (* must-occur context: list of indices *)
  * we look at the overlap, it appears that all the information we need
  * comes from whether the context-thing is persistent, affine, linear, or 
  * gone. -rjs 2012-03-29 *)
-and prepCtx (lcontext, i, context) =
+fun prepCtx (lcontext, i, context) =
 let
    exception Invariant of string 
    fun modalityStr Context.INT = "pers"
