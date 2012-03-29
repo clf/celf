@@ -192,6 +192,7 @@ fun printMode Plus = "+"
 
 val printKind = String.concat o (pKind [])
 val printType = String.concat o (pType [] false)
+val printTypeInCtx = fn ctx => String.concat o (pType (RandomAccessList.fromList ctx) false)
 val printSyncType = String.concat o (pSyncType [] false)
 val printObj = String.concat o (pObj [] false)
 val printMonadObj = String.concat o (pMonadObj [] false)

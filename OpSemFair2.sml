@@ -208,25 +208,38 @@ let
 
    fun dataStr (asyncType: Syntax.asyncType, 
                 stuff: (SignaturTable.lr list * SignaturTable.headType) list) =
-      PrettyPrint.printType asyncType
+   let val ss = tl (map #1 context)
+   in
+      PrettyPrint.printTypeInCtx ss asyncType
+   end
 
-   fun optionalItem (varname, data, NONE) = [] (* Item removed from ctx *)
-     | optionalItem (varname, data, SOME modality) = 
+   fun optionalItem (varname, data, NONE) = 
+          [] (* Item removed from ctx *)
+     | optionalItem (varname, data, SOME Context.LIN) = 
           (* If we are just reporting the intermediate contexts from
           forward chaining, it should be the case that everything in
           the context is required to be in the output context: the
           more interesting case for "maybe used" contexts should only
           arise during backward chaining proof search, I think. -rjs
           2012-03-29 *)
-          [ "surprised that this happened " ^ modalityStr modality ]
+          [ "surprised that this happened!!!" ]
+     | optionalItem (varname, data, SOME Context.AFF) =
+          [ dataStr data^" aff" ]
+     | optionalItem (varname, data, SOME Context.INT) =
+          (* This seemed to work on the simple examples - is it really
+          as simple as saying that the variable-stuff has names and
+          the resource-stuff has a varname of emptystring? It's
+          certainly a reasonable approximation - rjs 2012-03-29 *)
+          if varname = "" then [ dataStr data ^ " pers" ]
+          else [ varname^":"^dataStr data ]
 
    fun mandatoryItem (varname, data, NONE) = 
           raise Invariant "mandatory item cannot also be removed from context!"
-     | mandatoryItem (varname, data, SOME Context.INT) = 
-          if varname = "" then [ "#"^Int.toString i^":"^dataStr data ]
-          else [ varname^Int.toString i^":"^dataStr data ]
+     | mandatoryItem (varname, data, SOME Context.LIN) = 
+          [ dataStr data^" lin" ]
      | mandatoryItem (varname, data, SOME modality) = 
-          [ dataStr data^" "^modalityStr modality ]
+          (* Linear things are the only ones required to be in the context *)
+          raise Invariant "Only linear things should be required!"
 in
    case (lcontext, context) of
       ([], []) => [] 
