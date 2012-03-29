@@ -39,6 +39,108 @@ val fcLimit = ref NONE : int option ref
 type context = (asyncType * (lr list * headType) list) context
 type lcontext = int list (* must-occur context: list of indices *)
 
+
+
+(* Printing out contexts that arise during forward chaining *)
+
+(* Prepare the context for printing in a very loose sense. *)
+(* Invariant: The head of "context" is always the i+1th element of the 
+ * original context. We're walking through both lists in tandem, noticing
+ * when lcontext is telling us that we're at a mandatory item.
+ *
+ * It may not actually be the case that we need the lcontext at all - if 
+ * we look at the overlap, it appears that all the information we need
+ * comes from whether the context-thing is persistent, affine, linear, or 
+ * gone. -rjs 2012-03-29 *)
+and prepCtx (lcontext, i, context) =
+let
+   exception Invariant of string 
+   fun modalityStr Context.INT = "pers"
+     | modalityStr Context.AFF = "aff"
+     | modalityStr Context.LIN = "lin"
+
+   (* What is this "stuff"? The rest of the file indicates they're
+   some sort of oracle-y thing? -rjs 2012-03-29 *)
+   fun dataStr (asyncType: Syntax.asyncType, 
+                stuff: (SignaturTable.lr list * SignaturTable.headType) list) =
+   let 
+      (* XXX PERF we do this over and over, quadratic *)
+      val context' = map #1 (tl context)
+   in
+      PrettyPrint.printTypeInCtx context' asyncType
+   end
+
+   fun optionalItem (varname, data, NONE) = 
+          [] (* Item removed from ctx *)
+     | optionalItem (varname, data, SOME Context.LIN) = 
+          (* If we are just reporting the intermediate contexts from
+          forward chaining, it should be the case that everything in
+          the context is required to be in the output context: the
+          more interesting case for "maybe used" contexts should only
+          arise during backward chaining proof search, I think. -rjs
+          2012-03-29 *)
+          [ "surprised that this happened!!!" ]
+     | optionalItem (varname, data, SOME Context.AFF) =
+          [ dataStr data^" aff" ]
+     | optionalItem (varname, data, SOME Context.INT) =
+          (* This seemed to work on the simple examples - is it really
+          as simple as saying that the variable-stuff has names and
+          the resource-stuff has a varname of emptystring? It's
+          certainly a reasonable approximation - rjs 2012-03-29 *)
+          if varname = "" then [ dataStr data ^ " pers" ]
+          else [ varname^":"^dataStr data ]
+
+   fun mandatoryItem (varname, data, NONE) = 
+          raise Invariant "mandatory item cannot also be removed from context!"
+     | mandatoryItem (varname, data, SOME Context.LIN) = 
+          [ dataStr data^" lin" ]
+     | mandatoryItem (varname, data, SOME modality) = 
+          (* Linear things are the only ones required to be in the context *)
+          raise Invariant "Only linear things should be required!"
+in
+   case (lcontext, context) of
+      ([], []) => [] 
+    | ([], x :: xs) => optionalItem x @ prepCtx (lcontext, i+1, xs)
+    | (j :: js, []) => raise Invariant "lcontext doesn't match context"
+    | (j :: js, x :: xs) =>
+         if j < i then raise Invariant "j < i should be impossible"
+         else if j = i then mandatoryItem x @ prepCtx (js, i+1, xs) 
+         else optionalItem x @ prepCtx (lcontext, i+1, xs)
+end
+
+and printCtx (lcontext, context) = 
+let 
+   (* XXX PERF - Pretty terrible (quadratic at least) -rjs 2012-03-29 *)
+   fun rename [] = []
+     | rename ((item as (x, _, _)) :: context) = 
+       let
+          val context' = rename context 
+          fun inlist z = List.exists (fn (y,_,_) => z = y) context'
+          fun loop x i = 
+             if inlist (x^"_"^Int.toString i) 
+             then loop x (i+1) else (x^"_"^Int.toString i)
+       in 
+          if x = "" then item :: context'
+          else if inlist x then (loop x 1, #2 item, #3 item) :: context'
+          else item :: context'
+       end
+
+   fun layout n [] = print "(nothing)"
+     | layout n [ x ] = 
+          if n + size x > 80 then print ("\n"^x^"\n") else print (x^"\n")
+     | layout n (x :: xs) = 
+          if n + size x + 2 > 80
+          then (print ("\n"^x^", "); layout (size x + 2) xs)
+          else (print (x^", "); layout (n + size x + 2) xs)
+
+   val printableCtx = prepCtx (lcontext, 1, rename (Context.ctx2list context))
+in
+   layout 9 (rev printableCtx)
+end
+
+
+
+
 val pBindCtx = depPatBind {dep = fn A => (A, []), nodep = fn A => (A, heads A)}
 
 fun pBindLCtx p l =
@@ -192,101 +294,6 @@ and matchAtom' (ctx, P, sc) =
 	  PermuteList.forAll (fn f => f ())
 	  (PermuteList.fromList (matchCtx (ctx2list $ #2 ctx, 1) @ map matchSig (getCandAtomic aP)))
 	end
-
-(* Prepare the context for printing in a very loose sense. *)
-(* Invariant: The head of "context" is always the i+1th element of the 
- * original context. We're walking through both lists in tandem, noticing
- * when lcontext is telling us that we're at a mandatory item.
- *
- * It may not actually be the case that we need the lcontext at all - if 
- * we look at the overlap, it appears that all the information we need
- * comes from whether the context-thing is persistent, affine, linear, or 
- * gone. -rjs 2012-03-29 *)
-and prepCtx (lcontext, i, context) =
-let
-   exception Invariant of string 
-   fun modalityStr Context.INT = "pers"
-     | modalityStr Context.AFF = "aff"
-     | modalityStr Context.LIN = "lin"
-
-   (* What is this "stuff"? The rest of the file indicates they're
-   some sort of oracle-y thing? -rjs 2012-03-29 *)
-   fun dataStr (asyncType: Syntax.asyncType, 
-                stuff: (SignaturTable.lr list * SignaturTable.headType) list) =
-   let 
-      (* XXX PERF we do this over and over, quadratic *)
-      val context' = map #1 (tl context)
-   in
-      PrettyPrint.printTypeInCtx context' asyncType
-   end
-
-   fun optionalItem (varname, data, NONE) = 
-          [] (* Item removed from ctx *)
-     | optionalItem (varname, data, SOME Context.LIN) = 
-          (* If we are just reporting the intermediate contexts from
-          forward chaining, it should be the case that everything in
-          the context is required to be in the output context: the
-          more interesting case for "maybe used" contexts should only
-          arise during backward chaining proof search, I think. -rjs
-          2012-03-29 *)
-          [ "surprised that this happened!!!" ]
-     | optionalItem (varname, data, SOME Context.AFF) =
-          [ dataStr data^" aff" ]
-     | optionalItem (varname, data, SOME Context.INT) =
-          (* This seemed to work on the simple examples - is it really
-          as simple as saying that the variable-stuff has names and
-          the resource-stuff has a varname of emptystring? It's
-          certainly a reasonable approximation - rjs 2012-03-29 *)
-          if varname = "" then [ dataStr data ^ " pers" ]
-          else [ varname^":"^dataStr data ]
-
-   fun mandatoryItem (varname, data, NONE) = 
-          raise Invariant "mandatory item cannot also be removed from context!"
-     | mandatoryItem (varname, data, SOME Context.LIN) = 
-          [ dataStr data^" lin" ]
-     | mandatoryItem (varname, data, SOME modality) = 
-          (* Linear things are the only ones required to be in the context *)
-          raise Invariant "Only linear things should be required!"
-in
-   case (lcontext, context) of
-      ([], []) => [] 
-    | ([], x :: xs) => optionalItem x @ prepCtx (lcontext, i+1, xs)
-    | (j :: js, []) => raise Invariant "lcontext doesn't match context"
-    | (j :: js, x :: xs) =>
-         if j < i then raise Invariant "j < i should be impossible"
-         else if j = i then mandatoryItem x @ prepCtx (js, i+1, xs) 
-         else optionalItem x @ prepCtx (lcontext, i+1, xs)
-end
-
-and printCtx (lcontext, context) = 
-let 
-   (* XXX PERF - Pretty terrible (quadratic at least) -rjs 2012-03-29 *)
-   fun rename [] = []
-     | rename ((item as (x, _, _)) :: context) = 
-       let
-          val context' = rename context 
-          fun inlist z = List.exists (fn (y,_,_) => z = y) context'
-          fun loop x i = 
-             if inlist (x^"_"^Int.toString i) 
-             then loop x (i+1) else (x^"_"^Int.toString i)
-       in 
-          if x = "" then item :: context'
-          else if inlist x then (loop x 1, #2 item, #3 item) :: context'
-          else item :: context'
-       end
-
-   fun layout n [] = print "(nothing)"
-     | layout n [ x ] = 
-          if n + size x > 80 then print ("\n"^x^"\n") else print (x^"\n")
-     | layout n (x :: xs) = 
-          if n + size x + 2 > 80
-          then (print ("\n"^x^", "); layout (size x + 2) xs)
-          else (print (x^", "); layout (n + size x + 2) xs)
-
-   val printableCtx = prepCtx (lcontext, 1, rename (Context.ctx2list context))
-in
-   layout 9 (rev printableCtx)
-end
 
 (* forwardChain : int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)
 and forwardChain (fcLim, ctx, S, sc) =
