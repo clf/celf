@@ -1,0 +1,12 @@
+penny: type.
+nickel: type.
+dime: type.
+quarter: type.
+
+pn: penny * penny * penny * penny * penny -o { nickel }.
+np: nickel -o { penny * penny * penny * penny * penny }.
+nd: nickel * nickel -o { dime }.
+dn: dime -o { nickel * nickel }.
+nq: nickel * nickel * nickel * nickel * nickel -o { quarter }.
+qn: quarter -o { nickel * nickel * nickel * nickel * nickel }.
+
