@@ -195,7 +195,13 @@ and matchAtom' (ctx, P, sc) =
 
 (* Prepare the context for printing in a very loose sense. *)
 (* Invariant: The head of "context" is always the i+1th element of the 
- * original context. We're walking through both lists in tandem, *)
+ * original context. We're walking through both lists in tandem, noticing
+ * when lcontext is telling us that we're at a mandatory item.
+ *
+ * It may not actually be the case that we need the lcontext at all - if 
+ * we look at the overlap, it appears that all the information we need
+ * comes from whether the context-thing is persistent, affine, linear, or 
+ * gone. -rjs 2012-03-29 *)
 and prepCtx (lcontext, i, context) =
 let
    exception Invariant of string 
@@ -205,12 +211,13 @@ let
 
    (* What is this "stuff"? The rest of the file indicates they're
    some sort of oracle-y thing? -rjs 2012-03-29 *)
-
    fun dataStr (asyncType: Syntax.asyncType, 
                 stuff: (SignaturTable.lr list * SignaturTable.headType) list) =
-   let val ss = tl (map #1 context)
+   let 
+      (* XXX PERF we do this over and over, quadratic *)
+      val context' = map #1 (tl context)
    in
-      PrettyPrint.printTypeInCtx ss asyncType
+      PrettyPrint.printTypeInCtx context' asyncType
    end
 
    fun optionalItem (varname, data, NONE) = 
@@ -253,7 +260,21 @@ end
 
 and printCtx (lcontext, context) = 
 let 
-   val printableCtx = prepCtx (lcontext, 1, Context.ctx2list context)
+   (* XXX PERF - Pretty terrible (quadratic at least) -rjs 2012-03-29 *)
+   fun rename [] = []
+     | rename ((item as (x, _, _)) :: context) = 
+       let
+          val context' = rename context 
+          fun inlist z = List.exists (fn (y,_,_) => z = y) context'
+          fun loop x i = 
+             if inlist (x^"_"^Int.toString i) 
+             then loop x (i+1) else (x^"_"^Int.toString i)
+       in 
+          if x = "" then item :: context'
+          else if inlist x then (loop x 1, #2 item, #3 item) :: context'
+          else item :: context'
+       end
+   val printableCtx = prepCtx (lcontext, 1, rename (Context.ctx2list context))
 in
    print (String.concatWith ", " (rev printableCtx) ^ "\n")
 end
@@ -277,6 +298,17 @@ let
                           then raise commitExn ((h, S), sty, ctxo)
                           else () ) )
 
+   (* matchCtx and matchSig are going to give us the different ways of
+   trying to foward chain one step in the current context as functions
+   unit -> a term that can be derived, the synchronous type that
+   left-focusing on this term will dump into the context, and
+   presumably the new, modified context.
+
+   Each of these candidate functions implement "if I try this rule,
+   what progress do I make in the current context?" The PermuteList
+   stuff allows us to then try all the possibilities in some
+   (unspecified) order. *)
+
    fun matchSig (c, lr, A) =
       fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))
 
@@ -296,43 +328,32 @@ let
           @ matchCtx (G, k+1)
        end
 
-(* matchCtx and matchSig are going to give us the different ways of
-   trying to foward chain one step in the current context as functions
-   unit -> a term that can be derived, the synchronous type that
-   left-focusing on this term will dump into the context, and
-   presumably the new, modified context.
+   val nextStep = 
+      case fcLim of
+         SOME 0 => NONE
+       | _ => 
+         let 
+            val candidates1 = matchCtx (ctx2list $ ctx, 1) 
+            val candidates2 = map matchSig (getCandMonad ())
+            val candidates = candidates1 @ candidates2
 
-   Each of these candidate functions implement "if I try this rule,
-   what progress do I make in the current context?" The PermuteList
-   stuff allows us to then try all the possibilities in some
-   (unspecified) order. *)
-
-val nextStep = 
-   case fcLim of
-      SOME 0 => NONE
-    | _ => 
-      let 
-         val candidates1 = matchCtx (ctx2list $ ctx, 1) 
-         val candidates2 = map matchSig (getCandMonad ())
-         val candidates = candidates1 @ candidates2
-
-         val () = 
-            if !debugForwardChaining
-            then 
-             ( print "Context: " 
-             ; printCtx (l, ctx)
-             ; print (Int.toString (length candidates) ^ " candidates")
-             ; if (length candidates1 > 0) 
-               then print (", " ^ Int.toString (length candidates2) ^ 
-                           " from the context. <press ENTER to continue>")
-               else print (". <press ENTER to continue>")
-             ; TextIO.flushOut TextIO.stdOut
-             ; ignore (TextIO.inputLine TextIO.stdIn))
-            else ()
-      in
-         PermuteList.findSome (fn f => f ())
-            (PermuteList.fromList candidates)
-      end
+            val () = 
+               if !debugForwardChaining
+               then 
+                ( print "Context: " 
+                ; printCtx (l, ctx)
+                ; print (Int.toString (length candidates) ^ " candidates")
+                ; if (length candidates1 > 0) 
+                  then print (", " ^ Int.toString (length candidates2) ^ 
+                              " from the context. <press ENTER to continue>")
+                  else print (". <press ENTER to continue>")
+                ; TextIO.flushOut TextIO.stdOut
+                ; ignore (TextIO.inputLine TextIO.stdIn))
+               else ()
+         in
+            PermuteList.findSome (fn f => f ())
+               (PermuteList.fromList candidates)
+         end
 
 in case nextStep of 
       NONE => 
