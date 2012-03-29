@@ -193,8 +193,57 @@ and matchAtom' (ctx, P, sc) =
 	  (PermuteList.fromList (matchCtx (ctx2list $ #2 ctx, 1) @ map matchSig (getCandAtomic aP)))
 	end
 
+(* Prepare the context for printing in a very loose sense. *)
+(* Invariant: The head of "context" is always the i+1th element of the 
+ * original context. We're walking through both lists in tandem, *)
+and prepCtx (lcontext, i, context) =
+let
+   exception Invariant of string 
+   fun modalityStr Context.INT = "pers"
+     | modalityStr Context.AFF = "aff"
+     | modalityStr Context.LIN = "lin"
+
+   (* What is this "stuff"? The rest of the file indicates they're
+   some sort of oracle-y thing? -rjs 2012-03-29 *)
+
+   fun dataStr (asyncType: Syntax.asyncType, 
+                stuff: (SignaturTable.lr list * SignaturTable.headType) list) =
+      PrettyPrint.printType asyncType
+
+   fun optionalItem (varname, data, NONE) = [] (* Item removed from ctx *)
+     | optionalItem (varname, data, SOME modality) = 
+          (* If we are just reporting the intermediate contexts from
+          forward chaining, it should be the case that everything in
+          the context is required to be in the output context: the
+          more interesting case for "maybe used" contexts should only
+          arise during backward chaining proof search, I think. -rjs
+          2012-03-29 *)
+          [ "surprised that this happened " ^ modalityStr modality ]
+
+   fun mandatoryItem (varname, data, NONE) = 
+          raise Invariant "mandatory item cannot also be removed from context!"
+     | mandatoryItem (varname, data, SOME Context.INT) = 
+          if varname = "" then [ "#"^Int.toString i^":"^dataStr data ]
+          else [ varname^Int.toString i^":"^dataStr data ]
+     | mandatoryItem (varname, data, SOME modality) = 
+          [ dataStr data^" "^modalityStr modality ]
+in
+   case (lcontext, context) of
+      ([], []) => [] 
+    | ([], x :: xs) => optionalItem x @ prepCtx (lcontext, i+1, xs)
+    | (j :: js, []) => raise Invariant "lcontext doesn't match context"
+    | (j :: js, x :: xs) =>
+         if j < i then raise Invariant "j < i should be impossible"
+         else if j = i then mandatoryItem x @ prepCtx (js, i+1, xs) 
+         else optionalItem x @ prepCtx (lcontext, i+1, xs)
+end
+
 and printCtx (lcontext, context) = 
-   print "I am a banana context!\n"
+let 
+   val printableCtx = prepCtx (lcontext, 1, Context.ctx2list context)
+in
+   print (String.concatWith ", " (rev printableCtx) ^ "\n")
+end
 
 (* forwardChain : int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)
 and forwardChain (fcLim, ctx, S, sc) =
@@ -250,14 +299,21 @@ val nextStep =
       SOME 0 => NONE
     | _ => 
       let 
-         val candidates = 
-            matchCtx (ctx2list $ ctx, 1) @ map matchSig (getCandMonad ())
+         val candidates1 = matchCtx (ctx2list $ ctx, 1) 
+         val candidates2 = map matchSig (getCandMonad ())
+         val candidates = candidates1 @ candidates2
 
          val () = 
             if !debugForwardChaining
             then 
-             ( print (Int.toString (length candidates) ^ " candidates\n")
+             ( print "Context: " 
              ; printCtx (l, ctx)
+             ; print (Int.toString (length candidates) ^ " candidates")
+             ; if (length candidates1 > 0) 
+               then print (", " ^ Int.toString (length candidates2) ^ 
+                           " from the context. <press ENTER to continue>")
+               else print (". <press ENTER to continue>")
+             ; TextIO.flushOut TextIO.stdOut
              ; ignore (TextIO.inputLine TextIO.stdIn))
             else ()
       in
