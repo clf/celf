@@ -274,9 +274,18 @@ let
           else if inlist x then (loop x 1, #2 item, #3 item) :: context'
           else item :: context'
        end
+
+   fun layout n [] = print "(nothing)"
+     | layout n [ x ] = 
+          if n + size x > 80 then print ("\n"^x^"\n") else print (x^"\n")
+     | layout n (x :: xs) = 
+          if n + size x + 2 > 80
+          then (print ("\n"^x^", "); layout (size x + 2) xs)
+          else (print (x^", "); layout (n + size x + 2) xs)
+
    val printableCtx = prepCtx (lcontext, 1, rename (Context.ctx2list context))
 in
-   print (String.concatWith ", " (rev printableCtx) ^ "\n")
+   layout 9 (rev printableCtx)
 end
 
 (* forwardChain : int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)

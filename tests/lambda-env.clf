@@ -25,4 +25,9 @@ esusp1: retn Dx V * cont Dx (\!x. x) D -o
          { retn D V * !bind Dx V }.
 
 #query * 1 * 1 
-   Pi d. eval d (app (lam \!x. app x x) (lam \!x. app x x)) -o { retn D E }.
+   Pi d. eval d (app (lam \!x. app x x) (lam \!x. x)) -o 
+    { Exists e. retn d e }.
+
+#query * 1 * 1 
+   Pi d. eval d (app (lam \!x. app x x) (lam \!x. app x x)) -o 
+    { Exists e. retn d e }.
