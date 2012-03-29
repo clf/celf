@@ -295,14 +295,11 @@ and matchAtom' (ctx, P, sc) =
 	  (PermuteList.fromList (matchCtx (ctx2list $ #2 ctx, 1) @ map matchSig (getCandAtomic aP)))
 	end
 
-(* forwardChain : int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)
-and forwardChain (fcLim, ctx, S, sc) =
- ( if !traceSolve >= 2 
-   then print ("ForwardChain ("^PrettyPrint.printType (TMonad' S)^")\n")
-   else ()
- ; forwardChain' (fcLim, ctx, S, sc) )
-
-and forwardChain' (fcLim, (l, ctx), S, sc) =
+(* forwardStep : (lcontext * context) 
+      -> ((lcontext * context) * 
+          whatever it is that nbinds returns * 
+          (pattern * pattern's type * atomicterm)) option *)
+and forwardStep (l, ctx) = 
 let 
    fun mlFocus (ctx', lr, A, h) = 
       fn commitExn =>
@@ -344,37 +341,27 @@ let
           @ matchCtx (G, k+1)
        end
 
-   val nextStep = 
-      case fcLim of
-         SOME 0 => NONE
-       | _ => 
-         let 
-            val candidates1 = matchCtx (ctx2list $ ctx, 1) 
-            val candidates2 = map matchSig (getCandMonad ())
-            val candidates = candidates1 @ candidates2
+   val candidates1 = matchCtx (ctx2list $ ctx, 1) 
+   val candidates2 = map matchSig (getCandMonad ())
+   val candidates = candidates1 @ candidates2
 
-            val () = 
-               if !debugForwardChaining
-               then 
-                ( print "Context: " 
-                ; printCtx (l, ctx)
-                ; print (Int.toString (length candidates) ^ " candidates")
-                ; if (length candidates1 > 0) 
-                  then print (", " ^ Int.toString (length candidates2) ^ 
-                              " from the context. <press ENTER to continue>")
-                  else print (". <press ENTER to continue>")
-                ; TextIO.flushOut TextIO.stdOut
-                ; ignore (TextIO.inputLine TextIO.stdIn))
-               else ()
-         in
-            PermuteList.findSome (fn f => f ())
-               (PermuteList.fromList candidates)
-         end
+   val () = 
+      if !debugForwardChaining
+      then 
+       ( print "Context: " 
+       ; printCtx (l, ctx)
+       ; print (Int.toString (length candidates) ^ " candidates")
+       ; if (length candidates1 > 0) 
+         then print (", " ^ Int.toString (length candidates2) 
+                     ^ " from the context. <press ENTER to continue>")
+         else print (". <press ENTER to continue>")
+       ; TextIO.flushOut TextIO.stdOut
+       ; ignore (TextIO.inputLine TextIO.stdIn))
+      else ()
 
-in case nextStep of 
-      NONE => 
-         rightFocus ((l, ctx), genMon (ctx, NONE, S), S,
-                     fn (M, ctxo) => sc (Mon' M, ctxo))
+in case PermuteList.findSome (fn f => f ()) 
+           (PermuteList.fromList candidates) of 
+      NONE => NONE
     | SOME (N, sty, ctxm) => 
       let 
          fun syncType2pat sty = 
@@ -386,17 +373,43 @@ in case nextStep of
              | TBang A => PBang' NONE
          val p = syncType2pat sty
          val p' = Util.patternT2O p
-         val () = if !traceSolve >= 1 
-                  then print ("Committing:\n   let {_} = "
-                              ^PrettyPrint.printObj (Atomic' N)
-                              ^" : {"^PrettyPrint.printSyncType sty^"}\n") 
-                  else ()
-      in forwardChain' (Option.map (fn x => x - 1) fcLim,
-                        pBind (p, sty) $ linIntersect (l, ctxm),
-                        STClos (S, Subst.shift $ nbinds p),
-                        fn (E, ctxo) => 
-                           sc (Let' (p', N, E), patUnbind (p', ctxo)))
+      in 
+         SOME ((pBind (p, sty) $ linIntersect (l, ctxm)), 
+               nbinds p,
+               (p', sty, N))
       end
+end
+
+
+(* forwardChain : int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)
+and forwardChain (fcLim, ctx, S, sc) =
+ ( if !traceSolve >= 2 
+   then print ("ForwardChain ("^PrettyPrint.printType (TMonad' S)^")\n")
+   else ()
+ ; forwardChain' (fcLim, ctx, S, sc) )
+
+and forwardChain' (fcLim, (l, ctx), S, sc) =
+let in
+   if fcLim = SOME 0 
+   then rightFocus ((l, ctx), genMon (ctx, NONE, S), S,
+                    fn (M, ctxo) => sc (Mon' M, ctxo))
+   else 
+     (case forwardStep (l, ctx) of 
+         NONE => rightFocus ((l, ctx), genMon (ctx, NONE, S), S,
+                             fn (M, ctxo) => sc (Mon' M, ctxo))
+       | SOME (newctx, newbinds, (p, sty, N)) => 
+         let 
+            val () = if !traceSolve >= 1 
+                     then print ("Committing:\n   let {_} = "
+                                 ^PrettyPrint.printObj (Atomic' N)
+                                 ^" : {"^PrettyPrint.printSyncType sty^"}\n") 
+                     else ()
+         in forwardChain' (Option.map (fn x => x - 1) fcLim,
+                           newctx,
+                           STClos (S, Subst.shift $ newbinds),
+                           fn (E, ctxo) => 
+                              sc (Let' (p, N, E), patUnbind (p, ctxo)))
+         end)
 end
 
 (* rightFocus : (lcontext * context) * monadObj * syncType * (monadObj * context -> unit) -> unit *)
