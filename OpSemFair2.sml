@@ -356,9 +356,10 @@ let
    val () = 
       if !debugForwardChaining
       then 
-       ( print "Context: " 
-       ; printCtx (l, ctx)
-       ; print (Int.toString (length candidates) ^ " candidates")
+       (* using #trace this context-printing is maybe no longer needed? *)
+       (*print "Context: " 
+       ; printCtx (l, ctx) *)
+       ( print (Int.toString (length candidates) ^ " candidates")
        ; if (length candidates1 > 0) 
          then print (", " ^ Int.toString (length candidates2) 
                      ^ " from the context. <press ENTER to continue>")
