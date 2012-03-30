@@ -285,8 +285,38 @@ let
             else ()
          end
 
-       | Trace _ => print "Hey rob, implement Trace\n"
-       | Exec _ => print "Hey rob, impelement Exec\n"
+       | Trace (count, sty) => 
+         let
+            val () = 
+               print ("Trace "
+                      ^(case count of NONE => "*" | SOME i => Int.toString i)
+                      ^" "^PrettyPrint.printSyncType sty^"\n")
+            val (count', _) = OpSem.trace true count sty
+         in
+            if not (isSome count) orelse count = SOME count'
+            then print ("Success: "^Int.toString count'^" steps\n")
+            else ( print ("Trace failed, expected "^Int.toString (valOf count)
+                          ^" steps but only "^Int.toString count'
+                          ^" taken\n")
+                 ; raise QueryFailed (#1 ldec))
+         end
+
+       | Exec (count, sty) => 
+         let
+            val () = 
+               print ("Exec "
+                      ^(case count of NONE => "*" | SOME i => Int.toString i)
+                      ^" "^PrettyPrint.printSyncType sty^"\n")
+            val (count', context) = OpSem.trace false count sty
+         in
+            if not (isSome count) orelse count = SOME count'
+            then ( OpSem.printCtx context
+                 ; print ("Success: "^Int.toString count'^" steps\n"))
+            else ( print ("Exec failed, expected "^Int.toString (valOf count)
+                          ^" steps but only "^Int.toString count'
+                          ^" taken\n")
+                 ; raise QueryFailed (#1 ldec))
+         end
 
    val () = if isDirective dec then ()
             else Signatur.sigAddDecl dec

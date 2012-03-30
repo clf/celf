@@ -125,17 +125,17 @@ let
           else item :: context'
        end
 
-   fun layout n [] = print "(nothing)"
+   fun layout n [] = print "(nothing)\n"
      | layout n [ x ] = 
-          if n + size x > 80 then print ("\n"^x^"\n") else print (x^"\n")
+          if n + size x > 80 then print ("\n   "^x^"\n") else print (x^"\n")
      | layout n (x :: xs) = 
           if n + size x + 2 > 80
-          then (print ("\n"^x^", "); layout (size x + 2) xs)
+          then (print ("\n   "^x^", "); layout (size x + 5) xs)
           else (print (x^", "); layout (n + size x + 2) xs)
 
    val printableCtx = prepCtx (lcontext, 1, rename (Context.ctx2list context))
 in
-   layout 9 (rev printableCtx)
+   print "-- "; layout 3 (rev printableCtx)
 end
 
 
@@ -237,6 +237,14 @@ fun traceLeftFocus (h, ty) =
 				" : "^PrettyPrint.printType ty^"\n")
 	else ()
 
+
+fun syncType2pat sty = 
+   case SyncType.prj sty of
+      LExists (p, _, S2) => PDepTensor' (p, syncType2pat S2)
+    | TOne => POne'
+    | TDown A => PDown' () 
+    | TAffi A => PAffi' () 
+    | TBang A => PBang' NONE
 
 (* solve : (lcontext * context) * asyncType * (obj * context -> unit) -> unit *)
 (* Right Inversion : Gamma;Delta => A *)
@@ -364,13 +372,6 @@ in case PermuteList.findSome (fn f => f ())
       NONE => NONE
     | SOME (N, sty, ctxm) => 
       let 
-         fun syncType2pat sty = 
-            case SyncType.prj sty of
-               LExists (p, _, S2) => PDepTensor' (p, syncType2pat S2)
-             | TOne => POne'
-             | TDown A => PDown' () 
-             | TAffi A => PAffi' () 
-             | TBang A => PBang' NONE
          val p = syncType2pat sty
          val p' = Util.patternT2O p
       in 
@@ -487,5 +488,17 @@ and monLeftFocus' (lr, ctx, ty, sc) = case Util.typePrjAbbrev ty of
 
 (* solveEC : asyncType * (obj -> unit) -> unit *)
 fun solveEC (ty, sc) = solve (([], emptyCtx), ty, sc o #1)
+
+fun trace printInter limit sty = 
+let
+   fun loop context count = 
+    ( if printInter then (printCtx context) else () 
+    ; if limit = SOME count then (count, context)
+      else case forwardStep context of 
+              NONE => (count, context)
+            | SOME (context', _, _) => loop context' (count+1))
+in
+   loop (pBind (syncType2pat sty, sty) ([], Context.emptyCtx)) 0
+end
 
 end
