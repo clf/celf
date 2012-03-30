@@ -57,12 +57,16 @@ fun idFromDecl (ConstDecl (s, _, _)) = s
   | idFromDecl (TypeAbbrev (s, _)) = s
   | idFromDecl (ObjAbbrev (s, _, _)) = s
   | idFromDecl (Query _) = raise Fail "Internal error: Adding query to sig table"
+  | idFromDecl (Trace _) = raise Fail "Internal error: Adding trace to sig table"
+  | idFromDecl (Exec _) = raise Fail "Internal error: Adding exec to sig table"
   | idFromDecl (Mode _) = raise Fail "Internal error: Adding mode declaration to sig table"
 
 fun declSetId id (ConstDecl (_, imps, kity)) = ConstDecl (id, imps, kity)
   | declSetId id (TypeAbbrev (_, ty)) = TypeAbbrev (id, ty)
   | declSetId id (ObjAbbrev (_, ty, ob)) = ObjAbbrev (id, ty, ob)
   | declSetId id (Query _) = raise Fail "Internal error: Adding query to sig table"
+  | declSetId id (Trace _) = raise Fail "Internal error: Adding trace to sig table"
+  | declSetId id (Exec _) = raise Fail "Internal error: Adding exec to sig table"
   | declSetId id (Mode _) = raise Fail "Internal error: Adding mode declaration to sig table"
 
 
@@ -119,19 +123,33 @@ fun sigGetTypeAbbrev a =
 	case peek (!sigTable, a) of
 		NONE => raise ExnDeclError (UndeclId, a)
 	  | SOME (TypeAbbrev (_, ty)) => SOME ty
-	  | SOME (ObjAbbrev _) => raise ExnDeclError (KindErr, "Object "^a^" is used as a type\n")
+	  | SOME (ObjAbbrev _) => 
+               raise ExnDeclError (KindErr, "Object "^a^" is used as a type\n")
 	  | SOME (ConstDecl _) => NONE
-	  | SOME (Query _) => raise Fail "Internal error: sigGetTypeAbbrev"
-	  | SOME (Mode _) => raise Fail "Internal error: sigGetTypeAbbrev on mode declaration"
+	  | SOME (Query _) => 
+               raise Fail "Internal error: sigGetTypeAbbrev"
+	  | SOME (Trace _) => 
+               raise Fail "Internal error: sigGetTypeAbbrev on trace decl"
+	  | SOME (Exec _) => 
+               raise Fail "Internal error: sigGetTypeAbbrev on exec decl"
+	  | SOME (Mode _) => 
+               raise Fail "Internal error: sigGetTypeAbbrev on mode decl"
 
 (* sigGetObjAbbrev : string -> (obj * asyncType) option *)
 fun sigGetObjAbbrev c =
 	case peek (!sigTable, c) of
 		NONE => raise ExnDeclError (UndeclId, c)
 	  | SOME (ObjAbbrev (_, ty, ob)) => SOME (ob, ty)
-	  | SOME (TypeAbbrev _) => raise ExnDeclError (KindErr, "Type "^c^" is used as an object\n")
+	  | SOME (TypeAbbrev _) =>
+               raise ExnDeclError (KindErr, "Type "^c^" is used as an object\n")
 	  | SOME (ConstDecl _) => NONE
-	  | SOME (Query _) => raise Fail "Internal error: sigGetObjAbbrev"
-	  | SOME (Mode _) => raise Fail "Internal error: sigGetObjAbbrev on mode declaration"
+	  | SOME (Query _) => 
+               raise Fail "Internal error: sigGetObjAbbrev"
+	  | SOME (Trace _) => 
+               raise Fail "Internal error: sigGetObjAbbrev on trace decl"
+	  | SOME (Exec _) => 
+               raise Fail "Internal error: sigGetObjAbbrev on exec decl"
+	  | SOME (Mode _) => 
+               raise Fail "Internal error: sigGetObjAbbrev on mode decl"
 
 end

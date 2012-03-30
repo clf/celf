@@ -34,7 +34,9 @@ fun getline (line, ch) = line
 	| AMPH | LCURLY | RCURLY | TENSOR | ONE | EXISTS | LAMBDA
 	| LANGLE | RANGLE | COMMA | LET | EQUAL | IN | PROJLEFT | PROJRIGHT
 	| LBRACKET | RBRACKET | ARROW | BACKARROW | LPAREN | RPAREN | EOF
-	| QUERY | NUM of int | LPI | LEXISTS | AFFLOLLI | BACKAFFLOLLI | BANG | AFF | APP
+	| QUERY | TRACE | EXEC
+        | NUM of int | LPI | LEXISTS | AFFLOLLI | BACKAFFLOLLI | BANG | AFF 
+        | APP
         | MODE | PLUS | MINUS | MINUSD
 
 %nonterm Kind of Syntax.kind | AsyncType of Syntax.asyncType
@@ -84,6 +86,8 @@ Decl :
 	| Id COLON AsyncType EQUAL Obj DOT         ( Syntax.ObjAbbrev(Id,AsyncType,Obj) )
 	| QUERY NumOpt NumOpt NumOpt Number AsyncType DOT
 			( Syntax.Query(NumOpt1,NumOpt2,NumOpt3,Number,AsyncType) )
+        | TRACE NumOpt UnifiedType DOT ( Syntax.Trace(NumOpt, Parse.unif2sync UnifiedType) )
+        | EXEC NumOpt UnifiedType DOT ( Syntax.Exec(NumOpt, Parse.unif2sync UnifiedType) )
         | MODE Id ModeDecl DOT
                         ( Syntax.Mode(Id,NONE,ModeDecl) )
         | MODE Id LCURLY ModeDecl RCURLY ModeDecl DOT

@@ -38,6 +38,17 @@ fun mapDecl fk ft fo (ConstDecl (id, imps, Ki ki)) = ConstDecl (id, imps, Ki (fk
   | mapDecl fk ft fo (ObjAbbrev (id, ty, ob)) =
 		let val ty' = ft ty in ObjAbbrev (id, ty', fo (ob, ty')) end
   | mapDecl fk ft fo (Query (d, e, l, a, ty)) = Query (d, e, l, a, ft ty)
+  (* Ooof - mapDecl only is prepared for asyncType, so we've got to wrap 
+   * in the monad (and hope we get the same thing back out, which may not be
+   * the case if it decides to wrap implicit vars!)  *)
+  | mapDecl fk ft fo (Trace (count, ty)) = 
+      (case AsyncType.prj (ft (Syntax.TMonad' ty)) of
+          TMonad S => Trace (count, S)
+        | _ => raise Fail "mapDecl/Trace put in a monad, got out ?")
+  | mapDecl fk ft fo (Exec (count, ty)) = 
+      (case AsyncType.prj (ft (Syntax.TMonad' ty)) of
+          TMonad S => Exec (count, S)
+        | _ => raise Fail "mapDecl/Exec put in a monad, got out ?")
   | mapDecl _  _  _  (Mode m) = Mode m
 
 (* appDecl : (kind -> unit) -> (asyncType -> unit) -> (obj * asyncType -> unit) -> decl -> unit *)
@@ -46,15 +57,18 @@ fun appDecl fk ft fo (ConstDecl (_, _, Ki ki)) = fk ki
   | appDecl fk ft fo (TypeAbbrev (_, ty)) = ft ty
   | appDecl fk ft fo (ObjAbbrev (_, ty, ob)) = (ft ty ; fo (ob, ty))
   | appDecl fk ft fo (Query (_, _, _, _, ty)) = ft ty
+  (* Same issue with needing to turn synctypes asynchronous *)
+  | appDecl fk ft fo (Trace (_, ty)) = ft (Syntax.TMonad' ty)
+  | appDecl fk ft fo (Exec (_, ty)) = ft (Syntax.TMonad' ty)
   | appDecl _  _  _  (Mode _) = ()
 
-(* isQuery : decl -> bool *)
-fun isQuery (Query _) = true
-  | isQuery _ = false
-
-(* isModeDecl : decl -> bool *)
-fun isModeDecl (Mode _) = true
-  | isModeDecl _ = false
+(* isDirective : decl -> bool *)
+(* Directives don't get added to the signature *)
+fun isDirective (Query _) = true
+  | isDirective (Trace _) = true
+  | isDirective (Exec _) = true
+  | isDirective (Mode _) = true
+  | isDirective _ = false
 
 
 exception ReconError of (declError * string) * (int * Syntax.decl)
@@ -106,156 +120,178 @@ fun checkModeDecl (id, implmd, md) =
 
 (* reconstructDecl : int * decl -> unit *)
 fun reconstructDecl (ldec as (_, dec)) =
-		let val () = ImplicitVars.resetUCTable ()
-			val dec = mapDecl ApproxTypes.apxCheckKindEC
-			                  ApproxTypes.apxCheckTypeEC
-			                  (ApproxTypes.apxCheckObjEC o (map2 asyncTypeToApx)) dec
-			val dec = mapDecl Eta.etaExpandKindEC
-			                  Eta.etaExpandTypeEC
-			                  (Eta.etaExpandObjEC o (map2 asyncTypeToApx)) dec
-			val () = ImplicitVars.mapUCTable Eta.etaExpandTypeEC
-			val dec = mapDecl Util.removeApxKind
-			                  Util.removeApxType
-			                  (Util.removeApxObj o #1) dec
-			val () = ImplicitVars.mapUCTable Util.removeApxType
-			val () = Unify.resetConstrs ()
-			val () = ImplicitVars.appUCTable ExactTypes.checkTypeEC
-			val () = appDecl ExactTypes.checkKindEC
-			                 ExactTypes.checkTypeEC
-			                 ExactTypes.checkObjEC dec
-			val () = Unify.solveLeftoverConstr ()
-			val () = if isQuery dec orelse isModeDecl dec then () else
-					( appDecl ImplicitVarsConvert.logicVarsToUCVarsKind
-					          ImplicitVarsConvert.logicVarsToUCVarsType
-					          (ImplicitVarsConvert.logicVarsToUCVarsObj o #1) dec
-					; ImplicitVars.appUCTable (Util.objAppType
-						(fn Atomic (LogicVar _, _) => raise Fail "FIXME: LogicVar here???\n"
-						  | _ => ())) )
-			val () = ImplicitVars.mapUCTable Util.forceNormalizeType
-			val dec = case dec of
-				  ConstDecl (id, _, kity) =>
-						let val imps = ImplicitVars.sort ()
-							val imps = ImplicitVarsConvert.convUCVars2VarsImps imps
-							val imps = map (map2 RemDepend.remDepType) imps
-							val kity = mapKiTy (ImplicitVarsConvert.convUCVars2VarsKind imps)
-							                   (ImplicitVarsConvert.convUCVars2VarsType imps) kity
-							fun bindImps pi kity' =
-									foldr (fn ((x, A), im) => pi (SOME x, A, im)) kity' imps
-							fun tPi (sx, A, B) = TLPi' (PBang' sx, TBang' A, B)
-							val kity = mapKiTy (bindImps KPi') (bindImps tPi) kity
-						in ConstDecl (id, length imps, kity) end
-				| TypeAbbrev _ => (ImplicitVars.noUCVars () ; dec)
-				| ObjAbbrev _ => (ImplicitVars.noUCVars () ; dec)
-				| Query q => Query q
-                                | Mode m => Mode m
-			val dec = mapDecl Util.forceNormalizeKind
-			                  Util.forceNormalizeType
-			                  (Util.forceNormalizeObj o #1) dec
-			val dec = mapDecl RemDepend.remDepKind
-			                  RemDepend.remDepType
-			                  (RemDepend.remDepObj o #1) dec
+let 
+   val () = ImplicitVars.resetUCTable ()
+   val dec = mapDecl ApproxTypes.apxCheckKindEC
+                ApproxTypes.apxCheckTypeEC
+                (ApproxTypes.apxCheckObjEC o (map2 asyncTypeToApx)) dec
+   val dec = mapDecl Eta.etaExpandKindEC
+                Eta.etaExpandTypeEC
+                (Eta.etaExpandObjEC o (map2 asyncTypeToApx)) dec
+   val () = ImplicitVars.mapUCTable Eta.etaExpandTypeEC
+   val dec = mapDecl Util.removeApxKind
+                Util.removeApxType
+                (Util.removeApxObj o #1) dec
+   val () = ImplicitVars.mapUCTable Util.removeApxType
+   val () = Unify.resetConstrs ()
+   val () = ImplicitVars.appUCTable ExactTypes.checkTypeEC
+   val () = appDecl ExactTypes.checkKindEC
+               ExactTypes.checkTypeEC
+               ExactTypes.checkObjEC dec
+   val () = Unify.solveLeftoverConstr ()
+   val () = if isDirective dec then () 
+            else
+             ( appDecl ImplicitVarsConvert.logicVarsToUCVarsKind
+                  ImplicitVarsConvert.logicVarsToUCVarsType
+                  (ImplicitVarsConvert.logicVarsToUCVarsObj o #1) dec
+             ; ImplicitVars.appUCTable (Util.objAppType
+                  (fn Atomic (LogicVar _, _) => 
+                         raise Fail "FIXME: LogicVar here???\n"
+                    | _ => ())) )
+   val () = ImplicitVars.mapUCTable Util.forceNormalizeType
+   val dec = case dec of
+                ConstDecl (id, _, kity) =>
+                let val imps = ImplicitVars.sort ()
+                   val imps = ImplicitVarsConvert.convUCVars2VarsImps imps
+                   val imps = map (map2 RemDepend.remDepType) imps
+                   val kity = mapKiTy
+                                 (ImplicitVarsConvert.convUCVars2VarsKind imps)
+                                 (ImplicitVarsConvert.convUCVars2VarsType imps)
+                                 kity
+                   fun bindImps pi kity' =
+                      foldr (fn ((x, A), im) => pi (SOME x, A, im)) kity' imps
+                   fun tPi (sx, A, B) = TLPi' (PBang' sx, TBang' A, B)
+                   val kity = mapKiTy (bindImps KPi') (bindImps tPi) kity
+                in ConstDecl (id, length imps, kity) end
+              | TypeAbbrev _ => (ImplicitVars.noUCVars () ; dec)
+              | ObjAbbrev _ => (ImplicitVars.noUCVars () ; dec)
+              | Query q => Query q
+              | Trace q => Trace q
+              | Exec q => Exec q
+              | Mode m => Mode m
+   val dec = mapDecl Util.forceNormalizeKind
+                Util.forceNormalizeType
+                (Util.forceNormalizeObj o #1) dec
+   val dec = mapDecl RemDepend.remDepKind
+                RemDepend.remDepType
+                (RemDepend.remDepObj o #1) dec
 
-                        (* We check that a constant declaration is either a backward-chaining goal
-                           or a forward-chaining goal *)
-                        val () =
-                            case dec of
-                                ConstDecl (id,_,Ty ty) =>
-                                  let
-                                      val nTy = Syntax.normalizeType ty
-                                  in
-                                      if GoalMode.isBchain nTy orelse GoalMode.isFchain nTy
-                                      then ()
-                                      else raise Fail ("Constant "^id^" is not allowed (mixed backward and forward goals)")
-                                  end
-                              | _ => ()
+   (* We check that a constant declaration is either a backward-chaining goal
+   or a forward-chaining goal *)
+   val () =
+      case dec of
+         ConstDecl (id,_,Ty ty) =>
+         let
+            val nTy = Syntax.normalizeType ty
+         in
+            if GoalMode.isBchain nTy orelse GoalMode.isFchain nTy
+            then ()
+            else raise Fail ("Constant "^id
+                             ^" is not allowed (mixed backward and forward\
+                             \ goals)")
+         end
+       | _ => ()
 
-                        (* We check that a constant declaration is mode correct *)
-                        val () =
-                            case dec of
-                                ConstDecl (id,_,Ty ty) =>
-                                  let
-                                      val nTy = Syntax.normalizeType ty
-                                  in
-                                      ( if ModeCheck.isNeeded nTy
-                                        then ModeCheck.modeCheckDecl nTy
-                                        else ()
-                                      ; DestCheck.destCheckDecl nTy)
-                                  end
-                              | _ => ()
+   (* We check that a constant declaration is mode correct *)
+   val () =
+      case dec of
+         ConstDecl (id,_,Ty ty) =>
+            let
+               val nTy = Syntax.normalizeType ty
+            in
+              ( if ModeCheck.isNeeded nTy
+                then ModeCheck.modeCheckDecl nTy
+                else ()
+              ; DestCheck.destCheckDecl nTy)
+             end
+       | _ => ()
 
-			val () = case dec of
-				  ConstDecl (id, imps, kity) =>
-							( print (id^": ")
-							; appKiTy (print o PrettyPrint.printKind)
-							          (print o PrettyPrint.printType) kity
-							; print ".\n"
-							; if TypeCheck.isEnabled () then
-								appKiTy TypeCheck.checkKindEC
-								        TypeCheck.checkTypeEC kity
-							  else () )
-				| TypeAbbrev (id, ty) =>
-						( print (id^": Type = "^(PrettyPrint.printType ty)^".\n")
-						; if TypeCheck.isEnabled () then TypeCheck.checkTypeEC ty else () )
-				| ObjAbbrev (id, ty, ob) =>
-						( print (id^": "^(PrettyPrint.printType ty)
-								^" = "^(PrettyPrint.printObj ob)^".\n")
-						; if TypeCheck.isEnabled () then TypeCheck.checkObjEC (ob, ty) else () )
+   val () = 
+      case dec of
+         ConstDecl (id, imps, kity) =>
+          ( print (id^": ")
+          ; appKiTy (print o PrettyPrint.printKind)
+               (print o PrettyPrint.printType) kity
+          ; print ".\n"
+          ; if TypeCheck.isEnabled () 
+            then
+               appKiTy TypeCheck.checkKindEC
+                  TypeCheck.checkTypeEC kity
+            else () )
+       | TypeAbbrev (id, ty) =>
+          ( print (id^": Type = "^(PrettyPrint.printType ty)^".\n")
+          ; if TypeCheck.isEnabled () then TypeCheck.checkTypeEC ty else () )
+       | ObjAbbrev (id, ty, ob) =>
+          ( print (id^": "^(PrettyPrint.printType ty)
+                   ^" = "^(PrettyPrint.printObj ob)^".\n")
+          ; if TypeCheck.isEnabled () then TypeCheck.checkObjEC (ob, ty) 
+            else () )
 
-                                | Mode (id, implmd, md) => checkModeDecl (id, implmd, md)
+       | Mode (id, implmd, md) => checkModeDecl (id, implmd, md)
 
-				| Query (d, e, l, a, ty) =>
-						(* d : let-depth-bound * = inf
-						 * e : expected number of solutions * = ?
-						 * l : number of solutions to look for * = inf
-						 * a : number of times to execute the query
-						 *)
-						let fun n2str (SOME n) = Int.toString n
-							  | n2str NONE = "*"
-							val () = print ("Query ("^n2str d^", "^n2str e^", "^n2str l^", "
-								^Int.toString a^") "^PrettyPrint.printType ty^".\n")
-							val (ty, lvars) = ImplicitVarsConvert.convUCVars2LogicVarsType ty
-							fun printInst (x, ob) = print (" #"^x^" = "^PrettyPrint.printObj ob^"\n")
-							exception stopSearchExn
-							val solCount = ref 0
-							fun sc N = if Unify.constrsSolvable N then
-								( print ("Solution: "^PrettyPrint.printObj N^"\n")
-								; app printInst lvars
-								; solCount := !solCount + 1
-								; if TypeCheck.isEnabled () then
-									TypeCheck.checkObjEC (N, ty) else ()
-								; if l = SOME (!solCount) then raise stopSearchExn else () )
-								else ()
-							val () = OpSem.fcLimit := d
-							fun runQuery 0 = false
-							  | runQuery n =
-									( solCount := 0
-									; if a > 1 then
-										print ("Iteration "^Int.toString (a+1-n)^"\n")
-									  else ()
-									; OpSem.solveEC (ty, sc)
-									; e = SOME (!solCount) orelse runQuery (n-1) )
-						in if a = 0 orelse l = SOME 0 then
-							print "Ignoring query\n"
-						else if a >= 2 andalso isSome l then
-							raise ExnDeclError (GeneralErr,
-								"Malformed query (D,E,L,A): A>1 and L<>*\n"
-								^ "Should not do simultaneous monad and backtrack exploration\n")
-						else if isSome e andalso isSome l andalso valOf e >= valOf l then
-							raise ExnDeclError (GeneralErr,
-								"Malformed query (D,E,L,A): E>=L\n"
-								^ "Uncheckable since expected number of solutions is\n"
-								^ "greater than the number of solutions to look for\n")
-						else if (runQuery a handle stopSearchExn => false) then
-							print "Query ok.\n"
-						else if isSome e then
-							( print "Query failed\n"
-							; raise QueryFailed (#1 ldec))
-						else
-							()
-						end
-			val () = if isQuery dec orelse isModeDecl dec then ()
-                                 else Signatur.sigAddDecl dec
-		in () end 
+       | Query (d, e, l, a, ty) =>
+         (* d : let-depth-bound * = inf
+          * e : expected number of solutions * = ?
+          * l : number of solutions to look for * = inf
+          * a : number of times to execute the query
+          *)
+         let fun n2str (SOME n) = Int.toString n
+               | n2str NONE = "*"
+            val () = print ("Query ("^n2str d^", "^n2str e^", "^n2str l^", "
+                            ^Int.toString a^") "^PrettyPrint.printType ty^".\n")
+            val (ty, lvars) = ImplicitVarsConvert.convUCVars2LogicVarsType ty
+            fun printInst (x, ob) =
+               print (" #"^x^" = "^PrettyPrint.printObj ob^"\n")
+            exception stopSearchExn
+            val solCount = ref 0
+            fun sc N = if Unify.constrsSolvable N 
+                       then
+                        ( print ("Solution: "^PrettyPrint.printObj N^"\n")
+                        ; app printInst lvars
+                        ; solCount := !solCount + 1
+                        ; if TypeCheck.isEnabled ()
+                          then TypeCheck.checkObjEC (N, ty) else ()
+                        ; if l = SOME (!solCount) 
+                          then raise stopSearchExn else () )
+                       else ()
+            val () = OpSem.fcLimit := d
+            fun runQuery 0 = false
+              | runQuery n =
+                 ( solCount := 0
+                 ; if a > 1
+                   then print ("Iteration "^Int.toString (a+1-n)^"\n")
+                   else ()
+                 ; OpSem.solveEC (ty, sc)
+                 ; e = SOME (!solCount) orelse runQuery (n-1) )
+         in if a = 0 orelse l = SOME 0 
+            then print "Ignoring query\n"
+            else if a >= 2 andalso isSome l 
+            then raise ExnDeclError (GeneralErr,
+                                     "Malformed query (D,E,L,A): A>1 and L<>*\n\
+                                     \Should not do simultaneous monad and\
+                                     \ backtrack exploration\n")
+            else if isSome e andalso isSome l andalso valOf e >= valOf l 
+            then raise ExnDeclError (GeneralErr,
+                                     "Malformed query (D,E,L,A): E>=L\n\
+                                     \Uncheckable since expected number of\
+                                     \ solutions is\ngreater than the number of\
+                                     \ solutions to look for\n")
+            else if (runQuery a handle stopSearchExn => false) 
+            then print "Query ok.\n"
+            else if isSome e 
+            then
+             ( print "Query failed\n"
+             ; raise QueryFailed (#1 ldec))
+            else ()
+         end
+
+       | Trace _ => print "Hey rob, implement Trace\n"
+       | Exec _ => print "Hey rob, impelement Exec\n"
+
+   val () = if isDirective dec then ()
+            else Signatur.sigAddDecl dec
+
+in () end 
 handle ExnDeclError es => raise ReconError (es, ldec)
      | Context.ExnCtx s => raise ReconError ((TypeErr, s), ldec)
      | ModeCheck.ModeCheckError s => raise ReconError ((ModeErr, s), ldec)

@@ -10,4 +10,4 @@ dn: dime -o { nickel * nickel }.
 nq: nickel * nickel * nickel * nickel * nickel -o { quarter }.
 qn: quarter -o { nickel * nickel * nickel * nickel * nickel }.
 
-#query * 1 * 1 quarter * quarter -o { nickel }.
+#trace 10 quarter * quarter * nickel.

@@ -266,6 +266,8 @@ handle TypeRecon.ReconError (es, ldec) =>
                  | Syntax.TypeAbbrev (id, _) => "declaration of " ^ id
                  | Syntax.ObjAbbrev (id, _, _) => "declaration of " ^ id
                  | Syntax.Query _ => "query"
+                 | Syntax.Trace _ => "trace"
+                 | Syntax.Exec _ => "exec"
                  | Syntax.Mode (id,_,_) => "mode declaration of " ^ id
           in
              decstr ^ " on line " ^ Int.toString linenum
