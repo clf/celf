@@ -3,6 +3,7 @@ success arith.clf
 success atp.clf
 modeErr bigstep.clf
 typeErr ccc.clf
+typeErr change.clf
 typeErr church-rosser.clf
 parseErr cls.clf
 # success cml-2.clf NONTERMINATION
@@ -28,6 +29,7 @@ typeErr handbook.clf
 parseErr incll.clf
 typeErr kolm.clf
 success kruskal.clf
+success lambda-env.clf
 success ldp2.clf
 success listset.clf
 typeErr lp-horn.clf

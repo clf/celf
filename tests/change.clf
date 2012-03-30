@@ -11,3 +11,5 @@ nq: nickel * nickel * nickel * nickel * nickel -o { quarter }.
 qn: quarter -o { nickel * nickel * nickel * nickel * nickel }.
 
 #trace 10 quarter * quarter * nickel.
+
+#exec 200 quarter * quarter * quarter * quarter * quarter * quarter.

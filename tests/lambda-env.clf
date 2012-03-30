@@ -28,6 +28,6 @@ esusp1: retn Dx V * cont Dx (\!x. x) D -o
    Pi d. eval d (app (lam \!x. app x x) (lam \!x. x)) -o 
     { Exists e. retn d e }.
 
-#query * 1 * 1 
-   Pi d. eval d (app (lam \!x. app x x) (lam \!x. app x x)) -o 
-    { Exists e. retn d e }.
+#exec * Exists d. eval d (app (lam \!x. app x x) (lam \!y. y)).
+
+#trace 20 Exists d. eval d (app (lam \!x. app x x) (lam \!y. app y y)).
