@@ -10,6 +10,15 @@ dn: dime -o { nickel * nickel }.
 nq: nickel * nickel * nickel * nickel * nickel -o { quarter }.
 qn: quarter -o { nickel * nickel * nickel * nickel * nickel }.
 
+make_change : 
+   quarter -o { penny * penny * penny * penny * penny * dime * dime } = 
+ \q. { let {[n1, [n2, [n3, [n4, n5]]]]} = qn q in
+       let {d1} = nd [n3, n5] in
+       let {d2} = nd [n1, n4] in
+       let {[p1, [p2, [p3, [p4, p5]]]]} = np n2 in
+       [p1, [p2, [p3, [p4, [p5, [d1, d2]]]]]] }.
+
 #trace 10 quarter * quarter * nickel.
 
 #exec 200 quarter * quarter * quarter * quarter * quarter * quarter.
+

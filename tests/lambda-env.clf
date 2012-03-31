@@ -4,11 +4,11 @@ lam: (exp -> exp) -> exp.
 app: exp -> exp -> exp.
 var: dest -> exp.
 
-bind: dest -> exp -> type.
-susp: dest -> exp -> type.
-eval: dest -> exp -> type.
-retn: dest -> exp -> type.
-cont: dest -> (exp -> exp) -> dest -> type.
+bind: dest -> exp -> type. #mode bind - -.
+susp: dest -> exp -> type. #mode susp - -.
+eval: dest -> exp -> type. #mode eval - -.
+retn: dest -> exp -> type. #mode retn - -.
+cont: dest -> (exp -> exp) -> dest -> type. #mode cont - - -.
 
 elam:  eval D (lam \!x. E !x) -o { retn D (lam \!x. E !x) }.
 
