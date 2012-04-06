@@ -44,7 +44,7 @@ fun getline (line, ch) = line
 	| AtomicType of string * Syntax.obj list
 	| Obj of Syntax.obj
 	| ExpObj of Syntax.expObj
-        | MonadObj of Syntax.monadObj | MonadObjPair of Syntax.monadObj
+        | MonadObj of Syntax.monadObj | MonadObjPair of Syntax.monadObj * Syntax.monadObj
 	| OPattern of Syntax.opattern | OPatternPair of Syntax.opattern * Syntax.opattern
 	| TPattern of Syntax.tpattern | TPatternPair of Syntax.tpattern * Syntax.tpattern
 	| Decl of Syntax.decl | DeclList of (int * Syntax.decl) list
@@ -174,15 +174,15 @@ ExpObj :
 	| LPAREN ExpObj RPAREN                           ( ExpObj )
 
 MonadObj :
-	  LBRACKET MonadObjPair RBRACKET ( MonadObjPair )
+	  LBRACKET MonadObjPair RBRACKET ( Syntax.DepPair' MonadObjPair )
 	| ONE                            ( Syntax.One' )
 	| Obj %prec APP                  ( Syntax.Down'(Obj) )
 	| AFF Obj                        ( Syntax.Affi'(Obj) )
 	| BANG Obj                       ( Syntax.Bang'(Obj) )
 
 MonadObjPair :
-	  MonadObj COMMA MonadObjPair ( Syntax.DepPair'(MonadObj,MonadObjPair) )
-	| MonadObj COMMA MonadObj     ( Syntax.DepPair'(MonadObj1,MonadObj2) )
+	  MonadObj COMMA MonadObjPair ( (MonadObj, Syntax.DepPair' MonadObjPair) )
+	| MonadObj COMMA MonadObj     ( (MonadObj1, MonadObj2) )
 
 OPattern :
 	  ONE                            ( Syntax.POne' )
