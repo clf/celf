@@ -44,7 +44,7 @@ fun getline (line, ch) = line
 	| AtomicType of string * Syntax.obj list
 	| Obj of Syntax.obj
 	| ExpObj of Syntax.expObj
-        | MonadObj of Syntax.monadObj | MonadObjPair of Syntax.monadObj * Syntax.monadObj
+	| MonadObj of Syntax.monadObj | MonadObjPair of Syntax.monadObj * Syntax.monadObj
 	| OPattern of Syntax.opattern | OPatternPair of Syntax.opattern * Syntax.opattern
 	| TPattern of Syntax.tpattern | TPatternPair of Syntax.tpattern * Syntax.tpattern
 	| Decl of Syntax.decl | DeclList of (int * Syntax.decl) list
