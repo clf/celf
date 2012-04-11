@@ -59,3 +59,4 @@ success voting/dhondt-incremental.clf
 success voting/dhondt-matrix.clf
 success voting/fptp-voteid.clf
 success voting/stv-voteid.clf
+success monad-pair.clf
