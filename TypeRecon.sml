@@ -83,25 +83,32 @@ fun checkModeDecl (id, implmd, md) =
         (* get number of arguments of the type family *)
         fun numArgs ki =
             case NfKind.prj ki of
-	        Type => 0
-	      | KPi (_, _, A) => numArgs A + 1
+               Type => 0
+             | KPi (_, _, A) => numArgs A + 1
         val nArgs = numArgs K
         val nImpl = Signatur.getImplLength id
         val nExpl = nArgs - nImpl
         val allmd = getOpt (implmd, []) @ md
 
         val () =
-            case implmd of
-                     NONE => ()
-                   | SOME ms
-                     => if length ms <> nImpl
-                     then raise Fail ("Wrong number of implicit parameters in mode declaration of "^id^
-                                      " (expected "^Int.toString nImpl^", found "^Int.toString (length ms)^")")
+           case implmd of
+              NONE => ()
+            | SOME ms
+              => if length ms <> nImpl
+                 then raise Syntax.ExnDeclError
+                               (ModeErr, 
+                                "Wrong number of implicit parameters in mode\
+                                \ declaration of "^id^" (expected "
+                                ^Int.toString nImpl^", found "
+                                ^Int.toString (length ms)^")")
                      else ()
         val () =
             if length md <> nExpl
-            then raise Fail ("Wrong number of parameters in mode declaration of "^id^
-                             " (expected "^Int.toString nExpl^", found "^Int.toString (length md)^")")
+            then raise Syntax.ExnDeclError  
+                          (ModeErr,
+                           "Wrong number of parameters in mode declaration of "
+                           ^id^" (expected "^Int.toString nExpl^", found "
+                           ^Int.toString (length md)^")")
             else ()
 
         val chkmd =

@@ -7,7 +7,6 @@ open Syntax
 
 datatype Arg = Implicit | Explicit | Local
 
-
 (* Representation invariant:
 
        The modes of parameters are represented in the following mode list
@@ -106,7 +105,7 @@ fun inferVar ((Star, Implicit)::ms, m, 1) = (m, Implicit) :: ms
   | inferVar (ms as (m', Explicit) :: _, m, 1) =
     if modeConsistent (m', m)
     then ms
-    else raise Fail ("Mode declaration not consistent")
+    else raise ExnDeclError (ModeErr, "Mode declaration not consistent")
   | inferVar (m'::ms, m, n) = m' :: inferVar (ms, m, n-1)
   | inferVar ([], _, _) = raise Fail "Internal error: out of bound index"
 
@@ -202,8 +201,8 @@ fun inferMode ((mctx, ki), ms) =
         => (case x of
                SOME _ => List.tl (inferMode (((m',Explicit) :: inferType (mctx, m', A), B), ms'))
              | NONE => inferMode ((inferType (mctx, m', A), B), ms'))
-      | (Type, _::_) => raise Fail "too many modes"
-      | (KPi _, []) => raise Fail "too few modes"
+      | (Type, _::_) => raise ExnDeclError (ModeErr, "too many modes")
+      | (KPi _, []) => raise ExnDeclError (ModeErr, "too few modes")
 
     (* abstractMode (ms, mS) = mS'
 
