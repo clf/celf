@@ -1,0 +1,47 @@
+% Example syntax of positive types and values.
+% CLF only allows us to define terms (which have negative type) as top-level
+% definitions, so instead of being able to write `v : S = V` to define
+% `v` of type `S` as `V`, we have to write `t : {S} = {V}`. 
+
+% In other words, it's pretty safe to ignore all the curly braces in this file. 
+
+a: type.
+b: type.
+fam: a -> type.
+
+c: a.
+d: a.
+e: b.
+h: fam c.
+
+t1: {1} = {1}.
+t2: {a} = {c}.
+t3: {a * b} = {[d, e]}.
+t4: {a * b * a * 1 * a} = {[c, e, d, 1, d]}.
+
+% Constants defined in the signature are always persistent, and so can 
+% be used in any setting: linear, affine, or persistent.
+t5: {a * @a * !a} = {[c, @c, !c]}.
+
+% Variables that are explicitly linear are not allowed to appear in values
+% of the form `@N` (affine) or `!N` (persistent). Likewise, variables that
+% are explicitly affine cannot be used in terms `!N`. Persistent variables
+% are like signature constants: they can appear anywhere.
+t6: a -o {a}  = \x.  {x}.   % Ok
+%%% a -o {@a} = \x.  {@x}.  % Not Ok
+%%% a -o {!a} = \x.  {!x}.  % Not Ok
+t7: a -@ {a}  = \@x. {x}.   % Ok
+t8: a -@ {@a} = \@x. {@x}.  % Ok
+%%% a -@ {!a} = \@x. {!x}.  % Not Ok
+t9: a -> {a}  = \!x. {x}.   % Ok
+tA: a -> {@a} = \!x. {@x}.  % Ok
+tB: a -> {!a} = \!x. {!x}.  % Ok
+
+% The tensor notation `S1 * S2` is shorthand for `EXISTS _:S1. S2`.
+tC: {a * b} = {[c, e]}.
+tD: {EXISTS _:a. b} = {[c, e]}.
+
+% The exists notation `Exists x. S` is shorthand for `EXISTS !x.!S1. S2`
+% where the type `S2` can be inferred from the occurances of `x` in `S2`.
+tE: {Exists x. fam x} = {[!c, h]}.
+tF: {EXISTS !x : !a . fam x} = {[!c, h]}.
