@@ -38,6 +38,7 @@ parseErr lp.clf
 typeErr mini-ml.clf
 success msr.clf
 success msr0.clf
+success multi-1.clf multi-2.clf
 parseErr pcc-diku.clf
 success perm.clf
 success perm2.clf

@@ -1,0 +1,2 @@
+z: nat.
+s: nat -> nat.
