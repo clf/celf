@@ -145,7 +145,7 @@ let
     ; TextIO.closeIn instream)
    end 
 
-   val () = print "Celf ver 2.8. Copyright (C) 2011\n"   
+   val () = print "Celf ver 2.9. Copyright (C) 2011\n"   
    val files = parseArgs args
 in
  ( if null files andalso not (!helpMsg)
