@@ -32,19 +32,21 @@ fun number (s,p) =
 				| NONE => raise Fail"Internal error: lexer on int\n",
 			p,p)
 fun keyword (s,p) =
-	(case s of
-		"type" => Tokens.TYPE(p,p)
-	  | "Pi" => Tokens.PI(p,p)
-	  | "PI" => Tokens.LPI(p,p)
-	  | "#1" => Tokens.PROJLEFT(p,p)
-	  | "#2" => Tokens.PROJRIGHT(p,p)
-	  | "Exists" => Tokens.EXISTS(p,p)
-	  | "EXISTS" => Tokens.LEXISTS(p,p)
-	  | "let" => Tokens.LET(p,p)
-	  | "in" => Tokens.IN(p,p)
-	  | "#query" => Tokens.QUERY(p,p)
-	  | "#mode" => Tokens.MODE(p,p)
-	  | _ => Tokens.ID(s,p,p))
+        (case s of
+           "type" => Tokens.TYPE(p,p)
+          | "Pi" => Tokens.PI(p,p)
+          | "PI" => Tokens.LPI(p,p)
+          | "#1" => Tokens.PROJLEFT(p,p)
+          | "#2" => Tokens.PROJRIGHT(p,p)
+          | "Exists" => Tokens.EXISTS(p,p)
+          | "EXISTS" => Tokens.LEXISTS(p,p)
+          | "let" => Tokens.LET(p,p)
+          | "in" => Tokens.IN(p,p)
+          | "#query" => Tokens.QUERY(p,p)
+          | "#mode" => Tokens.MODE(p,p)
+          | "#exec" => Tokens.EXEC(p,p)
+          | "#trace" => Tokens.TRACE(p,p)
+          | _ => Tokens.ID(s,p,p))
 
 %%
 %header (functor ClfLexFun(structure Tokens: Clf_TOKENS));

@@ -172,6 +172,8 @@ datatype decl = ConstDecl of string * int * typeOrKind
 	| TypeAbbrev of string * asyncType
 	| ObjAbbrev of string * asyncType * obj
 	| Query of int option * int option * int option * int * asyncType
+	| Trace of int option * syncType
+	| Exec of int option * syncType
 	| Mode of string * modeDecl option * modeDecl
 
 datatype declError = 

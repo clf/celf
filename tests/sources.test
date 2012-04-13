@@ -3,6 +3,7 @@ success arith.clf
 success atp.clf
 modeErr bigstep.clf
 typeErr ccc.clf
+success change.clf
 typeErr church-rosser.clf
 parseErr cls.clf
 # success cml-2.clf NONTERMINATION
@@ -28,6 +29,8 @@ typeErr handbook.clf
 parseErr incll.clf
 typeErr kolm.clf
 success kruskal.clf
+success lambda-env.clf
+queryFailed lambda-env-fail.clf
 success ldp2.clf
 success listset.clf
 typeErr lp-horn.clf
@@ -35,6 +38,7 @@ parseErr lp.clf
 typeErr mini-ml.clf
 success msr.clf
 success msr0.clf
+success multi-1.clf multi-2.clf
 parseErr pcc-diku.clf
 success perm.clf
 success perm2.clf
@@ -56,3 +60,4 @@ success voting/dhondt-incremental.clf
 success voting/dhondt-matrix.clf
 success voting/fptp-voteid.clf
 success voting/stv-voteid.clf
+success monad-pair.clf

@@ -34,14 +34,17 @@ fun getline (line, ch) = line
 	| AMPH | LCURLY | RCURLY | TENSOR | ONE | EXISTS | LAMBDA
 	| LANGLE | RANGLE | COMMA | LET | EQUAL | IN | PROJLEFT | PROJRIGHT
 	| LBRACKET | RBRACKET | ARROW | BACKARROW | LPAREN | RPAREN | EOF
-	| QUERY | NUM of int | LPI | LEXISTS | AFFLOLLI | BACKAFFLOLLI | BANG | AFF | APP
+	| QUERY | TRACE | EXEC
+        | NUM of int | LPI | LEXISTS | AFFLOLLI | BACKAFFLOLLI | BANG | AFF 
+        | APP
         | MODE | PLUS | MINUS | MINUSD
 
 %nonterm Kind of Syntax.kind | AsyncType of Syntax.asyncType
 	| UnifiedType of Parse.unifiedType
 	| AtomicType of string * Syntax.obj list
 	| Obj of Syntax.obj
-	| ExpObj of Syntax.expObj | MonadObj of Syntax.monadObj
+	| ExpObj of Syntax.expObj
+	| MonadObj of Syntax.monadObj | MonadObjPair of Syntax.monadObj * Syntax.monadObj
 	| OPattern of Syntax.opattern | OPatternPair of Syntax.opattern * Syntax.opattern
 	| TPattern of Syntax.tpattern | TPatternPair of Syntax.tpattern * Syntax.tpattern
 	| Decl of Syntax.decl | DeclList of (int * Syntax.decl) list
@@ -84,6 +87,8 @@ Decl :
 	| Id COLON AsyncType EQUAL Obj DOT         ( Syntax.ObjAbbrev(Id,AsyncType,Obj) )
 	| QUERY NumOpt NumOpt NumOpt Number AsyncType DOT
 			( Syntax.Query(NumOpt1,NumOpt2,NumOpt3,Number,AsyncType) )
+        | TRACE NumOpt UnifiedType DOT ( Syntax.Trace(NumOpt, Parse.unif2sync UnifiedType) )
+        | EXEC NumOpt UnifiedType DOT ( Syntax.Exec(NumOpt, Parse.unif2sync UnifiedType) )
         | MODE Id ModeDecl DOT
                         ( Syntax.Mode(Id,NONE,ModeDecl) )
         | MODE Id LCURLY ModeDecl RCURLY ModeDecl DOT
@@ -169,11 +174,15 @@ ExpObj :
 	| LPAREN ExpObj RPAREN                           ( ExpObj )
 
 MonadObj :
-	  LBRACKET MonadObj COMMA MonadObj RBRACKET ( Syntax.DepPair'(MonadObj1,MonadObj2) )
-	| ONE                                       ( Syntax.One' )
-	| Obj %prec APP                             ( Syntax.Down'(Obj) )
-	| AFF Obj                                   ( Syntax.Affi'(Obj) )
-	| BANG Obj                                  ( Syntax.Bang'(Obj) )
+	  LBRACKET MonadObjPair RBRACKET ( Syntax.DepPair' MonadObjPair )
+	| ONE                            ( Syntax.One' )
+	| Obj %prec APP                  ( Syntax.Down'(Obj) )
+	| AFF Obj                        ( Syntax.Affi'(Obj) )
+	| BANG Obj                       ( Syntax.Bang'(Obj) )
+
+MonadObjPair :
+	  MonadObj COMMA MonadObjPair ( (MonadObj, Syntax.DepPair' MonadObjPair) )
+	| MonadObj COMMA MonadObj     ( (MonadObj1, MonadObj2) )
 
 OPattern :
 	  ONE                            ( Syntax.POne' )
