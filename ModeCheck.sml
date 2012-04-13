@@ -54,8 +54,17 @@ fun mctxPush (x, m) st ctx = RAList.cons (x, m, (st, false)) ctx
 (* mctxPushNO : mcontext -> mcontext *)
 fun mctxPushNO ctx = mctxPush ("", INT) Universal ctx
 
+(* mctxPushNON : int -> mcontext -> mcontext *)
+fun mctxPushNON 0 = (fn x => x)
+  | mctxPushNON n = mctxPushNO o mctxPushNON (n - 1)
+
 (* mctxPop : mcontext -> mcontext *)
-val mctxPop = RAList.tail
+fun mctxPop ctx =
+      RAList.tail ctx
+
+(* mctxPopN : int -> mcontext -> mcontext *)
+fun mctxPopN 0 = (fn x => x)
+  | mctxPopN n = mctxPop o mctxPopN (n - 1)
 
 (* getModality : mcontext * int -> modality *)
 fun getModality (ctx, k) = let val (_, m, (_, _)) = RAList.lookup ctx (k-1)
@@ -79,23 +88,37 @@ fun isUniversal (ctx, k) = let val (_, _, (st, _)) = RAList.lookup ctx (k-1)
 
 
 
-
+(* pushTPattern : status -> (mcontext * tpattern) -> (mcontext, int)
+   pushTPattern st (ctx, p) = (ctx', k)
+   iff  ctx' is obtained by adding the variables in p to ctx with status st
+        k    is the number of added patterns *)
 fun pushTPattern st (ctx, p) =
     let fun patNameModality p =
             case Pattern.prj p of
                 PDown _ => ("", LIN)
               | PAffi _ => ("", AFF)
               | PBang x => (getOpt (x, ""), INT)
-              | _ => raise Fail "Internal error: patName: pattern not normalized"
-        fun pushTPatternInt (ctx, n, p) =
+              | _ => raise Fail "Internal error: patNameModality on tpattern PDepTensor"
+        fun pushTPattern_ (ctx, p) =
             case Pattern.prj p of
-                POne => (ctx, n)
-              | PDepTensor (p1, p2) => pushTPatternInt (mctxPush (patNameModality p1) st ctx, n+1, p2)
-              | _ => raise Fail "Internal error: pushTPattern: pattern not normalized"
+                POne => (ctx, 0)
+              | PDepTensor (p1, p2) =>
+                let
+                  val (ctx1, n1) = pushTPattern_ (ctx, p1)
+                  val (ctx2, n2) = pushTPattern_ (ctx1, p2)
+                in
+                  (ctx2, n1 + n2)
+                end
+              | _ => (* PDown, PAffi, PBang *)
+                (mctxPush (patNameModality p) st ctx, 1)
     in
-        pushTPatternInt (ctx, 0, p)
+        pushTPattern_ (ctx, p)
     end
 
+(* pushOPattern : status -> (mcontext * opattern) -> (mcontext, int)
+   pushOPattern st (ctx, p) = (ctx', k)
+   iff  ctx' is obtained by adding the variables in p to ctx with status st
+        k    is the number of added patterns *)
 fun pushOPattern st (ctx, p) =
     let fun patNameModality p =
             case Pattern.prj p of
@@ -103,13 +126,20 @@ fun pushOPattern st (ctx, p) =
               | PAffi x => (x, AFF)
               | PBang x => (x, INT)
               | _ => raise Fail "Internal error: patName: pattern not normalized"
-        fun pushOPatternInt (ctx, n, p) =
+        fun pushOPattern_ (ctx, p) =
             case Pattern.prj p of
-                POne => (ctx, n)
-              | PDepTensor (p1, p2) => pushOPatternInt (mctxPush (patNameModality p1) st ctx, n+1, p2)
-              | _ => raise Fail "Internal error: pushOPattern: pattern not normalized"
+                POne => (ctx, 0)
+              | PDepTensor (p1, p2) =>
+                let
+                  val (ctx1, n1) = pushOPattern_ (ctx, p1)
+                  val (ctx2, n2) = pushOPattern_ (ctx1, p2)
+                in
+                  (ctx2, n1 + n2)
+                end
+              | _ => (* PDown, PAffi, PBang *)
+                (mctxPush (patNameModality p) st ctx, 1)
     in
-        pushOPatternInt (ctx, 0, p)
+        pushOPattern_ (ctx, p)
     end
 
 
@@ -131,7 +161,7 @@ fun gCheckObj (ctx, ob) =
                               | Var (_, n) => let val (x, _, (st, _)) = RAList.lookup ctx (n-1)
                                               in
                                                   case st of
-                                                      Unknown => raise ModeCheckError (x^" not necessarily ground1")
+                                                      Unknown => raise ModeCheckError (x^" not necessarily ground11")
                                                     | _ => gCheckSpine (ctx, S)
                                               end
                               | UCVar _ => raise Fail "Internal error: gCheckObj on UCVar"
@@ -170,7 +200,6 @@ and gCheckSpine (ctx, ob) =
       | ProjLeft S => gCheckSpine (ctx, S)
       | ProjRight S => gCheckSpine (ctx, S)
 
-
 (* Infer groundness information for objects *)
 (* gInfer* : mcontext * object -> mcontext *)
 (* These functions satisfy the following property:
@@ -185,19 +214,20 @@ and gCheckSpine (ctx, ob) =
 
 
 (* mkGround : mcontext -> int -> mcontext *)
-fun mkGround ctx n = let val (x, m, (st, oblig)) = RAList.lookup ctx (n-1)
-                     in
-                         case st of
-                             Unknown => RAList.update ctx (n-1) (x, m, (Ground, oblig))
-                           | _ => ctx
-                     end
+fun mkGround ctx n =
+    let val (x, m, (st, oblig)) = RAList.lookup ctx (n-1)
+    in
+      case st of
+        Unknown => RAList.update ctx (n-1) (x, m, (Ground, oblig))
+      | _ => ctx
+    end
 
 (* unique (k, ks) = B
 
    Invariant:
    B iff k does not occur in ks
  *)
-fun unique (k, nil) = true
+fun unique (k:int, nil) = true
   | unique (k, k'::ks) = (k <> k') andalso unique (k, ks)
 
 exception Eta
@@ -243,7 +273,6 @@ fun isPattern (ctx, k, S) =
     (checkPattern (ctx, k, nil, S); true)
     handle Eta => false
 
-
 fun gInferObj (ctx, ob) =
     case NfObj.prj ob of
         NfLLam (p, N) => let val (ctx', k) = pushOPattern Universal (ctx, opatNormalize p)
@@ -253,15 +282,14 @@ fun gInferObj (ctx, ob) =
       | NfAddPair (N1, N2) => mcMeet (gInferObj (ctx, N1), gInferObj (ctx, N2))
       | NfMonad E => ctx (* Monadic objects are ignored for the moment -- js *)
       | NfAtomic (H, S) => (case H of
-                                Const x => gInferSpine (ctx, S)
-                              | Var (_, n) => if isUniversal (ctx, n)
-                                              then gInferSpine (ctx, S)
-                                              else if isPattern (ctx, n, S)
-                                                   then mkGround ctx n
-                                                   else ctx
-                              | UCVar _ => raise Fail "Internal error: gInferObj on UCVar"
-                              | LogicVar _ => raise Fail "Internal error: gInferObj on LogicVar")
-
+                              Const x => gInferSpine (ctx, S)
+                            | Var (_, n) => if isUniversal (ctx, n)
+                                            then gInferSpine (ctx, S)
+                                            else if isPattern (ctx, n, S)
+                                                 then mkGround ctx n
+                                                 else ctx
+                            | UCVar _ => raise Fail "Internal error: gInferObj on UCVar"
+                            | LogicVar _ => raise Fail "Internal error: gInferObj on LogicVar")
 
 and gInferMonadObj (ctx, ob) =
     case NfMonadObj.prj ob of
@@ -272,7 +300,6 @@ and gInferMonadObj (ctx, ob) =
       | Bang N => gInferObj (ctx, N)
       | MonUndef => raise Fail "Internal error: gInferMonadObj on MonUndef"
 
-
 and gInferSpine (ctx, sp) =
     case NfSpine.prj sp of
         Nil => ctx
@@ -280,6 +307,7 @@ and gInferSpine (ctx, sp) =
       | ProjLeft S => gInferSpine (ctx, S)
       | ProjRight S => gInferSpine (ctx, S)
 
+(* Monadic expressions are ignored for the moment *)
 and gInferExpObj (ctx, ob) =
     case NfExpObj.prj ob of
         NfLet (p, (H, S), E)
@@ -412,7 +440,6 @@ fun goalAtomic (ctx, sp, m) =
                                 end
       | _ => raise Fail "Internal error: goalAtomic spine and mode declaration length do not coincide"
 
-
 (* bwdType : mcontext * nfAsyncType -> mcontext *)
 (* Entry point for checking backward-chaining declarations *)
 fun bwdType (ctx, ty) =
@@ -425,40 +452,51 @@ fun bwdType (ctx, ty) =
                             in
                                 mcJoin (ctx1, ctx2)
                             end
-      | TLPi (p, A, B) => let val (p', A') = tpatNormalize (p, A) in
-                              bwdPatType (ctx, p', A', B)
+      | TLPi (p, A, B) => let val (p', A') = tpatNormalize (p, A)
+                              val len = Syntax.nbinds p'
+                          in
+                              mctxPopN len (bwdPatTypek ctx 0 (p', A') (fn c => bwdType (c, B)))
                           end
       | TMonad _ =>  raise Fail "Internal error: bwdType on forward goal"
       | TAbbrev _ => raise Fail "Internal error: bwdType on TAbbrev"
 
-
-(* bwdPatType : mcontext * tpattern * nfSyncType * nfAsyncType -> unit *)
-(* Precondition  bwdPatType (ctx, p, sty, ty)
-      - p must be normalized
-      - p and sty must be related
+(* bwdPatTypek : mcontext -> int * tpattern * nfSyncType * (mcontext -> mcontext) -> mcontext *)
+(* bwdPatTypek ctx n (p, sty) k = ctx'
+     - size ctx' = size ctx + size p
+     - k calls goalType for every non-depenpendt subgoal
+     - n is the recursion depth used to calculate shifts
  *)
-and bwdPatType (ctx, p, sty, ty) =
+and bwdPatTypek ctx n (p, sty) k =
     case (Pattern.prj p, NfSyncType.prj sty) of
-        (POne, TOne) => bwdType (ctx, ty)
+        (POne, TOne) => k ctx
       | (PDepTensor (p1, p2), LExists (_, S1, S2))
         => (case (Pattern.prj p1, NfSyncType.prj S1) of
                 (PBang (SOME x), TBang A)
-                => let val ctx' = bwdPatType (mctxPush (x, INT) Unknown ctx, p2, S2, ty)
-                       val ((x, _, (st, oblig)), ctxRet) = valOf (RAList.prj ctx')
+                => let val ctx' = bwdPatTypek (mctxPush (x, INT) Unknown ctx) (n + 1) (p2, S2) k
+                       val (x, _, (st, oblig)) = RAList.lookup ctx' n
                    in
                        if oblig (* x has a groundness obligation *)
                        then case st of
-                                Ground => ctxRet
+                                Ground => ctx' (* ctxRet *)
                               | Unknown => raise ModeCheckError (x^" not necessarily ground3")
-                              | Universal => raise Fail "Internal error: bwdPatType: Unknown changed to Univ"
-                       else ctxRet
+                              | Universal => raise Fail "Internal error: bwdPatTypek: Unknown changed to Univ"
+                       else ctx' (* ctxRet *)
                    end
               | (_, _)  (* _ is PDown, PAffi, or PBang NONE, since patterns are normalized *)
-                => let val ctx1 = bwdPatType (mctxPushNO ctx, p2, S2, ty)
-                   in goalType (mctxPop ctx1, sync2async S1) end
+                =>
+                let
+                  fun goalK c =
+                      let
+                        val ctx1 = k c
+                        val ctx2 = goalType (mctxPopN (Syntax.nbinds p) ctx1, sync2async S1)
+                      in
+                        mctxPushNON (Syntax.nbinds p) ctx2
+                      end
+                in
+                  bwdPatTypek (mctxPushNO ctx) (n + 1) (p2, S2) goalK
+                end
            )
-      | _ => raise Fail "Internal error: bwdPatType: pattern not normalized"
-
+      | _ => raise Fail "Internal error: bwdPatTypek: pattern not normalized"
 
 (* fun goalType : mcontext * nfAsyncType -> mcontext *)
 and goalType (ctx, ty) =
@@ -473,7 +511,6 @@ and goalType (ctx, ty) =
                           end
       | TMonad S => goalSyncType (ctx, S)
       | TAbbrev _ => raise Fail "Internal error: bwdType on TAbbrev"
-
 
 (* fun goalSyncType : mcontext * synctType -> mcontext *)
 and goalSyncType (ctx, sty) =

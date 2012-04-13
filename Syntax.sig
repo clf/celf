@@ -525,6 +525,7 @@ val unnormalizeType : nfAsyncType -> asyncType
 val unnormalizeSyncType : nfSyncType -> syncType
 val unnormalizeObj : nfObj -> obj
 val unnormalizeExpObj : nfExpObj -> expObj
+val unnormalizeMonadObj : nfMonadObj -> monadObj
 
 val etaShortcut : nfObj -> (Context.modality * int) option
 

@@ -811,5 +811,6 @@ fun unnormalizeType x = x
 fun unnormalizeSyncType x = x
 fun unnormalizeObj x = x
 fun unnormalizeExpObj x = x
+fun unnormalizeMonadObj x = x
 
 end

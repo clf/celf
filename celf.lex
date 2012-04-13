@@ -1,6 +1,5 @@
 (*  Celf
- *  Copyright (C) 2008 Anders Schack-Nielsen and Carsten Schürmann
- *
+ *  Copyright (C) 2008 Anders Schack-Nielsen and Carsten Schürmann *
  *  This file is part of Celf.
  *
  *  Celf is free software: you can redistribute it and/or modify
