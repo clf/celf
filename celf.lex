@@ -24,6 +24,14 @@ val linepos = ref 1
 val linecharpos = ref 0
 fun getpos charcount = (!linepos,charcount - !linecharpos)
 fun eof () = Tokens.EOF((!linepos,0),(!linepos,0))
+fun eof () =
+let
+   val ret = Tokens.EOF((!linepos,0),(!linepos,0))
+in
+ ( linepos := 1
+ ; linecharpos := 0
+ ; ret)
+end
 fun number (s,p) =
 	if s = "1" then Tokens.ONE(p,p)
 	else Tokens.NUM(
