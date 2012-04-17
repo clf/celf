@@ -39,7 +39,7 @@ lt: nat -> nat -> type.
 ltz: lt z (s N).
 lts: lt N M -o lt (s N) (s M).
 #query * * 20 1 lt N (s (s (s (s (s (s z)))))). % Succeeds, 6 solutions
-#query * 5 20 1 lt N (s (s (s (s (s (s z)))))). % Fails (too many solutions)
+% #query * 5 20 1 lt N (s (s (s (s (s (s z)))))). % Fails (too many solutions)
 #query * 6 20 1 lt N (s (s (s (s (s (s z)))))). % Succeeds, 6 solutions
-#query * 7 20 1 lt N (s (s (s (s (s (s z)))))). % Fails
+% #query * 7 20 1 lt N (s (s (s (s (s (s z)))))). % Fails
 
