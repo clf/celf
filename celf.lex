@@ -23,7 +23,6 @@ type lexresult = (svalue,pos) token
 val linepos = ref 1
 val linecharpos = ref 0
 fun getpos charcount = (!linepos,charcount - !linecharpos)
-fun eof () = Tokens.EOF((!linepos,0),(!linepos,0))
 fun eof () =
 let
    val ret = Tokens.EOF((!linepos,0),(!linepos,0))
