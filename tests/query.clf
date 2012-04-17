@@ -1,0 +1,45 @@
+nat: type. 
+z: nat. 
+s: nat -> nat. 
+up: nat -> type. 
+down: nat -> type.
+
+u: up N -o {up (s N)}.
+d: down (s N) -o {down N}.
+
+#query * * * 1 down (s (s z)) -o {down z}.         % 1 solution
+#query 1 * * 1 down (s (s z)) -o {down z}.         % 0 solutions
+#query * * * 1 down (s (s z)) -o {down (s z)}.     % 0 solutions
+#query 1 * * 1 down (s (s z)) -o {down (s z)}.     % 1 solution
+#query 4 * * 1 up z -o {up (s (s (s (s (s z)))))}. % 0 solutions
+#query 5 * * 1 up z -o {up (s (s (s (s (s z)))))}. % 1 solution
+#query 6 * * 1 up z -o {up (s (s (s (s (s z)))))}. % 0 solutions
+
+#query * * * 15 down z -o {down (s z)}. % 15 attempts, 0 solutions
+#query * * * 2 down (s z) -o {down z}. % 2 attempts, 2 solutions (the same one)
+
+#exec * down (s (s (s (s (s z))))). % -- down z lin
+#exec 3 down (s (s (s (s (s z))))). % -- down (s !(s !z)) lin
+#exec 4 down (s (s (s (s (s z))))). % -- down (s !z) lin
+#exec 5 down (s (s (s (s (s z))))). % -- down z lin
+% #exec 6 down (s (s (s (s (s z))))). % Fails
+
+#trace 5 up z.
+
+badnat: nat.
+d': down (s (s z)) -o {down badnat}.
+#query * * * 100 down (s (s z)) -o {down z}. % 100 attempts, about 50 solutions
+
+#query * 1 * 100 down (s (s z)) -o {down z}. % Likely to succeed
+% #query * 1 * 1 down (s (s z)) -o {down z}.   % 50/50 chance of failure
+% #query * 100 * 1 down (s (s z)) -o {down z}. % Always fails
+
+
+lt: nat -> nat -> type.
+ltz: lt z (s N).
+lts: lt N M -o lt (s N) (s M).
+#query * * 20 1 lt N (s (s (s (s (s (s z)))))). % Succeeds, 6 solutions
+#query * 5 20 1 lt N (s (s (s (s (s (s z)))))). % Fails (too many solutions)
+#query * 6 20 1 lt N (s (s (s (s (s (s z)))))). % Succeeds, 6 solutions
+#query * 7 20 1 lt N (s (s (s (s (s (s z)))))). % Fails
+
