@@ -299,8 +299,8 @@ and matchAtom' (ctx, P, sc) =
 						 	(List.filter (fn (_, HdAtom a) => a=aP | _ => false) hds)
 				in f :: matchCtx (G, k+1) end
 	in
-	  PermuteList.forAll (fn f => f ())
-	  (PermuteList.fromList (matchCtx (ctx2list $ #2 ctx, 1) @ map matchSig (getCandAtomic aP)))
+	  Timers.time Timers.fairness (fn () => PermuteList.forAll (fn f => f ())
+	  (PermuteList.fromList (matchCtx (ctx2list $ #2 ctx, 1) @ map matchSig (getCandAtomic aP)))) ()
 	end
 
 (* forwardStep : (lcontext * context) 
