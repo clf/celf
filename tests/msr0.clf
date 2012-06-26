@@ -35,7 +35,8 @@ nspkResp : resp B -o { Exists L : principal -> nonce -> rspArg.
 	     Pi A : principal. Pi kA : pubK A.
 	     Pi nA : nonce.
 	     net (pEnc kB (+ (n2m nA) (p2m A)))
-	     -o {Exists nB : nonce. net (pEnc kA (+ (n2m nA) (n2m nB))) & rsp (L !A !nB)})
+	     -o {Exists nB : nonce. net (pEnc kA (+ (n2m nA) (n2m nB)))
+	     	   & rsp (L !A !nB)})
      	   * (Pi A : principal. Pi kB : pubK B. Pi kB' : privK kB .
        	     Pi nB : nonce.
        	     net (pEnc kB (n2m nB))

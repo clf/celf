@@ -71,4 +71,8 @@ DestCheck.sig
 DestCheck.sml
 TypeRecon.sig
 TypeRecon.sml
+Timing.sig
+Timing.sml
+Timers.sig
+Timers.sml
 main.sml

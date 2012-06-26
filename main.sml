@@ -130,15 +130,16 @@ fun celfMain' args =
 let 
    fun reader filename = 
    let
+      val () = Timers.reset ()
       val () = print ("[reading "^filename^"]\n")
       val instream = TextIO.openIn filename
-      val lexer = ClfParser.makeLexer (fn n => TextIO.inputN (instream,n))
+      val lexer = Timers.time Timers.parsing (fn () => ClfParser.makeLexer (fn n => TextIO.inputN (instream,n))) ()
       fun print_parse_error (s,(l1,c1),(l2,c2)) =
          print ("Parse error at "^
                 Int.toString l1^","^Int.toString c1^"--"^
                 Int.toString l2^","^Int.toString c2^": "^s^"\n")
-      val (result : (int * Syntax.decl) list,_) = 
-         ClfParser.parse(0,lexer,print_parse_error,())      
+      val (result : (int * Syntax.decl) list,_) =      
+           Timers.time Timers.parsing (fn () => ClfParser.parse(0,lexer,print_parse_error,())) () 
    in
     ( TypeRecon.reconstructSignature result
     ; print ("[closing "^filename^"]\n")
@@ -154,7 +155,7 @@ in
               \  To see command-line options:  celf -h\n\n\
               \No files given; exiting.\n" 
    else app reader files
- ; OS.Process.success)
+ ; Timers.show () ; OS.Process.success)
 end
 
 (* Regression testing infrastructure; invoked from celfMain if the first

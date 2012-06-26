@@ -27,3 +27,31 @@ p_cin  : proc (cin U P) -o {Pi V:chan. msg U V -o {proc (P !V)}}.
 % #query * 10 * 5 proc (new \u. par (new \m. out u m) (cin u \x. zero)) -o {1}.
 #query * * * 1 proc (par (new \!x. zero) (new \!y. zero)) -o {1}.
 
+ex1 :  proc (par (new \!x. zero) (new \!y. zero)) -o {1}
+    =  \X1. {
+       let {[X2, X3]} = p_par X1 in 
+       let {[!u, X4]} = p_new X2 in 
+       let {1} = p_zero X4 in 
+       let {[!u_1, X5]} = p_new X3 in 
+       let {1} = p_zero X5 in 1}.
+
+
+ex2 :  proc (par (new \!x. zero) (new \!y. zero)) -o {1}
+    =  \X1. {
+       let {[X2, X3]} = p_par X1 in 
+       let {[!u_1, X5]} = p_new X3 in 
+       let {1} = p_zero X5 in
+       let {[!u, X4]} = p_new X2 in 
+       let {1} = p_zero X4 in 1}.
+
+
+equality : ( proc (par (new \!x. zero) (new \!y. zero)) -o {1})
+	 -> (proc (par (new \!x. zero) (new \!y. zero)) -o {1}) -> type.
+#mode equality + +.
+uni : equality X X.
+
+
+example : equality ex1 ex2 
+	= uni.
+
+#query * * * 100 equality ex2 X. 

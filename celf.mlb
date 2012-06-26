@@ -70,5 +70,7 @@ DestCheck.sig
 DestCheck.sml
 TypeRecon.sig
 TypeRecon.sml
+Timing.sig
+Timing.sml
 main.sml
 main-run.sml

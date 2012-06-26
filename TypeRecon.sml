@@ -128,25 +128,26 @@ fun checkModeDecl (id, implmd, md) =
 (* reconstructDecl : int * decl -> unit *)
 fun reconstructDecl (ldec as (_, dec)) =
 let 
-   val () = ImplicitVars.resetUCTable ()
-   val dec = mapDecl ApproxTypes.apxCheckKindEC
+   val dec = Timers.time Timers.recon (fn () => let
+     val () = ImplicitVars.resetUCTable ()
+     val dec = mapDecl ApproxTypes.apxCheckKindEC
                 ApproxTypes.apxCheckTypeEC
                 (ApproxTypes.apxCheckObjEC o (map2 asyncTypeToApx)) dec
-   val dec = mapDecl Eta.etaExpandKindEC
+     val dec = mapDecl Eta.etaExpandKindEC
                 Eta.etaExpandTypeEC
                 (Eta.etaExpandObjEC o (map2 asyncTypeToApx)) dec
-   val () = ImplicitVars.mapUCTable Eta.etaExpandTypeEC
-   val dec = mapDecl Util.removeApxKind
+     val () = ImplicitVars.mapUCTable Eta.etaExpandTypeEC
+     val dec = mapDecl Util.removeApxKind
                 Util.removeApxType
                 (Util.removeApxObj o #1) dec
-   val () = ImplicitVars.mapUCTable Util.removeApxType
-   val () = Unify.resetConstrs ()
-   val () = ImplicitVars.appUCTable ExactTypes.checkTypeEC
-   val () = appDecl ExactTypes.checkKindEC
+     val () = ImplicitVars.mapUCTable Util.removeApxType
+     val () = Unify.resetConstrs ()
+     val () = ImplicitVars.appUCTable ExactTypes.checkTypeEC
+     val () = appDecl ExactTypes.checkKindEC
                ExactTypes.checkTypeEC
                ExactTypes.checkObjEC dec
-   val () = Unify.solveLeftoverConstr ()
-   val () = if isDirective dec then () 
+     val () = Unify.solveLeftoverConstr ()
+     val () = if isDirective dec then () 
             else
              ( appDecl ImplicitVarsConvert.logicVarsToUCVarsKind
                   ImplicitVarsConvert.logicVarsToUCVarsType
@@ -155,7 +156,8 @@ let
                   (fn Atomic (LogicVar _, _) => 
                          raise Fail "FIXME: LogicVar here???\n"
                     | _ => ())) )
-   val () = ImplicitVars.mapUCTable Util.forceNormalizeType
+     val () = ImplicitVars.mapUCTable Util.forceNormalizeType
+     in dec end) ()
    val dec = case dec of
                 ConstDecl (id, _, kity) =>
                 let val imps = ImplicitVars.sort ()
@@ -234,7 +236,7 @@ let
           ; if TypeCheck.isEnabled () then TypeCheck.checkObjEC (ob, ty) 
             else () )
 
-       | Mode (id, implmd, md) => checkModeDecl (id, implmd, md)
+       | Mode (id, implmd, md) => Timers.time Timers.modes (fn () => checkModeDecl (id, implmd, md)) ()
 
        | Query (d, e, l, a, ty) =>
          (* d : let-depth-bound * = inf
@@ -268,7 +270,7 @@ let
                  ; if a > 1
                    then print ("Iteration "^Int.toString (a+1-n)^"\n")
                    else ()
-                 ; OpSem.solveEC (ty, sc)
+                 ; Timers.time Timers.solving (fn () => OpSem.solveEC (ty, sc)) ()
                  ; e = SOME (!solCount) orelse runQuery (n-1) )
          in if a = 0 orelse l = SOME 0 
             then print "Ignoring query\n"
