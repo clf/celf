@@ -237,6 +237,8 @@ fun traceLeftFocus (h, ty) =
 				" : "^PrettyPrint.printType ty^"\n")
 	else ()
 
+val totalCtxLength = ref 0
+val totalAvailLength = ref 0
 
 fun syncType2pat sty = 
    case SyncType.prj sty of
@@ -283,24 +285,41 @@ and matchAtom (ctx, P, sc) =
 and matchAtom' (ctx, P, sc) =
 	let val aP = (case P of TAtomic (a, _) => a
 					| _ => raise Fail "Internal error: wrong argument to matchAtom!")
-		val P' = AsyncType.inj P
-		fun lFocus (ctx', lr, A, h) = fn () =>
-					( traceLeftFocus (h, A)
-					; leftFocus (lr, ctx', P', A, fn (S, ctxo) =>
-										sc (Atomic' (h, S), ctxo)) )
-		fun matchSig (c, lr, A) = fn () => BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
-		fun matchCtx ([], _) = []
-		  | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
-		  | matchCtx ((x, (A, hds), SOME modality)::G, k) =
-		  		let val ctx' = if modality=INT then ctx else removeHyp (ctx, k)
-					val A' = TClos (A, Subst.shift k)
-					val h = Var (modality, k)
-					val f = fn () => app (fn (lr, _) => BackTrack.backtrack (lFocus (ctx', lr, A', h)))
-						 	(List.filter (fn (_, HdAtom a) => a=aP | _ => false) hds)
-				in f :: matchCtx (G, k+1) end
+	    val P' = AsyncType.inj P
+	    fun lFocus (ctx', lr, A, h) = fn () =>
+					     ( traceLeftFocus (h, A)
+					     ; leftFocus (lr, ctx', P', A, fn (S, ctxo) =>
+									      sc (Atomic' (h, S), ctxo)) )
+	    fun matchSig (c, lr, A) = fn () => BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
+	    fun matchCtx ([], _) = []
+	      | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
+              | matchCtx ((_, (_, nil), _)::G, k) = matchCtx (G, k+1)
+	      | matchCtx ((x, (A, hds), SOME modality)::G, k) =
+		if #2 (List.hd hds) <> HdAtom(aP) andalso List.tl hds = nil
+		then matchCtx (G, k+1)
+		else 
+		let (* val ctx' = if modality=INT then ctx else removeHyp (ctx, k) *)
+		    val A' = TClos (A, Subst.shift k)
+		    val h = Var (modality, k)
+		    val validHds = List.filter (fn (_, HdAtom a) => a=aP | _ => false) hds
+		    val candidates = List.map (fn (lr, _) => (fn () => BackTrack.backtrack (lFocus (if modality=INT then ctx else removeHyp (ctx, k), lr, A', h)))) validHds
+		in candidates @ matchCtx (G, k+1) end
+	    val ctxlist = ctx2list $ #2 ctx
+	    val available = matchCtx (ctxlist, 1)
+(*
+	    val ctxLength = List.length ctxlist
+	    val () = totalCtxLength := !totalCtxLength+ctxLength
+	    val availLength = List.length available
+	    val () = totalAvailLength := !totalAvailLength+availLength
+	    val () = TextIO.print (Int.toString (!totalCtxLength) ^ " -> " ^ Int.toString (!totalAvailLength)
+				   ^ "\n")
+*)
 	in
-	  Timers.time Timers.fairness (fn () => PermuteList.forAll (fn f => f ())
+(*	  Timers.time Timers.fairness (fn () => PermuteList.forAll (fn f => f ())
 	  (PermuteList.fromList (matchCtx (ctx2list $ #2 ctx, 1) @ map matchSig (getCandAtomic aP)))) ()
+*)
+	  PermuteList.forAll (fn f => f ())
+	     (PermuteList.fromList (available @ map matchSig (getCandAtomic aP)))
 	end
 
 (* forwardStep : (lcontext * context) 
