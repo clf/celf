@@ -1,0 +1,106 @@
+% Concurrent ML
+% Section 4, A Concurrent Logical Framework II: Examples and Applications
+% Untyped, with frames, and parallel evaluation of applications
+
+exp : type.
+
+dest : type.
+eval : exp -> dest -> type.
+return : exp -> dest -> type.
+#mode eval - -.
+#mode return - -.
+
+frame : type.
+cont : frame -> dest -> type.
+#mode cont - -.
+
+evaluate : exp -> exp -> type.
+#mode evaluate + -.
+
+run : (Pi d : dest. eval E d -o {return V d})
+        -o evaluate E V.
+
+%% Expressions
+
+lam : (exp -> exp) -> exp.
+app : exp -> exp -> exp.
+
+z : exp.
+s : exp -> exp.
+case : exp -> exp -> (exp -> exp) -> exp.
+
+fix : (exp -> exp) -> exp.
+
+%% Evaluation
+
+% Values
+
+ev/lam : eval (lam E) D -o { return (lam E) D }.
+ev/z : eval z D -o { return z D }.
+
+
+% Application
+
+fapp : dest -> dest -> frame.
+
+ev/app : eval (app E1 E2) D -o
+       { Exists D1. Exists D2. eval E1 D1 * eval E2 D2 * cont (fapp D1 D2) D }.
+
+ev/fapp : return (lam \!x. E !x) D1 * return V D2 * cont (fapp D1 D2) D -o
+        { eval (E !V) D }.
+
+% Recursion
+
+ev/fix : eval (fix \!u. E !u) D -o {eval (E !(fix \!u. E !u)) D}.
+
+% Successor and case
+
+fs : dest -> frame.
+fcase : dest -> exp -> (exp -> exp) -> frame.
+
+ev/s : eval (s E1) D -o {Exists D1. eval E1 D1 * cont (fs D1) D }.
+ev/fs : return V D1 * cont (fs D1) D -o { return (s V) D }.
+
+
+ev/case : eval (case E1 E2 (\!x. E3 !x)) D -o
+          { Exists D1. eval E1 D1 * cont (fcase D1 E2 (\!x. E3 !x)) D }.
+ev/fcasez : return z D1 * cont (fcase D1 E2 (\!x. E3 !x)) D -o
+          { eval E2 D }.
+ev/fcases : return (s V) D1 * cont (fcase D1 E2 (\!x. E3 !x)) D -o
+          { eval (E3 !V) D }.
+
+
+%%% Examples.
+
+plus : exp
+= fix \!f. lam \!x1.
+  case x1
+       (lam (\!x2. x2))
+       (\!y. lam \!x2. s (app (app f !y) !x2)).
+
+mult : exp
+= fix \!f. lam \!x1.
+  case x1
+       (lam (\!x2. z))
+       (\!y. lam \!x2. app (app plus x2) ((app (app f !y) !x2))).
+
+fact : exp
+= fix \!f. lam \!x1.
+  case x1
+       (s z)
+       (\!y. app (app mult x1) (app f !y)).
+
+
+
+% #query * * * 1 evaluate (s (s (s z))) V.
+
+% #query * * * 1 evaluate (app (app plus (s z)) (s z)) V.
+
+% #query * * * 1 evaluate (app (app mult (s (s (s z)))) (s (s (s z)))) V.
+
+#trace 1000  Exists d. eval (app (app mult (s (s (s z)))) (s (s (s z)))) d.
+
+% #query * * * 1 evaluate (app (app mult (app (app mult (s (s (s z)))) (s (s z)))) (s z))  V.
+
+
+% #query * * * 1 evaluate (app fact (s (s (s z)))) V.
