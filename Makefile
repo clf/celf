@@ -8,7 +8,7 @@ all:
 mlton: *.sml *.sig */*.sml */*.sig *.mlb
 	mllex celf.lex
 	mlyacc celf.grm
-	mlton @MLton max-heap 1g -- celf.mlb
+	mlton celf.mlb
 
 smlnj: *.sml *.sig */*.sml */*.sig *.cm
 	sml < main-export.sml
