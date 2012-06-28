@@ -31,8 +31,9 @@ struct
   val modes       = Timing.newCenter ("Modes         ")
   val fairness    = Timing.newCenter ("Fairness      ")
   val solving     = Timing.newCenter ("Solving       ")
+  val unification = Timing.newCenter ("Unification   ")
 
-  val centers = [parsing, recon, modes, fairness, solving]
+  val centers = [parsing, recon, modes, fairness, solving, unification]
 
   val total    = Timing.sumCenter ("Total         ", centers)
 

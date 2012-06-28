@@ -31,6 +31,7 @@ sig
   val modes       : Timing.center		(* mode checking *)
   val fairness    : Timing.center	        (* construction subordination relation *)
   val solving     : Timing.center		(* solving queries *)
+  val unification : Timing.center		(* unification algorithm *)
 
   (* Warning: time for printing of the answer substitution to a
      query is counted twice here.

@@ -1232,7 +1232,11 @@ fun unifyOpt (ty1, ty2, errmsg) =
 		handle ExnUnify s => SOME (s, errmsg)
 
 (* unifiable : asyncType * asyncType -> bool *)
-fun unifiable (ty1, ty2) = not $ isSome $ unifyOpt (ty1, ty2, fn () => "")
+fun unifiable (ty1, ty2) =
+    (* Timers.time Timers.unification *)
+                (fn (ty1, ty2) =>
+                not $ isSome $ unifyOpt (ty1, ty2, fn () => "")
+                ) (ty1, ty2)
 
 (* unify : asyncType * asyncType * (unit -> string) -> unit *)
 fun unify ty1ty2errmsg = exportError $ unifyOpt ty1ty2errmsg
@@ -1248,6 +1252,6 @@ fun solveConstrBacktrack sc =
 
 (* unifyAndBranch : asyncType * asyncType * (unit -> unit) -> unit *)
 fun unifyAndBranch (ty1, ty2, sc) =
-	if unifiable (ty1, ty2) then solveConstrBacktrack sc else ()
+    if unifiable (ty1, ty2) then solveConstrBacktrack sc else ()
 
 end
