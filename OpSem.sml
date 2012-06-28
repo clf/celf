@@ -26,6 +26,12 @@ open Context
 open PatternBind
 open SignaturTable
 
+(*******************)
+val debugForwardChaining = ref false
+fun trace _ _ _ = raise Fail "OpSem.sml"
+fun printCtx _ = raise Fail "OpSem.sml"
+(*******************)
+
 val traceSolve = ref 0
 val allowConstr = ref false
 
@@ -118,7 +124,7 @@ fun genMon (ctx : context, p, sty) =
 			| (PBang NONE, TBang _) => MonUndef'
 			| (PBang (SOME x), TBang A) =>
 				let val X = newLVarCtx (getIntCtx ()) A
-					val () = case Obj.prj X of Atomic (h, _) => Unify.pruneLVar $ normalizeHead h
+					val () = case Obj.prj X of Atomic (h, _) => Timers.time Timers.unification Unify.pruneLVar (normalizeHead h)
 							| _ => raise Fail "Internal error: lvar expected"
 				in Bang' X end
 			| _ => raise Fail "Internal error: genMon"
@@ -283,8 +289,8 @@ and leftFocus' (lr, (l, ctx), P, ty, sc) = case Util.typePrjAbbrev ty of
 			| R::lrs => leftFocus (lrs, (l, ctx), P, B, fn (S, ctxo) => sc (ProjRight' S, ctxo)))
 	| TMonad S => raise Fail "Internal error: leftFocus applied to monadic hypothesis!"
 	| P' as TAtomic _ =>
-		if l=[] then Unify.unifyAndBranch (AsyncType.inj P', P, fn () => sc (Nil', ctx))
-		else ()
+               if l=[] then Unify.unifyAndBranch (AsyncType.inj P', P, fn () => sc (Nil', ctx))
+	       else ()
 	| TAbbrev _ => raise Fail "Internal error: leftFocus: TAbbrev"
 
 (* monLeftFocus : lr list * context * asyncType * (spine * syncType * context -> unit) -> unit *)
