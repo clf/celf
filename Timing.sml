@@ -101,7 +101,7 @@ struct
 
     fun timesToString (name, (CPUTime as {usr = t1, sys = t2, gc = t3}, realTime)) =
         name ^ ": "
-	^ "Real = " ^ stdTime (7, realTime) ^ ", "
+	^ "Real = " ^ stdTime (7, realTime) ^ " "
         ^ "Run = " ^ stdTime (7, sum CPUTime) ^ " "
 	^ "(" ^ stdTime (7, t1) ^ " usr, "
 	(* ^ stdTime (5, t2) ^ " sys, " ^ *) (* elide sys time *)

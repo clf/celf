@@ -52,7 +52,7 @@ TypeCheck.sml
 Rnd.sig
 Rnd-smlnj-mlton.sml
 PermuteList.sig
-PermuteList.sml
+NoPermuteList.sml
 SignaturTable.sig
 SignaturTable.sml
 OpSem.sig

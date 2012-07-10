@@ -246,8 +246,9 @@ let
           *)
          let fun n2str (SOME n) = Int.toString n
                | n2str NONE = "*"
-            val () = print ("Query ("^n2str d^", "^n2str e^", "^n2str l^", "
+(*            val () = print ("Query ("^n2str d^", "^n2str e^", "^n2str l^", "
                             ^Int.toString a^") "^PrettyPrint.printType ty^".\n")
+*)
             val (ty, lvars) = ImplicitVarsConvert.convUCVars2LogicVarsType ty
             fun printInst (x, ob) =
                print (" #"^x^" = "^PrettyPrint.printObj ob^"\n")
