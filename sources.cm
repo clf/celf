@@ -29,6 +29,9 @@ celf.lex
 celf.grm
 RemDepend.sig
 RemDepend.sml
+Table.sig
+RedBlackTree.fun
+Table.sml
 PrettyPrint.sig
 PrettyPrint.sml
 PatternBind.sig
@@ -52,7 +55,7 @@ TypeCheck.sml
 Rnd.sig
 Rnd-smlnj-mlton.sml
 PermuteList.sig
-NoPermuteList.sml
+PermuteList.sml
 SignaturTable.sig
 SignaturTable.sml
 OpSem.sig
