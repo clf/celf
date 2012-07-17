@@ -156,7 +156,7 @@ fun sparseList2ctx xs =
 
 
 (* ctxPushList : (string * modality * 'a) list -> 'a context -> 'a context *)
-fun ctxPushList xs ctx = List.foldl (fn ((x, m, a), c) => ctxPush (x, m, a, c)) ctx
+fun ctxPushList xs ctx = List.foldl (fn ((x, m, a), c) => ctxPush (x, m, a, c)) ctx xs
 
 (* ctxPopNum : int -> 'a context -> 'a context *)
 fun ctxPopNum 0 ctx = ctx
