@@ -12,7 +12,7 @@ NatSet.sml
 SymbTable.sig
 SymbTable.sml
 Context.sig
-Context.sml
+SparseContext.sml
 BackTrack.sig
 BackTrack.sml
 VRef.sig
@@ -55,7 +55,7 @@ TypeCheck.sml
 Rnd.sig
 Rnd-smlnj-mlton.sml
 PermuteList.sig
-PermuteList.sml
+NoPermuteList.sml
 SignaturTable.sig
 SignaturTable.sml
 OpSem.sig
