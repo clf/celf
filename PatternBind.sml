@@ -65,11 +65,6 @@ fun opatBindNf (p, sty) ctx = pBind (opush normalizeType) (p, unnormalizeSyncTyp
 fun depPatBind fs (p, sty) ctx = pBindAdd Util.patternAddDep (depPush fs) (p, sty) ctx
 
 (* patUnbind : opattern * 'a context -> 'a context *)
-fun patUnbind (p, ctx) = case Pattern.prj p of
-	  PDepTensor (p1, p2) => patUnbind (p1, patUnbind (p2, ctx))
-	| POne => ctx
-	| PDown x => ctxPop ctx
-	| PAffi x => ctxPop ctx
-	| PBang x => ctxPop ctx
+fun patUnbind (p, ctx) = ctxPopNum (nbinds p) ctx
 
 end
