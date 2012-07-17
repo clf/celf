@@ -131,4 +131,36 @@ fun joinAffLin ((x, A, f1), (_, _, f2)) =
 (* if  AffPart(G1)=G1  then  ctxJoinAffLin (G1, G2) = G1+LinPart(G2) *)
 fun ctxJoinAffLin ctxs = RAList.pairMapEq joinAffLin ctxs
 
+(* ctx2sparseList : 'a context -> (int * string * 'a * modality) list *)
+fun ctx2sparseList ctx =
+    let
+      fun add _ [] = []
+        | add k ((x, a, NONE) :: ctx) = add (k+1) ctx
+        | add k ((x, a, SOME m) :: ctx) = (k, x, a, m) :: add (k+1) ctx
+    in
+      add 1 (ctx2list ctx)
+    end
+
+(* sparseList2ctx : (int * string * 'a * modality) list -> 'a context *)
+fun sparseList2ctx xs =
+    let
+      fun toList _ [] = []
+        | toList k (xs as (n, x, a, m)::t) =
+          if k=n then
+            (x, a, SOME m)::toList (k+1) t
+          else
+            ("", a, NONE)::toList (k+1) xs
+    in
+      list2ctx (toList 1 xs)
+    end
+
+
+(* ctxPushList : (string * modality * 'a) list -> 'a context -> 'a context *)
+fun ctxPushList xs ctx = List.foldl (fn ((x, m, a), c) => ctxPush (x, m, a, c)) ctx
+
+(* ctxPopNum : int -> 'a context -> 'a context *)
+fun ctxPopNum 0 ctx = ctx
+  | ctxPopNum n ctx = ctxPopNum (n-1) (ctxPop ctx)
+
+
 end

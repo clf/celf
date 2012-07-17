@@ -52,4 +52,25 @@ val ctxAddJoin : 'a context * 'a context -> 'a context
 (* if  AffPart(G1)=G1  then  ctxJoinAffLin (G1, G2) = G1+LinPart(G2) *)
 val ctxJoinAffLin : 'a context * 'a context -> 'a context
 
+(* New functions for sparse contexts *)
+
+(* ctx2sparseList returns the list of unused hypotheses.
+   For each of these, it returns its deBruijn index, name, and modality.
+   The result is ordered by index.
+ *)
+val ctx2sparseList : 'a context -> (int * string * 'a * modality) list
+
+(* sparseList2ctx is the inverse of ctx2sparseList
+   Assumes that the argument is ordered by index
+ *)
+val sparseList2ctx : (int * string * 'a * modality) list -> 'a context
+
+(* ctxPushList is the list version of ctxPush.
+   Elements are pushed left-to-right
+ *)
+val ctxPushList : (string * modality * 'a) list -> 'a context -> 'a context
+
+(* ctxPopNum n repeats ctxPop n times *)
+val ctxPopNum : int -> 'a context -> 'a context
+
 end
