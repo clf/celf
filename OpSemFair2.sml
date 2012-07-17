@@ -333,21 +333,21 @@ and matchAtom' (ctx, P, sc) =
 					     ; leftFocus (lr, ctx', P', A, fn (S, ctxo) =>
 									      sc (Atomic' (h, S), ctxo)) )
 	    fun matchSig (c, lr, A) = fn () => BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
-	    fun matchCtx ([], _) = []
-	      | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
-              | matchCtx ((_, (_, nil), _)::G, k) = matchCtx (G, k+1)
-	      | matchCtx ((x, (A, hds), SOME modality)::G, k) =
-		if #2 (List.hd hds) <> HdAtom(aP) andalso List.tl hds = nil
-		then matchCtx (G, k+1)
-		else
-		let (* val ctx' = if modality=INT then ctx else removeHyp (ctx, k) *)
-		    val A' = TClos (A, Subst.shift k)
+            fun matchCtx [] = []
+              | matchCtx ((k, x, (A, hds), modality) :: t) =
+                if hds = nil orelse #2 (List.hd hds) <> HdAtom(aP) andalso List.tl hds = nil then
+                  matchCtx t
+                else
+                  let
+                    val A' = TClos (A, Subst.shift k)
 		    val h = Var (modality, k)
 		    val validHds = List.filter (fn (_, HdAtom a) => a=aP | _ => false) hds
 		    val candidates = List.map (fn (lr, _) => (fn () => BackTrack.backtrack (lFocus (if modality=INT then ctx else removeHyp (ctx, k), lr, A', h)))) validHds
-		in candidates @ matchCtx (G, k+1) end
-	    val ctxlist = ctx2list $ #2 ctx
-	    val available = matchCtx (ctxlist, 1)
+                  in
+                    candidates @ matchCtx t
+                  end
+	    val ctxlist = ctx2sparseList $ #2 ctx
+	    val available = matchCtx ctxlist
 (*
 	    val ctxLength = List.length ctxlist
 	    val () = totalCtxLength := !totalCtxLength+ctxLength
@@ -394,23 +394,23 @@ let
    fun matchSig (c, lr, A) =
       fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))
 
-   fun matchCtx ([], _) = []
-     | matchCtx ((_, _, NONE)::G, k) = matchCtx (G, k+1)
-     | matchCtx ((x, (A, hds), SOME modality)::G, k) =
+   fun matchCtx [] = []
+     | matchCtx ((k, x, (A, hds), modality) :: t) =
        let
-          val ctx' = if modality=INT then ctx else #2 $ removeHyp (([], ctx), k)
-          val A' = TClos (A, Subst.shift k)
-       in List.mapPartial
-             (fn (_, HdAtom _) => NONE
-               | (lr, HdMonad) =>
-                    SOME (fn () =>
-                             BackTrack.backtrackC
-                                (mlFocus (ctx', lr, A', Var (modality, k)))))
-             hds
-          @ matchCtx (G, k+1)
+         val ctx' = if modality=INT then ctx else #2 $ removeHyp (([], ctx), k)
+         val A' = TClos (A, Subst.shift k)
+       in
+         List.mapPartial
+           (fn (_, HdAtom _) => NONE
+             | (lr, HdMonad) =>
+               SOME (fn () =>
+                        BackTrack.backtrackC
+                          (mlFocus (ctx', lr, A', Var (modality, k)))))
+           hds
+           @ matchCtx t
        end
 
-   val candidates1 = matchCtx (ctx2list $ ctx, 1)
+   val candidates1 = matchCtx (ctx2sparseList ctx)
    val candidates2 = map matchSig (getCandMonad ())
    val candidates = candidates1 @ candidates2
 
