@@ -74,19 +74,18 @@ fun prepCtx (lcontext, i, context) =
           [] (* Item removed from ctx *)
         | optionalItem (varname, data, SOME Context.LIN) =
           (* If we are just reporting the intermediate contexts from
-                forward chaining, it should be the case that everything in
-      the context is required to be in the output context: the
-                                                             more interesting case for "maybe used" contexts should only
-                                                                                       arise during backward chaining proof search, I think. -rjs
-                                                                                                                                                2012-03-29 *)
+             forward chaining, it should be the case that everything in
+             the context is required to be in the output context: the
+             more interesting case for "maybe used" contexts should only
+             arise during backward chaining proof search, I think. -rjs 2012-03-29 *)
           [ "surprised that this happened!!!" ]
         | optionalItem (varname, data, SOME Context.AFF) =
           [ dataStr data^" aff" ]
         | optionalItem (varname, data, SOME Context.INT) =
           (* This seemed to work on the simple examples - is it really
-                                                             as simple as saying that the variable-stuff has names and
-           the resource-stuff has a varname of emptystring? It's
-                                                          certainly a reasonable approximation - rjs 2012-03-29 *)
+             as simple as saying that the variable-stuff has names and
+             the resource-stuff has a varname of emptystring? It's
+             certainly a reasonable approximation - rjs 2012-03-29 *)
           if varname = "" then [ dataStr data ^ " pers" ]
           else [ varname^":"^dataStr data ]
 
@@ -157,9 +156,9 @@ fun pBindLCtx p l =
     let
       fun bind (n, p, l) =
           case Pattern.prj p of
-	    PDepTensor (p1, p2) => bind (n, p2, bind (n + nbinds p2, p1, l))
-	  | PDown _ => n::l
-	  | _ => l (* POne, PAffi, PBang *)
+            PDepTensor (p1, p2) => bind (n, p2, bind (n + nbinds p2, p1, l))
+          | PDown _ => n::l
+          | _ => l (* POne, PAffi, PBang *)
     in
       bind (1, p, map (fn k => k + nbinds p) l)
     end
@@ -172,7 +171,7 @@ fun pushBind (p, sty) (l, ctx) =
 (* linDiff (ctx1, ctx2) assumes ctx2 \subseteq ctx1 *)
 (* linDiff (ctx1, ctx2) = (l, ctx) iff
                           - ctx is obtained by removing from ctx1 all linear hypothesis occurring in ctx2
-                                                                                                     - l contains all linear hypothesis occurring in ctx
+                          - l contains all linear hypothesis occurring in ctx
  *)
 fun linDiff (ctxs : context * context) =
     let
@@ -235,8 +234,8 @@ fun cannotConsumeLin sty =
     | _ => true (* TOne, TAffi, TBang *)
 
 (* multSplit : syncType ->
-	       {fst : lcontext * context -> lcontext * context,
-	        snd : lcontext * context -> lcontext * context} *)
+               {fst : lcontext * context -> lcontext * context,
+                snd : lcontext * context -> lcontext * context} *)
 (* For a multiplicative context split involving the search for two objects
  * of type A and B, beginning with the search for A; multSplit B returns two
  * functions, fst and snd, which determine the lcontext for the individual
@@ -244,36 +243,36 @@ fun cannotConsumeLin sty =
 fun multSplit sty2 =
     if cannotConsumeLin sty2 then
       { fst = fn (l, ctx) => (l, ctx),
-	snd = fn (_, ctxm) => ([], ctxm) }
+        snd = fn (_, ctxm) => ([], ctxm) }
     else
       { fst = fn (_, ctx) => ([], ctx),
-	snd = linIntersect }
+        snd = linIntersect }
 
 
 fun genMon (ctx : context, p, sty) =
     let
       val intCtx = ref NONE
       fun getIntCtx () = case !intCtx of
-			   SOME G => SOME G
-			 | NONE => ( intCtx := (SOME $ ctxIntPart $ ctxMap #1 ctx) ; getIntCtx () )
+                           SOME G => SOME G
+                         | NONE => ( intCtx := (SOME $ ctxIntPart $ ctxMap #1 ctx) ; getIntCtx () )
       fun gen (p, sty) = case (Pattern.prj p, SyncType.prj sty) of
-			   (PDepTensor (p1, p2), LExists (p1', S1, S2)) =>
-			   DepPair' (gen (Util.patternAddDep (p1, p1'), S1), gen (p2, S2))
-			 | (POne, TOne) => One'
-			 | (PDown (), TDown _) => MonUndef'
-			 | (PAffi (), TAffi _) => MonUndef'
-			 | (PBang NONE, TBang _) => MonUndef'
-			 | (PBang (SOME x), TBang A) =>
-			   let
+                           (PDepTensor (p1, p2), LExists (p1', S1, S2)) =>
+                           DepPair' (gen (Util.patternAddDep (p1, p1'), S1), gen (p2, S2))
+                         | (POne, TOne) => One'
+                         | (PDown (), TDown _) => MonUndef'
+                         | (PAffi (), TAffi _) => MonUndef'
+                         | (PBang NONE, TBang _) => MonUndef'
+                         | (PBang (SOME x), TBang A) =>
+                           let
                              val X = newLVarCtx (getIntCtx ()) A
-			     val () = case Obj.prj X of Atomic (h, _) => Unify.pruneLVar $ normalizeHead h
-						      | _ => raise Fail "Internal error: lvar expected"
-			   in Bang' X end
-			 | _ => raise Fail "Internal error: genMon"
+                             val () = case Obj.prj X of Atomic (h, _) => Unify.pruneLVar $ normalizeHead h
+                                                      | _ => raise Fail "Internal error: lvar expected"
+                           in Bang' X end
+                         | _ => raise Fail "Internal error: genMon"
       fun gen' sty = case SyncType.prj sty of
-		       LExists (p, S1, S2) => DepPair' (gen (p, S1), gen' S2)
-		     | TOne => One'
-		     | _ => MonUndef'
+                       LExists (p, S1, S2) => DepPair' (gen (p, S1), gen' S2)
+                     | TOne => One'
+                     | _ => MonUndef'
     in
       case p of NONE => gen' sty | SOME p => gen (p, sty)
     end
@@ -281,7 +280,7 @@ fun genMon (ctx : context, p, sty) =
 fun traceLeftFocus (h, ty) =
     if !traceSolve >= 2 then
       print ("Trying "^PrettyPrint.printPreObj (Atomic' (h, Nil'))^
-	     " : "^PrettyPrint.printType ty^"\n")
+             " : "^PrettyPrint.printType ty^"\n")
     else ()
 
 val totalCtxLength = ref 0
@@ -299,25 +298,21 @@ fun syncType2pat sty =
 (* Right Inversion : Gamma;Delta => A *)
 fun solve (ctx, ty, sc) =
     ( if !traceSolve >= 3 then
-	print ("Right Invert ("^PrettyPrint.printType ty^")\n")
+        print ("Right Invert ("^PrettyPrint.printType ty^")\n")
       else ()
     ; solve' (ctx, ty, sc) )
 and solve' (ctx, ty, sc) =
     case Util.typePrjAbbrev ty of
       TLPi (p, S, A) => solve (pushBind (p, S) ctx, A,
-			    (* The pattern p is a type pattern, which means that
-			                                              it only names dependent variables. We need to create
-			                                              p', the term pattern, which binds all the
-			                                                                          variables; Util.patternT2O does this. *)
-			    fn (N, ctxo) => let
+                            (* The pattern p is a type pattern, which means that
+                               it only names dependent variables. We need to create
+                               p', the term pattern, which binds all the
+                               variables; Util.patternT2O does this. *)
+                            fn (N, ctxo) => let
                                  val p' = Util.patternT2O p
                                in
-				 sc (LLam' (p', N), PatternBind.patUnbind (p', ctxo))
+                                 sc (LLam' (p', N), PatternBind.patUnbind (p', ctxo))
                                end)
-    (*| AddProd (A, B) => solve (ctx, A,
-			      fn (N1, ctxo1) => solve (ctx, B,
-			                            fn (N2, ctxo2) => Option.app (fn ctxo => sc (AddPair' (N1, N2), ctxo))
-				                                                 (ctxAddJoinOpt (ctxo1, ctxo2))))*)
     | AddProd (A, B) => solve (ctx, A,
 			    fn (N1, ctxo1) => solve (linDiff (#2 ctx, ctxo1), B,
 			                          fn (N2, ctxo2) => sc (AddPair' (N1, N2),
@@ -367,8 +362,9 @@ and matchAtom' (ctx, P, sc) =
 			    ^ "\n")
      *)
     in
-      (*	  Timers.time Timers.fairness (fn () => PermuteList.forAll (fn f => f ())
-	                                                                   (PermuteList.fromList (matchCtx (ctx2list $ #2 ctx, 1) @ map matchSig (getCandAtomic aP)))) ()
+      (*
+         Timers.time Timers.fairness (fn () => PermuteList.forAll (fn f => f ())
+	                              (PermuteList.fromList (matchCtx (ctx2list $ #2 ctx, 1) @ map matchSig (getCandAtomic aP)))) ()
        *)
       PermuteList.forAll (fn f => f ())
 	                 (PermuteList.fromList (available @ map matchSig (getCandAtomic aP)))
@@ -391,15 +387,15 @@ and forwardStep (l, ctx) =
                           else () ) )
 
       (* matchCtx and matchSig are going to give us the different ways of
-trying to foward chain one step in the current context as functions
-                                       unit -> a term that can be derived, the synchronous type that
-                                                                                                  left-focusing on this term will dump into the context, and
-                                                                                                                                                         presumably the new, modified context.
+         trying to foward chain one step in the current context as functions
+         unit -> a term that can be derived, the synchronous type that
+         left-focusing on this term will dump into the context, and
+         presumably the new, modified context.
 
-                                                                                                                                                                                      Each of these candidate functions implement "if I try this rule,
-                           what progress do I make in the current context?" The PermuteList
-                                                                                                                                                                                                    stuff allows us to then try all the possibilities in some
-                                                                                                                                                                                                                                                           (unspecified) order. *)
+         Each of these candidate functions implement "if I try this rule,
+         what progress do I make in the current context?" The PermuteList
+         stuff allows us to then try all the possibilities in some
+         (unspecified) order. *)
 
       fun matchSig (c, lr, A) =
        fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))
