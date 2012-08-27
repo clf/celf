@@ -135,12 +135,13 @@ and pHead ctx h = case h of
 	| Var (M, n) => [lookup ctx n (*, case M of Context.INT => "!" | Context.AFF => "@" | Context.LIN => "L"*)]
 	| UCVar v => ["#"^v]
 	| LogicVar {ty, s, ctx=ref G, tag, ...} =>
-		["$", Word.toString tag] @
-		(if !printLVarCtx > 0 then
-			["<"] @ pContextOpt G @
-				(if !printLVarCtx > 1 then [", "] @ pType ctx false (TClos (ty, s)) else [])
-			@ [">"] else [])
-		@ [Subst.substToStr (String.concat o (pObj ctx true) o unnormalizeObj) s]
+		["$", Word.toString tag]
+                (* @ *)
+		(* (if !printLVarCtx > 0 then *)
+		(* 	["<"] @ pContextOpt G @ *)
+		(* 		(if !printLVarCtx > 1 then [", "] @ pType ctx false (TClos (ty, s)) else []) *)
+		(* 	@ [">"] else []) *)
+		(* @ [Subst.substToStr (String.concat o (pObj ctx true) o unnormalizeObj) s] *)
 and pContextOpt NONE = ["--"]
   | pContextOpt (SOME G) = ["["] @ (#2 $ pContext $ Context.ctx2list G) @ ["]"]
 and pContext [] = ([], [])

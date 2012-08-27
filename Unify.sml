@@ -437,14 +437,22 @@ val (objExists, typeExists) =
 (* pruneLVar : nfHead -> unit
  * prunes away linear and affine vars not occuring in the context *)
 fun pruneLVar (LogicVar {X, ty, ctx=ref (SOME G), cnstr, tag, ...}) =
-    let val weakenSub = foldr (fn ((_, _, NONE), w) => Subst.comp (w, Subst.shift 1)
-                                | ((_, _, SOME _), w) => Subst.dot1 w)
-                              Subst.id (ctx2list G)
-    in if Subst.isId weakenSub then () else
-       let val ss = Subst.invert weakenSub
-           val G' = SOME $ pruneCtx (Fail "Internal error: pruneLVar: pruning lin") (fn A => A) ss G
-           val ty' = NfTClos (ty, ss)
-       in instantiate (X, NfClos (newNfLVarCtx G' ty', weakenSub), cnstr, tag) end end
+    let
+      val weakenSub = foldr (fn ((_, _, NONE), w) => Subst.comp (w, Subst.shift 1)
+                              | ((_, _, SOME _), w) => Subst.dot1 w)
+                            Subst.id (ctx2list G)
+    in
+      if Subst.isId weakenSub
+      then ()
+      else
+        let
+          val ss = Subst.invert weakenSub
+          val G' = SOME $ pruneCtx (Fail "Internal error: pruneLVar: pruning lin") (fn A => A) ss G
+          val ty' = NfTClos (ty, ss)
+        in
+          instantiate (X, NfClos (newNfLVarCtx G' ty', weakenSub), cnstr, tag)
+        end
+    end
   | pruneLVar _ = raise Fail "Internal error: pruneLVar: no lvar"
 
 (* linPrune : (unit -> string) -> nfObj * (subModality * int) list -> nfObj option *)

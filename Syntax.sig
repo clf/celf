@@ -140,14 +140,14 @@ datatype ('x, 'ix, 'p) patternF
 	| PAffi of 'x
 	| PBang of 'ix
 
-type 'ki kindF = (asyncType, 'ki) kindFF 
-type 'aTy asyncTypeF = (typeSpine, syncType, 'aTy) asyncTypeFF 
-type 'tyS typeSpineF = (obj, 'tyS) typeSpineFF 
-type 'sTy syncTypeF = (asyncType, 'sTy) syncTypeFF 
-type 'o objF = (asyncType, spine, expObj, 'o) objFF 
-type 'sp spineF = (monadObj, 'sp) spineFF 
-type 'e expObjF = (obj, spine, monadObj, 'e) expObjFF 
-type 'm monadObjF = (obj, 'm) monadObjFF 
+type 'ki kindF = (asyncType, 'ki) kindFF
+type 'aTy asyncTypeF = (typeSpine, syncType, 'aTy) asyncTypeFF
+type 'tyS typeSpineF = (obj, 'tyS) typeSpineFF
+type 'sTy syncTypeF = (asyncType, 'sTy) syncTypeFF
+type 'o objF = (asyncType, spine, expObj, 'o) objFF
+type 'sp spineF = (monadObj, 'sp) spineFF
+type 'e expObjF = (obj, spine, monadObj, 'e) expObjFF
+type 'm monadObjF = (obj, 'm) monadObjFF
 
 val with'ty :
 	{X : nfObj option VRef.vref, ty : 'aTy, s : subst,
@@ -169,19 +169,21 @@ datatype mode = Plus | Minus of modeModifier | Star
 type modeDecl = mode list
 
 datatype typeOrKind = Ty of asyncType | Ki of kind
+
+datatype opSemType = OpSemUnif | OpSemMatch
 datatype decl = ConstDecl of string * int * typeOrKind
 	| TypeAbbrev of string * asyncType
 	| ObjAbbrev of string * asyncType * obj
-	| Query of int option * int option * int option * int * asyncType
+	| Query of opSemType * int option * int option * int option * int * asyncType
 	| Trace of int option * syncType
 	| Exec of int option * syncType
 	| Mode of string * modeDecl option * modeDecl
 
 datatype declError =
-   TypeErr 
- | KindErr 
- | AmbigType 
- | UndeclId 
+   TypeErr
+ | KindErr
+ | AmbigType
+ | UndeclId
  | ModeErr
  | GeneralErr
 exception ExnDeclError of declError * string

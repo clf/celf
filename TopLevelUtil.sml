@@ -14,6 +14,15 @@ fun listPairMapEq f ([], []) = []
 fun curry f x y = f (x, y)
 fun uncurry f (x, y) = f x y
 
+fun partitionAt 0 xs = ([], xs)
+  | partitionAt n [] = raise List.Empty
+  | partitionAt n (h::t) =
+    let
+      val (ls, rs) = partitionAt (n-1) t
+    in
+      (h :: ls, rs)
+    end
+
 structure T = struct
    val beQuiet = ref false
 end

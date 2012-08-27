@@ -37,7 +37,7 @@ fun mapDecl fk ft fo (ConstDecl (id, imps, Ki ki)) = ConstDecl (id, imps, Ki (fk
   | mapDecl fk ft fo (TypeAbbrev (id, ty)) = TypeAbbrev (id, ft ty)
   | mapDecl fk ft fo (ObjAbbrev (id, ty, ob)) =
     let val ty' = ft ty in ObjAbbrev (id, ty', fo (ob, ty')) end
-  | mapDecl fk ft fo (Query (d, e, l, a, ty)) = Query (d, e, l, a, ft ty)
+  | mapDecl fk ft fo (Query (opsem, d, e, l, a, ty)) = Query (opsem, d, e, l, a, ft ty)
   (* Ooof - mapDecl only is prepared for asyncType, so we've got to wrap
    * in the monad (and hope we get the same thing back out, which may not be
    * the case if it decides to wrap implicit vars!)  *)
@@ -56,7 +56,7 @@ fun appDecl fk ft fo (ConstDecl (_, _, Ki ki)) = fk ki
   | appDecl fk ft fo (ConstDecl (_, _, Ty ty)) = ft ty
   | appDecl fk ft fo (TypeAbbrev (_, ty)) = ft ty
   | appDecl fk ft fo (ObjAbbrev (_, ty, ob)) = (ft ty ; fo (ob, ty))
-  | appDecl fk ft fo (Query (_, _, _, _, ty)) = ft ty
+  | appDecl fk ft fo (Query (_, _, _, _, _, ty)) = ft ty
   (* Same issue with needing to turn synctypes asynchronous *)
   | appDecl fk ft fo (Trace (_, ty)) = ft (Syntax.TMonad' ty)
   | appDecl fk ft fo (Exec (_, ty)) = ft (Syntax.TMonad' ty)
@@ -75,8 +75,8 @@ exception ReconError of (declError * string) * (int * Syntax.decl)
 exception QueryFailed of int
 
 (* We check the following conditions in a mode declaration:
-   - The number of args given coincide with the number of args in the type family
-   - The modes of implicit arguments (if given) is correct. If not given, they are inferred
+ *  - The number of args given coincide with the number of args in the type family
+ *  - The modes of implicit arguments (if given) is correct. If not given, they are inferred
  *)
 fun checkModeDecl (id, implmd, md) =
     let val K = Syntax.normalizeKind (Signatur.sigLookupKind id)
@@ -240,7 +240,7 @@ fun reconstructDecl (ldec as (_, dec)) =
 
           | Mode (id, implmd, md) => Timers.time Timers.modes (fn () => checkModeDecl (id, implmd, md)) ()
 
-          | Query (d, e, l, a, ty) =>
+          | Query (opsem, d, e, l, a, ty) =>
             (* d : let-depth-bound * = inf
              * e : expected number of solutions * = ?
              * l : number of solutions to look for * = inf
@@ -275,26 +275,27 @@ fun reconstructDecl (ldec as (_, dec)) =
                       else ()
                     ; Timers.time Timers.solving (fn () => OpSem.solveEC (ty, sc)) ()
                     ; e = SOME (!solCount) orelse runQuery (n-1) )
-            in if a = 0 orelse l = SOME 0
-               then print "Ignoring query\n"
-               else if a >= 2 andalso isSome l
-               then raise ExnDeclError (GeneralErr,
-                                        "Malformed query (D,E,L,A): A>1 and L<>*\n\
-                                        \Should not do simultaneous monad and\
-                                        \ backtrack exploration\n")
-               else if isSome e andalso isSome l andalso valOf e >= valOf l
-               then raise ExnDeclError (GeneralErr,
-                                        "Malformed query (D,E,L,A): E>=L\n\
-                                        \Uncheckable since expected number of\
-                                        \ solutions is\ngreater than the number of\
-                                        \ solutions to look for\n")
-               else if (runQuery a handle stopSearchExn => false)
-               then print "Query ok.\n"
-               else if isSome e
-               then
-                 ( print "Query failed\n"
-                 ; raise QueryFailed (#1 ldec))
-               else ()
+            in
+              if a = 0 orelse l = SOME 0
+              then print "Ignoring query\n"
+              else if a >= 2 andalso isSome l
+              then raise ExnDeclError (GeneralErr,
+                                       "Malformed query (D,E,L,A): A>1 and L<>*\n\
+                                       \Should not do simultaneous monad and\
+                                       \ backtrack exploration\n")
+              else if isSome e andalso isSome l andalso valOf e >= valOf l
+              then raise ExnDeclError (GeneralErr,
+                                       "Malformed query (D,E,L,A): E>=L\n\
+                                       \Uncheckable since expected number of\
+                                       \ solutions is\ngreater than the number of\
+                                       \ solutions to look for\n")
+              else if (runQuery a handle stopSearchExn => false)
+              then print "Query ok.\n"
+              else if isSome e
+              then
+                ( print "Query failed\n"
+                ; raise QueryFailed (#1 ldec))
+              else ()
             end
 
           | Trace (count, sty) =>

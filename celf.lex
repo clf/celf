@@ -50,6 +50,7 @@ fun keyword (s,p) =
           | "let" => Tokens.LET(p,p)
           | "in" => Tokens.IN(p,p)
           | "#query" => Tokens.QUERY(p,p)
+          | "#mquery" => Tokens.MQUERY(p,p)
           | "#mode" => Tokens.MODE(p,p)
           | "#exec" => Tokens.EXEC(p,p)
           | "#trace" => Tokens.TRACE(p,p)

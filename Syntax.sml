@@ -168,10 +168,12 @@ datatype mode = Plus | Minus of modeModifier | Star
 type modeDecl = mode list
 
 datatype typeOrKind = Ty of asyncType | Ki of kind
+
+datatype opSemType = OpSemUnif | OpSemMatch
 datatype decl = ConstDecl of string * int * typeOrKind
 	| TypeAbbrev of string * asyncType
 	| ObjAbbrev of string * asyncType * obj
-	| Query of int option * int option * int option * int * asyncType
+	| Query of opSemType * int option * int option * int option * int * asyncType
 	| Trace of int option * syncType
 	| Exec of int option * syncType
 	| Mode of string * modeDecl option * modeDecl
@@ -511,13 +513,13 @@ fun consistencyCheck (LogicVar {X, tag, cnstr, ...}) =
 			  NONE =>
 				( Binarymap.app
 					(fn (_, (r, cs)) => if eq (r, X) orelse eq (cs, cnstr) then
-						( print ("Consistency check failed on new $"^Int.toString tag)
+						( print ("Consistency check failed on new $"^Word.toString tag)
 						; raise Fail "Consistency new" ) else ())
 				; consistencyTable := Binarymap.insert (!consistencyTable, tag, (X, cnstr)) )
 			| SOME (r, cs) =>
 				if eq (r, X) andalso eq (cs, cnstr) then ()
 				else
-					( print ("Consistency check failed on $"^Int.toString tag)
+					( print ("Consistency check failed on $"^Word.toString tag)
 					; raise Fail "Consistency" ))
   | consistencyCheck _ = ()
 fun Atomic' hAS = (consistencyCheck (#1 hAS); Obj.inj (Atomic hAS))

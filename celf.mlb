@@ -45,6 +45,8 @@ ApproxTypes.sig
 ApproxTypes.sml
 Unify.sig
 Unify.sml
+Match.sig
+Match.sml
 ExactTypes.sig
 ExactTypes.sml
 Conv.sig
@@ -62,7 +64,7 @@ Timing.sml
 Timers.sig
 Timers.sml
 OpSem.sig
-OpSemFair2.sml
+OpSemModed.sml
 PatternNormalize.sig
 PatternNormalize.sml
 GoalMode.sig

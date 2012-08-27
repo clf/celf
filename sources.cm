@@ -46,6 +46,8 @@ ApproxTypes.sig
 ApproxTypes.sml
 Unify.sig
 Unify.sml
+Match.sig
+Match.sml
 ExactTypes.sig
 ExactTypes.sml
 Conv.sig
@@ -59,7 +61,7 @@ NoPermuteList.sml
 SignaturTable.sig
 SignaturTable.sml
 OpSem.sig
-OpSemFair2.sml
+OpSemModed.sml
 GoalMode.sig
 GoalMode.sml
 PatternNormalize.sig
