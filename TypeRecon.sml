@@ -258,30 +258,59 @@ fun reconstructDecl (ldec as (_, dec)) =
                 (*            val () = print ("Query ("^n2str d^", "^n2str e^", "^n2str l^", "
                                               ^Int.toString a^") "^PrettyPrint.printType ty^".\n")
                  *)
-                val (ty, lvars) = ImplicitVarsConvert.convUCVars2LogicVarsType ty
+                val (implty, lvars) = ImplicitVarsConvert.convUCVars2LogicVarsType ty
                 fun printInst (x, ob) =
                     print (" #"^x^" = "^PrettyPrint.printObj ob^"\n")
                 exception stopSearchExn
                 val solCount = ref 0
-                fun sc N = if Unify.constrsSolvable N
-                           then
-                             ( print ("Solution: "^PrettyPrint.printObj N^"\n")
-                             ; app printInst lvars
-                             ; solCount := !solCount + 1
-                             ; if TypeCheck.isEnabled ()
-                               then TypeCheck.checkObjEC (N, ty) else ()
-                             ; if l = SOME (!solCount)
-                               then raise stopSearchExn else () )
-                           else ()
-                val () = OpSem.fcLimit := d
-                fun runQuery 0 = false
-                  | runQuery n =
+                fun scUnif N = if Unify.constrsSolvable N
+                               then
+                                 ( print ("Solution: "^PrettyPrint.printObj N^"\n")
+                                 ; app printInst lvars
+                                 ; solCount := !solCount + 1
+                                 ; if TypeCheck.isEnabled ()
+                                   then (print "Double checking object type... "
+                                       ; TypeCheck.checkObjEC (N, implty)
+                                       ; print "done") else ()
+                                 ; if l = SOME (!solCount)
+                                   then raise stopSearchExn else () )
+                               else ()
+                fun runQueryUnif 0 = false
+                  | runQueryUnif n =
                     ( solCount := 0
                     ; if a > 1
                       then print ("Iteration "^Int.toString (a+1-n)^"\n")
                       else ()
-                    ; Timers.time Timers.solving (fn () => OpSem.solveEC (ty, sc)) ()
-                    ; e = SOME (!solCount) orelse runQuery (n-1) )
+                    ; Timers.time Timers.solving (fn () => OpSem.solveEC (implty, scUnif)) ()
+                    ; e = SOME (!solCount) orelse runQueryUnif (n-1) )
+                fun scMatch N = ( print ("Solution: "^PrettyPrint.printObj N^"\n")
+                                ; app printInst lvars
+                                ; solCount := !solCount + 1
+                                ; if TypeCheck.isEnabled ()
+                                   then (print "Double checking object type... "
+                                       ; TypeCheck.checkObjEC (N, implty)
+                                       ; print "done") else ()
+                                ; if l = SOME (!solCount)
+                                  then raise stopSearchExn
+                                  else () )
+                fun runQueryMatch 0 = false
+                  | runQueryMatch n =
+                    ( solCount := 0
+                    ; if a > 1
+                      then print ("Iteration "^Int.toString (a+1-n)^"\n")
+                      else ()
+                    ; Timers.time Timers.solving (fn () => OpSemModed.solveEC (implty, scMatch)) ()
+                    ; e = SOME (!solCount) orelse runQueryMatch (n-1) )
+                val (runQuery, fcLimit) = case opsem of
+                                            OpSemUnif => (runQueryUnif, OpSem.fcLimit)
+                                          | OpSemMatch => (runQueryMatch, OpSemModed.fcLimit)
+                val () = fcLimit := d
+                (* TODO: check that query is a goal. The code below does not work because the mode
+                 * checker does not handle UCVar's (ImplicitVars) present in queries. They should be
+                 * treated as existentials *)
+                (* fun isGoal ty = ((ModeCheck.modeCheckGoal (normalizeType ty); true) *)
+                (*                  handle ModeCheck.ModeCheckError _ => false) *)
+                fun isGoal _ = true
             in
               if a = 0 orelse l = SOME 0
               then print "Ignoring query\n"
@@ -296,6 +325,8 @@ fun reconstructDecl (ldec as (_, dec)) =
                                        \Uncheckable since expected number of\
                                        \ solutions is\ngreater than the number of\
                                        \ solutions to look for\n")
+              else if opsem = OpSemMatch andalso not (isGoal ty)
+              then raise ExnDeclError (GeneralErr, "Goal is not well moded\n")
               else if (runQuery a handle stopSearchExn => false)
               then print "Query ok.\n"
               else if isSome e

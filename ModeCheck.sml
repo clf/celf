@@ -622,4 +622,7 @@ fun isNeeded ty =
 (* modeCheckDecl : nfAsyncType -> unit *)
 fun modeCheckDecl ty =  modeCheckDeclInt (RAList.empty, ty)
 
+(* modeCheckGoal : nfAsyncType -> unit *)
+fun modeCheckGoal ty = (goalType (RAList.empty, ty); ())
+
 end

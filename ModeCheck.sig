@@ -15,4 +15,9 @@ sig
        Raises ModeCheckError otherwise.
      *)
 
+    val modeCheckGoal : Syntax.nfAsyncType -> unit
+    (* Returns () if the the argument is a mode-correct goal.
+       Raises ModeCheckError otherwise.
+     *)
+
 end

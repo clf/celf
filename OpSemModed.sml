@@ -17,8 +17,8 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-signature TLU_OpSem = TOP_LEVEL_UTIL
-structure OpSem :> OPSEM =
+signature TLU_OpSemModed = TOP_LEVEL_UTIL
+structure OpSemModed :> OPSEM =
 struct
 
 open Syntax

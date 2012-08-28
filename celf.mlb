@@ -64,6 +64,7 @@ Timing.sml
 Timers.sig
 Timers.sml
 OpSem.sig
+OpSemFair2.sml
 OpSemModed.sml
 PatternNormalize.sig
 PatternNormalize.sml

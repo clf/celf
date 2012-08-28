@@ -61,6 +61,7 @@ NoPermuteList.sml
 SignaturTable.sig
 SignaturTable.sml
 OpSem.sig
+OpSemFair2.sml
 OpSemModed.sml
 GoalMode.sig
 GoalMode.sml
