@@ -46,7 +46,7 @@ fun raiseLVar' (ctx, B, S, n) =
 
 fun raiseLVar (Atomic (LogicVar {X, ty, ctx, tag, ...}, ())) = (case (!!X, !ctx) of
 	  (SOME _, _) => () (* FIXME: this can never occur?? *)
-	| (NONE, NONE) => raise Fail ("Internal error: no context on $"^(Word.toString tag))
+	| (NONE, NONE) => raise Fail ("Internal error: no context on $"^(Int.toString (*Word.toString*) tag))
 	| (NONE, SOME ctx) => X ::= SOME $ normalizeObj $ raiseLVar' (ctx2list ctx, ty, Nil', 1) )
   | raiseLVar _ = ()
 

@@ -33,12 +33,12 @@ exception ExnMatch of string
 val numInst = ref 0
 
 (* instantiate : nfObj option vref * nfObj * constr vref list vref * word -> unit *)
-fun instantiate (r, rInst, l : word) =
+fun instantiate (r, rInst, l : int (* word *)) =
     if isSome (!! r) then raise Fail "Internal error: double instantiation" else
     ( r ::= SOME rInst
     ; numInst := !numInst + 1
     ; if !outputMatch then
-        print ("Instantiating ("^Int.toString (!numInst)^") $"^(Word.toString l)^" = "
+        print ("Instantiating ("^Int.toString (!numInst)^") $"^(Int.toString (* Word.toString *) l)^" = "
                ^(PrettyPrint.printObj $ unnormalizeObj rInst)^"\n")
       else () )
 

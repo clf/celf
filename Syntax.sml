@@ -77,7 +77,7 @@ and 'aTy headF = Const of string
 		s     : subst,
 		ctx   : 'aTy Context.context option ref,
 		cnstr : constr vref list vref,
-		tag   : word }
+		tag   : int (* word *) }
 
 
 and ('aTy, 'ki) kindFF
@@ -159,7 +159,7 @@ and apxKind = kind
 and apxAsyncType = asyncType
 and apxSyncType = syncType
 
-and typeLogicVar = (*apx*)asyncType option ref * word
+and typeLogicVar = (*apx*)asyncType option ref * int (* word *)
 
 type 'a substi = subst'
 
@@ -266,11 +266,11 @@ fun etaShortcut ob = case Subst1.subL ob of
 
 structure Signatur = SignaturFun (Syn1)
 
-val lVarCnt = ref 0w0
-fun nextLVarCnt () = (lVarCnt := (!lVarCnt) + 0w1 ; !lVarCnt)
+val lVarCnt = ref 0 (* 0w0 *)
+fun nextLVarCnt () = (lVarCnt := (!lVarCnt) + 1 (* 0w1 *) ; !lVarCnt)
 
-val tyLVarCnt = ref 0w0
-fun nextTyLVarCnt () = (tyLVarCnt := (!tyLVarCnt) + 0w1 ; !tyLVarCnt)
+val tyLVarCnt = ref 0 (* 0w0 *)
+fun nextTyLVarCnt () = (tyLVarCnt := (!tyLVarCnt) + 1 (* 0w1 *) ; !tyLVarCnt)
 
 fun newTVar () = TLogicVar (ref NONE, nextTyLVarCnt ())
 fun newApxTVar () = TLogicVar (ref NONE, nextTyLVarCnt ())

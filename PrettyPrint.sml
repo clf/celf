@@ -135,7 +135,7 @@ and pHead ctx h = case h of
 	| Var (M, n) => [lookup ctx n (*, case M of Context.INT => "!" | Context.AFF => "@" | Context.LIN => "L"*)]
 	| UCVar v => ["#"^v]
 	| LogicVar {ty, s, ctx=ref G, tag, ...} =>
-		["$", Word.toString tag]
+		["$", Int.toString (*Word.toString*) tag]
                 (* @ *)
 		(* (if !printLVarCtx > 0 then *)
 		(* 	["<"] @ pContextOpt G @ *)

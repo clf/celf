@@ -80,7 +80,7 @@ datatype 'aTy headF
 		s     : subst,
 		ctx   : 'aTy Context.context option ref,
 		cnstr : constr VRef.vref list VRef.vref,
-		tag   : word }
+		tag   : int (* word *) }
 type head = asyncType headF
 type nfHead = nfAsyncType headF
 
@@ -152,17 +152,17 @@ type 'm monadObjF = (obj, 'm) monadObjFF
 val with'ty :
 	{X : nfObj option VRef.vref, ty : 'aTy, s : subst,
 		ctx : 'aTy Context.context option ref,
-		cnstr : constr VRef.vref list VRef.vref, tag : word }
+		cnstr : constr VRef.vref list VRef.vref, tag : int (* word *) }
 	* 'aTy -> {X : nfObj option VRef.vref, ty : 'aTy, s : subst,
 		ctx : 'aTy Context.context option ref,
-		cnstr : constr VRef.vref list VRef.vref, tag : word }
+		cnstr : constr VRef.vref list VRef.vref, tag : int (* word *) }
 val with's :
 	{X : nfObj option VRef.vref, ty : 'aTy, s : 'b substi,
 		ctx : 'aTy Context.context option ref,
-		cnstr : constr VRef.vref list VRef.vref, tag : word }
+		cnstr : constr VRef.vref list VRef.vref, tag : int (* word *) }
 	* 'a substi -> {X : nfObj option VRef.vref, ty : 'aTy, s : 'a substi,
 		ctx : 'aTy Context.context option ref,
-		cnstr : constr VRef.vref list VRef.vref, tag : word }
+		cnstr : constr VRef.vref list VRef.vref, tag : int (* word *) }
 
 datatype modeModifier = Normal | Destination
 datatype mode = Plus | Minus of modeModifier | Star

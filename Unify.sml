@@ -58,7 +58,7 @@ fun instantiate (r, rInst, cs, l) =
     if isSome (!! r) then raise Fail "Internal error: double instantiation" else
     ( r ::= SOME rInst
     ; if !outputUnify then
-        print ("Instantiating $"^(Word.toString l)^" = "
+        print ("Instantiating $"^(Int.toString (* Word.toString *) l)^" = "
                ^(PrettyPrint.printObj $ unnormalizeObj rInst)^"\n")
       else ()
     ; awakenedConstrs := !!cs @ !awakenedConstrs)
@@ -292,7 +292,7 @@ and checkExistObj rOccur ob =
         | chHead lvCtrlCtx (h as UCVar _) = (h, false)
         | chHead lvCtrlCtx (h as Var (_, n)) = (h, isLvarCtrl n lvCtrlCtx)
         | chHead lvCtrlCtx (LogicVar {ctx=ref NONE, tag, ...}) =
-          raise Fail ("Internal error: no context on $"^Word.toString tag)
+          raise Fail ("Internal error: no context on $"^ Int.toString (* Word.toString *) tag)
         | chHead lvCtrlCtx (LogicVar (Y as {X=rY, s=sY, ...})) =
           if eq (rY, rOccur) then (* X = H . S{X[p]} --> X = H . S{_}  if p is pattern *)
             if isSome $ patSubOcc rOccur sY then
@@ -394,7 +394,7 @@ val (objExists, typeExists) =
         | pruneAtomic _ rOccur srig (c as Const _, S) = (c, (srig, S))
         | pruneAtomic _ rOccur srig (c as UCVar _, S) = (c, (srig, S))
         | pruneAtomic _ rOccur srig (LogicVar {ctx=ref NONE, tag, ...}, _) =
-          raise Fail ("Internal error: no context on $"^Word.toString tag)
+          raise Fail ("Internal error: no context on $"^ Int.toString (* Word.toString *) tag)
         | pruneAtomic errmsg rOccur srig
                       (LogicVar (Y as {X=rY, ty=A, s=sY, ctx=ref (SOME G), cnstr=cs, tag}), _) =
           if eq (rY, rOccur) then
@@ -886,7 +886,7 @@ and unifyLetMon errmsg dryRun ((pa, hS, E), M) =
                                     NfMon' $ NfMClos (M, lcis)) )
          end)
     | (LogicVar {ctx=ref NONE, tag, ...}, _) =>
-      raise Fail ("Internal error: no context on $"^Word.toString tag)
+      raise Fail ("Internal error: no context on $"^ Int.toString (* Word.toString *) tag)
     | _ => raise ExnUnify "let sequences have different lengths"
 and unifyMon em dryRun (m1, m2) =
     case (NfMonadObj.prj m1, NfMonadObj.prj m2) of
