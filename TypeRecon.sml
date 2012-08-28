@@ -50,6 +50,7 @@ fun mapDecl fk ft fo (ConstDecl (id, imps, Ki ki)) = ConstDecl (id, imps, Ki (fk
        TMonad S => Exec (count, S)
      | _ => raise Fail "mapDecl/Exec put in a monad, got out ?")
   | mapDecl _  _  _  (Mode m) = Mode m
+  | mapDecl _  _  _  (Empty id) = Empty id
 
 (* appDecl : (kind -> unit) -> (asyncType -> unit) -> (obj * asyncType -> unit) -> decl -> unit *)
 fun appDecl fk ft fo (ConstDecl (_, _, Ki ki)) = fk ki
@@ -61,6 +62,7 @@ fun appDecl fk ft fo (ConstDecl (_, _, Ki ki)) = fk ki
   | appDecl fk ft fo (Trace (_, ty)) = ft (Syntax.TMonad' ty)
   | appDecl fk ft fo (Exec (_, ty)) = ft (Syntax.TMonad' ty)
   | appDecl _  _  _  (Mode _) = ()
+  | appDecl _  _  _  (Empty _) = ()
 
 (* isDirective : decl -> bool *)
 (* Directives don't get added to the signature *)
@@ -68,6 +70,7 @@ fun isDirective (Query _) = true
   | isDirective (Trace _) = true
   | isDirective (Exec _) = true
   | isDirective (Mode _) = true
+  | isDirective (Empty _) = true
   | isDirective _ = false
 
 
@@ -180,6 +183,7 @@ fun reconstructDecl (ldec as (_, dec)) =
           | Trace q => Trace q
           | Exec q => Exec q
           | Mode m => Mode m
+          | Empty id => Empty id
       val dec = mapDecl Util.forceNormalizeKind
                         Util.forceNormalizeType
                         (Util.forceNormalizeObj o #1) dec
@@ -188,7 +192,7 @@ fun reconstructDecl (ldec as (_, dec)) =
                         (RemDepend.remDepObj o #1) dec
 
       (* We check that a constant declaration is either a backward-chaining goal
-                                                                            or a forward-chaining goal *)
+       * or a forward-chaining goal *)
       val () =
           case dec of
             ConstDecl (id,_,Ty ty) =>
@@ -239,6 +243,9 @@ fun reconstructDecl (ldec as (_, dec)) =
               else () )
 
           | Mode (id, implmd, md) => Timers.time Timers.modes (fn () => checkModeDecl (id, implmd, md)) ()
+
+          (* Add empty families declaration *)
+          | Empty id => Signatur.addEmptyDecl id
 
           | Query (opsem, d, e, l, a, ty) =>
             (* d : let-depth-bound * = inf

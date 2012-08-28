@@ -27,6 +27,7 @@ open Syn
 open SymbTable
 
 val modeTable = ref (empty()) : modeDecl Table ref
+val emptyTable = ref (empty()) : unit Table ref
 val sigTable = ref (empty()) : decl Table ref
 val sigDelta = ref [] : decl list ref
 
@@ -71,15 +72,28 @@ fun declSetId id (ConstDecl (_, imps, kity)) = ConstDecl (id, imps, kity)
 
 
 (******************)
+(* addEmptyDecl : string -> unit *)
+fun addEmptyDecl id =
+    let
+      fun checkId x = not $ isSome $ peek (!emptyTable, x)
+      val id' = if checkId id then id
+                else raise ExnDeclError (GeneralErr, "Duplicate empty declaration of "^id^"\n")
+    in
+      emptyTable := insert (!emptyTable, id, ())
+    end
+
+(* hasEmptyDecl : string -> bool *)
+fun hasEmptyDecl id = isSome (peek (!emptyTable, id))
 
 (* addModeDecl : decl -> unit *)
 fun addModeDecl (Mode (id, implmd, md)) =
-    let fun checkId x = not $ isSome $ peek (!modeTable, x)
-        val id' = if checkId id then id
-                  else raise ExnDeclError (GeneralErr, "Duplicate mode declaration of "^id^"\n")
-        val allmd = getOpt (implmd, []) @ md
+    let
+      fun checkId x = not $ isSome $ peek (!modeTable, x)
+      val id' = if checkId id then id
+                else raise ExnDeclError (GeneralErr, "Duplicate mode declaration of "^id^"\n")
+      val allmd = getOpt (implmd, []) @ md
     in
-        modeTable := insert (!modeTable, id, allmd)
+      modeTable := insert (!modeTable, id, allmd)
     end
   | addModeDecl _ = raise Fail "Internal error: Adding non-mode declaration to mode table"
 

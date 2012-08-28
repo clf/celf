@@ -177,6 +177,7 @@ datatype decl = ConstDecl of string * int * typeOrKind
 	| Trace of int option * syncType
 	| Exec of int option * syncType
 	| Mode of string * modeDecl option * modeDecl
+	| Empty of string
 
 datatype declError = 
    TypeErr 

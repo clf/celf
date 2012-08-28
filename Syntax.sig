@@ -178,6 +178,7 @@ datatype decl = ConstDecl of string * int * typeOrKind
 	| Trace of int option * syncType
 	| Exec of int option * syncType
 	| Mode of string * modeDecl option * modeDecl
+	| Empty of string
 
 datatype declError =
    TypeErr
@@ -536,6 +537,8 @@ val etaShortcut : nfObj -> (Context.modality * int) option
 structure Signatur : sig
 	val resetSig : unit -> unit
 	val getSigDelta : unit -> decl list
+	val addEmptyDecl : string -> unit
+	val hasEmptyDecl : string -> bool
 	val addModeDecl : decl -> unit
 	val getModeDecl : string -> modeDecl option
         val hasModeDecl : string -> bool

@@ -295,6 +295,7 @@ handle TypeRecon.ReconError (es, ldec) =>
                  | Syntax.Trace _ => "trace"
                  | Syntax.Exec _ => "exec"
                  | Syntax.Mode (id,_,_) => "mode declaration of " ^ id
+                 | Syntax.Empty id => "empty declaration of " ^ id
           in
              decstr ^ " on line " ^ Int.toString linenum
           end

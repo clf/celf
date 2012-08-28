@@ -35,6 +35,7 @@ fun getline (line, ch) = line
 	| LANGLE | RANGLE | COMMA | LET | EQUAL | IN | PROJLEFT | PROJRIGHT
 	| LBRACKET | RBRACKET | ARROW | BACKARROW | LPAREN | RPAREN | EOF
 	| QUERY | MQUERY | TRACE | EXEC
+        | EMPTY
         | NUM of int | LPI | LEXISTS | AFFLOLLI | BACKAFFLOLLI | BANG | AFF 
         | APP
         | MODE | PLUS | MINUS | MINUSD
@@ -89,6 +90,7 @@ Decl :
 			( Syntax.Query(Syntax.OpSemUnif,NumOpt1,NumOpt2,NumOpt3,Number,AsyncType) )
 	| MQUERY NumOpt NumOpt NumOpt Number AsyncType DOT
 			( Syntax.Query(Syntax.OpSemMatch,NumOpt1,NumOpt2,NumOpt3,Number,AsyncType) )
+	| EMPTY Id ( Syntax.Empty(Id) )
         | TRACE NumOpt UnifiedType DOT ( Syntax.Trace(NumOpt, Parse.unif2sync UnifiedType) )
         | EXEC NumOpt UnifiedType DOT ( Syntax.Exec(NumOpt, Parse.unif2sync UnifiedType) )
         | MODE Id ModeDecl DOT
