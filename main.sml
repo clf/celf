@@ -62,6 +62,10 @@ fun parseArgs args =
        ( print "outputUnify := true\n"
        ; Unify.outputUnify := true
        ; parseArgs args )
+    | "-tm"::args =>
+       ( print "matchUnify := true\n"
+       ; Match.outputMatch := true
+       ; parseArgs args )
     | "-ta"::args =>
        ( print "traceApx := true\n"
        ; ApproxTypes.traceApx := true
