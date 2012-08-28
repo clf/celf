@@ -269,7 +269,8 @@ fun partitionArgs (a, S) =
       partArgs (S, md)
     end
 
-(* decomposeAtomic : lr list * context * asyncType -> (obj list * asyncType list * obj list * (monadObj list -> spine) *)
+(* decomposeAtomic : lr list * context * asyncType
+                     -> (obj list * (modality * asyncType) list * obj list * (monadObj list -> spine) *)
 fun decomposeAtomic (lr, ctx : context, ty) =
     let
       val intCtx = ref NONE
@@ -277,7 +278,8 @@ fun decomposeAtomic (lr, ctx : context, ty) =
                            SOME G => SOME G
                          | NONE => ( intCtx := (SOME $ ctxIntPart $ ctxMap #1 ctx) ; getIntCtx () )
 
-      (* decompAtomic : lr list * asyncType -> (obj list * asyncType list * obj list * (monadObj list -> spine) *)
+      (* decompAtomic : lr list * asyncType
+                        -> (obj list * (modality * asyncType) list * obj list * (monadObj list -> spine) *)
       fun decompAtomic (lr, ty) =
           case Util.typePrjAbbrev ty of
             TLPi (p, A, B) =>
@@ -313,7 +315,8 @@ fun decomposeAtomic (lr, ctx : context, ty) =
               (Sin, [], Sout, fn _ (* = [] *) => Nil')
             end
 
-      (* decompAtomicSync : pattern * syncType -> (asyncType list * (monadObj list -> monadObj) * monadObj *)
+      (* decompAtomicSync : pattern * syncType
+                            -> ((modality * asyncType) list * (monadObj list -> monadObj) * monadObj *)
       and decompAtomicSync (p, sty) =
           case (Pattern.prj p, SyncType.prj sty) of
             (PDepTensor (p1, p2), LExists (p1', S1, S2)) =>
@@ -332,9 +335,9 @@ fun decomposeAtomic (lr, ctx : context, ty) =
               (subgoals1 @ subgoals2, mkMonadObj, DepPair' (m1, m2))
             end
           | (POne, TOne) => ([], fn _ (* = [] *) => One', One')
-          | (PDown (), TDown A) => ([A], fn [x] => Down' x, MonUndef')
-          | (PAffi (), TAffi A) => ([A], fn [x] => Affi' x, MonUndef')
-          | (PBang NONE, TBang A) => ([A], fn [x] => Bang' x, MonUndef')
+          | (PDown (), TDown A) => ([(LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
+          | (PAffi (), TAffi A) => ([(AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
+          | (PBang NONE, TBang A) => ([(INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
           | (PBang (SOME x), TBang A) =>
               let
                 val X = newLVarCtx (getIntCtx ()) A
@@ -347,7 +350,8 @@ fun decomposeAtomic (lr, ctx : context, ty) =
     end
 
 
-(* decomposeMonadic : lr list * context * asyncType -> (asyncType list * (monadObj list -> spine) * syncType *)
+(* decomposeMonadic : lr list * context * asyncType
+                      -> ((modality * asyncType) list * (monadObj list -> spine) * syncType *)
 fun decomposeMonadic (lr, ctx : context, ty) =
     let
       val intCtx = ref NONE
@@ -355,7 +359,8 @@ fun decomposeMonadic (lr, ctx : context, ty) =
                            SOME G => SOME G
                          | NONE => ( intCtx := (SOME $ ctxIntPart $ ctxMap #1 ctx) ; getIntCtx () )
 
-      (* decompMonadic : lr list * asyncType -> (asyncType list * (monadObj list -> spine) * syncType *)
+      (* decompMonadic : lr list * asyncType
+                         -> ((modality * asyncType) list * (monadObj list -> spine) * syncType *)
       fun decompMonadic (lr, ty) =
           case Util.typePrjAbbrev ty of
             TLPi (p, A, B) =>
@@ -387,7 +392,8 @@ fun decomposeMonadic (lr, ctx : context, ty) =
           | TAbbrev _ => raise Fail "Internal error: decompMonadic: TAbbrev"
           | P' as TAtomic _ => raise Fail "Internal error: decompMonadic applied to atomic hypothesis!"
 
-      (* decompMonadicSync : pattern * syncType -> (asyncType list * (monadObj list -> monadObj) * monadObj *)
+      (* decompMonadicSync : pattern * syncType
+                             -> ((modality * asyncType) list * (monadObj list -> monadObj) * monadObj *)
       and decompMonadicSync (p, sty) =
           case (Pattern.prj p, SyncType.prj sty) of
             (PDepTensor (p1, p2), LExists (p1', S1, S2)) =>
@@ -406,9 +412,9 @@ fun decomposeMonadic (lr, ctx : context, ty) =
               (subgoals1 @ subgoals2, mkMonadObj, DepPair' (m1, m2))
             end
           | (POne, TOne) => ([], fn _ (* = [] *) => One', One')
-          | (PDown (), TDown A) => ([A], fn [x] => Down' x, MonUndef')
-          | (PAffi (), TAffi A) => ([A], fn [x] => Affi' x, MonUndef')
-          | (PBang NONE, TBang A) => ([A], fn [x] => Bang' x, MonUndef')
+          | (PDown (), TDown A) => ([(LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
+          | (PAffi (), TAffi A) => ([(AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
+          | (PBang NONE, TBang A) => ([(INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
           | (PBang (SOME x), TBang A) =>
               let
                 val X = newLVarCtx (getIntCtx ()) A
@@ -421,7 +427,8 @@ fun decomposeMonadic (lr, ctx : context, ty) =
     end
 
 
-(* decomposeSync : context  * syncType -> (asyncType list * (monadObj list -> monadObj) *)
+(* decomposeSync : context  * syncType
+                   -> ((modality * asyncType) list * (monadObj list -> monadObj) *)
 fun decomposeSync (ctx : context, sty) =
     let
       val intCtx = ref NONE
@@ -429,7 +436,8 @@ fun decomposeSync (ctx : context, sty) =
                            SOME G => SOME G
                          | NONE => ( intCtx := (SOME $ ctxIntPart $ ctxMap #1 ctx) ; getIntCtx () )
 
-      (* decompSync : pattern * syncType -> (asyncType list * (monadObj list -> monadObj) * monadObj *)
+      (* decompSync : pattern * syncType
+                      -> ((modality * asyncType) list * (monadObj list -> monadObj) * monadObj *)
       fun decompSync (p, sty) =
           case (Pattern.prj p, SyncType.prj sty) of
             (PDepTensor (p1, p2), LExists (p1', S1, S2)) =>
@@ -448,9 +456,9 @@ fun decomposeSync (ctx : context, sty) =
               (subgoals1 @ subgoals2, mkMonadObj, DepPair' (m1, m2))
             end
           | (POne, TOne) => ([], fn _ (* = [] *) => One', One')
-          | (PDown (), TDown A) => ([A], fn [x] => Down' x, MonUndef')
-          | (PAffi (), TAffi A) => ([A], fn [x] => Affi' x, MonUndef')
-          | (PBang NONE, TBang A) => ([A], fn [x] => Bang' x, MonUndef')
+          | (PDown (), TDown A) => ([(LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
+          | (PAffi (), TAffi A) => ([(AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
+          | (PBang NONE, TBang A) => ([(INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
           | (PBang (SOME x), TBang A) =>
               let
                 val X = newLVarCtx (getIntCtx ()) A
@@ -459,7 +467,8 @@ fun decomposeSync (ctx : context, sty) =
               end
           | _ => raise Fail "Internal error: decompSync"
 
-      (* decompSync' : syncType -> (asyncType list * (monadObj list -> monadObj) * monadObj *)
+      (* decompSync' : syncType
+                       -> ((modality * asyncType) list * (monadObj list -> monadObj) * monadObj *)
       fun decompSync' sty =
           case SyncType.prj sty of
             LExists (p1, S1, S2) =>
@@ -478,9 +487,9 @@ fun decomposeSync (ctx : context, sty) =
               (subgoals1 @ subgoals2, mkMonadObj, DepPair' (m1, m2))
             end
           | TOne => ([], fn _ (* = [] *) => One', One')
-          | TDown A => ([A], fn [x] => Down' x, MonUndef')
-          | TAffi A => ([A], fn [x] => Affi' x, MonUndef')
-          | TBang A => ([A], fn [x] => Bang' x, MonUndef')
+          | TDown A => ([(LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
+          | TAffi A => ([(AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
+          | TBang A => ([(INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
 
 
       val (subgoals, mkMonadObj, _) = decompSync' sty
@@ -541,9 +550,16 @@ and solveList (l, ctx) [] sc =
     in
       if null l' then sc ([], ctx) else ()
     end
-  | solveList (l, ctx) (g::gs) sc =
-    solve (([], ctx), g,
-        fn (N, ctx') => solveList (l, ctx') gs (fn (Ns, ctxo) => sc (N::Ns, ctxo)))
+  | solveList (l, ctx) ((md, G)::gs) sc =
+    let
+      val filterCtx = case md of
+                        LIN => (fn x => x)
+                      | AFF => ctxAffPart
+                      | INT => ctxIntPart
+    in
+      solve (([], filterCtx ctx), G,
+          fn (N, ctx') => solveList (l, ctx') gs (fn (Ns, ctxo) => sc (N::Ns, ctxo)))
+    end
 
 (* matchAtom : (lcontext * context) * asyncType asyncTypeF * (obj * context -> unit) -> unit *)
 (* Choice point: choose hypothesis and switch from Right Inversion to Left Focusing *)
