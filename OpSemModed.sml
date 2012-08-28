@@ -474,11 +474,8 @@ and forwardStep (l, ctx) =
        fn commitExn =>
           ( traceLeftFocus (h, A)
           ; monLeftFocus (lr, ctx', A,
-                       fn (S, sty, ctxo) =>
-                          if !allowConstr orelse
-                             Unify.constrsSolvable (Atomic' (h, S))
-                          then raise commitExn ((h, S), sty, ctxo)
-                          else () ) )
+                       fn (S, sty, ctxo) => raise commitExn ((h, S), sty, ctxo))
+          )
 
       (* matchCtx and matchSig are going to give us the different ways of
        * trying to foward chain one step in the current context as functions
@@ -629,7 +626,7 @@ and leftFocus' (lr, (l, ctx), P, ty, sc) =
         | ppG (h :: t) = PrettyPrint.printType h ^ ", " ^ ppG t
       fun ppSG () = () (* print ("Subgoals " ^ ppG subgoals ^ "\n") *)
       (* val _ = print "Matching inputs\n" *)
-      (* val _ = Match.outputMatch := true *)
+      val _ = Match.outputMatch := true
       fun matchList' obs1 obs2 sc = List.foldr (fn (ob, r) => fn () => Match.match ob r) sc (ListPair.zip (obs1, obs2))
       fun matchList obs1 obs2 sc = matchList' obs1 obs2 sc ()
       fun solveList ctx [] sc = sc ([], ctx)
