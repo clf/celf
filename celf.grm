@@ -90,7 +90,7 @@ Decl :
 			( Syntax.Query(Syntax.OpSemUnif,NumOpt1,NumOpt2,NumOpt3,Number,AsyncType) )
 	| MQUERY NumOpt NumOpt NumOpt Number AsyncType DOT
 			( Syntax.Query(Syntax.OpSemMatch,NumOpt1,NumOpt2,NumOpt3,Number,AsyncType) )
-	| EMPTY Id ( Syntax.Empty(Id) )
+	| EMPTY Id DOT ( Syntax.Empty(Id) )
         | TRACE NumOpt UnifiedType DOT ( Syntax.Trace(NumOpt, Parse.unif2sync UnifiedType) )
         | EXEC NumOpt UnifiedType DOT ( Syntax.Exec(NumOpt, Parse.unif2sync UnifiedType) )
         | MODE Id ModeDecl DOT
