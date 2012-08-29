@@ -46,14 +46,14 @@ ApproxTypes.sig
 ApproxTypes.sml
 Unify.sig
 Unify.sml
-Match.sig
-Match.sml
 ExactTypes.sig
 ExactTypes.sml
 Conv.sig
 Conv.sml
 TypeCheck.sig
 TypeCheck.sml
+Match.sig
+Match.sml
 Rnd.sig
 Rnd-smlnj-mlton.sml
 PermuteList.sig

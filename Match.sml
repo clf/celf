@@ -76,9 +76,14 @@ val invAtomicP = invAtomic o NfObj.prj
 
 (* lowerAtomic : nfHead * nfSpine -> nfHead * nfSpine *)
 fun lowerAtomic (N as (LogicVar {X, ty, s, ctx=ref ctx, cnstr=cs, tag}, S)) =
-    (case NfSpine.prj S of Nil => N | _ =>
-                                      let val (rInst, Y) = lowerLVar (ty, S, s, valOf ctx)
-                                      in instantiate (X, rInst, tag); invAtomic Y end)
+    (case NfSpine.prj S of
+       Nil => N
+     | _ =>
+       let
+         val (rInst, Y) = lowerLVar (ty, S, s, valOf ctx)
+       in
+         instantiate (X, rInst, tag); invAtomic Y
+       end)
   | lowerAtomic hS = hS
 
 fun lowerObj (NfAtomic hS) = NfAtomic (lowerAtomic hS)
@@ -147,7 +152,7 @@ and matchHead (hS1 as (h1, S1), hS2 as (h2, S2)) =
     | (Var n1, Var n2) => if n1 <> n2
                           then raise ExnMatch "matchObj Var-Var"
                           else matchSpine (S1, S2)
-    | (LogicVar (X as {X=r, s, tag, ...}), _) =>
+    | (LogicVar (X as {X=r, s, tag, ctx, ...}), _) =>
       let
         fun patSub s = Subst.patSub (fn ob => (ob, true)) Eta.etaContract s
         val sinv = case patSub s of
@@ -156,6 +161,8 @@ and matchHead (hS1 as (h1, S1), hS2 as (h2, S2)) =
                    | SOME (_, _) => raise Fail "Internal error: linear-changing?"
       in
         instantiate (r, NfClos (NfAtomic' hS2, sinv), tag)
+        (* Context is needed for typechecking *)
+      ; if not (TypeCheck.isEnabled ()) then ctx := NONE else () (* TODO: check if this is safe *)
       end
     | (_, LogicVar _) => raise Fail "Internal error: ground side contains LVar"
     | _ => raise ExnMatch "matchHead"
