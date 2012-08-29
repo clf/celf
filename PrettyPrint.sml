@@ -29,6 +29,27 @@ structure ST = StringRedBlackTree
 val printImpl = ref false
 val printLVarCtx = ref 0
 
+(* isNat : some type of obj -> int option *)
+fun isNat x =
+    case x of
+      Atomic (Const "s", S) =>
+      ( case Spine.prj S of
+          LApp (M, S') =>
+          ( case (MonadObj.prj M, Spine.prj S') of
+              (Bang N, Nil) => ( case Obj.prj N of
+                                   P as Atomic _ =>
+                                   ( case isNat P of
+                                       SOME n => SOME (n+1)
+                                     | NONE => NONE )
+                                 | _ => NONE )
+            | _ => NONE )
+        | _ => NONE )
+    | Atomic (Const "z", S) =>
+      ( case Spine.prj S of
+          Nil => SOME 0
+        | _ => NONE )
+    | _ => NONE
+
 fun join' [] = []
   | join' [x] = x
   | join' (x::xs) = x @ ["] ["] @ join' xs
@@ -115,7 +136,7 @@ and pTypeSpine ctx sp =
     | TApp (N, S) => [" "] @ pObj ctx true N @ pTypeSpine ctx S
 and pSyncType ctx pa sty =
     case SyncType.prj sty of
-      LExists (p, S1, S2) => 
+      LExists (p, S1, S2) =>
       paren pa (case (Pattern.prj p, SyncType.prj S1) of
 		  (PBang (SOME x), TBang A) =>
 		  let
@@ -146,10 +167,16 @@ and pObj ctx pa ob =
 	         | AddPair (N1, N2) => ["<"] @ pObj ctx false N1 @ [", "] @ pObj ctx false N2 @ [">"]
 	         | Monad E => ["{"] @ pExp ctx E @ ["}"]
 	         | Atomic (H, S) =>
-		   let val skip = case H of Const c => getImplLength c | _ => 0
-		   in case (pHead ctx H, pSpineSkip ctx S skip) of
-			(h, []) => h
-		      | (h, s) => paren pa (h @ s)
+		   let
+                     val skip = case H of Const c => getImplLength c | _ => 0
+		   in
+                     case isNat ob of
+                       SOME n => ["N"^Int.toString n]
+                     | NONE =>
+                       ( case (pHead ctx H, pSpineSkip ctx S skip) of
+		           (h, []) => h
+		         | (h, s) => paren pa (h @ s)
+                       )
 		   end
 	         | Redex (N, _, S) =>
 		   (fn [] => pObj ctx pa N | s => paren pa (pObj ctx true N @ s)) (pSpine ctx S)
@@ -161,12 +188,14 @@ and pHead ctx h =
     | UCVar v => ["#"^v]
     | LogicVar {ty, s, ctx=ref G, tag, ...} =>
       ["$", Int.toString (*Word.toString*) tag]
-(* @ *)
-(* (if !printLVarCtx > 0 then *)
-(* 	["<"] @ pContextOpt G @ *)
-(* 		(if !printLVarCtx > 1 then [", "] @ pType ctx false (TClos (ty, s)) else []) *)
-(* 	@ [">"] else []) *)
-(* @ [Subst.substToStr (String.concat o (pObj ctx true) o unnormalizeObj) s] *)
+      @
+      (if !printLVarCtx > 0
+       then
+	 ["<"] @ pContextOpt G @
+	 (if !printLVarCtx > 1 then [", "] @ pType ctx false (TClos (ty, s)) else [])
+	 @ [">"]
+       else [])
+      @ [Subst.substToStr (String.concat o (pObj ctx true) o unnormalizeObj) s]
 and pContextOpt NONE = ["--"]
   | pContextOpt (SOME G) = ["["] @ (#2 $ pContext $ Context.ctx2list G) @ ["]"]
 and pContext [] = ([], [])
