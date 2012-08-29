@@ -63,6 +63,8 @@ Timing.sig
 Timing.sml
 Timers.sig
 Timers.sml
+GoalPattern.sig
+GoalPattern.sml
 OpSem.sig
 OpSemFair2.sml
 OpSemModed.sml
