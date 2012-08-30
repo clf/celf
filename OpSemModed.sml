@@ -22,7 +22,6 @@ structure OpSemModed :> OPSEM =
 struct
 
 open Syntax
-open Context
 (* open PatternBind *)
 open SignaturTable
 
@@ -37,7 +36,7 @@ val fcLimit = ref NONE : int option ref
  * at that specific point, i.e. it is not allowed to be passed to the
  * output context. *)
 type headedType = asyncType * (lr list * headType) list
-type context = headedType context
+type context = headedType Context.context
 type lcontext = int list (* must-occur context: list of indices *)
 
 
@@ -155,7 +154,7 @@ fun matchCtxGoalPattern (ctx : context, SOME (c, arg)) =
             else false
           | _ => false
     in
-      case List.find (fn (_, _, (ty, _), _) => matchType ty) (ctx2sparseList ctx) of
+      case List.find (fn (_, _, (ty, _), _) => matchType ty) (Context.ctx2sparseList ctx) of
         SOME (_, id, (ty, _), _) =>
         ( if !traceSolve >= 2
           then print ("found "^id^": "^PrettyPrint.printType ty^"\n")
@@ -170,15 +169,15 @@ fun matchCtxGoalPattern (ctx : context, SOME (c, arg)) =
   | matchCtxGoalPattern (_, NONE) = true
 
 (* bind2list : pattern * syncType -> (string * modality * headedType) list *)
-fun bind2list (p, sty) : (string * modality * headedType) list =
+fun bind2list (p, sty) : (string * Context.modality * headedType) list =
     case (Pattern.prj p, SyncType.prj sty) of
       (PDepTensor (p1, p2), LExists (p1', S1, S2)) =>
       bind2list (Util.patternAddDep (p1, p1'), S1) @ bind2list (p2, S2)
     | (POne, TOne) => []
-    | (PDown x, TDown A) => [("", LIN, (A, heads A))]
-    | (PAffi x, TAffi A) => [("", AFF, (A, heads A))]
-    | (PBang NONE, TBang A) => [("", INT, (A, heads A))]
-    | (PBang (SOME x), TBang A) => [(x, INT, (A, []))]
+    | (PDown x, TDown A) => [("", Context.LIN, (A, heads A))]
+    | (PAffi x, TAffi A) => [("", Context.AFF, (A, heads A))]
+    | (PBang NONE, TBang A) => [("", Context.INT, (A, heads A))]
+    | (PBang (SOME x), TBang A) => [(x, Context.INT, (A, []))]
     | _ => raise Fail "Internal error: bind2list"
 
 fun pBindLCtx p l =
@@ -193,14 +192,14 @@ fun pBindLCtx p l =
     end
 
 fun pushBind (p, sty) (l, ctx) =
-    (pBindLCtx p l, ctxPushList (bind2list (p, sty)) ctx)
+    (pBindLCtx p l, Context.ctxPushList (bind2list (p, sty)) ctx)
 
 
 (* linDiff : context * context -> (lcontext, context) *)
 (* linDiff (ctx1, ctx2) assumes ctx2 \subseteq ctx1 *)
 (* linDiff (ctx1, ctx2) = (l, ctx) iff
-                          - ctx is obtained by removing from ctx1 all linear hypothesis occurring in ctx2
-                          - l contains all linear hypothesis occurring in ctx
+ * - ctx is obtained by removing from ctx1 all linear hypothesis occurring in ctx2
+ * - l contains all linear hypothesis occurring in ctx
  *)
 fun linDiff (ctxs : context * context) =
     let
@@ -210,16 +209,16 @@ fun linDiff (ctxs : context * context) =
           case Int.compare (n1, n2) of
             LESS => h1 :: lind (t1, ctx2)
           | EQUAL => ( case m1 of
-                         LIN => lind (t1, ctx2)
-                       | _ (* AFF, INT *) => h1 :: lind (t1, ctx2)
+                         Context.LIN => lind (t1, ctx2)
+                       | _ (* Context.AFF, Context.INT *) => h1 :: lind (t1, ctx2)
                      )
           | GREATER => raise Fail "Internal error: linDiff 2"
-      val (ctx1, ctx2) = (ctx2sparseList (#1 ctxs), ctx2sparseList (#2 ctxs))
+      val (ctx1, ctx2) = (Context.ctx2sparseList (#1 ctxs), Context.ctx2sparseList (#2 ctxs))
       val diffctx = lind (ctx1, ctx2)
       fun allLin [] = []
-        | allLin ((n, _, _, m)::t) = if m=LIN then n::allLin t else allLin t
+        | allLin ((n, _, _, m)::t) = if m=Context.LIN then n::allLin t else allLin t
     in
-      (allLin diffctx, sparseList2ctx diffctx)
+      (allLin diffctx, Context.sparseList2ctx diffctx)
     end
 
 (* removeHyp : (lcontext * context) * int -> lcontext * context *)
@@ -234,7 +233,7 @@ fun removeHyp ((l, ctx), k) =
           | EQUAL => t
           | GREATER => ls
     in
-      (removeLin l, #1 $ ctxLookupNum (ctx, k))
+      (removeLin l, #1 $ Context.ctxLookupNum (ctx, k))
     end
 
 (* Given a list of linear indices (an lcontext), remove those indices that no
@@ -250,7 +249,7 @@ fun linIntersect (l, ctx) =
           | EQUAL => k :: lin l G'
           | GREATER => lin (k::l) G'
     in
-      (lin l (ctx2sparseList ctx), ctx)
+      (lin l (Context.ctx2sparseList ctx), ctx)
     end
 
 
@@ -305,7 +304,7 @@ fun decomposeAtomic (lr, ctx : context, ty) =
       val intCtx = ref NONE
       fun getIntCtx () = case !intCtx of
                            SOME G => SOME G
-                         | NONE => ( intCtx := (SOME $ ctxIntPart $ ctxMap #1 ctx) ; getIntCtx () )
+                         | NONE => ( intCtx := (SOME $ Context.ctxIntPart $ Context.ctxMap #1 ctx) ; getIntCtx () )
 
       (* decompAtomic : lr list * asyncType
                         -> (obj list * (modality * asyncType) list * obj list * (monadObj list -> spine) *)
@@ -364,9 +363,9 @@ fun decomposeAtomic (lr, ctx : context, ty) =
               (subgoals1 @ subgoals2, mkMonadObj, DepPair' (m1, m2))
             end
           | (POne, TOne) => ([], fn _ (* = [] *) => One', One')
-          | (PDown (), TDown A) => ([(LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
-          | (PAffi (), TAffi A) => ([(AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
-          | (PBang NONE, TBang A) => ([(INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
+          | (PDown (), TDown A) => ([(Context.LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
+          | (PAffi (), TAffi A) => ([(Context.AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
+          | (PBang NONE, TBang A) => ([(Context.INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
           | (PBang (SOME x), TBang A) =>
               let
                 val X = newLVarCtx (getIntCtx ()) A
@@ -386,7 +385,7 @@ fun decomposeMonadic (lr, ctx : context, ty) =
       val intCtx = ref NONE
       fun getIntCtx () = case !intCtx of
                            SOME G => SOME G
-                         | NONE => ( intCtx := (SOME $ ctxIntPart $ ctxMap #1 ctx) ; getIntCtx () )
+                         | NONE => ( intCtx := (SOME $ Context.ctxIntPart $ Context.ctxMap #1 ctx) ; getIntCtx () )
 
       (* decompMonadic : lr list * asyncType
                          -> ((modality * asyncType) list * (monadObj list -> spine) * syncType *)
@@ -441,9 +440,9 @@ fun decomposeMonadic (lr, ctx : context, ty) =
               (subgoals1 @ subgoals2, mkMonadObj, DepPair' (m1, m2))
             end
           | (POne, TOne) => ([], fn _ (* = [] *) => One', One')
-          | (PDown (), TDown A) => ([(LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
-          | (PAffi (), TAffi A) => ([(AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
-          | (PBang NONE, TBang A) => ([(INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
+          | (PDown (), TDown A) => ([(Context.LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
+          | (PAffi (), TAffi A) => ([(Context.AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
+          | (PBang NONE, TBang A) => ([(Context.INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
           | (PBang (SOME x), TBang A) =>
               let
                 val X = newLVarCtx (getIntCtx ()) A
@@ -463,7 +462,7 @@ fun decomposeSync (ctx : context, sty) =
       val intCtx = ref NONE
       fun getIntCtx () = case !intCtx of
                            SOME G => SOME G
-                         | NONE => ( intCtx := (SOME $ ctxIntPart $ ctxMap #1 ctx) ; getIntCtx () )
+                         | NONE => ( intCtx := (SOME $ Context.ctxIntPart $ Context.ctxMap #1 ctx) ; getIntCtx () )
 
       (* decompSync : pattern * syncType
                       -> ((modality * asyncType) list * (monadObj list -> monadObj) * monadObj *)
@@ -485,9 +484,9 @@ fun decomposeSync (ctx : context, sty) =
               (subgoals1 @ subgoals2, mkMonadObj, DepPair' (m1, m2))
             end
           | (POne, TOne) => ([], fn _ (* = [] *) => One', One')
-          | (PDown (), TDown A) => ([(LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
-          | (PAffi (), TAffi A) => ([(AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
-          | (PBang NONE, TBang A) => ([(INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
+          | (PDown (), TDown A) => ([(Context.LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
+          | (PAffi (), TAffi A) => ([(Context.AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
+          | (PBang NONE, TBang A) => ([(Context.INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
           | (PBang (SOME x), TBang A) =>
               let
                 val X = newLVarCtx (getIntCtx ()) A
@@ -516,9 +515,9 @@ fun decomposeSync (ctx : context, sty) =
               (subgoals1 @ subgoals2, mkMonadObj, DepPair' (m1, m2))
             end
           | TOne => ([], fn _ (* = [] *) => One', One')
-          | TDown A => ([(LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
-          | TAffi A => ([(AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
-          | TBang A => ([(INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
+          | TDown A => ([(Context.LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
+          | TAffi A => ([(Context.AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
+          | TBang A => ([(Context.INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
 
 
       val (subgoals, mkMonadObj, _) = decompSync' sty
@@ -563,10 +562,10 @@ and solve' (ctx, ty, sc) =
                                in
                                  sc (LLam' (p', N), PatternBind.patUnbind (p', ctxo))
                                end)
-    | AddProd (A, B) => solve (ctx, A,
-                            fn (N1, ctxo1) => solve (linDiff (#2 ctx, ctxo1), B,
-                                                  fn (N2, ctxo2) => sc (AddPair' (N1, N2),
-                                                                        ctxAddJoin (ctxo1, ctxJoinAffLin (ctxo2, ctxo1)))))
+    | AddProd (A, B) =>
+      solve (ctx, A, fn (N1, ctxo1) =>
+      solve (linDiff (#2 ctx, ctxo1), B, fn (N2, ctxo2) =>
+      sc (AddPair' (N1, N2), Context.ctxAddJoin (ctxo1, Context.ctxJoinAffLin (ctxo2, ctxo1)))))
     | TMonad S => forwardChain (!fcLimit, ctx, S, fn (E, ctxo) => sc (Monad' E, ctxo))
     | P as TAtomic _ => matchAtom (ctx, P, sc)
     | TAbbrev _ => raise Fail "Internal error: solve: TAbbrev"
@@ -582,9 +581,9 @@ and solveList (l, ctx) [] sc =
   | solveList (l, ctx) ((md, G)::gs) sc =
     let
       val filterCtx = case md of
-                        LIN => (fn x => x)
-                      | AFF => ctxAffPart
-                      | INT => ctxIntPart
+                        Context.LIN => (fn x => x)
+                      | Context.AFF => Context.ctxAffPart
+                      | Context.INT => Context.ctxIntPart
     in
       solve (([], filterCtx ctx), G,
           fn (N, ctx') => solveList (l, ctx') gs (fn (Ns, ctxo) => sc (N::Ns, ctxo)))
@@ -616,11 +615,11 @@ and matchAtom' (ctx, P, sc) =
               val A' = TClos (A, Subst.shift k)
               val h = Var (modality, k)
               val validHds = List.filter (fn (_, HdAtom a) => a=aP | _ => false) hds
-              val candidates = List.map (fn (lr, _) => (fn () => BackTrack.backtrack (lFocus (if modality=INT then ctx else removeHyp (ctx, k), lr, A', h)))) validHds
+              val candidates = List.map (fn (lr, _) => (fn () => BackTrack.backtrack (lFocus (if modality=Context.INT then ctx else removeHyp (ctx, k), lr, A', h)))) validHds
             in
               candidates @ matchCtx t
             end
-      val ctxlist = ctx2sparseList $ #2 ctx
+      val ctxlist = Context.ctx2sparseList $ #2 ctx
       val available = matchCtx ctxlist
     (*
      val ctxLength = List.length ctxlist
@@ -684,7 +683,7 @@ and forwardStep (l, ctx) =
       fun matchCtx [] = []
         | matchCtx ((k, x, (A, hds), modality) :: t) =
           let
-            val ctx' = if modality=INT then ctx else #2 $ removeHyp (([], ctx), k)
+            val ctx' = if modality=Context.INT then ctx else #2 $ removeHyp (([], ctx), k)
             val A' = TClos (A, Subst.shift k)
           in
             List.mapPartial
@@ -697,7 +696,7 @@ and forwardStep (l, ctx) =
               @ matchCtx t
           end
 
-      val candidates1 = matchCtx (ctx2sparseList ctx)
+      val candidates1 = matchCtx (Context.ctx2sparseList ctx)
       val candidates2 = map matchSig (getCandMonad ())
       val candidates = candidates1 @ List.concat candidates2
 
@@ -839,7 +838,7 @@ and monLeftFocus' (lr, ctx, ty, sc) =
     end
 
 (* solveEC : asyncType * (obj -> unit) -> unit *)
-fun solveEC (ty, sc) = solve (([], emptyCtx), ty, sc o #1)
+fun solveEC (ty, sc) = solve (([], Context.emptyCtx), ty, sc o #1)
 
 fun trace printInter limit sty =
     let
