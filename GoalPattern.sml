@@ -1,9 +1,21 @@
 structure GoalPattern:> GOALPATTERN =
 struct
 
+open SymbTable
+
 (* Goal patterns in lack of a better name *)
 
 type goalPattern = (string * string option) option
+
+val goalPatternTable = ref (empty()) : goalPattern Table ref
+
+(* addGoalPattern : string * goalPattern -> unit *)
+fun addGoalPattern (c, g) =
+    goalPatternTable := insert (!goalPatternTable, c, g)
+
+(* getGoalPattern : string -> goalPattern option *)
+fun getGoalPattern id = valOf (peek (!goalPatternTable, id))
+
 
 datatype goalPatInt = HasGoal of string * string option
                     | NotFound
@@ -52,6 +64,7 @@ fun goalPattern ty =
     case goalPatternType ty of
       HasGoal g => SOME g
     | _ => NONE
+
 
 
 end

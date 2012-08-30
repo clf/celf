@@ -137,8 +137,37 @@ and printCtx (lcontext, context) =
       print "-- "; layout 3 (rev printableCtx)
     end
 
-
-
+(* matchCtxGoalPattern : context * goalPattern -> bool *)
+fun matchCtxGoalPattern (ctx : context, SOME (c, arg)) =
+    let
+      fun matchType ty =
+          case AsyncType.prj ty of
+            TAtomic (c', S) =>
+            if c = c'
+            then
+              ( case (arg, TypeSpine.prj S) of
+                  (SOME constr, TApp (N, _)) =>
+                  ( case Obj.prj N of
+                      Atomic (Const constr', _) => constr = constr'
+                    | _ => false )
+                | (NONE, _) => true
+                | _ => false )
+            else false
+          | _ => false
+    in
+      case List.find (fn (_, _, (ty, _), _) => matchType ty) (ctx2sparseList ctx) of
+        SOME (_, id, (ty, _), _) =>
+        ( if !traceSolve >= 2
+          then print ("found "^id^": "^PrettyPrint.printType ty^"\n")
+          else ()
+        ; true )
+      | NONE =>
+        ( if !traceSolve >= 2
+          then print "not found\n"
+          else ()
+        ; false )
+    end
+  | matchCtxGoalPattern (_, NONE) = true
 
 (* bind2list : pattern * syncType -> (string * modality * headedType) list *)
 fun bind2list (p, sty) : (string * modality * headedType) list =
@@ -635,7 +664,22 @@ and forwardStep (l, ctx) =
        * (unspecified) order. *)
 
       fun matchSig (c, lr, A) =
-       fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))
+          let
+            val gP = GoalPattern.getGoalPattern c
+            val gpStr = case gP of
+                          NONE => "(none)... "
+                        | SOME (c, NONE) => "("^c^")... "
+                        | SOME (c, SOME a) => "("^c^", "^a^")... "
+            val () = if !traceSolve >= 2
+                     then print ("checking goalPattern for "^c^gpStr)
+                     else ()
+            val b = matchCtxGoalPattern (ctx, gP)
+          in
+            if b
+            then
+              [ fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))]
+            else []
+          end
 
       fun matchCtx [] = []
         | matchCtx ((k, x, (A, hds), modality) :: t) =
@@ -655,7 +699,7 @@ and forwardStep (l, ctx) =
 
       val candidates1 = matchCtx (ctx2sparseList ctx)
       val candidates2 = map matchSig (getCandMonad ())
-      val candidates = candidates1 @ candidates2
+      val candidates = candidates1 @ List.concat candidates2
 
       val () =
           if !debugForwardChaining
@@ -688,15 +732,17 @@ and forwardStep (l, ctx) =
     end
 
 
-(* forwardChain : int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)
+(* forwardChain : int option * int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)
 and forwardChain (fcLim, ctx, S, sc) =
     ( if !traceSolve >= 2
       then print ("ForwardChain ("^PrettyPrint.printType (TMonad' S)^")\n")
       else ()
-    ; forwardChain' (fcLim, ctx, S, sc) )
+    ; forwardChain' (fcLim, 0, ctx, S, sc) )
 
-and forwardChain' (fcLim, (l, ctx), S, sc) =
-    let in
+and forwardChain' (fcLim, currIter, (l, ctx), S, sc) =
+    let
+      val () = print ("\rIteration: "^Int.toString currIter)
+    in
       if fcLim = SOME 0
       then rightFocus ((l, ctx), S,
                     fn (M, ctxo) => sc (Mon' M, ctxo))
@@ -713,6 +759,7 @@ and forwardChain' (fcLim, (l, ctx), S, sc) =
                       else ()
            in
              forwardChain' (Option.map (fn x => x - 1) fcLim,
+                            currIter + 1,
                             newctx,
                             STClos (S, Subst.shift $ newbinds),
                          fn (E, ctxo) =>

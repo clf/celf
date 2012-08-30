@@ -104,7 +104,7 @@ fun getModeDecl id = peek (!modeTable, id)
 val hasModeDecl = isSome o getModeDecl
 
 (* getSigDelta : unit -> decl list *)
-fun getSigDelta () = rev (!sigDelta) before sigDelta := []
+fun getSigDelta () = !sigDelta before sigDelta := []
 
 (* sigAddDecl : decl -> unit *)
 fun sigAddDecl dec =

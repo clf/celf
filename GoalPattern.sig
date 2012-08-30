@@ -8,5 +8,9 @@ sig
    * and f2 is a constructor *)
   val goalPattern : Syntax.nfAsyncType -> goalPattern
 
+  val addGoalPattern : string * goalPattern -> unit
+
+  val getGoalPattern : string -> goalPattern
+
 end
 

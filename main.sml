@@ -85,14 +85,17 @@ fun parseArgs args =
     | "-tp1"::args =>
        ( print "traceSolve := 1\n"
        ; OpSem.traceSolve := 1
+       ; OpSemModed.traceSolve := 1
        ; parseArgs args )
     | "-tp2"::args =>
        ( print "traceSolve := 2\n"
        ; OpSem.traceSolve := 2
+       ; OpSemModed.traceSolve := 2
        ; parseArgs args )
     | "-tp3"::args => 
        ( print "traceSolve := 3\n"
        ; OpSem.traceSolve := 3
+       ; OpSemModed.traceSolve := 3
        ; parseArgs args )
     | "-ac"::args =>
        ( print "allowConstr := true\n"
