@@ -72,7 +72,6 @@ fun lowerLVar (ty, sp, s, ctx) =
 
 fun invAtomic (NfAtomic a) = a
   | invAtomic _ = raise Fail "Internal error: invAtomic"
-val invAtomicP = invAtomic o NfObj.prj
 
 (* lowerAtomic : nfHead * nfSpine -> nfHead * nfSpine *)
 fun lowerAtomic (N as (LogicVar {X, ty, s, ctx=ref ctx, cnstr=cs, tag}, S)) =
@@ -138,16 +137,16 @@ fun matchObj (obPat', obGnd') =
       | (NfMonad E1, NfMonad E2) => print "Warning: matching on traces is not implemented (Monad-Monad)"
       | (NfAtomic hS, NfMonad E) => print "Warning: matching on traces is not implemented (Atomic-Monad)"
       | (NfMonad E, NfAtomic hS) => print "Warning: matching on traces is not implemented (Monad-Atomic)"
-      | (NfAtomic hS1, NfAtomic hS2) => matchHead (hS1, hS2)
+      | (NfAtomic hS1, NfAtomic hS2) => matchHeadSp (hS1, hS2)
       | (N1, N2) => raise Fail "Internal error: matchObj"
     end
-and matchHead (hS1 as (h1, S1), hS2 as (h2, S2)) =
+and matchHeadSp (hS1 as (h1, S1), hS2 as (h2, S2)) =
     case (h1, h2) of
       (Const c1, Const c2) => if c1 <> c2
-                              then raise ExnMatch "matchHead Const-Const"
+                              then raise ExnMatch "matchHeadSp Const-Const"
                               else matchSpine (S1, S2)
     | (UCVar x1, UCVar x2) => if x1 <> x2
-                              then raise ExnMatch "matchHead UCVar-UCVar"
+                              then raise ExnMatch "matchHeadSp UCVar-UCVar"
                               else matchSpine (S1, S2)
     | (Var n1, Var n2) => if n1 <> n2
                           then raise ExnMatch "matchObj Var-Var"
@@ -165,7 +164,7 @@ and matchHead (hS1 as (h1, S1), hS2 as (h2, S2)) =
       ; if not (TypeCheck.isEnabled ()) then ctx := NONE else () (* TODO: check if this is safe *)
       end
     | (_, LogicVar _) => raise Fail "Internal error: ground side contains LVar"
-    | _ => raise ExnMatch "matchHead"
+    | _ => raise ExnMatch "matchHeadSp"
 and matchSpine (sp1, sp2) =
     case (NfSpine.prj sp1, NfSpine.prj sp2) of
       (Nil, Nil) => ()
