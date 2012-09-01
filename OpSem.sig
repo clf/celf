@@ -32,7 +32,7 @@ type lcontext
      - the context object (lcontext * context)
      - the type being searched for/goal 
      - the success continuation? - rjs march 8 2012 *)
-val solve : (lcontext * context) * Syntax.asyncType * (Syntax.obj * context -> unit) -> unit
+(* val solve : (lcontext * context) * Syntax.asyncType * (Syntax.obj * context -> unit) -> unit *)
 
 val solveEC : Syntax.asyncType * (Syntax.obj -> unit) -> unit
 

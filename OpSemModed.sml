@@ -36,9 +36,8 @@ val fcLimit = ref NONE : int option ref
  * at that specific point, i.e. it is not allowed to be passed to the
  * output context. *)
 type headedType = asyncType * (lr list * headType) list
-type context = headedType Context.context
+type context = headedType OpSemCtx.context
 type lcontext = int list (* must-occur context: list of indices *)
-
 
 
 (* Printing out contexts that arise during forward chaining *)
@@ -106,7 +105,7 @@ fun prepCtx (lcontext, i, context) =
         else optionalItem x @ prepCtx (lcontext, i+1, xs)
     end
 
-and printCtx (lcontext, context) =
+and printCtx (_, context) =
     let
       (* XXX PERF - Pretty terrible (quadratic at least) -rjs 2012-03-29 *)
       fun rename [] = []
@@ -131,13 +130,14 @@ and printCtx (lcontext, context) =
           then (print ("\n   "^x^", "); layout (size x + 5) xs)
           else (print (x^", "); layout (n + size x + 2) xs)
 
-      val printableCtx = prepCtx (lcontext, 1, rename (Context.ctx2list context))
+      val printableCtx = prepCtx (OpSemCtx.linearIndices context, 1, rename (OpSemCtx.ctx2list context))
     in
       print "-- "; layout 3 (rev printableCtx)
     end
 
 (* matchCtxGoalPattern : context * goalPattern -> bool *)
-fun matchCtxGoalPattern (ctx : context, SOME (c, arg)) =
+fun matchCtxGoalPattern (_, NONE) = true
+  | matchCtxGoalPattern (ctx : context, SOME (c, arg)) =
     let
       fun matchType ty =
           case AsyncType.prj ty of
@@ -154,7 +154,7 @@ fun matchCtxGoalPattern (ctx : context, SOME (c, arg)) =
             else false
           | _ => false
     in
-      case List.find (fn (_, _, (ty, _), _) => matchType ty) (Context.ctx2sparseList ctx) of
+      case OpSemCtx.findNonDep (fn (_, _, (ty, _), _) => matchType ty) ctx of
         SOME (_, id, (ty, _), _) =>
         ( if !traceSolve >= 2
           then print ("found "^id^": "^PrettyPrint.printType ty^"\n")
@@ -166,7 +166,7 @@ fun matchCtxGoalPattern (ctx : context, SOME (c, arg)) =
           else ()
         ; false )
     end
-  | matchCtxGoalPattern (_, NONE) = true
+
 
 (* bind2list : pattern * syncType -> (string * modality * headedType) list *)
 fun bind2list (p, sty) : (string * Context.modality * headedType) list =
@@ -191,90 +191,8 @@ fun pBindLCtx p l =
       bind (1, p, map (fn k => k + nbinds p) l)
     end
 
-fun pushBind (p, sty) (l, ctx) =
-    (pBindLCtx p l, Context.ctxPushList (bind2list (p, sty)) ctx)
+fun pushBind (p, sty) ctx : context = OpSemCtx.ctxPushList (bind2list (p, sty)) ctx
 
-
-(* linDiff : context * context -> (lcontext, context) *)
-(* linDiff (ctx1, ctx2) assumes ctx2 \subseteq ctx1 *)
-(* linDiff (ctx1, ctx2) = (l, ctx) iff
- * - ctx is obtained by removing from ctx1 all linear hypothesis occurring in ctx2
- * - l contains all linear hypothesis occurring in ctx
- *)
-fun linDiff (ctxs : context * context) =
-    let
-      fun lind (ctx1, []) = ctx1
-        | lind ([], _::_) = raise Fail "Internal error: linDiff 1"
-        | lind (ctx1 as (h1 as (n1,_,_,m1))::t1, ctx2 as (h2 as (n2,_,_,_))::t2) =
-          case Int.compare (n1, n2) of
-            LESS => h1 :: lind (t1, ctx2)
-          | EQUAL => ( case m1 of
-                         Context.LIN => lind (t1, ctx2)
-                       | _ (* Context.AFF, Context.INT *) => h1 :: lind (t1, ctx2)
-                     )
-          | GREATER => raise Fail "Internal error: linDiff 2"
-      val (ctx1, ctx2) = (Context.ctx2sparseList (#1 ctxs), Context.ctx2sparseList (#2 ctxs))
-      val diffctx = lind (ctx1, ctx2)
-      fun allLin [] = []
-        | allLin ((n, _, _, m)::t) = if m=Context.LIN then n::allLin t else allLin t
-    in
-      (allLin diffctx, Context.sparseList2ctx diffctx)
-    end
-
-(* removeHyp : (lcontext * context) * int -> lcontext * context *)
-(* Removes a variable from both lcontext and context. *)
-(* Assumes that lcontext is ordered *)
-fun removeHyp ((l, ctx), k) =
-    let
-      fun removeLin [] = []
-        | removeLin (ls as h :: t) =
-          case Int.compare (h, k) of
-            LESS => h :: removeLin t
-          | EQUAL => t
-          | GREATER => ls
-    in
-      (removeLin l, #1 $ Context.ctxLookupNum (ctx, k))
-    end
-
-(* Given a list of linear indices (an lcontext), remove those indices that no
- * longer occur in the context. *)
-(* linIntersect : lcontext * context -> lcontext * context *)
-fun linIntersect (l, ctx) =
-    let
-      fun lin [] _ = []
-        | lin _ [] = []
-        | lin (k::l) (G as (n, x, A, m)::G') =
-          case Int.compare (k, n) of
-            LESS => lin l G
-          | EQUAL => k :: lin l G'
-          | GREATER => lin (k::l) G'
-    in
-      (lin l (Context.ctx2sparseList ctx), ctx)
-    end
-
-
-(* cannotConsumeLin : syncType -> bool *)
-(* Checks whether an object of the given type can consume linear resources. *)
-fun cannotConsumeLin sty =
-    case SyncType.prj sty of
-      LExists (_, S1, S2) => cannotConsumeLin S1 andalso cannotConsumeLin S2
-    | TDown _ => false
-    | _ => true (* TOne, TAffi, TBang *)
-
-(* multSplit : syncType ->
-               {fst : lcontext * context -> lcontext * context,
-                snd : lcontext * context -> lcontext * context} *)
-(* For a multiplicative context split involving the search for two objects
- * of type A and B, beginning with the search for A; multSplit B returns two
- * functions, fst and snd, which determine the lcontext for the individual
- * searches based on the lcontext for the combined object. *)
-fun multSplit sty2 =
-    if cannotConsumeLin sty2 then
-      { fst = fn (l, ctx) => (l, ctx),
-        snd = fn (_, ctxm) => ([], ctxm) }
-    else
-      { fst = fn (_, ctx) => ([], ctx),
-        snd = linIntersect }
 
 (* partitionArgs : string * typeSpine -> obj list * obj list *)
 fun partitionArgs (a, S) =
@@ -290,6 +208,7 @@ fun partitionArgs (a, S) =
                                  | Minus _ => (inp, N :: outp)
                                  | Star => raise Fail "Star should not happen?"
                                end
+                             | _ => raise Fail "Internal error: partArgs"
       val md = case Signatur.getModeDecl a of
                  SOME x => x
                | NONE => raise Fail (a ^ " should be moded.")
@@ -301,10 +220,10 @@ fun partitionArgs (a, S) =
                      -> (obj list * (modality * asyncType) list * obj list * (monadObj list -> spine) *)
 fun decomposeAtomic (lr, ctx : context, ty) =
     let
-      val intCtx = ref NONE
+      val intCtx = ref (SOME Context.emptyCtx) (* NONE *)
       fun getIntCtx () = case !intCtx of
                            SOME G => SOME G
-                         | NONE => ( intCtx := (SOME $ Context.ctxIntPart $ Context.ctxMap #1 ctx) ; getIntCtx () )
+                         | NONE => ( intCtx := (SOME $ Context.sparseList2ctx $ List.map (fn (k,x,(ty,_),m)=>(k,x,ty,m)) (OpSemCtx.depPart ctx)) ; getIntCtx () )
 
       (* decompAtomic : lr list * asyncType
                         -> (obj list * (modality * asyncType) list * obj list * (monadObj list -> spine) *)
@@ -382,10 +301,10 @@ fun decomposeAtomic (lr, ctx : context, ty) =
                       -> ((modality * asyncType) list * (monadObj list -> spine) * syncType *)
 fun decomposeMonadic (lr, ctx : context, ty) =
     let
-      val intCtx = ref NONE
+      val intCtx = ref (SOME Context.emptyCtx) (* NONE *)
       fun getIntCtx () = case !intCtx of
                            SOME G => SOME G
-                         | NONE => ( intCtx := (SOME $ Context.ctxIntPart $ Context.ctxMap #1 ctx) ; getIntCtx () )
+                         | NONE => ( intCtx := (SOME $ Context.sparseList2ctx $ List.map (fn (k,x,(ty,_),m)=>(k,x,ty,m)) (OpSemCtx.depPart ctx)) ; getIntCtx () )
 
       (* decompMonadic : lr list * asyncType
                          -> ((modality * asyncType) list * (monadObj list -> spine) * syncType *)
@@ -459,10 +378,10 @@ fun decomposeMonadic (lr, ctx : context, ty) =
                    -> ((modality * asyncType) list * (monadObj list -> monadObj) *)
 fun decomposeSync (ctx : context, sty) =
     let
-      val intCtx = ref NONE
+      val intCtx = ref (SOME Context.emptyCtx) (* NONE *)
       fun getIntCtx () = case !intCtx of
                            SOME G => SOME G
-                         | NONE => ( intCtx := (SOME $ Context.ctxIntPart $ Context.ctxMap #1 ctx) ; getIntCtx () )
+                         | NONE => ( intCtx := (SOME $ Context.sparseList2ctx $ List.map (fn (k,x,(ty,_),m)=>(k,x,ty,m)) (OpSemCtx.depPart ctx)) ; getIntCtx () )
 
       (* decompSync : pattern * syncType
                       -> ((modality * asyncType) list * (monadObj list -> monadObj) * monadObj *)
@@ -542,16 +461,16 @@ fun syncType2pat sty =
     | TAffi A => PAffi' ()
     | TBang A => PBang' NONE
 
-(* solve : (lcontext * context) * asyncType * (obj * context -> unit) -> unit *)
+(* solve : bool * context * asyncType * (obj * context -> unit) -> unit *)
 (* Right Inversion : Gamma;Delta => A *)
-fun solve (ctx, ty, sc) =
+fun solve (consumeAll, ctx, ty, sc) =
     ( if !traceSolve >= 3 then
         print ("Right Invert ("^PrettyPrint.printType ty^")\n")
       else ()
-    ; solve' (ctx, ty, sc) )
-and solve' (ctx, ty, sc) =
+    ; solve' (consumeAll, ctx, ty, sc) )
+and solve' (consumeAll, ctx, ty, sc) =
     case Util.typePrjAbbrev ty of
-      TLPi (p, S, A) => solve (pushBind (p, S) ctx, A,
+      TLPi (p, S, A) => solve (consumeAll, pushBind (p, S) ctx, A,
                             (* The pattern p is a type pattern, which means that
                              * it only names dependent variables. We need to create
                              * p', the term pattern, which binds all the
@@ -560,51 +479,55 @@ and solve' (ctx, ty, sc) =
                                let
                                  val p' = Util.patternT2O p
                                in
-                                 sc (LLam' (p', N), PatternBind.patUnbind (p', ctxo))
+                                 sc (LLam' (p', N), OpSemCtx.ctxPopNum (nbinds p') ctxo)
                                end)
     | AddProd (A, B) =>
-      solve (ctx, A, fn (N1, ctxo1) =>
-      solve (linDiff (#2 ctx, ctxo1), B, fn (N2, ctxo2) =>
-      sc (AddPair' (N1, N2), Context.ctxAddJoin (ctxo1, Context.ctxJoinAffLin (ctxo2, ctxo1)))))
-    | TMonad S => forwardChain (!fcLimit, ctx, S, fn (E, ctxo) => sc (Monad' E, ctxo))
-    | P as TAtomic _ => matchAtom (ctx, P, sc)
+      if consumeAll
+      then
+        solve (true, ctx, A, fn (N1, ctxo1) =>
+        solve (true, ctx, B, fn (N2, ctxo2) =>
+        sc (AddPair' (N1, N2), OpSemCtx.affIntersect(ctxo1, ctxo2))))
+      else
+        solve (false, ctx, A, fn (N1, ctxo1) =>
+        solve (true, OpSemCtx.linearDiff (ctx, ctxo1), B, fn (N2, ctxo2) =>
+        sc (AddPair' (N1, N2), OpSemCtx.affIntersect(ctxo1, ctxo2))))
+    | TMonad S => forwardChain (!fcLimit, consumeAll, ctx, S, fn (E, ctxo) => sc (Monad' E, ctxo))
+    | P as TAtomic _ => matchAtom (consumeAll, ctx, P, sc)
     | TAbbrev _ => raise Fail "Internal error: solve: TAbbrev"
 
 
-(* solveList : (lcontext * context) -> asyncType list -> (obj list * ctx -> unit) *)
-and solveList (l, ctx) [] sc =
-    let
-      val (l', ctx') = linIntersect (l, ctx)
-    in
-      if null l' then sc ([], ctx) else ()
-    end
-  | solveList (l, ctx) ((md, G)::gs) sc =
+(* solveList : bool * context -> asyncType list -> (obj list * ctx -> unit) *)
+and solveList (consumeAll, ctx) [] sc =
+    if consumeAll andalso OpSemCtx.nolin ctx orelse not consumeAll
+    then sc ([], ctx)
+    else ()
+  | solveList (consumeAll, ctx) ((md, G)::gs) sc =
     let
       val filterCtx = case md of
                         Context.LIN => (fn x => x)
-                      | Context.AFF => Context.ctxAffPart
-                      | Context.INT => Context.ctxIntPart
+                      | Context.AFF => OpSemCtx.ctxAffPart
+                      | Context.INT => OpSemCtx.ctxIntPart
     in
-      solve (([], filterCtx ctx), G,
-          fn (N, ctx') => solveList (l, ctx') gs (fn (Ns, ctxo) => sc (N::Ns, ctxo)))
+      solve (false, filterCtx ctx, G,
+          fn (N, ctx') => solveList (consumeAll, ctx') gs (fn (Ns, ctxo) => sc (N::Ns, ctxo)))
     end
 
-(* matchAtom : (lcontext * context) * asyncType asyncTypeF * (obj * context -> unit) -> unit *)
+(* matchAtom : bool * context * asyncType asyncTypeF * (obj * context -> unit) -> unit *)
 (* Choice point: choose hypothesis and switch from Right Inversion to Left Focusing *)
-and matchAtom (ctx, P, sc) =
+and matchAtom (consumeAll, ctx, P, sc) =
     ( if !traceSolve >= 2 then
         print ("Subgoal: MatchAtom ("^PrettyPrint.printType (AsyncType.inj P)^")\n")
       else ()
-    ; matchAtom' (ctx, P, sc) )
-and matchAtom' (ctx, P, sc) =
+    ; matchAtom' (consumeAll, ctx, P, sc) )
+and matchAtom' (consumeAll, ctx, P, sc) =
     let
       val aP = (case P of TAtomic (a, _) => a
                         | _ => raise Fail "Internal error: wrong argument to matchAtom!")
       val P' = AsyncType.inj P
       fun lFocus (ctx', lr, A, h) = fn () =>
                                        ( traceLeftFocus (h, A)
-                                       ; leftFocus (lr, ctx', P', A, fn (S, ctxo) =>
-                                                                        sc (Atomic' (h, S), ctxo)) )
+                                       ; leftFocus (lr, consumeAll, ctx', P', A, fn (S, ctxo) =>
+                                                                                    sc (Atomic' (h, S), ctxo)) )
       fun matchSig (c, lr, A) = fn () => BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
       fun matchCtx [] = []
         | matchCtx ((k, x, (A, hds), modality) :: t) =
@@ -615,11 +538,11 @@ and matchAtom' (ctx, P, sc) =
               val A' = TClos (A, Subst.shift k)
               val h = Var (modality, k)
               val validHds = List.filter (fn (_, HdAtom a) => a=aP | _ => false) hds
-              val candidates = List.map (fn (lr, _) => (fn () => BackTrack.backtrack (lFocus (if modality=Context.INT then ctx else removeHyp (ctx, k), lr, A', h)))) validHds
+              val candidates = List.map (fn (lr, _) => (fn () => BackTrack.backtrack (lFocus (OpSemCtx.removeHyp (ctx, k, modality), lr, A', h)))) validHds
             in
               candidates @ matchCtx t
             end
-      val ctxlist = Context.ctx2sparseList $ #2 ctx
+      val ctxlist = OpSemCtx.nonDepPart ctx
       val available = matchCtx ctxlist
     (*
      val ctxLength = List.length ctxlist
@@ -638,11 +561,11 @@ and matchAtom' (ctx, P, sc) =
                          (PermuteList.fromList (available @ map matchSig (getCandAtomic aP)))
     end
 
-(* forwardStep : (lcontext * context)
- *                -> ((lcontext * context) *
+(* forwardStep : context
+ *                -> (context *
  *                    whatever it is that nbinds returns *
  *                    (pattern * pattern's type * atomicterm)) option *)
-and forwardStep (l, ctx) =
+and forwardStep (ctx : context) =
     let
       fun mlFocus (ctx', lr, A, h) =
        fn commitExn =>
@@ -683,7 +606,7 @@ and forwardStep (l, ctx) =
       fun matchCtx [] = []
         | matchCtx ((k, x, (A, hds), modality) :: t) =
           let
-            val ctx' = if modality=Context.INT then ctx else #2 $ removeHyp (([], ctx), k)
+            val ctx' = OpSemCtx.removeHyp (ctx, k, modality)
             val A' = TClos (A, Subst.shift k)
           in
             List.mapPartial
@@ -696,7 +619,7 @@ and forwardStep (l, ctx) =
               @ matchCtx t
           end
 
-      val candidates1 = matchCtx (Context.ctx2sparseList ctx)
+      val candidates1 = matchCtx (OpSemCtx.nonDepPart ctx) (* Not needed if there are no forward-chaining embedded clauses *)
       val candidates2 = map matchSig (getCandMonad ())
       val candidates = candidates1 @ List.concat candidates2
 
@@ -724,7 +647,7 @@ and forwardStep (l, ctx) =
           val p = syncType2pat sty
           val p' = Util.patternT2O p
         in
-          SOME ((pushBind (p, sty) $ linIntersect (l, ctxm)),
+          SOME ((pushBind (p, sty) $ ctxm),
                 nbinds p,
                 (p', sty, N))
         end
@@ -732,22 +655,22 @@ and forwardStep (l, ctx) =
 
 
 (* forwardChain : int option * int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)
-and forwardChain (fcLim, ctx, S, sc) =
+and forwardChain (fcLim, consumeAll, ctx, S, sc) =
     ( if !traceSolve >= 2
       then print ("ForwardChain ("^PrettyPrint.printType (TMonad' S)^")\n")
       else ()
-    ; forwardChain' (fcLim, 0, ctx, S, sc) )
+    ; forwardChain' (fcLim, 0, consumeAll, ctx, S, sc) )
 
-and forwardChain' (fcLim, currIter, (l, ctx), S, sc) =
+and forwardChain' (fcLim, currIter, consumeAll, ctx, S, sc) =
     let
       val () = print ("\rIteration: "^Int.toString currIter)
     in
       if fcLim = SOME 0
-      then rightFocus ((l, ctx), S,
+      then rightFocus (consumeAll, ctx, S,
                     fn (M, ctxo) => sc (Mon' M, ctxo))
       else
-        (case forwardStep (l, ctx) of
-           NONE => rightFocus ((l, ctx), S,
+        (case forwardStep ctx of
+           NONE => rightFocus (consumeAll, ctx, S,
                             fn (M, ctxo) => sc (Mon' M, ctxo))
          | SOME (newctx, newbinds, (p, sty, N)) =>
            let
@@ -759,20 +682,21 @@ and forwardChain' (fcLim, currIter, (l, ctx), S, sc) =
            in
              forwardChain' (Option.map (fn x => x - 1) fcLim,
                             currIter + 1,
+                            consumeAll,
                             newctx,
                             STClos (S, Subst.shift $ newbinds),
                          fn (E, ctxo) =>
-                            sc (Let' (p, N, E), PatternBind.patUnbind (p, ctxo)))
+                            sc (Let' (p, N, E), OpSemCtx.ctxPopNum (nbinds p) ctxo))
            end)
     end
 
-(* rightFocus : (lcontext * context) * monadObj * syncType * (monadObj * context -> unit) -> unit *)
-and rightFocus (ctx, sty, sc) =
+(* rightFocus : bool * context * monadObj * syncType * (monadObj * context -> unit) -> unit *)
+and rightFocus (consumeAll, ctx, sty, sc) =
     ( if !traceSolve >= 3 then
         print ("RightFocus ("^PrettyPrint.printType (TMonad' sty)^")\n")
       else ()
-    ; rightFocus' (ctx, sty, sc) )
-and rightFocus' ((l, ctx), sty, sc) =
+    ; rightFocus' (consumeAll, ctx, sty, sc) )
+and rightFocus' (consumeAll, ctx, sty, sc) =
     let
       val (subgoals, mkMonadObj) = decomposeSync (ctx, sty)
       (* fun ppG [] = "" *)
@@ -781,18 +705,18 @@ and rightFocus' ((l, ctx), sty, sc) =
       (* val () = (print ("RightFocus ("^PrettyPrint.printType (TMonad' sty)^")\n") *)
       (*         ; ppSG ()) *)
     in
-      solveList (l, ctx) subgoals (fn (Ns, ctx') => sc (mkMonadObj Ns, ctx'))
+      solveList (consumeAll, ctx) subgoals (fn (Ns, ctx') => sc (mkMonadObj Ns, ctx'))
     end
 (* leftFocus : lr list * (lcontext * context) * asyncType * asyncType * (spine * context -> unit) -> unit *)
 (* Left Focusing : Gamma;Delta;A >> P  ~~  leftFocus (LR-Oracle, Gamma;Delta, P, A, SuccCont)
  * Construct the spine corresponding to the chosen hypothesis. %%
 *)
-and leftFocus (lr, ctx : lcontext * context, P, ty, sc) =
+and leftFocus (lr, consumeAll, ctx : context, P, ty, sc) =
     ( if !traceSolve >= 3 then
         print ("LeftFocus ("^PrettyPrint.printType ty^")\n")
       else ()
-    ; leftFocus' (lr, ctx, P, ty, sc) )
-and leftFocus' (lr, (l, ctx), P, ty, sc) =
+    ; leftFocus' (lr, consumeAll, ctx, P, ty, sc) )
+and leftFocus' (lr, consumeAll, ctx, P, ty, sc) =
     let
       val at = case Util.typePrjAbbrev P of
                  TAtomic (a, _) => a
@@ -815,7 +739,7 @@ and leftFocus' (lr, (l, ctx), P, ty, sc) =
     in
       (ppIn ();
        matchList Sin Pin (fn () => (ppSG ();
-       solveList (l, ctx) subgoals (fn (Ns, ctx') => (ppOut ();
+       solveList (consumeAll, ctx) subgoals (fn (Ns, ctx') => (ppOut ();
        matchList Pout Sout (fn () => (sc (mkSpine Ns, ctx'))))))))
     (* TODO: check that no linear hyp are available after solving subgoals *)
     end
@@ -833,23 +757,23 @@ and monLeftFocus' (lr, ctx, ty, sc) =
       (* fun ppSG () = print ("Subgoals " ^ ppG subgoals ^ "\n") *)
       (* val _ = (ppSG (); print ("Monadic type: " ^ PrettyPrint.printSyncType sty ^"\n")) *)
     in
-      solveList ([], ctx) subgoals (fn (Ns, ctx') =>
+      solveList (false, ctx) subgoals (fn (Ns, ctx') =>
       sc (mkSpine Ns, sty, ctx'))
     end
 
 (* solveEC : asyncType * (obj -> unit) -> unit *)
-fun solveEC (ty, sc) = solve (([], Context.emptyCtx), ty, sc o #1)
+fun solveEC (ty, sc) = solve (true, OpSemCtx.emptyCtx, ty, sc o #1)
 
 fun trace printInter limit sty =
     let
-      fun loop context count =
-          ( if printInter then (printCtx context) else ()
-          ; if limit = SOME count then (count, context)
+      fun loop (context : context) count : int * (lcontext * context) =
+          ( if printInter then (printCtx ([], context)) else ()
+          ; if limit = SOME count then (count, (OpSemCtx.linearIndices context, context))
             else case forwardStep context of
-                   NONE => (count, context)
+                   NONE => (count, (OpSemCtx.linearIndices context, context))
                  | SOME (context', _, _) => loop context' (count+1))
     in
-      loop (pushBind (syncType2pat sty, sty) ([], Context.emptyCtx)) 0
+      loop (pushBind (syncType2pat sty, sty) OpSemCtx.emptyCtx) 0
     end
 
 end
