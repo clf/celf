@@ -721,20 +721,21 @@ and forwardChain (fcLim, consumeAll, ctx, S, sc) =
     ( if !traceSolve >= 2
       then print ("ForwardChain ("^PrettyPrint.printType (TMonad' S)^")\n")
       else ()
-    ; forwardChain' (fcLim, 0, consumeAll, ctx, S, sc) )
+    ; forwardChain' (fcLim, 0, consumeAll, ctx, 0, [], S, sc) )
 
-and forwardChain' (fcLim, currIter, consumeAll, ctx, S, sc) =
+and forwardChain' (fcLim, currIter, consumeAll, ctx, numNewBinds, eps, S, sc) =
     let
       val () = TextIO.outputSubstr (TextIO.stdErr, Substring.full ("\rIteration: "^Int.toString currIter))
-      val counter = ref 0
+      fun foldLet [] E = E
+        | foldLet ((p, N) :: eps) E = foldLet eps (Let' (p, N, E))
     in
       if fcLim = SOME 0
       then rightFocus (consumeAll, ctx, S,
-                    fn (M, ctxo) => sc ((* dummyExpObj *) Mon' M, ctxo))
+                    fn (M, ctxo) => sc ((* dummyExpObj *) foldLet eps (Mon' M), OpSemCtx.ctxPopNum numNewBinds ctxo))
       else
         (case forwardStep ctx of
            NONE => rightFocus (consumeAll, ctx, S,
-                            fn (M, ctxo) => sc ((* dummyExpObj *) Mon' M, ctxo))
+                            fn (M, ctxo) => sc ((* dummyExpObj *) foldLet eps (Mon' M), OpSemCtx.ctxPopNum numNewBinds ctxo))
          | SOME (newctx, newbinds, (p, sty, N)) =>
            let
              val () = if !traceSolve >= 1
@@ -747,9 +748,10 @@ and forwardChain' (fcLim, currIter, consumeAll, ctx, S, sc) =
                             currIter + 1,
                             consumeAll,
                             newctx,
+                            numNewBinds + nbinds p,
+                            (p, N) :: eps,
                             STClos (S, Subst.shift $ newbinds),
-                         fn (E, ctxo) =>
-                            sc ((* dummyExpObj *) Let' (p, N, E), OpSemCtx.ctxPopNum (nbinds p) ctxo))
+                            sc)
            end)
     end
 
