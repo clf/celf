@@ -663,7 +663,7 @@ and forwardChain (fcLim, consumeAll, ctx, S, sc) =
 
 and forwardChain' (fcLim, currIter, consumeAll, ctx, S, sc) =
     let
-      val () = print ("\rIteration: "^Int.toString currIter)
+      val () = TextIO.outputSubstr (TextIO.stdErr, Substring.full ("\rIteration: "^Int.toString currIter))
     in
       if fcLim = SOME 0
       then rightFocus (consumeAll, ctx, S,
