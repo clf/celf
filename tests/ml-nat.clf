@@ -98,9 +98,9 @@ fact : exp
 
 % #query * * * 1 evaluate (app (app mult (s (s (s z)))) (s (s (s z)))) V.
 
-#trace 1000  Exists d. eval (app (app mult (s (s (s z)))) (s (s (s z)))) d.
+% #trace 1000  Exists d. eval (app (app mult (s (s (s z)))) (s (s (s z)))) d.
 
 % #query * * * 1 evaluate (app (app mult (app (app mult (s (s (s z)))) (s (s z)))) (s z))  V.
 
 
-% #query * * * 1 evaluate (app fact (s (s (s z)))) V.
+#mquery * * * 1 evaluate (app fact (s (s (s (s z))))) V.
