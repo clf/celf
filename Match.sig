@@ -26,4 +26,6 @@ val outputMatch : bool ref
 
 val match : Syntax.obj * Syntax.obj -> (unit -> unit) -> unit
 
+val matchList : Syntax.obj list * Syntax.obj list -> (unit -> unit) -> unit
+
 end

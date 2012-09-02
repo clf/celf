@@ -31,6 +31,11 @@ val debugForwardChaining = ref false
 
 val fcLimit = ref NONE : int option ref
 
+val dummyObj : obj = LLam' (POne', Monad' (Mon' One'))
+val dummyMonadObj : monadObj = One'
+val dummyExpObj : expObj = Mon' One'
+val dummySpine : spine = LApp' (One', Nil')
+
 (* The type 'context' represents input and output contexts and the type
  * 'lcontext' represents the part of the input context that has to occur
  * at that specific point, i.e. it is not allowed to be passed to the
@@ -479,20 +484,22 @@ and solve' (consumeAll, ctx, ty, sc) =
                                let
                                  val p' = Util.patternT2O p
                                in
-                                 sc (LLam' (p', N), OpSemCtx.ctxPopNum (nbinds p') ctxo)
+                                 sc ((* dummyObj *) LLam' (p', N), OpSemCtx.ctxPopNum (nbinds p') ctxo)
                                end)
     | AddProd (A, B) =>
       if consumeAll
       then
         solve (true, ctx, A, fn (N1, ctxo1) =>
         solve (true, ctx, B, fn (N2, ctxo2) =>
-        sc (AddPair' (N1, N2), OpSemCtx.affIntersect(ctxo1, ctxo2))))
+        sc ((* dummyObj *) AddPair' (N1, N2), OpSemCtx.affIntersect(ctxo1, ctxo2))))
       else
         solve (false, ctx, A, fn (N1, ctxo1) =>
         solve (true, OpSemCtx.linearDiff (ctx, ctxo1), B, fn (N2, ctxo2) =>
-        sc (AddPair' (N1, N2), OpSemCtx.affIntersect(ctxo1, ctxo2))))
-    | TMonad S => forwardChain (!fcLimit, consumeAll, ctx, S, fn (E, ctxo) => sc (Monad' E, ctxo))
-    | P as TAtomic _ => matchAtom (consumeAll, ctx, P, sc)
+        sc ((* dummyObj *) AddPair' (N1, N2), OpSemCtx.affIntersect(ctxo1, ctxo2))))
+    | TMonad S => forwardChain (!fcLimit, consumeAll, ctx, S, fn (E, ctxo) => sc ((* dummyObj *) Monad' E, ctxo))
+    | P as TAtomic (a, _) => if Signatur.hasEmptyDecl a
+                             then matchAtomEmpty (consumeAll, ctx, P, sc)
+                             else matchAtom (consumeAll, ctx, P, sc)
     | TAbbrev _ => raise Fail "Internal error: solve: TAbbrev"
 
 
@@ -509,7 +516,7 @@ and solveList (consumeAll, ctx) [] sc =
                       | Context.INT => OpSemCtx.ctxIntPart
     in
       solve (false, filterCtx ctx, G,
-          fn (N, ctx') => solveList (consumeAll, ctx') gs (fn (Ns, ctxo) => sc (N::Ns, ctxo)))
+          fn (N, ctx') => solveList (consumeAll, ctx') gs (fn (Ns, ctxo) => sc ((* dummyObj *) N::Ns, ctxo)))
     end
 
 (* matchAtom : bool * context * asyncType asyncTypeF * (obj * context -> unit) -> unit *)
@@ -527,7 +534,7 @@ and matchAtom' (consumeAll, ctx, P, sc) =
       fun lFocus (ctx', lr, A, h) = fn () =>
                                        ( traceLeftFocus (h, A)
                                        ; leftFocus (lr, consumeAll, ctx', P', A, fn (S, ctxo) =>
-                                                                                    sc (Atomic' (h, S), ctxo)) )
+                                                                                    sc ((* dummyObj *) Atomic' (h, S), ctxo)) )
       fun matchSig (c, lr, A) = fn () => BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
       fun matchCtx [] = []
         | matchCtx ((k, x, (A, hds), modality) :: t) =
@@ -561,6 +568,61 @@ and matchAtom' (consumeAll, ctx, P, sc) =
                          (PermuteList.fromList (available @ map matchSig (getCandAtomic aP)))
     end
 
+(* matchAtomEmpty : bool * context * asyncType asyncTypeF * (obj * context -> unit) -> unit *)
+(* matches an atomic type of an empty family by just looking at the context *)
+(* all arguments are negative, so we only have to match the spine *)
+and matchAtomEmpty (consumeAll, ctx, P, sc) =
+    ( if !traceSolve >= 2 then
+        print ("Subgoal: MatchAtomEmpty ("^PrettyPrint.printType (AsyncType.inj P)^")\n")
+      else ()
+    ; matchAtomEmpty' (consumeAll, ctx, P, sc) )
+and matchAtomEmpty' (consumeAll, ctx, P, sc) =
+    let
+      val (head, spine) = case P of
+                            TAtomic (a, S) => (a, S)
+                          | _ => raise Fail "Internal error: wrong argument to matchAtom!"
+      val (spineIn, spineOut) = partitionArgs (head, spine)
+      val () = if null spineIn then () else raise Fail "Internal error: empty families should have only outputs"
+
+      fun tryHyp (A, h, k, modality) =
+          case AsyncType.prj A of
+            TAtomic (a, S) =>
+            let
+              val () = if a <> head then raise Fail "Internal error: family error" else ()
+              val (Sin, Sout) = partitionArgs (a, S)
+              val () = if null Sin then () else raise Fail "Internal error: empty families should have only outputs"
+            in
+              BackTrack.backtrack (fn () =>
+              Match.matchList (spineOut, Sout) (fn () =>
+                                         let
+                                           val ctx' = OpSemCtx.removeHyp (ctx, k, modality)
+                                         in
+                                           if consumeAll
+                                           then if OpSemCtx.nolin ctx'
+                                                then sc ((* dummyObj *) Atomic' (h, Nil'), ctx')
+                                                else ()
+                                           else sc ((* dummyObj *) Atomic' (h, Nil'), ctx')
+                                         end)
+              )
+            end
+          | _ => raise Fail "Internal error: family not empty?"
+
+      (* TODO: check the signature and additive conjunctions *)
+      fun matchCtx [] = ()
+        | matchCtx ((k, x, (A, [(_, HdAtom h)]), modality) :: t) =
+          if head = h
+          then
+            let
+              val A' = TClos (A, Subst.shift k)
+              val h = Var (modality, k)
+            in
+              tryHyp (A', h, k, modality)
+            ; matchCtx t
+            end
+          else matchCtx t
+    in
+      matchCtx (OpSemCtx.nonDepPart ctx)
+    end
 (* forwardStep : context
  *                -> (context *
  *                    whatever it is that nbinds returns *
@@ -664,14 +726,15 @@ and forwardChain (fcLim, consumeAll, ctx, S, sc) =
 and forwardChain' (fcLim, currIter, consumeAll, ctx, S, sc) =
     let
       val () = TextIO.outputSubstr (TextIO.stdErr, Substring.full ("\rIteration: "^Int.toString currIter))
+      val counter = ref 0
     in
       if fcLim = SOME 0
       then rightFocus (consumeAll, ctx, S,
-                    fn (M, ctxo) => sc (Mon' M, ctxo))
+                    fn (M, ctxo) => sc ((* dummyExpObj *) Mon' M, ctxo))
       else
         (case forwardStep ctx of
            NONE => rightFocus (consumeAll, ctx, S,
-                            fn (M, ctxo) => sc (Mon' M, ctxo))
+                            fn (M, ctxo) => sc ((* dummyExpObj *) Mon' M, ctxo))
          | SOME (newctx, newbinds, (p, sty, N)) =>
            let
              val () = if !traceSolve >= 1
@@ -686,13 +749,13 @@ and forwardChain' (fcLim, currIter, consumeAll, ctx, S, sc) =
                             newctx,
                             STClos (S, Subst.shift $ newbinds),
                          fn (E, ctxo) =>
-                            sc (Let' (p, N, E), OpSemCtx.ctxPopNum (nbinds p) ctxo))
+                            sc ((* dummyExpObj *) Let' (p, N, E), OpSemCtx.ctxPopNum (nbinds p) ctxo))
            end)
     end
 
 (* rightFocus : bool * context * monadObj * syncType * (monadObj * context -> unit) -> unit *)
 and rightFocus (consumeAll, ctx, sty, sc) =
-    ( if !traceSolve >= 3 then
+    ( if !traceSolve >= 2 then
         print ("RightFocus ("^PrettyPrint.printType (TMonad' sty)^")\n")
       else ()
     ; rightFocus' (consumeAll, ctx, sty, sc) )
@@ -705,7 +768,7 @@ and rightFocus' (consumeAll, ctx, sty, sc) =
       (* val () = (print ("RightFocus ("^PrettyPrint.printType (TMonad' sty)^")\n") *)
       (*         ; ppSG ()) *)
     in
-      solveList (consumeAll, ctx) subgoals (fn (Ns, ctx') => sc (mkMonadObj Ns, ctx'))
+      solveList (consumeAll, ctx) subgoals (fn (Ns, ctx') => sc ((* dummyMonadObj *) mkMonadObj Ns, ctx'))
     end
 (* leftFocus : lr list * (lcontext * context) * asyncType * asyncType * (spine * context -> unit) -> unit *)
 (* Left Focusing : Gamma;Delta;A >> P  ~~  leftFocus (LR-Oracle, Gamma;Delta, P, A, SuccCont)
@@ -740,7 +803,7 @@ and leftFocus' (lr, consumeAll, ctx, P, ty, sc) =
       (ppIn ();
        matchList Sin Pin (fn () => (ppSG ();
        solveList (consumeAll, ctx) subgoals (fn (Ns, ctx') => (ppOut ();
-       matchList Pout Sout (fn () => (sc (mkSpine Ns, ctx'))))))))
+       matchList Pout Sout (fn () => (sc ((* dummySpine *) mkSpine Ns, ctx'))))))))
     (* TODO: check that no linear hyp are available after solving subgoals *)
     end
 (* monLeftFocus : lr list * context * asyncType * (spine * syncType * context -> unit) -> unit *)
@@ -758,7 +821,7 @@ and monLeftFocus' (lr, ctx, ty, sc) =
       (* val _ = (ppSG (); print ("Monadic type: " ^ PrettyPrint.printSyncType sty ^"\n")) *)
     in
       solveList (false, ctx) subgoals (fn (Ns, ctx') =>
-      sc (mkSpine Ns, sty, ctx'))
+      sc ((* dummySpine *) mkSpine Ns, sty, ctx'))
     end
 
 (* solveEC : asyncType * (obj -> unit) -> unit *)

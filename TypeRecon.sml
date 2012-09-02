@@ -301,8 +301,8 @@ fun reconstructDecl (ldec as (_, dec)) =
                       else ()
                     ; Timers.time Timers.solving (fn () => OpSem.solveEC (implty, scUnif)) ()
                     ; e = SOME (!solCount) orelse runQueryUnif (n-1) )
-                fun scMatch N = ( (* print ("Solution: "^PrettyPrint.printObj N^"\n") *)
-                                app printInst lvars
+                fun scMatch N = ( print ("Solution: "^PrettyPrint.printObj N^"\n")
+                                ; app printInst lvars
                                 ; solCount := !solCount + 1
                                 ; if TypeCheck.isEnabled ()
                                    then (print "Double checking object type... "
