@@ -263,7 +263,8 @@ fun reconstructDecl (ldec as (_, dec)) =
           | Mode (id, implmd, md) => Timers.time Timers.modes (fn () => checkModeDecl (id, implmd, md)) ()
 
           (* Add empty families declaration *)
-          | Empty id => Signatur.addEmptyDecl id
+          | Empty id => ( print ("#empty "^id^".\n")
+                        ; Signatur.addEmptyDecl id )
 
           | Query (opsem, d, e, l, a, ty) =>
             (* d : let-depth-bound * = inf
