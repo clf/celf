@@ -360,7 +360,7 @@ fun reconstructDecl (ldec as (_, dec)) =
                   print ("Trace "
                          ^(case count of NONE => "*" | SOME i => Int.toString i)
                          ^" "^PrettyPrint.printSyncType sty^"\n")
-              val (count', _) = OpSem.trace true count sty
+              val (count', _) = OpSemModed.trace true count sty
             in
               if not (isSome count) orelse count = SOME count'
               then print ("Success: "^Int.toString count'^" steps\n")
@@ -376,10 +376,10 @@ fun reconstructDecl (ldec as (_, dec)) =
                   print ("Exec "
                          ^(case count of NONE => "*" | SOME i => Int.toString i)
                          ^" "^PrettyPrint.printSyncType sty^"\n")
-              val (count', context) = OpSem.trace false count sty
+              val (count', context) = OpSemModed.trace false count sty
             in
               if not (isSome count) orelse count = SOME count'
-              then ( OpSem.printCtx context
+              then ( OpSemModed.printCtx context
                    ; print ("Success: "^Int.toString count'^" steps\n"))
               else ( print ("Exec failed, expected "^Int.toString (valOf count)
                             ^" steps but only "^Int.toString count'

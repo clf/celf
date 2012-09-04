@@ -73,18 +73,18 @@ fun prepCtx (lcontext, i, context) =
             PrettyPrint.printTypeInCtx context' asyncType
           end
 
-      fun optionalItem (varname, data, NONE) =
+      fun optionalItem (varname, NONE, NONE) =
           [] (* Item removed from ctx *)
-        | optionalItem (varname, data, SOME Context.LIN) =
+        | optionalItem (varname, SOME data, SOME Context.LIN) =
           (* If we are just reporting the intermediate contexts from
            * forward chaining, it should be the case that everything in
            * the context is required to be in the output context: the
            * more interesting case for "maybe used" contexts should only
            * arise during backward chaining proof search, I think. -rjs 2012-03-29 *)
-          [ "surprised that this happened!!!" ]
-        | optionalItem (varname, data, SOME Context.AFF) =
+          [ dataStr data^" surprised that this happened!!!" ]
+        | optionalItem (varname, SOME data, SOME Context.AFF) =
           [ dataStr data^" aff" ]
-        | optionalItem (varname, data, SOME Context.INT) =
+        | optionalItem (varname, SOME data, SOME Context.INT) =
           (* This seemed to work on the simple examples - is it really
            * as simple as saying that the variable-stuff has names and
            * the resource-stuff has a varname of emptystring? It's
@@ -92,11 +92,11 @@ fun prepCtx (lcontext, i, context) =
           if varname = "" then [ dataStr data ^ " pers" ]
           else [ varname^":"^dataStr data ]
 
-      fun mandatoryItem (varname, data, NONE) =
+      fun mandatoryItem pos (varname, NONE, NONE) =
           raise Fail "Invariant: mandatory item cannot also be removed from context!"
-        | mandatoryItem (varname, data, SOME Context.LIN) =
-          [ dataStr data^" lin" ]
-        | mandatoryItem (varname, data, SOME modality) =
+        | mandatoryItem pos (varname, SOME data, SOME Context.LIN) =
+          [ Int.toString pos^": "^dataStr data^" lin" ]
+        | mandatoryItem pos (varname, SOME data, SOME modality) =
           (* Linear things are the only ones required to be in the context *)
           raise Fail "Invariant: Only linear things should be required!"
     in
@@ -106,7 +106,7 @@ fun prepCtx (lcontext, i, context) =
       | (j :: js, []) => [] (* raise Fail "Invariant: lcontext doesn't match context" *)
       | (j :: js, x :: xs) =>
         if j < i then raise Fail "Invariant: j < i should be impossible"
-        else if j = i then mandatoryItem x @ prepCtx (js, i+1, xs)
+        else if j = i then mandatoryItem j x @ prepCtx (js, i+1, xs)
         else optionalItem x @ prepCtx (lcontext, i+1, xs)
     end
 
@@ -139,6 +139,7 @@ and printCtx (_, context) =
     in
       print "-- "; layout 3 (rev printableCtx)
     end
+
 
 (* matchCtxGoalPattern : context * goalPattern -> bool *)
 fun matchCtxGoalPattern (_, NONE) = true
@@ -174,27 +175,16 @@ fun matchCtxGoalPattern (_, NONE) = true
 
 
 (* bind2list : pattern * syncType -> (string * modality * headedType) list *)
-fun bind2list (p, sty) : (string * Context.modality * headedType) list =
+fun bind2list (p, sty) : (string option * Context.modality * headedType) list =
     case (Pattern.prj p, SyncType.prj sty) of
       (PDepTensor (p1, p2), LExists (p1', S1, S2)) =>
       bind2list (Util.patternAddDep (p1, p1'), S1) @ bind2list (p2, S2)
     | (POne, TOne) => []
-    | (PDown x, TDown A) => [("", Context.LIN, (A, heads A))]
-    | (PAffi x, TAffi A) => [("", Context.AFF, (A, heads A))]
-    | (PBang NONE, TBang A) => [("", Context.INT, (A, heads A))]
-    | (PBang (SOME x), TBang A) => [(x, Context.INT, (A, []))]
+    | (PDown x, TDown A) => [(NONE, Context.LIN, (A, heads A))]
+    | (PAffi x, TAffi A) => [(NONE, Context.AFF, (A, heads A))]
+    | (PBang NONE, TBang A) => [(NONE, Context.INT, (A, heads A))]
+    | (PBang (SOME x), TBang A) => [(SOME x, Context.INT, (A, []))]
     | _ => raise Fail "Internal error: bind2list"
-
-fun pBindLCtx p l =
-    let
-      fun bind (n, p, l) =
-          case Pattern.prj p of
-            PDepTensor (p1, p2) => bind (n, p2, bind (n + nbinds p2, p1, l))
-          | PDown _ => n::l
-          | _ => l (* POne, PAffi, PBang *)
-    in
-      bind (1, p, map (fn k => k + nbinds p) l)
-    end
 
 fun pushBind (p, sty) ctx : context = OpSemCtx.ctxPushList (bind2list (p, sty)) ctx
 
@@ -225,11 +215,6 @@ fun partitionArgs (a, S) =
                      -> (obj list * (modality * asyncType) list * obj list * (monadObj list -> spine) *)
 fun decomposeAtomic (lr, ctx : context, ty) =
     let
-      val intCtx = ref (SOME Context.emptyCtx) (* NONE *)
-      fun getIntCtx () = case !intCtx of
-                           SOME G => SOME G
-                         | NONE => ( intCtx := (SOME $ Context.sparseList2ctx $ List.map (fn (k,x,(ty,_),m)=>(k,x,ty,m)) (OpSemCtx.depPart ctx)) ; getIntCtx () )
-
       (* decompAtomic : lr list * asyncType
                         -> (obj list * (modality * asyncType) list * obj list * (monadObj list -> spine) *)
       fun decompAtomic (lr, ty) =
@@ -292,7 +277,7 @@ fun decomposeAtomic (lr, ctx : context, ty) =
           | (PBang NONE, TBang A) => ([(Context.INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
           | (PBang (SOME x), TBang A) =>
               let
-                val X = newLVarCtx (getIntCtx ()) A
+                val X = newLVarCtx (SOME Context.emptyCtx) A
               in
                 ([], fn _ (* = [] *) => Bang' X, Bang' X)
               end
@@ -306,11 +291,6 @@ fun decomposeAtomic (lr, ctx : context, ty) =
                       -> ((modality * asyncType) list * (monadObj list -> spine) * syncType *)
 fun decomposeMonadic (lr, ctx : context, ty) =
     let
-      val intCtx = ref (SOME Context.emptyCtx) (* NONE *)
-      fun getIntCtx () = case !intCtx of
-                           SOME G => SOME G
-                         | NONE => ( intCtx := (SOME $ Context.sparseList2ctx $ List.map (fn (k,x,(ty,_),m)=>(k,x,ty,m)) (OpSemCtx.depPart ctx)) ; getIntCtx () )
-
       (* decompMonadic : lr list * asyncType
                          -> ((modality * asyncType) list * (monadObj list -> spine) * syncType *)
       fun decompMonadic (lr, ty) =
@@ -369,7 +349,7 @@ fun decomposeMonadic (lr, ctx : context, ty) =
           | (PBang NONE, TBang A) => ([(Context.INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
           | (PBang (SOME x), TBang A) =>
               let
-                val X = newLVarCtx (getIntCtx ()) A
+                val X = newLVarCtx (SOME Context.emptyCtx) A
               in
                 ([], fn _ (* = [] *) => Bang' X, Bang' X)
               end
@@ -383,11 +363,6 @@ fun decomposeMonadic (lr, ctx : context, ty) =
                    -> ((modality * asyncType) list * (monadObj list -> monadObj) *)
 fun decomposeSync (ctx : context, sty) =
     let
-      val intCtx = ref (SOME Context.emptyCtx) (* NONE *)
-      fun getIntCtx () = case !intCtx of
-                           SOME G => SOME G
-                         | NONE => ( intCtx := (SOME $ Context.sparseList2ctx $ List.map (fn (k,x,(ty,_),m)=>(k,x,ty,m)) (OpSemCtx.depPart ctx)) ; getIntCtx () )
-
       (* decompSync : pattern * syncType
                       -> ((modality * asyncType) list * (monadObj list -> monadObj) * monadObj *)
       fun decompSync (p, sty) =
@@ -413,7 +388,7 @@ fun decomposeSync (ctx : context, sty) =
           | (PBang NONE, TBang A) => ([(Context.INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
           | (PBang (SOME x), TBang A) =>
               let
-                val X = newLVarCtx (getIntCtx ()) A
+                val X = newLVarCtx (SOME Context.emptyCtx) A
               in
                 ([], fn _ (* = [] *) => Bang' X, Bang' X)
               end
@@ -536,21 +511,22 @@ and matchAtom' (consumeAll, ctx, P, sc) =
                                        ; leftFocus (lr, consumeAll, ctx', P', A, fn (S, ctxo) =>
                                                                                     sc ((* dummyObj *) Atomic' (h, S), ctxo)) )
       fun matchSig (c, lr, A) = fn () => BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
-      fun matchCtx [] = []
-        | matchCtx ((k, x, (A, hds), modality) :: t) =
+      fun matchCtx _ [] = []
+        | matchCtx diff ((k, x, (A, hds), modality) :: t) =
           if hds = nil orelse #2 (List.hd hds) <> HdAtom(aP) andalso List.tl hds = nil
-          then matchCtx t
+          then matchCtx diff t
           else
             let
-              val A' = TClos (A, Subst.shift k)
-              val h = Var (modality, k)
+              val k' = k+diff
+              val A' = TClos (A, Subst.shift k')
+              val h = Var (modality, k')
               val validHds = List.filter (fn (_, HdAtom a) => a=aP | _ => false) hds
-              val candidates = List.map (fn (lr, _) => (fn () => BackTrack.backtrack (lFocus (OpSemCtx.removeHyp (ctx, k, modality), lr, A', h)))) validHds
+              val candidates = List.map (fn (lr, _) => (fn () => BackTrack.backtrack (lFocus (OpSemCtx.removeHyp (ctx, k', modality), lr, A', h)))) validHds
             in
-              candidates @ matchCtx t
+              candidates @ matchCtx diff t
             end
-      val ctxlist = OpSemCtx.nonDepPart ctx
-      val available = matchCtx ctxlist
+      val (diff, ctxlist) = OpSemCtx.nonDepPart ctx
+      val available = matchCtx diff ctxlist
     (*
      val ctxLength = List.length ctxlist
      val () = totalCtxLength := !totalCtxLength+ctxLength
@@ -608,20 +584,22 @@ and matchAtomEmpty' (consumeAll, ctx, P, sc) =
           | _ => raise Fail "Internal error: family not empty?"
 
       (* TODO: check the signature and additive conjunctions *)
-      fun matchCtx [] = ()
-        | matchCtx ((k, x, (A, [(_, HdAtom h)]), modality) :: t) =
+      fun matchCtx _ [] = ()
+        | matchCtx diff ((k, x, (A, [(_, HdAtom h)]), modality) :: t) =
           if head = h
           then
             let
-              val A' = TClos (A, Subst.shift k)
-              val h = Var (modality, k)
+              val k' = diff+k
+              val A' = TClos (A, Subst.shift k')
+              val h = Var (modality, k')
             in
-              tryHyp (A', h, k, modality)
-            ; matchCtx t
+              tryHyp (A', h, k', modality)
+            ; matchCtx diff t
             end
-          else matchCtx t
+          else matchCtx diff t
+      val (diff, ctxlist) = OpSemCtx.nonDepPart ctx
     in
-      matchCtx (OpSemCtx.nonDepPart ctx)
+      matchCtx diff ctxlist
     end
 (* forwardStep : context
  *                -> (context *
@@ -654,34 +632,36 @@ and forwardStep (ctx : context) =
                           NONE => "(none)... "
                         | SOME (c, NONE) => "("^c^")... "
                         | SOME (c, SOME a) => "("^c^", "^a^")... "
-            val () = if !traceSolve >= 2
-                     then print ("checking goalPattern for "^c^gpStr)
-                     else ()
-            val b = matchCtxGoalPattern (ctx, gP)
+            (* val () = if !traceSolve >= 2 *)
+            (*          then print ("checking goalPattern for "^c^gpStr) *)
+            (*          else () *)
+            (* val b = matchCtxGoalPattern (ctx, gP) *)
           in
-            if b
+            if true (* b *)
             then
               [ fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))]
             else []
           end
 
-      fun matchCtx [] = []
-        | matchCtx ((k, x, (A, hds), modality) :: t) =
+      fun matchCtx _ [] = []
+        | matchCtx diff ((k, x, (A, hds), modality) :: t) =
           let
-            val ctx' = OpSemCtx.removeHyp (ctx, k, modality)
-            val A' = TClos (A, Subst.shift k)
+            val k' = diff + k
+            val A' = TClos (A, Subst.shift k')
+            val ctx' = OpSemCtx.removeHyp (ctx, k', modality)
           in
             List.mapPartial
               (fn (_, HdAtom _) => NONE
                 | (lr, HdMonad) =>
                   SOME (fn () =>
                            BackTrack.backtrackC
-                             (mlFocus (ctx', lr, A', Var (modality, k)))))
+                             (mlFocus (ctx', lr, A', Var (modality, k')))))
               hds
-              @ matchCtx t
+              @ matchCtx diff t
           end
 
-      val candidates1 = matchCtx (OpSemCtx.nonDepPart ctx) (* Not needed if there are no forward-chaining embedded clauses *)
+      val (diff, ctxlist) = OpSemCtx.nonDepPart ctx
+      val candidates1 = matchCtx diff ctxlist (* Not needed if there are no forward-chaining embedded clauses *)
       val candidates2 = map matchSig (getCandMonad ())
       val candidates = candidates1 @ List.concat candidates2
 

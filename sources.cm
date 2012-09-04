@@ -3,6 +3,9 @@ $/basis.cm
 $/ml-yacc-lib.cm
 $/smlnj-lib.cm
 
+Binarymap/Binarymap.sig
+Binarymap/Binarymap.sml
+
 TopLevelUtil.sml
 RandomAccessList.sig
 RandomAccessList.sml
