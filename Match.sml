@@ -193,9 +193,10 @@ fun match (ob1, ob2) sc =
 
 fun matchList (obs1, obs2) sc =
     let
-      fun matchList' obs1 obs2 sc = List.foldr (fn (ob, r) => fn () => match ob r) sc (ListPair.zip (obs1, obs2))
+      fun match' (ob1, ob2) = matchObj (normalizeObj ob1, normalizeObj ob2)
     in
-      matchList' obs1 obs2 sc ()
+      ( List.app match' (ListPair.zip (obs1, obs2)) ; sc () )
+      handle ExnMatch _ => ()
     end
 
 end
