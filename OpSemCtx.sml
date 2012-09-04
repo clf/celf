@@ -33,34 +33,35 @@ type 'a localvar = int * string * 'a * Context.modality
  * - non-dependent intuitionistic part (all names ""),
  * - dependent intuitionistic part (real names)
  * Internal invariant: each list is ordered by index *)
-type 'a context = int * 'a localvar list * 'a localvar list * 'a localvar list
+type 'a localCtx = (int, string * 'a * Context.modality) dict
+type 'a context = int * 'a localCtx * 'a localCtx * 'a localCtx
 
-fun updatePos f (k, x, a, m) = (f k, x, a, m)
-fun updateValue f (k, x, a, m) = (k, x, f a, m)
-fun getPos (k, _, _, _) = k
-fun getName (_, x, _, _) = x
+fun updatePos f (k, (x, a, m)) = (f k, (x, a, m))
+fun updateValue f (k, (x, a, m)) = (k, (x, f a, m))
+fun getPos (k, _) = k
+fun getName (_, (x, _, _)) = x
 
 (* mergeLVlist : int -> 'a localvar list * 'a localvar list -> 'a localvar list *)
 fun mergeLVlist ([], ys) = ys
   | mergeLVlist (xs, []) = xs
-  | mergeLVlist ((k1, x1, a1, m1) :: xs, (k2, x2, a2, m2) :: ys) =
+  | mergeLVlist ((k1, (x1, a1, m1)) :: xs, (k2, (x2, a2, m2)) :: ys) =
     ( case Int.compare (k1, k2) of
-        LESS => (k1, x1, a1, m1) :: mergeLVlist (xs, (k2, x2, a2, m2) :: ys)
+        LESS => (k1, (x1, a1, m1)) :: mergeLVlist (xs, (k2, (x2, a2, m2)) :: ys)
       | EQUAL => raise Fail "Internal error: invariant broke in mergeLVlist"
-      | GREATER => (k2, x2, a2, m2) :: mergeLVlist ((k1, x1, a1, m1) :: xs, ys)
+      | GREATER => (k2, (x2, a2, m2)) :: mergeLVlist ((k1, (x1, a1, m1)) :: xs, ys)
     )
 
 (* unifyCtx makes one big list merging all parts of the context *)
 fun unifyCtx (diff, lvLin, lvAff, lvNd) =
-    List.foldl mergeLVlist [] [List.map (updatePos (fn k=>k+diff)) lvLin,
-                               List.map (updatePos (fn k=>k+diff)) lvAff,
-                               List.map (updatePos (fn k=>k+diff)) lvNd]
+    List.foldl mergeLVlist [] [List.map (updatePos (fn k=>k+diff)) (listItems lvLin),
+                               List.map (updatePos (fn k=>k+diff)) (listItems lvAff),
+                               List.map (updatePos (fn k=>k+diff)) (listItems lvNd)]
 
 fun linearIndices (diff, lvLin, _, _) =
     let
-      fun mkPos (k, _, _, _) = k+diff
+      fun mkPos (k, _) = k+diff
     in
-      List.map mkPos lvLin
+      List.map mkPos (listItems lvLin)
     end
 
 
@@ -71,19 +72,19 @@ fun linearIndices (diff, lvLin, _, _) =
 fun findNonDep f (diff, lvLin, lvAff, lvNd) =
     let
       fun myFind [] = NONE
-        | myFind ((k, x, a, m) :: ctx) =
+        | myFind ((k, (x, a, m)) :: ctx) =
           if f (k+diff, x, a, m)
           then SOME (k+diff, x, a, m)
           else myFind ctx
     in
-      myFind (lvLin @ lvAff @ lvNd)
+      myFind (listItems lvLin @ listItems lvAff @ listItems lvNd)
     end
 
 
 fun ctx2list (ctx as (diff, _, _, _)) =
     let
       fun trans n [] = []
-        | trans n ((h as (k, x, a, m)) :: t) =
+        | trans n ((h as (k, (x, a, m))) :: t) =
           case Int.compare (n, k) of
             LESS => ("_", NONE, NONE) :: trans (n+1) (h::t)
           | EQUAL => (x, SOME a, SOME m) :: trans (n+1) t
@@ -97,37 +98,35 @@ fun ctx2list (ctx as (diff, _, _, _)) =
     end
 
 
-val emptyCtx = (0, [], [], [])
+fun emptyCtx () =
+    let
+      val e = mkDict Int.compare
+      val _ = numItems e
+    in
+      (0, e, e, e)
+    end
 
-fun ctxIntPart (diff, _, _, lvNd) = (diff, [], [], lvNd)
+fun ctxIntPart (diff, _, _, lvNd) = (diff, mkDict Int.compare, mkDict Int.compare, lvNd)
 
-fun ctxAffPart (diff, _, lvAff, lvNd) = (diff, [], lvAff, lvNd)
+fun ctxAffPart (diff, _, lvAff, lvNd) = (diff, mkDict Int.compare, lvAff, lvNd)
 
 (* removeHyp : 'a context * int * Context.modality -> 'a context *)
 fun removeHyp ((ctx as (diff, lvLin, lvAff, lvNd)), n, m) =
-    let
-      fun lookupNum ([], n) = raise Fail "Internal error: accessing already consumed variable"
-        | lookupNum ((h as (k, x, a, m)) :: ctx, n) =
-          case Int.compare (k+diff, n) of
-            LESS => h :: lookupNum (ctx, n)
-          | EQUAL => ctx
-          | GREATER => h :: ctx
-    in
-      case m of
-        Context.LIN => (diff, lookupNum (lvLin, n), lvAff, lvNd)
-      | Context.AFF => (diff, lvLin, lookupNum (lvAff, n), lvNd)
+    ( case m of
+        Context.LIN => (diff, #1 (remove (lvLin, n-diff)), lvAff, lvNd)
+      | Context.AFF => (diff, lvLin, #1 (remove (lvAff, n-diff)), lvNd)
       | _ => ctx
-    end
+    ) handle NotFound => raise Fail "Internal error: removeHyp"
 
 
 (* ctxPush : string * Context.modality * 'a * 'a context -> 'a context *)
 fun ctxPush (x, m, a, (ctx as (diff, lvLin, lvAff, lvNd))) =
     case m of
-      Context.LIN => (diff+1, ((0-diff), "", a, m) :: lvLin, lvAff, lvNd)
-    | Context.AFF => (diff+1, lvLin, ((0-diff), "", a, m) :: lvAff, lvNd)
+      Context.LIN => (diff+1, insert (lvLin, ~diff, ("", a, m)), lvAff, lvNd)
+    | Context.AFF => (diff+1, lvLin, insert (lvAff, ~diff, ("", a, m)), lvNd)
     | Context.INT =>
       ( case x of
-          NONE =>  (diff+1, lvLin, lvAff, ((0-diff), "", a, m) :: lvNd)
+          NONE =>  (diff+1, lvLin, lvAff, insert (lvNd, ~diff, ("", a, m)))
         | SOME _ => (diff+1, lvLin, lvAff, lvNd) )
 
 (* remNeg : 'a context -> 'a context
@@ -139,10 +138,10 @@ fun remNeg (diff, lvLin, lvAff, lvNd) =
       fun rem [] = []
         | rem (ctx as (k, _, _, _) :: t) = if k+diff < 1 then rem t else ctx
     in
-      (diff, rem lvLin, rem lvAff, rem lvNd)
+      (diff, removeLower (lvLin, 1-diff), removeLower (lvAff, 1-diff), removeLower (lvNd, 1-diff))
     end
 
-fun nonDepPart (diff, lvLin, lvAff, lvNd) = (diff, lvLin @ lvAff @ lvNd)
+fun nonDepPart (diff, lvLin, lvAff, lvNd) = (diff, listItems lvLin @ listItems lvAff @ listItems lvNd)
 
 (* ctxPushList : (string * Context.modality * 'a) list -> 'a context -> 'a context *)
 fun ctxPushList xs ctx = List.foldl (fn ((x, m, a), ctx) => ctxPush (x, m, a, ctx)) ctx xs
@@ -151,45 +150,47 @@ fun ctxPushList xs ctx = List.foldl (fn ((x, m, a), ctx) => ctxPush (x, m, a, ct
 (* ctxPopNum : int -> 'a context -> 'a context *)
 fun ctxPopNum n ((diff, lvLin, lvAff, lvNd) : 'a context) : 'a context =
     let
-      val allLin = null lvLin orelse getPos (List.hd lvLin) + diff >= 1
+      val allLin = numItems lvLin = 0 orelse getPos (min lvLin) + diff >= 1
     in
       if allLin
       then remNeg (diff-n, lvLin, lvAff, lvNd)
-      else raise ExnCtx ("Linear variable "^getName (List.hd lvLin)^" doesn't occur\n")
+      else raise ExnCtx ("Linear variable "^getName (min lvLin)^" doesn't occur\n")
     end
 
 (* ctxPop : 'a context -> 'a context *)
 fun ctxPop ctx = ctxPopNum 1 ctx
 
 fun affIntersect ((diff1, lvLin, lvAff1, lvNd), (diff2, lvAff2, _, _)) =
-    let
-      fun inter ([], _) = []
-        | inter (_, []) = []
-        | inter ((k1, x1, a1, m1) :: t1, (k2, x2, a2, m2) :: t2) =
-          case Int.compare (k1+diff1, k2+diff1) of
-            LESS => inter (t1, (k2, x2, a2, m2) :: t2)
-          | EQUAL => (k1, x1, a1, m1) :: inter (t1, t2)
-          | GREATER => inter ((k1, x1, a1, m1) :: t1, t2)
-    in
-      if diff1 <> diff2 then raise Fail "affIntersect FIX!"
-      else
-        (diff1, lvLin, inter (lvAff1, lvAff2), lvNd)
-    end
+    raise Fail "TODO: affIntersect"
+    (* let *)
+    (*   fun inter ([], _) = [] *)
+    (*     | inter (_, []) = [] *)
+    (*     | inter ((k1, x1, a1, m1) :: t1, (k2, x2, a2, m2) :: t2) = *)
+    (*       case Int.compare (k1+diff1, k2+diff1) of *)
+    (*         LESS => inter (t1, (k2, x2, a2, m2) :: t2) *)
+    (*       | EQUAL => (k1, x1, a1, m1) :: inter (t1, t2) *)
+    (*       | GREATER => inter ((k1, x1, a1, m1) :: t1, t2) *)
+    (* in *)
+    (*   if diff1 <> diff2 then raise Fail "affIntersect FIX!" *)
+    (*   else *)
+    (*     (diff1, lvLin, inter (lvAff1, lvAff2), lvNd) *)
+    (* end *)
 
 fun linearDiff ((diff1, lvLin1, lvAff, lvNd),(diff2, lvLin2, _, _)) =
-    let
-      fun linDiff ([], _) = []
-        | linDiff (_, []) = []
-        | linDiff ((k1, x1, a1, m1) :: t1, (k2, x2, a2, m2) :: t2) =
-          case Int.compare (k1+diff1, k2+diff1) of
-            LESS => (k1, x1, a1, m1) :: linDiff (t1, (k2, x2, a2, m2) :: t2)
-          | EQUAL => linDiff (t1, t2)
-          | GREATER => raise Fail "Internal error: linearDiff"
-    in
-      if diff1 <> diff2 then raise Fail "linearDiff FIX!"
-      else (diff1, linDiff (lvLin1, lvLin2), lvAff, lvNd)
-    end
+    raise Fail "TODO: linearDiff"
+    (* let *)
+    (*   fun linDiff ([], _) = [] *)
+    (*     | linDiff (_, []) = [] *)
+    (*     | linDiff ((k1, x1, a1, m1) :: t1, (k2, x2, a2, m2) :: t2) = *)
+    (*       case Int.compare (k1+diff1, k2+diff1) of *)
+    (*         LESS => (k1, x1, a1, m1) :: linDiff (t1, (k2, x2, a2, m2) :: t2) *)
+    (*       | EQUAL => linDiff (t1, t2) *)
+    (*       | GREATER => raise Fail "Internal error: linearDiff" *)
+    (* in *)
+    (*   if diff1 <> diff2 then raise Fail "linearDiff FIX!" *)
+    (*   else (diff1, linDiff (lvLin1, lvLin2), lvAff, lvNd) *)
+    (* end *)
 
-fun nolin (_, lvLin, _, _) = null lvLin
+fun nolin (_, lvLin, _, _) = numItems lvLin = 0
 
 end

@@ -218,4 +218,27 @@ fun numItems (DICT(_, t)) = treeSize t
       in DICT(cmpKey, a d) end
 (*end*)
 
+    fun min (DICT (cmpKey, d)) =
+        let
+          fun a E = raise NotFound
+            | a (T{key,value,left=E,right,...}) = (key, value)
+            | a (T{key,value,left,right,...}) = a left
+        in
+          a d
+        end
+
+    fun removeLower ((dict as DICT (cmpKey, d)), cut) =
+        let
+          fun listKeys E = []
+            | listKeys (T{key,left,right,...})=key :: listKeys left @ listKeys right
+          fun listLower E = []
+            | listLower (T{key,value,left,right,...}) =
+              case cmpKey (key, cut) of
+                LESS => key :: listKeys left @ listLower right
+              | EQUAL => listKeys left
+              | GREATER => listLower left
+        in
+          List.foldl (fn (k, d) => #1 (remove (d, k))) dict (listLower d)
+        end
+
 end

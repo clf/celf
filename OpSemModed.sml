@@ -512,7 +512,7 @@ and matchAtom' (consumeAll, ctx, P, sc) =
                                                                                     sc ((* dummyObj *) Atomic' (h, S), ctxo)) )
       fun matchSig (c, lr, A) = fn () => BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
       fun matchCtx _ [] = []
-        | matchCtx diff ((k, x, (A, hds), modality) :: t) =
+        | matchCtx diff ((k, (x, (A, hds), modality)) :: t) =
           if hds = nil orelse #2 (List.hd hds) <> HdAtom(aP) andalso List.tl hds = nil
           then matchCtx diff t
           else
@@ -585,7 +585,7 @@ and matchAtomEmpty' (consumeAll, ctx, P, sc) =
 
       (* TODO: check the signature and additive conjunctions *)
       fun matchCtx _ [] = ()
-        | matchCtx diff ((k, x, (A, [(_, HdAtom h)]), modality) :: t) =
+        | matchCtx diff ((k, (x, (A, [(_, HdAtom h)]), modality)) :: t) =
           if head = h
           then
             let
@@ -644,7 +644,7 @@ and forwardStep (ctx : context) =
           end
 
       fun matchCtx _ [] = []
-        | matchCtx diff ((k, x, (A, hds), modality) :: t) =
+        | matchCtx diff ((k, (x, (A, hds), modality)) :: t) =
           let
             val k' = diff + k
             val A' = TClos (A, Subst.shift k')
@@ -807,7 +807,7 @@ and monLeftFocus' (lr, ctx, ty, sc) =
     end
 
 (* solveEC : asyncType * (obj -> unit) -> unit *)
-fun solveEC (ty, sc) = solve (true, OpSemCtx.emptyCtx, ty, sc o #1)
+fun solveEC (ty, sc) = solve (true, OpSemCtx.emptyCtx (), ty, sc o #1)
 
 fun trace printInter limit sty =
     let
@@ -818,7 +818,7 @@ fun trace printInter limit sty =
                    NONE => (count, (OpSemCtx.linearIndices context, context))
                  | SOME (context', _, _) => loop context' (count+1))
     in
-      loop (pushBind (syncType2pat sty, sty) OpSemCtx.emptyCtx) 0
+      loop (pushBind (syncType2pat sty, sty) (OpSemCtx.emptyCtx ())) 0
     end
 
 end

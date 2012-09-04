@@ -21,6 +21,13 @@ val foldl     : ('key * 'a * 'b -> 'b) -> 'b -> ('key,'a) dict -> 'b
 val map       : ('key * 'a -> 'b) -> ('key,'a) dict -> ('key, 'b) dict
 val transform : ('a -> 'b) -> ('key,'a) dict -> ('key, 'b) dict
 
+(* new functions *)
+
+val min       : ('key, 'a) dict -> 'key * 'a
+val removeLower : ('key, 'a) dict * 'key -> ('key, 'a) dict
+
+(* TODO: implement difference and intersection *)
+
 (* 
    [('key, 'a) dict] is the type of applicative maps from domain type
    'key to range type 'a, or equivalently, applicative dictionaries

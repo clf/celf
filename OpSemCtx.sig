@@ -27,7 +27,7 @@ type 'a context
 
 val ctx2list : 'a context -> (string * 'a option * Context.cmodality) list
 
-val emptyCtx : 'a context
+val emptyCtx : unit -> 'a context
 
 val findNonDep : (int * string * 'a * Context.modality -> bool) -> 'a context
                  -> (int * string * 'a * Context.modality) option
@@ -50,7 +50,7 @@ val ctxPushList : (string option * Context.modality * 'a) list -> 'a context -> 
 (* ctxPopNum n repeats ctxPop n times *)
 val ctxPopNum : int -> 'a context -> 'a context
 
-val nonDepPart : 'a context -> int * (int * string * 'a * Context.modality) list
+val nonDepPart : 'a context -> int * (int * (string * 'a * Context.modality)) list
 
 val affIntersect : 'a context * 'a context -> 'a context
 val linearDiff : 'a context * 'a context -> 'a context
