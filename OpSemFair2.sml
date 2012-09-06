@@ -181,8 +181,8 @@ fun linDiff (ctxs : context * context) =
           case Int.compare (n1, n2) of
             LESS => h1 :: lind (t1, ctx2)
           | EQUAL => ( case m1 of
-                         LIN => lind (t1, ctx2)
-                       | _ (* AFF, INT *) => h1 :: lind (t1, ctx2)
+                         LIN => lind (t1, t2)
+                       | _ (* AFF, INT *) => h1 :: lind (t1, t2)
                      )
           | GREATER => raise Fail "Internal error: linDiff 2"
       val (ctx1, ctx2) = (ctx2sparseList (#1 ctxs), ctx2sparseList (#2 ctxs))
