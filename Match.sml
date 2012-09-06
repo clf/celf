@@ -156,12 +156,13 @@ and matchHeadSp (hS1 as (h1, S1), hS2 as (h2, S2)) =
         fun patSub s = Subst.patSub (fn ob => (ob, true)) Eta.etaContract s
         val sinv = case patSub s of
                      NONE => raise Fail "Internal error: not a pattern substitution"
-                   | SOME ([], s') => Subst.invert s'
-                   | SOME (_, _) => raise Fail "Internal error: linear-changing?"
+                   | SOME (p, s') => Subst.invert s'
+                                     (* The linear-changing substitution is irrelevant
+                                      * since it behaves like the identity
+                                      * s = s' o lcis2sub p = (lcis2sub (lcisComp (p, invert s'))) o s'
+                                      * cf. Subst.patSub and Subst.lcisComp *)
       in
         instantiate (r, NfClos (NfAtomic' hS2, sinv), tag)
-        (* Context is needed for typechecking *)
-      ; if not (TypeCheck.isEnabled ()) then ctx := NONE else () (* TODO: check if this is safe *)
       end
     | (_, LogicVar _) => raise Fail "Internal error: ground side contains LVar"
     | _ => raise ExnMatch "matchHeadSp"
