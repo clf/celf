@@ -272,6 +272,7 @@ let
                    then print ("Iteration "^Int.toString (a+1-n)^"\n")
                    else ()
                  ; Timers.time Timers.solving (fn () => OpSem.solveEC (ty, sc)) ()
+		 ; if !solCount = 0 then print ("No solutions found.\n") else ()
                  ; e = SOME (!solCount) orelse runQuery (n-1) )
          in if a = 0 orelse l = SOME 0 
             then print "Ignoring query\n"
