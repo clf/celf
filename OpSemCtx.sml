@@ -161,35 +161,37 @@ fun ctxPopNum n ((diff, lvLin, lvAff, lvNd) : 'a context) : 'a context =
 fun ctxPop ctx = ctxPopNum 1 ctx
 
 fun affIntersect ((diff1, lvLin, lvAff1, lvNd), (diff2, lvAff2, _, _)) =
-    raise Fail "TODO: affIntersect"
-    (* let *)
-    (*   fun inter ([], _) = [] *)
-    (*     | inter (_, []) = [] *)
-    (*     | inter ((k1, x1, a1, m1) :: t1, (k2, x2, a2, m2) :: t2) = *)
-    (*       case Int.compare (k1+diff1, k2+diff1) of *)
-    (*         LESS => inter (t1, (k2, x2, a2, m2) :: t2) *)
-    (*       | EQUAL => (k1, x1, a1, m1) :: inter (t1, t2) *)
-    (*       | GREATER => inter ((k1, x1, a1, m1) :: t1, t2) *)
-    (* in *)
-    (*   if diff1 <> diff2 then raise Fail "affIntersect FIX!" *)
-    (*   else *)
-    (*     (diff1, lvLin, inter (lvAff1, lvAff2), lvNd) *)
-    (* end *)
+    let
+      fun inter ([], _) acc = acc
+        | inter (_, []) acc = acc
+        | inter ((k1, (x1, a1, m1)) :: t1, (k2, (x2, a2, m2)) :: t2) acc =
+          case Int.compare (k1+diff1, k2+diff1) of
+            LESS => inter (t1, (k2, (x2, a2, m2)) :: t2) acc
+          | EQUAL => inter (t1, t2) (insert (acc, k1, (x1, a1, m1)))
+          | GREATER => inter ((k1, (x1, a1, m1)) :: t1, t2) acc
+      val emptyDict = mkDict Int.compare
+    in
+      if diff1 <> diff2 then raise Fail "affIntersect FIX!"
+      else
+        (diff1, lvLin,
+         inter (listItems lvAff1, listItems lvAff2) emptyDict, lvNd)
+    end
 
 fun linearDiff ((diff1, lvLin1, lvAff, lvNd),(diff2, lvLin2, _, _)) =
-    raise Fail "TODO: linearDiff"
-    (* let *)
-    (*   fun linDiff ([], _) = [] *)
-    (*     | linDiff (_, []) = [] *)
-    (*     | linDiff ((k1, x1, a1, m1) :: t1, (k2, x2, a2, m2) :: t2) = *)
-    (*       case Int.compare (k1+diff1, k2+diff1) of *)
-    (*         LESS => (k1, x1, a1, m1) :: linDiff (t1, (k2, x2, a2, m2) :: t2) *)
-    (*       | EQUAL => linDiff (t1, t2) *)
-    (*       | GREATER => raise Fail "Internal error: linearDiff" *)
-    (* in *)
-    (*   if diff1 <> diff2 then raise Fail "linearDiff FIX!" *)
-    (*   else (diff1, linDiff (lvLin1, lvLin2), lvAff, lvNd) *)
-    (* end *)
+    let
+      fun linDiff ([], _) acc = acc
+        | linDiff (_, []) acc = acc
+        | linDiff ((k1, (x1, a1, m1)) :: t1, (k2, (x2, a2, m2)) :: t2) acc =
+          case Int.compare (k1+diff1, k2+diff1) of
+            LESS => linDiff (t1, (k2, (x2, a2, m2)) :: t2)
+                    (insert (acc, k1, (x1, a1, m1)))
+          | EQUAL => linDiff (t1, t2) acc
+          | GREATER => raise Fail "Internal error: linearDiff"
+      val emptyDict = mkDict Int.compare
+    in
+      if diff1 <> diff2 then raise Fail "linearDiff FIX!"
+      else (diff1, linDiff (listItems lvLin1, listItems lvLin2) emptyDict, lvAff, lvNd)
+    end
 
 fun nolin (_, lvLin, _, _) = numItems lvLin = 0
 
