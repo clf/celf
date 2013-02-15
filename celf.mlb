@@ -28,6 +28,9 @@ celf.lex.sml
 celf.grm.sml
 RemDepend.sig
 RemDepend.sml
+Table.sig
+RedBlackTree.fun
+Table.sml
 PrettyPrint.sig
 PrettyPrint.sml
 PatternBind.sig

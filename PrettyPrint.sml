@@ -24,6 +24,7 @@ struct
 open Syntax
 
 structure RAList = RandomAccessList
+structure ST = StringRedBlackTree
 
 val printImpl = ref false
 val printLVarCtx = ref 0
@@ -39,14 +40,26 @@ fun paren false x = x
 fun lookup ctx n = RAList.lookup ctx (n-1)
 	handle RAList.Subscript => Int.toString (n - RAList.length ctx)
 
+(* indexTable keeps track of the largest index used to build a variable name *)
+(* indexTable(X) = k means that "X{k+1}" should be a fresh name *)
+val indexTable : int ST.Table = ST.new 0
+
+(* add : string -> string RAList.ralist -> (string, string RAList.ralist *)
+(* add x ctx = (x', ctx') iff
+   - x' = x ^ <number> or x' = X ^ <number>  when x = ""
+   - x' is fresh in ctx
+   - ctx' is obtained by adding x to ctx
+ *)
 fun add x ctx =
-	let fun eq (x : string) y = x=y
-		fun add1 n x =
-			let val tryname = x ^ Int.toString n
-			in if RAList.exists (eq tryname) ctx then add1 (n+1) x
-			else (tryname, RAList.cons tryname ctx) end
-		fun add' x = if RAList.exists (eq x) ctx then add1 1 (x^"_") else (x, RAList.cons x ctx)
-	in if x="" then add1 1 "X" else add' x end
+    let
+      fun fresh x = x ^ Int.toString (case ST.lookup indexTable x of
+                                        NONE => (ST.insert indexTable (x, 1); 1)
+                                      | SOME n => (ST.insert indexTable (x, n+1); n+1))
+      fun tryAdd x = if RAList.exists (fn y => x=y) ctx then fresh (x^"_") else x
+      val varName = if x="" then fresh "X" else tryAdd x
+    in
+      (varName, RAList.cons varName ctx)
+    end
 
 fun addNoOccur ctx = RAList.cons "? Error ?" ctx
 
