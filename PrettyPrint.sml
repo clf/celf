@@ -195,10 +195,13 @@ val printType = String.concat o (pType [] false)
 val printTypeInCtx = fn ctx => String.concat o (pType (RandomAccessList.fromList ctx) false)
 val printSyncType = String.concat o (pSyncType [] false)
 val printObj = String.concat o (pObj [] false)
+val printObjInCtx = fn ctx => String.concat o (pObj (RandomAccessList.fromList ctx) false)
 val printMonadObj = String.concat o (pMonadObj [] false)
 
 fun printPreType ty = ( noSkip := true; printType ty before noSkip := false )
 fun printPreObj ob = ( noSkip := true; printObj ob before noSkip := false )
+fun printPreObjInCtx ctx ob = 
+  ( noSkip := true; printObjInCtx ctx ob before noSkip := false )
 
 
 end

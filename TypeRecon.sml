@@ -300,7 +300,7 @@ let
                print ("Trace "
                       ^(case count of NONE => "*" | SOME i => Int.toString i)
                       ^" "^PrettyPrint.printSyncType sty^"\n")
-            val (count', _) = OpSem.trace true count sty
+            val (count', _) = OpSem.trace count sty
          in
             if not (isSome count) orelse count = SOME count'
             then print ("Success: "^Int.toString count'^" steps\n")
@@ -316,11 +316,10 @@ let
                print ("Exec "
                       ^(case count of NONE => "*" | SOME i => Int.toString i)
                       ^" "^PrettyPrint.printSyncType sty^"\n")
-            val (count', context) = OpSem.trace false count sty
+            val (count', context) = OpSem.exec count sty
          in
             if not (isSome count) orelse count = SOME count'
-            then ( OpSem.printCtx context
-                 ; print ("Success: "^Int.toString count'^" steps\n"))
+            then ( print ("Success: "^Int.toString count'^" steps\n"))
             else ( print ("Exec failed, expected "^Int.toString (valOf count)
                           ^" steps but only "^Int.toString count'
                           ^" taken\n")

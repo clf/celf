@@ -34,5 +34,6 @@ val printMonadObj : Syntax.monadObj -> string
 
 val printPreType : Syntax.asyncType -> string
 val printPreObj : Syntax.obj -> string
+val printPreObjInCtx : string list -> Syntax.obj -> string
 
 end
