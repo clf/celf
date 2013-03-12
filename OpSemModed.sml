@@ -28,6 +28,7 @@ open SignaturTable
 val traceSolve = ref 0
 val allowConstr = ref false
 val debugForwardChaining = ref false
+val mlFocusCounter = ref 0
 
 val fcLimit = ref NONE : int option ref
 
@@ -610,6 +611,7 @@ and forwardStep (ctx : context) =
       fun mlFocus (ctx', lr, A, h) =
        fn commitExn =>
           ( traceLeftFocus (h, A)
+          ; mlFocusCounter := !mlFocusCounter + 1
           ; monLeftFocus (lr, ctx', A,
                        fn (S, sty, ctxo) => raise commitExn ((h, S), sty, ctxo))
           )
@@ -706,6 +708,7 @@ and forwardChain (fcLim, consumeAll, ctx, S, sc) =
 and forwardChain' (fcLim, currIter, consumeAll, ctx, numNewBinds, eps, S, sc) =
     let
       val () = TextIO.outputSubstr (TextIO.stdErr, Substring.full ("\rIteration: "^Int.toString currIter))
+      val () = TextIO.outputSubstr (TextIO.stdErr, Substring.full ("  mlFocus: "^Int.toString (!mlFocusCounter)))
       fun foldLet [] E = E
         | foldLet ((p, N) :: eps) E = foldLet eps (Let' (p, N, E))
     in
@@ -807,7 +810,9 @@ and monLeftFocus' (lr, ctx, ty, sc) =
     end
 
 (* solveEC : asyncType * (obj -> unit) -> unit *)
-fun solveEC (ty, sc) = solve (true, OpSemCtx.emptyCtx (), ty, sc o #1)
+fun solveEC (ty, sc) = ( mlFocusCounter := 0
+                       ; solve (true, OpSemCtx.emptyCtx (), ty, sc o #1)
+                       )
 
 fun trace printInter limit sty =
     let
