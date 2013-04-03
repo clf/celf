@@ -108,23 +108,31 @@ in
          else optionalItem x @ prepCtx (lcontext, i+1, xs)
 end
 
-and printCtx (lcontext, context) = 
+(* ctxToString : context -> (judgment list * name list) *) 
+and ctxToString (lcontext, context) = 
 let 
    (* XXX PERF - Pretty terrible (quadratic at least) -rjs 2012-03-29 *)
    fun rename [] = []
-     | rename ((item as (x, _, _)) :: context) = 
+     | rename ((item as (x, jdg, modality)) :: context) = 
        let
           val context' = rename context 
           fun inlist z = List.exists (fn (y,_,_) => z = y) context'
           fun loop x i = 
              if inlist (x^"_"^Int.toString i) 
              then loop x (i+1) else (x^"_"^Int.toString i)
+          val x' = if x = "" then "x" else x
        in 
-          if x = "" then item :: context'
-          else if inlist x then (loop x 1, #2 item, #3 item) :: context'
-          else item :: context'
+          if inlist x' then (loop x' 1, jdg, modality) :: context'
+          else (x', jdg, modality) :: context'
        end
+   val renamedContext = rename (Context.ctx2list context)
+   val printableCtx = rev (prepCtx (lcontext, 1, renamedContext))
+in
+  (printableCtx, map (#1) renamedContext)
+end
 
+
+(* XXX *)
    fun layout n [] = print "(nothing)\n"
      | layout n [ x ] = 
           if n + size x > 80 then print ("\n   "^x^"\n") else print (x^"\n")
@@ -132,11 +140,6 @@ let
           if n + size x + 2 > 80
           then (print ("\n   "^x^", "); layout (size x + 5) xs)
           else (print (x^", "); layout (n + size x + 2) xs)
-
-   val printableCtx = prepCtx (lcontext, 1, rename (Context.ctx2list context))
-in
-   print "-- "; layout 3 (rev printableCtx)
-end
 
 
 
@@ -509,14 +512,47 @@ and monLeftFocus' (lr, ctx, ty, sc) = case Util.typePrjAbbrev ty of
 (* solveEC : asyncType * (obj -> unit) -> unit *)
 fun solveEC (ty, sc) = solve (([], emptyCtx), ty, sc o #1)
 
-fun trace printInter limit sty = 
+
+fun exec limit sty =
+let
+  fun loop context count =
+    if limit = SOME count then (count, context) else
+      case forwardStep context of
+           NONE => (count, context)
+         | SOME (context', _, _) => loop context' (count+1)
+  val (count, context') = 
+   loop (pBind (syncType2pat sty, sty) ([], Context.emptyCtx)) 0
+  (* Print the context *)
+  val (ctxStrings, ctxNames) = ctxToString context'
+  val () = print "\n-- "
+  val () = layout 3 ctxStrings
+  val () = print "\n--------------\n"
+in
+  (count, context')
+end
+
+(* TODO print initial context, here or in TypeRecon *)
+fun trace limit sty = 
 let
    fun loop context count = 
-    ( if printInter then (printCtx context) else () 
-    ; if limit = SOME count then (count, context)
-      else case forwardStep context of 
+     if limit = SOME count then (count, context) else
+          case forwardStep context of 
               NONE => (count, context)
-            | SOME (context', _, _) => loop context' (count+1))
+            | SOME (context', _, (pat, pat_type, atomic_term)) => 
+                (* Print out the epsilon *)
+                let
+                  val (ctxStrings, ctxNames) = ctxToString context'
+                  val () = print "\nPATTERN TYPE:\n"
+                  val () = print (PrettyPrint.printSyncType pat_type)
+                  val () = print "\nAtomic term:\n"
+                  val () = print 
+                    (PrettyPrint.printPreObjInCtx ctxNames (Syntax.Atomic' atomic_term))
+                  val () = print "\n-- "
+                  val () = layout 3 ctxStrings
+                  val () = print "\n--------------\n"
+                in (* Continue *)
+                  loop context' (count+1)
+                end
 in
    loop (pBind (syncType2pat sty, sty) ([], Context.emptyCtx)) 0
 end
