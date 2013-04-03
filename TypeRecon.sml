@@ -21,6 +21,8 @@ signature TLU_TypeRecon = TOP_LEVEL_UTIL
 structure TypeRecon :> TYPERECON =
 struct
 
+val printgf = ref false
+
 open Syntax
 
 (* mapKiTy : (kind -> kind) -> (asyncType -> asyncType) -> typeOrKind -> typeOrKind *)
@@ -218,10 +220,16 @@ let
    val () = 
       case dec of
          ConstDecl (id, imps, kity) =>
-          ( print (id^": ")
-          ; appKiTy (print o PrettyPrint.printKind)
-               (print o PrettyPrint.printType) kity
-          ; print ".\n"
+          (if (!printgf) then 
+	         ( print "[GF:"
+		 ; print (id^": ")
+	         ; appKiTy (print o GFPrint.printKind)
+		      (print o GFPrint.printType) kity
+		 ; print "].\n")
+	    else (print (id^": ")
+	         ; appKiTy (print o PrettyPrint.printKind)
+		      (print o PrettyPrint.printType) kity
+	         ; print ".\n") 
           ; if TypeCheck.isEnabled () 
             then
                appKiTy TypeCheck.checkKindEC
