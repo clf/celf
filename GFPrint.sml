@@ -18,7 +18,7 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
-signature TLU_PrettyPrint = TOP_LEVEL_UTIL
+signature TLU_GFPrint = TOP_LEVEL_UTIL
 structure GFPrint :> PRETTYPRINT =
 struct
 

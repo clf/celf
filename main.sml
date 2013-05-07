@@ -50,10 +50,6 @@ fun parseArgs args =
        ( print "printImpl := true\n"
        ; PrettyPrint.printImpl := true
        ; parseArgs args )
-    | "-pgf"::args =>
-       ( print "printGF := true\n"
-       ; TypeRecon.printgf := true
-       ; parseArgs args )
     | "-pc1"::args =>
        ( print "printLVarCtx := 1\n"
        ; PrettyPrint.printLVarCtx := 1
