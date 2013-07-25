@@ -542,14 +542,24 @@ let
                 (* Print out the epsilon *)
                 let
                   val (ctxStrings, ctxNames) = ctxToString context'
+                  (* Chris & Rob printing out extra information
+                   * trying to get the actual epsilon instead of the types
+                   * (Added in 9ccfb8c8143b4f0f429322f913cb1cdfffd1eab5, 
+                   * removed July 25, 2013. -rjs)
                   val () = print "\nPATTERN TYPE:\n"
                   val () = print (PrettyPrint.printSyncType pat_type)
                   val () = print "\nAtomic term:\n"
                   val () = print 
-                    (PrettyPrint.printPreObjInCtx ctxNames (Syntax.Atomic' atomic_term))
-                  val () = print "\n-- "
+                    (PrettyPrint.printPreObjInCtx ctxNames
+                       (Syntax.Atomic' atomic_term))
+                  val () = print "\n"
+                  *)
+                  val () = print "-- "
                   val () = layout 3 ctxStrings
+                  (* Complementary to printing out extra infomration
+                   * trying to get the actual epsilon instead of the types -rjs
                   val () = print "\n--------------\n"
+                  *)
                 in (* Continue *)
                   loop context' (count+1)
                 end
