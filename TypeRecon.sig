@@ -20,6 +20,8 @@
 signature TYPERECON =
 sig
 
+val printgf : bool ref  (* might have to be moved someplace else --cs *)
+
 exception ReconError of (Syntax.declError * string) * (int * Syntax.decl)
 exception QueryFailed of int
 val reconstructDecl : int * Syntax.decl -> unit

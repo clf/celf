@@ -814,7 +814,7 @@ fun solveEC (ty, sc) = ( mlFocusCounter := 0
                        ; solve (true, OpSemCtx.emptyCtx (), ty, sc o #1)
                        )
 
-fun trace printInter limit sty =
+fun traceOrExec printInter limit sty =
     let
       fun loop (context : context) count : int * (lcontext * context) =
           ( if printInter then (printCtx ([], context)) else ()
@@ -826,4 +826,9 @@ fun trace printInter limit sty =
       loop (pushBind (syncType2pat sty, sty) (OpSemCtx.emptyCtx ())) 0
     end
 
+
+val trace = traceOrExec true
+val exec = traceOrExec false
+
 end
+

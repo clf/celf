@@ -24,16 +24,16 @@ esusp: eval D (var Dx) * susp Dx E -o
 esusp1: retn Dx V * cont Dx (\!x. x) D -o
          { retn D V * !bind Dx V }.
 
-#query * 1 * 1 
-   Pi d. eval d (app (lam \!x. app x x) (lam \!x. x)) -o 
-    { Exists e. retn d e }.
+% #query * 1 * 1 
+%    Pi d. eval d (app (lam \!x. app x x) (lam \!x. x)) -o 
+%    { Exists e. retn d e }.
 
 #trace 10 Exists d. eval d (app (lam \!x. app x x) (lam \!y. y)).
 
-#exec 11 Exists d. eval d (app (lam \!x. app x x) (lam \!y. y)).
+% #exec 11 Exists d. eval d (app (lam \!x. app x x) (lam \!y. y)).
 
-#exec * Exists d. eval d (app (lam \!x. app x x) (lam \!y. y)).
+% #exec * Exists d. eval d (app (lam \!x. app x x) (lam \!y. y)).
 
-#trace 20 Exists d. eval d (app (lam \!x. app x x) (lam \!y. app y y)).
+% #trace 20 Exists d. eval d (app (lam \!x. app x x) (lam \!y. app y y)).
 
-#exec 200 Exists d. eval d (app (lam \!x. app x x) (lam \!y. app y y)).
+% #exec 200 Exists d. eval d (app (lam \!x. app x x) (lam \!y. app y y)).

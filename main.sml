@@ -31,6 +31,13 @@ structure ClfParser =
 
 val helpMsg = ref false
 
+(* XXX Note: this bool only controls whether timing information is
+ * actually *reported*. Whatever the performance hit for tracking
+ * this timing information is, we're still paying it. -rjs July 25,
+ * 2013. *)
+ 
+val printtiming = ref false
+
 fun parseArgs args = 
    case args of
       [] => []
@@ -49,6 +56,10 @@ fun parseArgs args =
     | "-pi"::args =>
        ( print "printImpl := true\n"
        ; PrettyPrint.printImpl := true
+       ; parseArgs args )
+    | "-pgf"::args =>
+       ( print "printGF := true\n"
+       ; TypeRecon.printgf := true
        ; parseArgs args )
     | "-pc1"::args =>
        ( print "printLVarCtx := 1\n"
@@ -101,6 +112,10 @@ fun parseArgs args =
        ( print "allowConstr := true\n"
        ; OpSem.allowConstr := true
        ; parseArgs args )
+    | "-time"::args => 
+       ( print "printtiming := true\n"
+       ; printtiming := true
+       ; parseArgs args)
     | "-h"::args =>
        ( print "Commandline: celf <options> <filename>\n\
                \Available options:\n\
@@ -111,6 +126,7 @@ fun parseArgs args =
                \ -ac     : allow leftover constraints in proof search\n\
                \ -pi     : print implicit arguments\n\
                \ -pcL    : print logicvar contexts (L = 1 or 2)\n\
+               \ -time   : print timing information at the end\n\
                \ -ta     : trace approximate type reconstruction\n\
                \ -te     : trace eta expansion\n\
                \ -tt     : trace exact type reconstruction\n\
@@ -162,7 +178,8 @@ in
               \  To see command-line options:  celf -h\n\n\
               \No files given; exiting.\n" 
    else app reader files
- ; Timers.show () ; OS.Process.success)
+ ; if !printtiming then Timers.show () else () 
+ ; OS.Process.success)
 end
 
 (* Regression testing infrastructure; invoked from celfMain if the first

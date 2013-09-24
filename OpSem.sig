@@ -36,10 +36,8 @@ type lcontext
 
 val solveEC : Syntax.asyncType * (Syntax.obj -> unit) -> unit
 
-(* Pretty-print the intermediate contexts *)
-val printCtx : lcontext * context -> unit
-
 (* Runs the trace, optionally printing out intermediate steps *)
-val trace : bool -> int option -> Syntax.syncType -> int * (lcontext * context)
+val trace : int option -> Syntax.syncType -> int * (lcontext * context)
+val exec :  int option -> Syntax.syncType -> int * (lcontext * context)
 
 end

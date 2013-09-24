@@ -23,7 +23,7 @@ struct
 
 open Syntax
 open Context
-(* open PatternBind *)
+open PatternBind
 open SignaturTable
 
 val traceSolve = ref 0
@@ -96,46 +96,49 @@ fun prepCtx (lcontext, i, context) =
         | mandatoryItem (varname, data, SOME modality) =
           (* Linear things are the only ones required to be in the context *)
           raise Fail "Invariant: Only linear things should be required!"
-    in
-      case (lcontext, context) of
-        ([], []) => []
-      | ([], x :: xs) => optionalItem x @ prepCtx (lcontext, i+1, xs)
-      | (j :: js, []) => [] (* raise Fail "Invariant: lcontext doesn't match context" *)
-      | (j :: js, x :: xs) =>
-        if j < i then raise Fail "Invariant: j < i should be impossible"
-        else if j = i then mandatoryItem x @ prepCtx (js, i+1, xs)
-        else optionalItem x @ prepCtx (lcontext, i+1, xs)
-    end
+in
+   case (lcontext, context) of
+      ([], []) => [] 
+    | ([], x :: xs) => optionalItem x @ prepCtx (lcontext, i+1, xs)
+    | (j :: js, []) => raise Fail "Invariant: lcontext doesn't match context"
+    | (j :: js, x :: xs) =>
+         if j < i then raise Fail "Invariant: j < i should be impossible"
+         else if j = i then mandatoryItem x @ prepCtx (js, i+1, xs) 
+         else optionalItem x @ prepCtx (lcontext, i+1, xs)
+end
 
-and printCtx (lcontext, context) =
-    let
-      (* XXX PERF - Pretty terrible (quadratic at least) -rjs 2012-03-29 *)
-      fun rename [] = []
-        | rename ((item as (x, _, _)) :: context) =
-          let
-            val context' = rename context
-            fun inlist z = List.exists (fn (y,_,_) => z = y) context'
-            fun loop x i =
-                if inlist (x^"_"^Int.toString i)
-                then loop x (i+1) else (x^"_"^Int.toString i)
-          in
-            if x = "" then item :: context'
-            else if inlist x then (loop x 1, #2 item, #3 item) :: context'
-            else item :: context'
-          end
+(* ctxToString : context -> (judgment list * name list) *) 
+and ctxToString (lcontext, context) = 
+let 
+   (* XXX PERF - Pretty terrible (quadratic at least) -rjs 2012-03-29 *)
+   fun rename [] = []
+     | rename ((item as (x, jdg, modality)) :: context) = 
+       let
+          val context' = rename context 
+          fun inlist z = List.exists (fn (y,_,_) => z = y) context'
+          fun loop x i = 
+             if inlist (x^"_"^Int.toString i) 
+             then loop x (i+1) else (x^"_"^Int.toString i)
+          val x' = if x = "" then "x" else x
+       in 
+          if inlist x' then (loop x' 1, jdg, modality) :: context'
+          else (x', jdg, modality) :: context'
+       end
+   val renamedContext = rename (Context.ctx2list context)
+   val printableCtx = rev (prepCtx (lcontext, 1, renamedContext))
+in
+  (printableCtx, map (#1) renamedContext)
+end
 
-      fun layout n [] = print "(nothing)\n"
-        | layout n [ x ] =
+
+(* XXX *)
+   fun layout n [] = print "(nothing)\n"
+     | layout n [ x ] = 
           if n + size x > 80 then print ("\n   "^x^"\n") else print (x^"\n")
         | layout n (x :: xs) =
           if n + size x + 2 > 80
           then (print ("\n   "^x^", "); layout (size x + 5) xs)
           else (print (x^", "); layout (n + size x + 2) xs)
-
-      val printableCtx = prepCtx (lcontext, 1, rename (Context.ctx2list context))
-    in
-      print "-- "; layout 3 (rev printableCtx)
-    end
 
 
 
@@ -152,6 +155,8 @@ fun bind2list (p, sty) : (string * modality * headedType) list =
     | (PBang (SOME x), TBang A) => [(x, INT, (A, []))]
     | _ => raise Fail "Internal error: bind2list"
 
+val pBindCtx = depPatBind {dep = fn A => (A, []), nodep = fn A => (A, heads A)}
+
 fun pBindLCtx p l =
     let
       fun bind (n, p, l) =
@@ -165,6 +170,9 @@ fun pBindLCtx p l =
 
 fun pushBind (p, sty) (l, ctx) =
     (pBindLCtx p l, ctxPushList (bind2list (p, sty)) ctx)
+
+fun pBind (p, sty) (l, ctx) = (pBindLCtx p l, pBindCtx (p, sty) ctx)
+
 
 
 (* linDiff : context * context -> (lcontext, context) *)
@@ -568,16 +576,58 @@ and monLeftFocus' (lr, ctx, ty, sc) =
 (* solveEC : asyncType * (obj -> unit) -> unit *)
 fun solveEC (ty, sc) = solve (([], emptyCtx), ty, sc o #1)
 
-fun trace printInter limit sty =
-    let
-      fun loop context count =
-          ( if printInter then (printCtx context) else ()
-          ; if limit = SOME count then (count, context)
-            else case forwardStep context of
-                   NONE => (count, context)
-                 | SOME (context', _, _) => loop context' (count+1))
-    in
-      loop (pushBind (syncType2pat sty, sty) ([], Context.emptyCtx)) 0
-    end
+fun exec limit sty =
+let
+  fun loop context count =
+    if limit = SOME count then (count, context) else
+      case forwardStep context of
+           NONE => (count, context)
+         | SOME (context', _, _) => loop context' (count+1)
+  val (count, context') = 
+   loop (pBind (syncType2pat sty, sty) ([], Context.emptyCtx)) 0
+  (* Print the context *)
+  val (ctxStrings, ctxNames) = ctxToString context'
+  val () = print "\n-- "
+  val () = layout 3 ctxStrings
+  val () = print "\n--------------\n"
+in
+  (count, context')
+end
+
+(* TODO print initial context, here or in TypeRecon *)
+fun trace limit sty = 
+let
+   fun loop context count = 
+     if limit = SOME count then (count, context) else
+          case forwardStep context of 
+              NONE => (count, context)
+            | SOME (context', _, (pat, pat_type, atomic_term)) => 
+                (* Print out the epsilon *)
+                let
+                  val (ctxStrings, ctxNames) = ctxToString context'
+                  (* Chris & Rob printing out extra information
+                   * trying to get the actual epsilon instead of the types
+                   * (Added in 9ccfb8c8143b4f0f429322f913cb1cdfffd1eab5, 
+                   * removed July 25, 2013. -rjs)
+                  val () = print "\nPATTERN TYPE:\n"
+                  val () = print (PrettyPrint.printSyncType pat_type)
+                  val () = print "\nAtomic term:\n"
+                  val () = print 
+                    (PrettyPrint.printPreObjInCtx ctxNames
+                       (Syntax.Atomic' atomic_term))
+                  val () = print "\n"
+                  *)
+                  val () = print "-- "
+                  val () = layout 3 ctxStrings
+                  (* Complementary to printing out extra infomration
+                   * trying to get the actual epsilon instead of the types -rjs
+                  val () = print "\n--------------\n"
+                  *)
+                in (* Continue *)
+                  loop context' (count+1)
+                end
+in
+   loop (pBind (syncType2pat sty, sty) ([], Context.emptyCtx)) 0
+end
 
 end

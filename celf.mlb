@@ -35,6 +35,7 @@ RedBlackTree.fun
 Table.sml
 PrettyPrint.sig
 PrettyPrint.sml
+GFPrint.sml
 PatternBind.sig
 PatternBind.sml
 ImplicitVars.sig

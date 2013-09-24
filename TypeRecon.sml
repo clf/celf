@@ -21,6 +21,8 @@ signature TLU_TypeRecon = TOP_LEVEL_UTIL
 structure TypeRecon :> TYPERECON =
 struct
 
+val printgf = ref false
+
 open Syntax
 
 (* mapKiTy : (kind -> kind) -> (asyncType -> asyncType) -> typeOrKind -> typeOrKind *)
@@ -239,154 +241,159 @@ fun reconstructDecl (ldec as (_, dec)) =
             end
           | _ => ()
 
-      val () =
-          case dec of
-            ConstDecl (id, imps, kity) =>
-            ( print (id^": ")
-            ; appKiTy (print o PrettyPrint.printKind)
-                      (print o PrettyPrint.printType) kity
-            ; print ".\n"
-            ; if TypeCheck.isEnabled ()
-              then
-                appKiTy TypeCheck.checkKindEC
-                        TypeCheck.checkTypeEC kity
-              else () )
-          | TypeAbbrev (id, ty) =>
-            ( print (id^": Type = "^(PrettyPrint.printType ty)^".\n")
-            ; if TypeCheck.isEnabled () then TypeCheck.checkTypeEC ty else () )
-          | ObjAbbrev (id, ty, ob) =>
-            ( print (id^": "^(PrettyPrint.printType ty)
-                     ^" = "^(PrettyPrint.printObj ob)^".\n")
-            ; if TypeCheck.isEnabled () then TypeCheck.checkObjEC (ob, ty)
-              else () )
+   val () = 
+      case dec of
+         ConstDecl (id, imps, kity) =>
+          (if (!printgf) then 
+	         ( print "[GF:"
+		 ; print (id^": ")
+	         ; appKiTy (print o GFPrint.printKind)
+		      (print o GFPrint.printType) kity
+		 ; print "].\n")
+	    else (print (id^": ")
+	         ; appKiTy (print o PrettyPrint.printKind)
+		      (print o PrettyPrint.printType) kity
+	         ; print ".\n") 
+          ; if TypeCheck.isEnabled () 
+            then
+               appKiTy TypeCheck.checkKindEC
+                  TypeCheck.checkTypeEC kity
+            else () )
+       | TypeAbbrev (id, ty) =>
+          ( print (id^": Type = "^(PrettyPrint.printType ty)^".\n")
+          ; if TypeCheck.isEnabled () then TypeCheck.checkTypeEC ty else () )
+       | ObjAbbrev (id, ty, ob) =>
+          ( print (id^": "^(PrettyPrint.printType ty)
+                   ^" = "^(PrettyPrint.printObj ob)^".\n")
+          ; if TypeCheck.isEnabled () then TypeCheck.checkObjEC (ob, ty) 
+            else () )
 
-          | Mode (id, implmd, md) => Timers.time Timers.modes (fn () => checkModeDecl (id, implmd, md)) ()
+       | Mode (id, implmd, md) => Timers.time Timers.modes (fn () => checkModeDecl (id, implmd, md)) ()
 
-          (* Add empty families declaration *)
-          | Empty id => ( print ("#empty "^id^".\n")
-                        ; Signatur.addEmptyDecl id )
+       (* Add empty families declaration *)
+       | Empty id => ( print ("#empty "^id^".\n")
+                     ; Signatur.addEmptyDecl id )
 
-          | Query (opsem, d, e, l, a, ty) =>
-            (* d : let-depth-bound * = inf
-             * e : expected number of solutions * = ?
-             * l : number of solutions to look for * = inf
-             * a : number of times to execute the query
-             *)
-            let fun n2str (SOME n) = Int.toString n
-                  | n2str NONE = "*"
-                (*            val () = print ("Query ("^n2str d^", "^n2str e^", "^n2str l^", "
+       | Query (opsem, d, e, l, a, ty) =>
+         (* d : let-depth-bound * = inf
+          * e : expected number of solutions * = ?
+          * l : number of solutions to look for * = inf
+          * a : number of times to execute the query
+          *)
+         let fun n2str (SOME n) = Int.toString n
+               | n2str NONE = "*"
+             (*            val () = print ("Query ("^n2str d^", "^n2str e^", "^n2str l^", "
                                               ^Int.toString a^") "^PrettyPrint.printType ty^".\n")
-                 *)
-                val (implty, lvars) = ImplicitVarsConvert.convUCVars2LogicVarsType ty
-                fun printInst (x, ob) =
-                    print (" #"^x^" = "^PrettyPrint.printObj ob^"\n")
-                exception stopSearchExn
-                val solCount = ref 0
-                fun scUnif N = if Unify.constrsSolvable N
-                               then
-                                 ( print ("Solution: "^PrettyPrint.printObj N^"\n")
-                                 ; app printInst lvars
-                                 ; solCount := !solCount + 1
-                                 ; if TypeCheck.isEnabled ()
-                                   then (print "Double checking object type... "
-                                       ; TypeCheck.checkObjEC (N, implty)
-                                       ; print "done") else ()
-                                 ; if l = SOME (!solCount)
-                                   then raise stopSearchExn else () )
-                               else ()
-                fun runQueryUnif 0 = false
-                  | runQueryUnif n =
-                    ( solCount := 0
-                    ; if a > 1
-                      then print ("Iteration "^Int.toString (a+1-n)^"\n")
-                      else ()
-                    ; Timers.time Timers.solving (fn () => OpSem.solveEC (implty, scUnif)) ()
-                    ; e = SOME (!solCount) orelse runQueryUnif (n-1) )
-                fun scMatch N = ( (* print ("Solution: "^PrettyPrint.printObj N^"\n") *)
-                                (* ;  *)app printInst lvars
-                                ; solCount := !solCount + 1
-                                ; if TypeCheck.isEnabled ()
-                                   then (print "Double checking object type... "
-                                       ; TypeCheck.checkObjEC (N, implty)
-                                       ; print "done") else ()
-                                ; if l = SOME (!solCount)
-                                  then raise stopSearchExn
-                                  else () )
-                fun runQueryMatch 0 = false
-                  | runQueryMatch n =
-                    ( solCount := 0
-                    ; if a > 1
-                      then print ("Iteration "^Int.toString (a+1-n)^"\n")
-                      else ()
-                    ; Timers.time Timers.solving (fn () => OpSemModed.solveEC (implty, scMatch)) ()
-                    ; e = SOME (!solCount) orelse runQueryMatch (n-1) )
-                val (runQuery, fcLimit) = case opsem of
-                                            OpSemUnif => (runQueryUnif, OpSem.fcLimit)
-                                          | OpSemMatch => (runQueryMatch, OpSemModed.fcLimit)
-                val () = fcLimit := d
-                (* TODO: check that query is a goal. The code below does not work because the mode
-                 * checker does not handle UCVar's (ImplicitVars) present in queries. They should be
-                 * treated as existentials *)
-                (* fun isGoal ty = ((ModeCheck.modeCheckGoal (normalizeType ty); true) *)
-                (*                  handle ModeCheck.ModeCheckError _ => false) *)
-                fun isGoal _ = true
-            in
-              if a = 0 orelse l = SOME 0
-              then print "Ignoring query\n"
-              else if a >= 2 andalso isSome l
-              then raise ExnDeclError (GeneralErr,
-                                       "Malformed query (D,E,L,A): A>1 and L<>*\n\
-                                       \Should not do simultaneous monad and\
-                                       \ backtrack exploration\n")
-              else if isSome e andalso isSome l andalso valOf e >= valOf l
-              then raise ExnDeclError (GeneralErr,
-                                       "Malformed query (D,E,L,A): E>=L\n\
-                                       \Uncheckable since expected number of\
-                                       \ solutions is\ngreater than the number of\
-                                       \ solutions to look for\n")
-              else if opsem = OpSemMatch andalso not (isGoal ty)
-              then raise ExnDeclError (GeneralErr, "Goal is not well moded\n")
-              else if (runQuery a handle stopSearchExn => false)
-              then print "Query ok.\n"
-              else if isSome e
-              then
-                ( print "Query failed\n"
+              *)
+             val (implty, lvars) = ImplicitVarsConvert.convUCVars2LogicVarsType ty
+             fun printInst (x, ob) =
+                 print (" #"^x^" = "^PrettyPrint.printObj ob^"\n")
+             exception stopSearchExn
+             val solCount = ref 0
+             fun scUnif N = if Unify.constrsSolvable N
+                            then
+                              ( print ("Solution: "^PrettyPrint.printObj N^"\n")
+                              ; app printInst lvars
+                              ; solCount := !solCount + 1
+                              ; if TypeCheck.isEnabled ()
+                                then (print "Double checking object type... "
+                                     ; TypeCheck.checkObjEC (N, implty)
+                                     ; print "done") else ()
+                              ; if l = SOME (!solCount)
+                                then raise stopSearchExn else () )
+                            else ()
+             fun runQueryUnif 0 = false
+               | runQueryUnif n =
+                 ( solCount := 0
+                 ; if a > 1
+                   then print ("Iteration "^Int.toString (a+1-n)^"\n")
+                   else ()
+                 ; Timers.time Timers.solving (fn () => OpSem.solveEC (implty, scUnif)) ()
+                 ; e = SOME (!solCount) orelse runQueryUnif (n-1) )
+             fun scMatch N = ( (* print ("Solution: "^PrettyPrint.printObj N^"\n") *)
+               (* ;  *)app printInst lvars
+                     ; solCount := !solCount + 1
+                     ; if TypeCheck.isEnabled ()
+                       then (print "Double checking object type... "
+                            ; TypeCheck.checkObjEC (N, implty)
+                            ; print "done") else ()
+                     ; if l = SOME (!solCount)
+                       then raise stopSearchExn
+                       else () )
+             fun runQueryMatch 0 = false
+               | runQueryMatch n =
+                 ( solCount := 0
+                 ; if a > 1
+                   then print ("Iteration "^Int.toString (a+1-n)^"\n")
+                   else ()
+                 ; Timers.time Timers.solving (fn () => OpSemModed.solveEC (implty, scMatch)) ()
+                 ; e = SOME (!solCount) orelse runQueryMatch (n-1) )
+             val (runQuery, fcLimit) = case opsem of
+                                           OpSemUnif => (runQueryUnif, OpSem.fcLimit)
+                                         | OpSemMatch => (runQueryMatch, OpSemModed.fcLimit)
+             val () = fcLimit := d
+             (* TODO: check that query is a goal. The code below does not work because the mode
+              * checker does not handle UCVar's (ImplicitVars) present in queries. They should be
+              * treated as existentials *)
+             (* fun isGoal ty = ((ModeCheck.modeCheckGoal (normalizeType ty); true) *)
+             (*                  handle ModeCheck.ModeCheckError _ => false) *)
+             fun isGoal _ = true
+         in
+           if a = 0 orelse l = SOME 0
+           then print "Ignoring query\n"
+           else if a >= 2 andalso isSome l
+           then raise ExnDeclError (GeneralErr,
+                                    "Malformed query (D,E,L,A): A>1 and L<>*\n\
+                                    \Should not do simultaneous monad and\
+                                    \ backtrack exploration\n")
+           else if isSome e andalso isSome l andalso valOf e >= valOf l
+           then raise ExnDeclError (GeneralErr,
+                                    "Malformed query (D,E,L,A): E>=L\n\
+                                    \Uncheckable since expected number of\
+                                    \ solutions is\ngreater than the number of\
+                                    \ solutions to look for\n")
+           else if opsem = OpSemMatch andalso not (isGoal ty)
+           then raise ExnDeclError (GeneralErr, "Goal is not well moded\n")
+           else if (runQuery a handle stopSearchExn => false)
+           then print "Query ok.\n"
+           else if isSome e
+           then
+             ( print "Query failed\n"
+             ; raise QueryFailed (#1 ldec))
+           else ()
+         end
+
+       | Trace (count, sty) =>
+         let
+           val () =
+               print ("Trace "
+                      ^(case count of NONE => "*" | SOME i => Int.toString i)
+                      ^" "^PrettyPrint.printSyncType sty^"\n")
+           val (count', _) = OpSem.trace count sty
+         in
+           if not (isSome count) orelse count = SOME count'
+           then print ("Success: "^Int.toString count'^" steps\n")
+           else ( print ("Trace failed, expected "^Int.toString (valOf count)
+                         ^" steps but only "^Int.toString count'
+                         ^" taken\n")
                 ; raise QueryFailed (#1 ldec))
-              else ()
-            end
+         end
 
-          | Trace (count, sty) =>
-            let
-              val () =
-                  print ("Trace "
-                         ^(case count of NONE => "*" | SOME i => Int.toString i)
-                         ^" "^PrettyPrint.printSyncType sty^"\n")
-              val (count', _) = OpSemModed.trace true count sty
-            in
-              if not (isSome count) orelse count = SOME count'
-              then print ("Success: "^Int.toString count'^" steps\n")
-              else ( print ("Trace failed, expected "^Int.toString (valOf count)
-                            ^" steps but only "^Int.toString count'
-                            ^" taken\n")
-                   ; raise QueryFailed (#1 ldec))
-            end
-
-          | Exec (count, sty) =>
-            let
-              val () =
-                  print ("Exec "
-                         ^(case count of NONE => "*" | SOME i => Int.toString i)
-                         ^" "^PrettyPrint.printSyncType sty^"\n")
-              val (count', context) = OpSemModed.trace false count sty
-            in
-              if not (isSome count) orelse count = SOME count'
-              then ( OpSemModed.printCtx context
-                   ; print ("Success: "^Int.toString count'^" steps\n"))
-              else ( print ("Exec failed, expected "^Int.toString (valOf count)
-                            ^" steps but only "^Int.toString count'
-                            ^" taken\n")
-                   ; raise QueryFailed (#1 ldec))
-            end
+       | Exec (count, sty) =>
+         let
+           val () =
+               print ("Exec "
+                      ^(case count of NONE => "*" | SOME i => Int.toString i)
+                      ^" "^PrettyPrint.printSyncType sty^"\n")
+           val (count', context) = OpSem.exec count sty
+         in
+           if not (isSome count) orelse count = SOME count'
+           then ( print ("Success: "^Int.toString count'^" steps\n"))
+           else ( print ("Exec failed, expected "^Int.toString (valOf count)
+                         ^" steps but only "^Int.toString count'
+                         ^" taken\n")
+                ; raise QueryFailed (#1 ldec))
+         end
 
       val () = if isDirective dec then ()
                else Signatur.sigAddDecl dec
