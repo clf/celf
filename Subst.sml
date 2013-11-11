@@ -307,24 +307,24 @@ struct
 	 *    (AFF4LIN, n) in p => G_n is AFF and G'_n is LIN
 	 *)
 	fun patSub checkExists etaContract s' =
-		let exception ExnPatSub
-			fun etaContr N = case checkExists N of
-				  (_, false) => raise ExnPatSub
-				| (N', true) => etaContract ExnPatSub N'
-			val p = ref []
-			fun add (n : int, l) = if List.exists (fn i => i=n) l then raise ExnPatSub else n::l
-			fun ps (m, _, s as Shift n) = if m <= n then s else raise ExnPatSub
-			  | ps (m, l, Dot (Undef, s)) = Dot (Undef, ps (m, l, s))
-			  | ps (m, l, Dot (Idx (ID, n), s)) =
-					Dot (Idx (ID, n), ps (Int.max (m, n), add (n, l), s))
-			  | ps (m, l, Dot (Idx (M, n), s)) =
-					( p := (M, n) :: !p
-					; ps (m, l, Dot (Idx (ID, n), s)) )
-			  | ps (m, l, Dot (Ob (M, N), s)) =
-					let val N' = Idx (map1 (modeInvDiv M) $ etaContr N)
-								handle ExnUndef => Undef
-					in ps (m, l, Dot (N', s)) end
-		in SOME $ (fn s => (qsort2 (!p), s)) $ ps (0, [], s') handle ExnPatSub => NONE end
+	    let exception ExnPatSub
+		fun etaContr N = case checkExists N of
+				     (_, false) => raise ExnPatSub
+				   | (N', true) => etaContract ExnPatSub N'
+		val p = ref []
+		fun add (n : int, l) = if List.exists (fn i => i=n) l then raise ExnPatSub else n::l
+		fun ps (m, _, s as Shift n) = if m <= n then s else raise ExnPatSub
+		  | ps (m, l, Dot (Undef, s)) = Dot (Undef, ps (m, l, s))
+		  | ps (m, l, Dot (Idx (ID, n), s)) =
+		    Dot (Idx (ID, n), ps (Int.max (m, n), add (n, l), s))
+		  | ps (m, l, Dot (Idx (M, n), s)) =
+		    ( p := (M, n) :: !p
+		    ; ps (m, l, Dot (Idx (ID, n), s)) )
+		  | ps (m, l, Dot (Ob (M, N), s)) =
+		    let val N' = Idx (map1 (modeInvDiv M) $ etaContr N)
+				 handle ExnUndef => Undef
+		    in ps (m, l, Dot (N', s)) end
+	    in SOME $ (fn s => (qsort2 (!p), s)) $ ps (0, [], s') handle ExnPatSub => NONE end
 
 	(* lcisComp : lciSub * pat_Subst -> lciSub *)
 	(* Composition for lciSubs; undefs are removed.  Satisfies the following:

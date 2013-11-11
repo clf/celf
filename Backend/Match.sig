@@ -22,10 +22,8 @@ sig
 
 val outputMatch : bool ref
 
-(* val instantiate : Syntax.nfObj option VRef.vref * Syntax.nfObj * word -> unit *)
+val match : InternalSyntax.object * InternalSyntax.object -> (unit -> unit) -> unit
 
-val match : Syntax.obj * Syntax.obj -> (unit -> unit) -> unit
-
-val matchList : Syntax.obj list * Syntax.obj list -> (unit -> unit) -> unit
+val matchList : InternalSyntax.object list * InternalSyntax.object list -> (unit -> unit) -> unit
 
 end

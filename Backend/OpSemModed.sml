@@ -1,4 +1,4 @@
-(*  Celf
+ (*  Celf
  *  Copyright (C) 2008 Anders Schack-Nielsen and Carsten Schürmann
  *
  *  This file is part of Celf.
@@ -18,12 +18,14 @@
  *)
 
 signature TLU_OpSemModed = TOP_LEVEL_UTIL
-structure OpSemModed :> OPSEM =
+structure OpSemModed =
 struct
 
-open Syntax
+open InternalSyntax
+structure ISubst = InternalSubst
 (* open PatternBind *)
-open SignaturTable
+(* open Signature *)
+
 
 val traceSolve = ref 0
 val allowConstr = ref false
@@ -32,10 +34,10 @@ val mlFocusCounter = ref 0
 
 val fcLimit = ref NONE : int option ref
 
-val dummyObj : obj = LLam' (POne', Monad' (Mon' One'))
-val dummyMonadObj : monadObj = One'
-val dummyExpObj : expObj = Mon' One'
-val dummySpine : spine = LApp' (One', Nil')
+val dummyObj : object = LLam (POne, Monad (Let ([], One)))
+val dummyMonadObj : monadObj = One
+val dummyExpObj : expObj = Let ([], One)
+val dummySpine : spine = LApp (One, Nil)
 
 (* The type 'context' represents input and output contexts and the type
  * 'lcontext' represents the part of the input context that has to occur
@@ -59,33 +61,33 @@ type lcontext = int list (* must-occur context: list of indices *)
  * gone. -rjs 2012-03-29 *)
 fun prepCtx (lcontext, i, context) =
     let
-      fun modalityStr Context.INT = "pers"
-        | modalityStr Context.AFF = "aff"
-        | modalityStr Context.LIN = "lin"
+      fun modalityStr INT = "pers"
+        | modalityStr AFF = "aff"
+        | modalityStr LIN = "lin"
 
       (* What is this "stuff"? The rest of the file indicates they're
        * some sort of oracle-y thing? -rjs 2012-03-29 *)
-      fun dataStr (asyncType: Syntax.asyncType,
-                   stuff: (SignaturTable.lr list * SignaturTable.headType) list) =
+      fun dataStr (asyncType(* : asyncType *),
+                   stuff(* : (SignaturTable.lr list * SignaturTable.headType) list *)) =
           let
             (* XXX PERF we do this over and over, quadratic *)
             val context' = map #1 (tl context)
           in
-            PrettyPrint.printTypeInCtx context' asyncType
+            PrettyPrinting.printTypeInCtx context' (InternalSubst.normalizeType asyncType)
           end
 
       fun optionalItem (varname, NONE, NONE) =
           [] (* Item removed from ctx *)
-        | optionalItem (varname, SOME data, SOME Context.LIN) =
+        | optionalItem (varname, SOME data, SOME LIN) =
           (* If we are just reporting the intermediate contexts from
            * forward chaining, it should be the case that everything in
            * the context is required to be in the output context: the
            * more interesting case for "maybe used" contexts should only
            * arise during backward chaining proof search, I think. -rjs 2012-03-29 *)
           [ dataStr data^" surprised that this happened!!!" ]
-        | optionalItem (varname, SOME data, SOME Context.AFF) =
+        | optionalItem (varname, SOME data, SOME AFF) =
           [ dataStr data^" aff" ]
-        | optionalItem (varname, SOME data, SOME Context.INT) =
+        | optionalItem (varname, SOME data, SOME INT) =
           (* This seemed to work on the simple examples - is it really
            * as simple as saying that the variable-stuff has names and
            * the resource-stuff has a varname of emptystring? It's
@@ -95,7 +97,7 @@ fun prepCtx (lcontext, i, context) =
 
       fun mandatoryItem pos (varname, NONE, NONE) =
           raise Fail "Invariant: mandatory item cannot also be removed from context!"
-        | mandatoryItem pos (varname, SOME data, SOME Context.LIN) =
+        | mandatoryItem pos (varname, SOME data, SOME LIN) =
           [ Int.toString pos^": "^dataStr data^" lin" ]
         | mandatoryItem pos (varname, SOME data, SOME modality) =
           (* Linear things are the only ones required to be in the context *)
@@ -147,13 +149,13 @@ fun matchCtxGoalPattern (_, NONE) = true
   | matchCtxGoalPattern (ctx : context, SOME (c, arg)) =
     let
       fun matchType ty =
-          case AsyncType.prj ty of
+          case ty of
             TAtomic (c', S) =>
             if c = c'
             then
-              ( case (arg, TypeSpine.prj S) of
+              ( case (arg, S) of
                   (SOME constr, TApp (N, _)) =>
-                  ( case Obj.prj N of
+                  ( case N of
                       Atomic (Const constr', _) => constr = constr'
                     | _ => false )
                 | (NONE, _) => true
@@ -164,7 +166,7 @@ fun matchCtxGoalPattern (_, NONE) = true
       case OpSemCtx.findNonDep (fn (_, _, (ty, _), _) => matchType ty) ctx of
         SOME (_, id, (ty, _), _) =>
         ( if !traceSolve >= 2
-          then print ("found "^id^": "^PrettyPrint.printType ty^"\n")
+          then print ("found "^id^": "^PrettyPrinting.printType ty^"\n")
           else ()
         ; true )
       | NONE =>
@@ -176,15 +178,15 @@ fun matchCtxGoalPattern (_, NONE) = true
 
 
 (* bind2list : pattern * syncType -> (string * modality * headedType) list *)
-fun bind2list (p, sty) : (string option * Context.modality * headedType) list =
-    case (Pattern.prj p, SyncType.prj sty) of
+fun bind2list (p, sty) : (string option * modality * headedType) list =
+    case (p, sty) of
       (PDepTensor (p1, p2), LExists (p1', S1, S2)) =>
-      bind2list (Util.patternAddDep (p1, p1'), S1) @ bind2list (p2, S2)
+      bind2list (patternAddDep (p1, p1'), S1) @ bind2list (p2, S2)
     | (POne, TOne) => []
-    | (PDown x, TDown A) => [(NONE, Context.LIN, (A, heads A))]
-    | (PAffi x, TAffi A) => [(NONE, Context.AFF, (A, heads A))]
-    | (PBang NONE, TBang A) => [(NONE, Context.INT, (A, heads A))]
-    | (PBang (SOME x), TBang A) => [(SOME x, Context.INT, (A, []))]
+    | (PDown x, TDown A) => [(NONE, LIN, (A, heads A))]
+    | (PAffi x, TAffi A) => [(NONE, AFF, (A, heads A))]
+    | (PBang NONE, TBang A) => [(NONE, INT, (A, heads A))]
+    | (PBang (SOME x), TBang A) => [(SOME x, INT, (A, []))]
     | _ => raise Fail "Internal error: bind2list"
 
 fun pushBind (p, sty) ctx : context = OpSemCtx.ctxPushList (bind2list (p, sty)) ctx
@@ -193,7 +195,7 @@ fun pushBind (p, sty) ctx : context = OpSemCtx.ctxPushList (bind2list (p, sty)) 
 (* partitionArgs : string * typeSpine -> obj list * obj list *)
 fun partitionArgs (a, S) =
     let
-      fun partArgs (S, md) = case (TypeSpine.prj S, md) of
+      fun partArgs (S, md) = case (S, md) of
                                (TNil, []) => ([], [])
                              | (TApp (N, S'), m :: md') =>
                                let
@@ -205,7 +207,7 @@ fun partitionArgs (a, S) =
                                  | Star => raise Fail "Star should not happen?"
                                end
                              | _ => raise Fail "Internal error: partArgs"
-      val md = case Signatur.getModeDecl a of
+      val md = case Signature.getModeDecl a of
                  SOME x => x
                | NONE => raise Fail (a ^ " should be moded.")
     in
@@ -219,11 +221,11 @@ fun decomposeAtomic (lr, ctx : context, ty) =
       (* decompAtomic : lr list * asyncType
                         -> (obj list * (modality * asyncType) list * obj list * (monadObj list -> spine) *)
       fun decompAtomic (lr, ty) =
-          case Util.typePrjAbbrev ty of
+          case ty of
             TLPi (p, A, B) =>
             let
               val (subgoalsA, mkMonadObj, m) = decompAtomicSync (p, A)
-              val B' = TClos (B, Subst.subM $ normalizeMonadObj m)
+              val B' = ISubst.substType (B, ISubst.mkSubstMonad (m, idSubst))
               val (Sin, subgoalsB, Sout, mkSpine) = decompAtomic (lr, B')
               val numgoalsB = List.length subgoalsB
             in
@@ -232,55 +234,54 @@ fun decomposeAtomic (lr, ctx : context, ty) =
                    let
                      val (objsB, objsA) = partitionAt numgoalsB objs
                    in
-                     LApp' (mkMonadObj objsA, mkSpine objsB)
+                     LApp (mkMonadObj objsA, mkSpine objsB)
                    end))
             end
           | AddProd (A, B) =>
             let
               val (ty', proj) = case List.hd lr of (* Invariant: lr <> [] *)
-                                  L => (A, ProjLeft')
-                                | R => (B, ProjRight')
+                                  L => (A, ProjLeft)
+                                | R => (B, ProjRight)
               val (Sin, subgoals, Sout, mkSpine) = decompAtomic (List.tl lr, ty')
             in
               (Sin, subgoals, Sout, proj o mkSpine)
             end
           | TMonad S => raise Fail "Internal error: decompAtomic applied to monadic hypothesis!"
-          | TAbbrev _ => raise Fail "Internal error: decompAtomic: TAbbrev"
           | P' as TAtomic (a, S) =>
             let
               val (Sin, Sout) = partitionArgs (a, S)
             in
-              (Sin, [], Sout, fn _ (* = [] *) => Nil')
+              (Sin, [], Sout, fn _ (* = [] *) => Nil)
             end
 
       (* decompAtomicSync : pattern * syncType
                             -> ((modality * asyncType) list * (monadObj list -> monadObj) * monadObj *)
       and decompAtomicSync (p, sty) =
-          case (Pattern.prj p, SyncType.prj sty) of
+          case (p, sty) of
             (PDepTensor (p1, p2), LExists (p1', S1, S2)) =>
             let
-              val (subgoals1, mkMonadObj1, m1) = decompAtomicSync (Util.patternAddDep (p1, p1'), S1)
-              val S2' = STClos (S2, Subst.subM $ normalizeMonadObj m1)
+              val (subgoals1, mkMonadObj1, m1) = decompAtomicSync (patternAddDep (p1, p1'), S1)
+              val S2' = ISubst.substSyncType (S2, ISubst.mkSubstMonad (m1, idSubst))
               val (subgoals2, mkMonadObj2, m2) = decompAtomicSync (p2, S2')
               val numgoals1 = List.length subgoals1
               fun mkMonadObj xs =
                   let
                       val (goals1, goals2) = partitionAt numgoals1 xs
                   in
-                    DepPair' (mkMonadObj1 goals1, mkMonadObj2 goals2)
+                    DepPair (mkMonadObj1 goals1, mkMonadObj2 goals2)
                   end
               in
-              (subgoals1 @ subgoals2, mkMonadObj, DepPair' (m1, m2))
+              (subgoals1 @ subgoals2, mkMonadObj, DepPair (m1, m2))
             end
-          | (POne, TOne) => ([], fn _ (* = [] *) => One', One')
-          | (PDown (), TDown A) => ([(Context.LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
-          | (PAffi (), TAffi A) => ([(Context.AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
-          | (PBang NONE, TBang A) => ([(Context.INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
+          | (POne, TOne) => ([], fn _ (* = [] *) => One, One)
+          | (PDown (), TDown A) => ([(LIN, A)], fn Ns (* = [_] *) => Down (List.hd Ns), MonUndef)
+          | (PAffi (), TAffi A) => ([(AFF, A)], fn Ns (* = [_] *) => Affi (List.hd Ns), MonUndef)
+          | (PBang NONE, TBang A) => ([(INT, A)], fn Ns (* = [_] *) => Bang (List.hd Ns), MonUndef)
           | (PBang (SOME x), TBang A) =>
               let
-                val X = newLVarCtx (SOME Context.emptyCtx) A
+                val X = newLVar A
               in
-                ([], fn _ (* = [] *) => Bang' X, Bang' X)
+                ([], fn _ (* = [] *) => Bang X, Bang X)
               end
           | _ => raise Fail "Internal error: decompAtomicSync"
     in
@@ -295,11 +296,11 @@ fun decomposeMonadic (lr, ctx : context, ty) =
       (* decompMonadic : lr list * asyncType
                          -> ((modality * asyncType) list * (monadObj list -> spine) * syncType *)
       fun decompMonadic (lr, ty) =
-          case Util.typePrjAbbrev ty of
+          case ty of
             TLPi (p, A, B) =>
             let
               val (subgoalsA, mkMonadObj, m) = decompMonadicSync (p, A)
-              val B' = TClos (B, Subst.subM $ normalizeMonadObj m)
+              val B' = ISubst.substType (B, ISubst.mkSubstMonad (m, idSubst))
               val (subgoalsB, mkSpine, sty) = decompMonadic (lr, B')
               val numgoalsB = List.length subgoalsB
             in
@@ -308,55 +309,57 @@ fun decomposeMonadic (lr, ctx : context, ty) =
                   let
                     val (objsB, objsA) = partitionAt numgoalsB objs
                   in
-                    LApp' (mkMonadObj objsA, mkSpine objsB)
+                    LApp (mkMonadObj objsA, mkSpine objsB)
                   end
              , sty)
             end
           | AddProd (A, B) =>
             let
               val (ty', proj) = case List.hd lr of (* Invariant: lr <> [] *)
-                                  L => (A, ProjLeft')
-                                | R => (B, ProjRight')
+                                  L => (A, ProjLeft)
+                                | R => (B, ProjRight)
               val (subgoals, mkSpine, sty) = decompMonadic (List.tl lr, ty')
             in
               (subgoals, proj o mkSpine, sty)
             end
-          | TMonad S => ([], fn _ (* [] *) => Nil', S)
-          | TAbbrev _ => raise Fail "Internal error: decompMonadic: TAbbrev"
+          | TMonad S => ([], fn _ (* [] *) => Nil, S)
           | P' as TAtomic _ => raise Fail "Internal error: decompMonadic applied to atomic hypothesis!"
 
       (* decompMonadicSync : pattern * syncType
                              -> ((modality * asyncType) list * (monadObj list -> monadObj) * monadObj *)
       and decompMonadicSync (p, sty) =
-          case (Pattern.prj p, SyncType.prj sty) of
+          case (p, sty) of
             (PDepTensor (p1, p2), LExists (p1', S1, S2)) =>
             let
-              val (subgoals1, mkMonadObj1, m1) = decompMonadicSync (Util.patternAddDep (p1, p1'), S1)
-              val S2' = STClos (S2, Subst.subM $ normalizeMonadObj m1)
+              val (subgoals1, mkMonadObj1, m1) = decompMonadicSync (patternAddDep (p1, p1'), S1)
+              val S2' = ISubst.substSyncType (S2, ISubst.mkSubstMonad (m1, idSubst))
               val (subgoals2, mkMonadObj2, m2) = decompMonadicSync (p2, S2')
               val numgoals1 = List.length subgoals1
               fun mkMonadObj xs =
                   let
                       val (goals1, goals2) = partitionAt numgoals1 xs
                   in
-                    DepPair' (mkMonadObj1 goals1, mkMonadObj2 goals2)
+                    DepPair (mkMonadObj1 goals1, mkMonadObj2 goals2)
                   end
               in
-              (subgoals1 @ subgoals2, mkMonadObj, DepPair' (m1, m2))
+              (subgoals1 @ subgoals2, mkMonadObj, DepPair (m1, m2))
             end
-          | (POne, TOne) => ([], fn _ (* = [] *) => One', One')
-          | (PDown (), TDown A) => ([(Context.LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
-          | (PAffi (), TAffi A) => ([(Context.AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
-          | (PBang NONE, TBang A) => ([(Context.INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
+          | (POne, TOne) => ([], fn _ (* = [] *) => One, One)
+          | (PDown (), TDown A) => ([(LIN, A)], fn Ns (* = [_] *) => Down (List.hd Ns), MonUndef)
+          | (PAffi (), TAffi A) => ([(AFF, A)], fn Ns (* = [_] *) => Affi (List.hd Ns), MonUndef)
+          | (PBang NONE, TBang A) => ([(INT, A)], fn Ns (* = [_] *) => Bang (List.hd Ns), MonUndef)
           | (PBang (SOME x), TBang A) =>
               let
-                val X = newLVarCtx (SOME Context.emptyCtx) A
+                val X = newLVar A
               in
-                ([], fn _ (* = [] *) => Bang' X, Bang' X)
+                ([], fn _ (* = [] *) => Bang X, Bang X)
               end
           | _ => raise Fail "Internal error: decompMonadicSync"
     in
-      decompMonadic (lr, ty)
+    (*   if !traceSolve >= 3 then *)
+    (*     print ("Decompose monadic: " ^ PrettyPrinting.printType ty^"\n") *)
+    (*   else () *)
+    (* ;  *)decompMonadic (lr, ty)
     end
 
 
@@ -367,57 +370,57 @@ fun decomposeSync (ctx : context, sty) =
       (* decompSync : pattern * syncType
                       -> ((modality * asyncType) list * (monadObj list -> monadObj) * monadObj *)
       fun decompSync (p, sty) =
-          case (Pattern.prj p, SyncType.prj sty) of
+          case (p, sty) of
             (PDepTensor (p1, p2), LExists (p1', S1, S2)) =>
             let
-              val (subgoals1, mkMonadObj1, m1) = decompSync (Util.patternAddDep (p1, p1'), S1)
-              val S2' = STClos (S2, Subst.subM $ normalizeMonadObj m1)
+              val (subgoals1, mkMonadObj1, m1) = decompSync (patternAddDep (p1, p1'), S1)
+              val S2' = ISubst.substSyncType (S2, ISubst.mkSubstMonad (m1, idSubst))
               val (subgoals2, mkMonadObj2, m2) = decompSync (p2, S2')
               val numgoals1 = List.length subgoals1
               fun mkMonadObj xs =
                   let
                       val (goals1, goals2) = partitionAt numgoals1 xs
                   in
-                    DepPair' (mkMonadObj1 goals1, mkMonadObj2 goals2)
+                    DepPair (mkMonadObj1 goals1, mkMonadObj2 goals2)
                   end
               in
-              (subgoals1 @ subgoals2, mkMonadObj, DepPair' (m1, m2))
+              (subgoals1 @ subgoals2, mkMonadObj, DepPair (m1, m2))
             end
-          | (POne, TOne) => ([], fn _ (* = [] *) => One', One')
-          | (PDown (), TDown A) => ([(Context.LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
-          | (PAffi (), TAffi A) => ([(Context.AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
-          | (PBang NONE, TBang A) => ([(Context.INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
+          | (POne, TOne) => ([], fn _ (* = [] *) => One, One)
+          | (PDown (), TDown A) => ([(LIN, A)], fn Ns (* = [_] *) => Down (List.hd Ns), MonUndef)
+          | (PAffi (), TAffi A) => ([(AFF, A)], fn Ns (* = [_] *) => Affi (List.hd Ns), MonUndef)
+          | (PBang NONE, TBang A) => ([(INT, A)], fn Ns (* = [_] *) => Bang (List.hd Ns), MonUndef)
           | (PBang (SOME x), TBang A) =>
               let
-                val X = newLVarCtx (SOME Context.emptyCtx) A
+                val X = newLVar A
               in
-                ([], fn _ (* = [] *) => Bang' X, Bang' X)
+                ([], fn _ (* = [] *) => Bang X, Bang X)
               end
           | _ => raise Fail "Internal error: decompSync"
 
       (* decompSync' : syncType
                        -> ((modality * asyncType) list * (monadObj list -> monadObj) * monadObj *)
       fun decompSync' sty =
-          case SyncType.prj sty of
+          case sty of
             LExists (p1, S1, S2) =>
             let
               val (subgoals1, mkMonadObj1, m1) = decompSync (p1, S1)
-              val S2' = STClos (S2, Subst.subM $ normalizeMonadObj m1)
+              val S2' = ISubst.substSyncType (S2, ISubst.mkSubstMonad (m1, idSubst))
               val (subgoals2, mkMonadObj2, m2) = decompSync' S2'
               val numgoals1 = List.length subgoals1
               fun mkMonadObj xs =
                   let
                       val (goals1, goals2) = partitionAt numgoals1 xs
                   in
-                    DepPair' (mkMonadObj1 goals1, mkMonadObj2 goals2)
+                    DepPair (mkMonadObj1 goals1, mkMonadObj2 goals2)
                   end
               in
-              (subgoals1 @ subgoals2, mkMonadObj, DepPair' (m1, m2))
+              (subgoals1 @ subgoals2, mkMonadObj, DepPair (m1, m2))
             end
-          | TOne => ([], fn _ (* = [] *) => One', One')
-          | TDown A => ([(Context.LIN, A)], fn Ns (* = [_] *) => Down' (List.hd Ns), MonUndef')
-          | TAffi A => ([(Context.AFF, A)], fn Ns (* = [_] *) => Affi' (List.hd Ns), MonUndef')
-          | TBang A => ([(Context.INT, A)], fn Ns (* = [_] *) => Bang' (List.hd Ns), MonUndef')
+          | TOne => ([], fn _ (* = [] *) => One, One)
+          | TDown A => ([(LIN, A)], fn Ns (* = [_] *) => Down (List.hd Ns), MonUndef)
+          | TAffi A => ([(AFF, A)], fn Ns (* = [_] *) => Affi (List.hd Ns), MonUndef)
+          | TBang A => ([(INT, A)], fn Ns (* = [_] *) => Bang (List.hd Ns), MonUndef)
 
 
       val (subgoals, mkMonadObj, _) = decompSync' sty
@@ -427,30 +430,32 @@ fun decomposeSync (ctx : context, sty) =
 
 fun traceLeftFocus (h, ty) =
     if !traceSolve >= 2 then
-      print ("Trying "^PrettyPrint.printPreObj (Atomic' (h, Nil'))^
-             " : "^PrettyPrint.printType ty^"\n")
+      ( print ("Trying ")
+      ; print (PrettyPrinting.printPreObj (Atomic (h, Nil))^
+             " : "^PrettyPrinting.printType ty^"\n")
+      )
     else ()
 
 val totalCtxLength = ref 0
 val totalAvailLength = ref 0
 
 fun syncType2pat sty =
-    case SyncType.prj sty of
-      LExists (p, _, S2) => PDepTensor' (p, syncType2pat S2)
-    | TOne => POne'
-    | TDown A => PDown' ()
-    | TAffi A => PAffi' ()
-    | TBang A => PBang' NONE
+    case sty of
+      LExists (p, _, S2) => PDepTensor (p, syncType2pat S2)
+    | TOne => POne
+    | TDown A => PDown ()
+    | TAffi A => PAffi ()
+    | TBang A => PBang NONE
 
 (* solve : bool * context * asyncType * (obj * context -> unit) -> unit *)
 (* Right Inversion : Gamma;Delta => A *)
 fun solve (consumeAll, ctx, ty, sc) =
     ( if !traceSolve >= 3 then
-        print ("Right Invert ("^PrettyPrint.printType ty^")\n")
+        print ("Right Invert ("^PrettyPrinting.printType ty^")\n")
       else ()
     ; solve' (consumeAll, ctx, ty, sc) )
 and solve' (consumeAll, ctx, ty, sc) =
-    case Util.typePrjAbbrev ty of
+    case ty of
       TLPi (p, S, A) => solve (consumeAll, pushBind (p, S) ctx, A,
                             (* The pattern p is a type pattern, which means that
                              * it only names dependent variables. We need to create
@@ -458,25 +463,24 @@ and solve' (consumeAll, ctx, ty, sc) =
                              * variables; Util.patternT2O does this. *)
                             fn (N, ctxo) =>
                                let
-                                 val p' = Util.patternT2O p
+                                 val p' = patternTypeToObj p
                                in
-                                 sc ((* dummyObj *) LLam' (p', N), OpSemCtx.ctxPopNum (nbinds p') ctxo)
+                                 sc ((* dummyObj *) LLam (p', N), OpSemCtx.ctxPopNum (numBinds p') ctxo)
                                end)
     | AddProd (A, B) =>
       if consumeAll
       then
         solve (true, ctx, A, fn (N1, ctxo1) =>
         solve (true, ctx, B, fn (N2, ctxo2) =>
-        sc ((* dummyObj *) AddPair' (N1, N2), OpSemCtx.affIntersect(ctxo1, ctxo2))))
+        sc ((* dummyObj *) AddPair (N1, N2), OpSemCtx.affIntersect(ctxo1, ctxo2))))
       else
         solve (false, ctx, A, fn (N1, ctxo1) =>
         solve (true, OpSemCtx.linearDiff (ctx, ctxo1), B, fn (N2, ctxo2) =>
-        sc ((* dummyObj *) AddPair' (N1, N2), OpSemCtx.affIntersect(ctxo1, ctxo2))))
-    | TMonad S => forwardChain (!fcLimit, consumeAll, ctx, S, fn (E, ctxo) => sc ((* dummyObj *) Monad' E, ctxo))
-    | P as TAtomic (a, _) => if Signatur.hasEmptyDecl a
+        sc ((* dummyObj *) AddPair (N1, N2), OpSemCtx.affIntersect(ctxo1, ctxo2))))
+    | TMonad S => forwardChain (!fcLimit, consumeAll, ctx, S, fn (E, ctxo) => sc ((* dummyObj *) Monad E, ctxo))
+    | P as TAtomic (a, _) => if Signature.isPosAtom a
                              then matchAtomEmpty (consumeAll, ctx, P, sc)
                              else matchAtom (consumeAll, ctx, P, sc)
-    | TAbbrev _ => raise Fail "Internal error: solve: TAbbrev"
 
 
 (* solveList : bool * context -> asyncType list -> (obj list * ctx -> unit) *)
@@ -487,9 +491,9 @@ and solveList (consumeAll, ctx) [] sc =
   | solveList (consumeAll, ctx) ((md, G)::gs) sc =
     let
       val filterCtx = case md of
-                        Context.LIN => (fn x => x)
-                      | Context.AFF => OpSemCtx.ctxAffPart
-                      | Context.INT => OpSemCtx.ctxIntPart
+                        LIN => (fn x => x)
+                      | AFF => OpSemCtx.ctxAffPart
+                      | INT => OpSemCtx.ctxIntPart
     in
       solve (false, filterCtx ctx, G,
           fn (N, ctx') => solveList (consumeAll, ctx') gs (fn (Ns, ctxo) => sc ((* dummyObj *) N::Ns, ctxo)))
@@ -499,18 +503,18 @@ and solveList (consumeAll, ctx) [] sc =
 (* Choice point: choose hypothesis and switch from Right Inversion to Left Focusing *)
 and matchAtom (consumeAll, ctx, P, sc) =
     ( if !traceSolve >= 2 then
-        print ("Subgoal: MatchAtom ("^PrettyPrint.printType (AsyncType.inj P)^")\n")
+        print ("Subgoal: MatchAtom ("^PrettyPrinting.printType P^")\n")
       else ()
     ; matchAtom' (consumeAll, ctx, P, sc) )
 and matchAtom' (consumeAll, ctx, P, sc) =
     let
       val aP = (case P of TAtomic (a, _) => a
                         | _ => raise Fail "Internal error: wrong argument to matchAtom!")
-      val P' = AsyncType.inj P
+      val P' = P
       fun lFocus (ctx', lr, A, h) = fn () =>
                                        ( traceLeftFocus (h, A)
                                        ; leftFocus (lr, consumeAll, ctx', P', A, fn (S, ctxo) =>
-                                                                                    sc ((* dummyObj *) Atomic' (h, S), ctxo)) )
+                                                                                    sc ((* dummyObj *) Atomic (h, S), ctxo)) )
       fun matchSig (c, lr, A) = fn () => BackTrack.backtrack (lFocus (ctx, lr, A, Const c))
       fun matchCtx _ [] = []
         | matchCtx diff ((k, (x, (A, hds), modality)) :: t) =
@@ -519,7 +523,7 @@ and matchAtom' (consumeAll, ctx, P, sc) =
           else
             let
               val k' = k+diff
-              val A' = TClos (A, Subst.shift k')
+              val A' = ISubst.substType (A, Shift k')
               val h = Var (modality, k')
               val validHds = List.filter (fn (_, HdAtom a) => a=aP | _ => false) hds
               val candidates = List.map (fn (lr, _) => (fn () => BackTrack.backtrack (lFocus (OpSemCtx.removeHyp (ctx, k', modality), lr, A', h)))) validHds
@@ -542,7 +546,7 @@ and matchAtom' (consumeAll, ctx, P, sc) =
                                       (PermuteList.fromList (matchCtx (ctx2list $ #2 ctx, 1) @ map matchSig (getCandAtomic aP)))) ()
        *)
       PermuteList.forAll (fn f => f ())
-                         (PermuteList.fromList (available @ map matchSig (getCandAtomic aP)))
+                         (PermuteList.fromList (available @ map matchSig (Signature.getAtomicCand aP)))
     end
 
 (* matchAtomEmpty : bool * context * asyncType asyncTypeF * (obj * context -> unit) -> unit *)
@@ -550,7 +554,7 @@ and matchAtom' (consumeAll, ctx, P, sc) =
 (* all arguments are negative, so we only have to match the spine *)
 and matchAtomEmpty (consumeAll, ctx, P, sc) =
     ( if !traceSolve >= 2 then
-        print ("Subgoal: MatchAtomEmpty ("^PrettyPrint.printType (AsyncType.inj P)^")\n")
+        print ("Subgoal: MatchAtomEmpty ("^PrettyPrinting.printType P^")\n")
       else ()
     ; matchAtomEmpty' (consumeAll, ctx, P, sc) )
 and matchAtomEmpty' (consumeAll, ctx, P, sc) =
@@ -562,24 +566,25 @@ and matchAtomEmpty' (consumeAll, ctx, P, sc) =
       val () = if null spineIn then () else raise Fail "Internal error: empty families should have only outputs"
 
       fun tryHyp (A, h, k, modality) =
-          case AsyncType.prj A of
+          case A of
             TAtomic (a, S) =>
             let
               val () = if a <> head then raise Fail "Internal error: family error" else ()
               val (Sin, Sout) = partitionArgs (a, S)
               val () = if null Sin then () else raise Fail "Internal error: empty families should have only outputs"
             in
-              BackTrack.backtrack (fn () =>
+              BackTrack.backtrack (fn () => (
+              (* print ("Matching list: " ^ PrettyPrinting.printType A ^ "\n") ; *)
               Match.matchList (spineOut, Sout) (fn () =>
                                          let
                                            val ctx' = OpSemCtx.removeHyp (ctx, k, modality)
                                          in
                                            if consumeAll
                                            then if OpSemCtx.nolin ctx'
-                                                then sc ((* dummyObj *) Atomic' (h, Nil'), ctx')
+                                                then sc ((* dummyObj *) Atomic (h, Nil), ctx')
                                                 else ()
-                                           else sc ((* dummyObj *) Atomic' (h, Nil'), ctx')
-                                         end)
+                                           else sc ((* dummyObj *) Atomic (h, Nil), ctx')
+                                         end) )
               )
             end
           | _ => raise Fail "Internal error: family not empty?"
@@ -591,20 +596,22 @@ and matchAtomEmpty' (consumeAll, ctx, P, sc) =
           then
             let
               val k' = diff+k
-              val A' = TClos (A, Subst.shift k')
+              val A' = ISubst.substType (A, Shift k')
               val h = Var (modality, k')
             in
-              tryHyp (A', h, k', modality)
+              (* print ("Trying: " ^ PrettyPrinting.printType A ^ " shift " ^ Int.toString k' ^ " giving " ^ PrettyPrinting.printType A' ^ "\n") *)
+            (* ;  *)tryHyp (A', h, k', modality)
             ; matchCtx diff t
             end
           else matchCtx diff t
       val (diff, ctxlist) = OpSemCtx.nonDepPart ctx
     in
       matchCtx diff ctxlist
+    (* ; print ("No matching found for " ^ PrettyPrinting.printType P ^ " ...\n") *)
     end
 (* forwardStep : context
  *                -> (context *
- *                    whatever it is that nbinds returns *
+ *                    whatever it is that numBinds returns *
  *                    (pattern * pattern's type * atomicterm)) option *)
 and forwardStep (ctx : context) =
     let
@@ -641,7 +648,9 @@ and forwardStep (ctx : context) =
           in
             if true (* b *)
             then
-              [ fn () => BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))]
+              [ fn () =>
+                   ( (* print ("Trying: " ^ c ^ "\n") *)
+                   (* ;  *)BackTrack.backtrackC (mlFocus (ctx, lr, A, Const c))) ]
             else []
           end
 
@@ -649,7 +658,7 @@ and forwardStep (ctx : context) =
         | matchCtx diff ((k, (x, (A, hds), modality)) :: t) =
           let
             val k' = diff + k
-            val A' = TClos (A, Subst.shift k')
+            val A' = ISubst.substType (A, Shift k')
             val ctx' = OpSemCtx.removeHyp (ctx, k', modality)
           in
             List.mapPartial
@@ -664,7 +673,7 @@ and forwardStep (ctx : context) =
 
       val (diff, ctxlist) = OpSemCtx.nonDepPart ctx
       val candidates1 = matchCtx diff ctxlist (* Not needed if there are no forward-chaining embedded clauses *)
-      val candidates2 = map matchSig (getCandMonad ())
+      val candidates2 = map matchSig (Signature.getMonadicCand ())
       val candidates = candidates1 @ List.concat candidates2
 
       val () =
@@ -689,10 +698,11 @@ and forwardStep (ctx : context) =
       | SOME (N, sty, ctxm) =>
         let
           val p = syncType2pat sty
-          val p' = Util.patternT2O p
+          val p' = patternTypeToObj p
+          (* val () = print ("To commit: " ^ PrettyPrinting.printSyncType sty ^"\n") *)
         in
           SOME ((pushBind (p, sty) $ ctxm),
-                nbinds p,
+                numBinds p,
                 (p', sty, N))
         end
     end
@@ -701,7 +711,7 @@ and forwardStep (ctx : context) =
 (* forwardChain : int option * int * (lcontext * context) * syncType * (expObj * context -> unit) -> unit *)
 and forwardChain (fcLim, consumeAll, ctx, S, sc) =
     ( if !traceSolve >= 2
-      then print ("ForwardChain ("^PrettyPrint.printType (TMonad' S)^")\n")
+      then print ("ForwardChain ("^PrettyPrinting.printType (TMonad S)^")\n")
       else ()
     ; forwardChain' (fcLim, 0, consumeAll, ctx, 0, [], S, sc) )
 
@@ -709,31 +719,29 @@ and forwardChain' (fcLim, currIter, consumeAll, ctx, numNewBinds, eps, S, sc) =
     let
       val () = TextIO.outputSubstr (TextIO.stdErr, Substring.full ("\rIteration: "^Int.toString currIter))
       val () = TextIO.outputSubstr (TextIO.stdErr, Substring.full ("  mlFocus: "^Int.toString (!mlFocusCounter)))
-      fun foldLet [] E = E
-        | foldLet ((p, N) :: eps) E = foldLet eps (Let' (p, N, E))
     in
       if fcLim = SOME 0
       then rightFocus (consumeAll, ctx, S,
-                    fn (M, ctxo) => sc ((* dummyExpObj *) foldLet eps (Mon' M), OpSemCtx.ctxPopNum numNewBinds ctxo))
+                    fn (M, ctxo) => sc ((* dummyExpObj *) Let (eps, M), OpSemCtx.ctxPopNum numNewBinds ctxo))
       else
         (case forwardStep ctx of
            NONE => rightFocus (consumeAll, ctx, S,
-                            fn (M, ctxo) => sc ((* dummyExpObj *) foldLet eps (Mon' M), OpSemCtx.ctxPopNum numNewBinds ctxo))
+                            fn (M, ctxo) => sc ((* dummyExpObj *) Let (eps, M), OpSemCtx.ctxPopNum numNewBinds ctxo))
          | SOME (newctx, newbinds, (p, sty, N)) =>
            let
              val () = if !traceSolve >= 1
                       then print ("Committing:\n   let {_} = "
-                                  ^PrettyPrint.printObj (Atomic' N)
-                                  ^" : {"^PrettyPrint.printSyncType sty^"}\n")
+                                  ^PrettyPrinting.printObj (Atomic N)
+                                  ^" : {"^PrettyPrinting.printSyncType sty^"}\n")
                       else ()
            in
              forwardChain' (Option.map (fn x => x - 1) fcLim,
                             currIter + 1,
                             consumeAll,
                             newctx,
-                            numNewBinds + nbinds p,
+                            numNewBinds + numBinds p,
                             (p, N) :: eps,
-                            STClos (S, Subst.shift $ newbinds),
+                            ISubst.substSyncType (S, Shift newbinds),
                             sc)
            end)
     end
@@ -741,16 +749,16 @@ and forwardChain' (fcLim, currIter, consumeAll, ctx, numNewBinds, eps, S, sc) =
 (* rightFocus : bool * context * monadObj * syncType * (monadObj * context -> unit) -> unit *)
 and rightFocus (consumeAll, ctx, sty, sc) =
     ( if !traceSolve >= 2 then
-        print ("RightFocus ("^PrettyPrint.printType (TMonad' sty)^")\n")
+        print ("RightFocus ("^PrettyPrinting.printType (TMonad sty)^")\n")
       else ()
     ; rightFocus' (consumeAll, ctx, sty, sc) )
 and rightFocus' (consumeAll, ctx, sty, sc) =
     let
       val (subgoals, mkMonadObj) = decomposeSync (ctx, sty)
       (* fun ppG [] = "" *)
-      (*   | ppG (h :: t) = PrettyPrint.printType h ^ ", " ^ ppG t *)
+      (*   | ppG (h :: t) = PrettyPrinting.printType h ^ ", " ^ ppG t *)
       (* fun ppSG () = print ("Subgoals " ^ ppG subgoals ^ "\n") *)
-      (* val () = (print ("RightFocus ("^PrettyPrint.printType (TMonad' sty)^")\n") *)
+      (* val () = (print ("RightFocus ("^PrettyPrinting.printType (TMonad' sty)^")\n") *)
       (*         ; ppSG ()) *)
     in
       solveList (consumeAll, ctx) subgoals (fn (Ns, ctx') => sc ((* dummyMonadObj *) mkMonadObj Ns, ctx'))
@@ -761,24 +769,24 @@ and rightFocus' (consumeAll, ctx, sty, sc) =
 *)
 and leftFocus (lr, consumeAll, ctx : context, P, ty, sc) =
     ( if !traceSolve >= 3 then
-        print ("LeftFocus ("^PrettyPrint.printType ty^")\n")
+        print ("LeftFocus ("^PrettyPrinting.printType ty^")\n")
       else ()
     ; leftFocus' (lr, consumeAll, ctx, P, ty, sc) )
 and leftFocus' (lr, consumeAll, ctx, P, ty, sc) =
     let
-      val at = case Util.typePrjAbbrev P of
+      val at = case P of
                  TAtomic (a, _) => a
                | _ => raise Fail "Internal leftFocus on non-atomic goal"
-      val (Pin, Pout) = case Util.typePrjAbbrev P of
+      val (Pin, Pout) = case P of
                           TAtomic (a, S) => partitionArgs (a, S)
                         | _ => raise Fail "Internal leftFocus on non-atomic goal2"
       val (Sin, subgoals, Sout, mkSpine) = decomposeAtomic (lr, ctx, ty)
-      (* val _ = print ("Goal " ^PrettyPrint.printType P ^"\n") *)
-      (* val _ = print ("Left Focus " ^PrettyPrint.printType ty ^"\n") *)
-      fun ppIn () = () (* print ("+ " ^PrettyPrint.printType (TAtomic' (at, List.foldr TApp' TNil' Sin)) ^"\n") *)
-      fun ppOut () = () (* print ("- " ^PrettyPrint.printType (TAtomic' (at, List.foldr TApp' TNil' Sout)) ^"\n") *)
+      (* val _ = print ("Goal " ^PrettyPrinting.printType P ^"\n") *)
+      (* val _ = print ("Left Focus " ^PrettyPrinting.printType ty ^"\n") *)
+      fun ppIn () = () (* print ("+ " ^PrettyPrinting.printType (TAtomic (at, List.foldr TApp TNil Sin)) ^"\n") *)
+      fun ppOut () = () (* print ("- " ^PrettyPrinting.printType (TAtomic (at, List.foldr TApp TNil Sout)) ^"\n") *)
       fun ppG [] = ""
-        | ppG (h :: t) = PrettyPrint.printType h ^ ", " ^ ppG t
+        | ppG (h :: t) = PrettyPrinting.printType h ^ ", " ^ ppG t
       fun ppSG () = () (* print ("Subgoals " ^ ppG subgoals ^ "\n") *)
       (* val _ = print "Matching inputs\n" *)
       (* val _ = Match.outputMatch := true *)
@@ -794,16 +802,16 @@ and leftFocus' (lr, consumeAll, ctx, P, ty, sc) =
 (* monLeftFocus : lr list * context * asyncType * (spine * syncType * context -> unit) -> unit *)
 and monLeftFocus (lr, ctx, ty, sc) =
     ( if !traceSolve >= 3 then
-        print ("monLeftFocus ("^PrettyPrint.printType ty^")\n")
+        print ("monLeftFocus ("^PrettyPrinting.printType ty^")\n")
       else ()
     ; monLeftFocus' (lr, ctx, ty, sc) )
 and monLeftFocus' (lr, ctx, ty, sc) =
     let
       val (subgoals, mkSpine, sty) = decomposeMonadic (lr, ctx, ty)
       (* fun ppG [] = "" *)
-      (*   | ppG (h :: t) = PrettyPrint.printType h ^ ", " ^ ppG t *)
+      (*   | ppG ((_, h) :: t) = PrettyPrinting.printType h ^ ", " ^ ppG t *)
       (* fun ppSG () = print ("Subgoals " ^ ppG subgoals ^ "\n") *)
-      (* val _ = (ppSG (); print ("Monadic type: " ^ PrettyPrint.printSyncType sty ^"\n")) *)
+      (* val _ = (ppSG (); print ("Monadic type: " ^ PrettyPrinting.printSyncType sty ^"\n")) *)
     in
       solveList (false, ctx) subgoals (fn (Ns, ctx') =>
       sc ((* dummySpine *) mkSpine Ns, sty, ctx'))
@@ -829,6 +837,9 @@ fun traceOrExec printInter limit sty =
 
 val trace = traceOrExec true
 val exec = traceOrExec false
+
+(* fun trace _ _ = raise Fail "Internal error: trace" *)
+(* fun exec _ _ = raise Fail "Internal error: exec" *)
 
 end
 

@@ -25,32 +25,32 @@ exception ExnCtx of string
 (* NONE means used; we never need to distinguish used affine and used linear *)
 type 'a context
 
-val ctx2list : 'a context -> (string * 'a option * Context.cmodality) list
+val ctx2list : 'a context -> (string * 'a option * InternalSyntax.cmodality) list
 
 val emptyCtx : unit -> 'a context
 
-val findNonDep : (int * string * 'a * Context.modality -> bool) -> 'a context
-                 -> (int * string * 'a * Context.modality) option
+val findNonDep : (int * string * 'a * InternalSyntax.modality -> bool) -> 'a context
+                 -> (int * string * 'a * InternalSyntax.modality) option
 
 val ctxIntPart : 'a context -> 'a context
 val ctxAffPart : 'a context -> 'a context
 
-(* val ctxLookupNum : 'a context * int -> 'a context * Context.modality * 'a *)
-val removeHyp : 'a context * int * Context.modality -> 'a context
+(* val ctxLookupNum : 'a context * int -> 'a context * InternalSyntax.modality * 'a *)
+val removeHyp : 'a context * int * InternalSyntax.modality -> 'a context
 
-val ctxPush : string option * Context.modality * 'a * 'a context -> 'a context
+val ctxPush : string option * InternalSyntax.modality * 'a * 'a context -> 'a context
 
 (* New functions for sparse contexts *)
 
 (* ctxPushList is the list version of ctxPush.
    Elements are pushed left-to-right
  *)
-val ctxPushList : (string option * Context.modality * 'a) list -> 'a context -> 'a context
+val ctxPushList : (string option * InternalSyntax.modality * 'a) list -> 'a context -> 'a context
 
 (* ctxPopNum n repeats ctxPop n times *)
 val ctxPopNum : int -> 'a context -> 'a context
 
-val nonDepPart : 'a context -> int * (int * (string * 'a * Context.modality)) list
+val nonDepPart : 'a context -> int * (int * (string * 'a * InternalSyntax.modality)) list
 
 val affIntersect : 'a context * 'a context -> 'a context
 val linearDiff : 'a context * 'a context -> 'a context

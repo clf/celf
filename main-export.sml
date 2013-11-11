@@ -17,6 +17,7 @@
  *  along with Celf.  If not, see <http://www.gnu.org/licenses/>.
  *)
 
+(* Control.MC.matchNonExhaustiveError := true; *)
 CM.make "sources.cm";
 SMLofNJ.exportFn (".heapimg", Main.celfMain);
 

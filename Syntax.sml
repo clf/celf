@@ -28,6 +28,11 @@ struct
 
 open VRef
 
+
+datatype modeModifier = Normal | Destination
+datatype mode = Plus | Minus of modeModifier | Star
+type modeDecl = mode list
+
 (*type 'a h = 'a HashCons.hash_consed*)
 
 datatype subModality = ID | INT4LIN | INT4AFF | AFF4LIN
@@ -162,10 +167,6 @@ and apxSyncType = syncType
 and typeLogicVar = (*apx*)asyncType option ref * int (* word *)
 
 type 'a substi = subst'
-
-datatype modeModifier = Normal | Destination
-datatype mode = Plus | Minus of modeModifier | Star
-type modeDecl = mode list
 
 datatype typeOrKind = Ty of asyncType | Ki of kind
 
@@ -806,6 +807,7 @@ fun unsafeCastS x = x
 
 fun normalizeKind x = x
 fun normalizeType x = x
+fun normalizeSyncType x = x
 fun normalizeObj x = x
 fun normalizeExpObj x = x
 fun normalizeMonadObj x = x

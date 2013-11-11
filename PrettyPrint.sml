@@ -184,7 +184,7 @@ and pObj ctx pa ob =
 and pHead ctx h =
     case h of
       Const c => [c]
-    | Var (M, n) => [lookup ctx n (*, case M of Context.INT => "!" | Context.AFF => "@" | Context.LIN => "L"*)]
+    | Var (M, n) => [lookup ctx n, case M of Context.INT => "!" | Context.AFF => "@" | Context.LIN => "L", "[", Int.toString n, "]"]
     | UCVar v => ["#"^v]
     | LogicVar {ty, s, ctx=ref G, tag, ...} =>
       ["$", Int.toString (*Word.toString*) tag]

@@ -35,10 +35,10 @@ val helpMsg = ref false
  * actually *reported*. Whatever the performance hit for tracking
  * this timing information is, we're still paying it. -rjs July 25,
  * 2013. *)
- 
+
 val printtiming = ref false
 
-fun parseArgs args = 
+fun parseArgs args =
    case args of
       [] => []
     | "-s"::seed::args =>
@@ -103,7 +103,7 @@ fun parseArgs args =
        ; OpSem.traceSolve := 2
        ; OpSemModed.traceSolve := 2
        ; parseArgs args )
-    | "-tp3"::args => 
+    | "-tp3"::args =>
        ( print "traceSolve := 3\n"
        ; OpSem.traceSolve := 3
        ; OpSemModed.traceSolve := 3
@@ -112,7 +112,7 @@ fun parseArgs args =
        ( print "allowConstr := true\n"
        ; OpSem.allowConstr := true
        ; parseArgs args )
-    | "-time"::args => 
+    | "-time"::args =>
        ( print "printtiming := true\n"
        ; printtiming := true
        ; parseArgs args)
@@ -150,8 +150,8 @@ fun parseArgs args =
 
 (* Regular invocation of Celf; called from celfMain and celfRegression *)
 fun celfMain' args =
-let 
-   fun reader filename = 
+let
+   fun reader filename =
    let
       val () = Timers.reset ()
       val () = print ("[reading "^filename^"]\n")
@@ -161,39 +161,39 @@ let
          print ("Parse error at "^
                 Int.toString l1^","^Int.toString c1^"--"^
                 Int.toString l2^","^Int.toString c2^": "^s^"\n")
-      val (result : (int * Syntax.decl) list,_) =      
-           Timers.time Timers.parsing (fn () => ClfParser.parse(0,lexer,print_parse_error,())) () 
+      val (result : (int * Syntax.decl) list,_) =
+           Timers.time Timers.parsing (fn () => ClfParser.parse(0,lexer,print_parse_error,())) ()
    in
     ( TypeRecon.reconstructSignature result
     ; print ("[closing "^filename^"]\n")
     ; TextIO.closeIn instream)
-   end 
+   end
 
-   val () = print "Celf ver 2.9. Copyright (C) 2011\n"   
+   val () = print "Celf ver 2.9. Copyright (C) 2011\n"
    val files = parseArgs args
 in
  ( if null files andalso not (!helpMsg)
    then print "Commandline: celf <options> <filename>\n\
               \  To check .clf files:          celf <options> <filename>\n\
               \  To see command-line options:  celf -h\n\n\
-              \No files given; exiting.\n" 
+              \No files given; exiting.\n"
    else app reader files
- ; if !printtiming then Timers.show () else () 
+ ; if !printtiming then Timers.show () else ()
  ; OS.Process.success)
 end
 
 (* Regression testing infrastructure; invoked from celfMain if the first
  * command-line argument to celf is "regression". *)
-fun celfRegression args = 
+fun celfRegression args =
 let
-   datatype result = 
-      Success 
+   datatype result =
+      Success
     | Err of Syntax.declError
-    | QueryFailed 
-    | ParseErr 
+    | QueryFailed
+    | ParseErr
     | DoubleCheck of result
 
-   fun parse arg = 
+   fun parse arg =
       case arg of
          "success" => Success
        | "undeclId" => Err Syntax.UndeclId
@@ -206,9 +206,9 @@ let
        | "parseErr" => ParseErr
        | arg => raise Fail ("Unknown outcome: " ^ arg)
 
-   fun str outcome = 
+   fun str outcome =
       case outcome of
-         Success => "success" 
+         Success => "success"
        | Err Syntax.UndeclId => "undeclId"
        | Err Syntax.TypeErr => "typeErr"
        | Err Syntax.KindErr => "kindErr"
@@ -221,22 +221,23 @@ let
 
    fun printErr s = TextIO.output (TextIO.stdErr, s)
 
-   fun getOutcome args = 
+   fun getOutcome args =
     ( Syntax.Signatur.resetSig ()
     ; TypeRecon.resetSignature ()
     ; celfMain' args
     ; Success)
    handle TypeRecon.ReconError ((e, s), _) => Err e
         | TypeRecon.QueryFailed n => QueryFailed
+        | Backend.QueryFailed n => QueryFailed
         | ClfParser.ParseError => ParseErr
 
    fun test (outcome, args) =
    let
-      val () = printErr ("celf " ^ String.concatWith " " args 
-                         ^ " (expecting `"^str outcome^"')... ") 
-      val outcome'' = 
-         case getOutcome args of 
-            Success => 
+      val () = printErr ("celf " ^ String.concatWith " " args
+                         ^ " (expecting `"^str outcome^"')... ")
+      val outcome'' =
+         case getOutcome args of
+            Success =>
              ( printErr "doublecheck... "
              ; case getOutcome ("-d" :: args) of
                   Success => Success
@@ -248,15 +249,15 @@ let
       else ( printErr ("failed, got `"^str outcome''^"'\n")
            ; SOME (args, "expected `"^str outcome^"`, got `"^str outcome''^"'"))
    end
-   handle exn => 
+   handle exn =>
            ( printErr "failed, got unexpected error\n"
            ; SOME (args, "expected `" ^ str outcome ^ "', got unexpected \
                              \failure `" ^ exnMessage exn ^ "'"))
- 
-   fun testfile file accum = 
-   let fun mapper line = 
-          case String.fields (fn x => x = #"#") line of 
-             [] => [] 
+
+   fun testfile file accum =
+   let fun mapper line =
+          case String.fields (fn x => x = #"#") line of
+             [] => []
            | x :: _ => String.tokens Char.isSpace x
    in case Option.map mapper (TextIO.inputLine file) of
          NONE => (TextIO.closeIn file; accum)
@@ -266,7 +267,7 @@ let
 
    fun testfiles [] accum = rev accum
      | testfiles (file :: files) accum =
-       let 
+       let
           val oldDir = OS.FileSys.getDir ()
           val {dir, ...} = OS.Path.splitDirFile file
           val file = TextIO.openIn file
@@ -287,26 +288,26 @@ in
  ; print ("Failed tests: " ^ Int.toString failures ^ "\n\n")
  ; if failures > 0 then print ("Details:\n\n") else ()
  ; app (fn NONE => ()
-         | SOME (args, msg) => 
+         | SOME (args, msg) =>
             ( print ("celf " ^ String.concatWith " " args ^ "\n")
             ; print (" - " ^ msg ^ "\n\n")))
       results
  ; if failures = 0 then OS.Process.success else OS.Process.failure)
-end handle exn => 
+end handle exn =>
             ( T.beQuiet := false
             ; print ("\nREGRESSION ERROR: " ^ exnMessage exn ^ "\n\n")
             ; OS.Process.failure)
 
 
-fun celfMain (_, args) = 
-   if not (null args) andalso hd args = "regression" 
+fun celfMain (_, args) =
+   if not (null args) andalso hd args = "regression"
    then celfRegression (tl args)
-   else celfMain' args 
+   else celfMain' args
 handle TypeRecon.ReconError (es, ldec) =>
        let
           fun declToStr (linenum, dec) =
-          let 
-             val decstr = 
+          let
+             val decstr =
                 case dec of
                    Syntax.ConstDecl (id, _, _) => "declaration of " ^ id
                  | Syntax.TypeAbbrev (id, _) => "declaration of " ^ id
@@ -322,30 +323,30 @@ handle TypeRecon.ReconError (es, ldec) =>
 
           val decstr = declToStr ldec
 
-          val d = 
+          val d =
              case es of
-                (Syntax.UndeclId, c) => 
+                (Syntax.UndeclId, c) =>
                    "Undeclared identifier \"" ^ c ^ "\" in " ^ decstr
-              | (Syntax.TypeErr, s) => 
-                   "Type-checking failed in " ^ decstr ^ ":\n" ^ s 
-              | (Syntax.KindErr, s) => 
-                   "Kind-checking failed in " ^ decstr ^ ":\n" ^ s 
-              | (Syntax.AmbigType, "") => 
+              | (Syntax.TypeErr, s) =>
+                   "Type-checking failed in " ^ decstr ^ ":\n" ^ s
+              | (Syntax.KindErr, s) =>
+                   "Kind-checking failed in " ^ decstr ^ ":\n" ^ s
+              | (Syntax.AmbigType, "") =>
                    "Ambiguous typing in " ^ decstr
-              | (Syntax.AmbigType, s) => 
+              | (Syntax.AmbigType, s) =>
                    "Ambiguous typing in " ^ decstr ^ ":\n" ^ s
               | (Syntax.ModeErr, s) =>
                    "Mode checking failed in " ^ decstr ^ ":\n"^s
-              | (Syntax.GeneralErr, s) => 
-                   "Error in " ^ decstr ^ ":\n" ^ s 
-       in 
+              | (Syntax.GeneralErr, s) =>
+                   "Error in " ^ decstr ^ ":\n" ^ s
+       in
         ( print ("\n" ^ d ^ "\n\n")
         ; OS.Process.failure)
        end
      | TypeRecon.QueryFailed n =>
         ( print ("\nQuery failed on line " ^ Int.toString n ^ "\n\n")
         ; OS.Process.failure)
-     | exn => 
+     | exn =>
         ( print ("Unhandled exception " ^ exnName exn ^ ":\n")
         ; print (exnMessage exn^"\n")
        ; OS.Process.failure)

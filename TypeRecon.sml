@@ -241,10 +241,10 @@ fun reconstructDecl (ldec as (_, dec)) =
             end
           | _ => ()
 
-   val () = 
+   val () =
       case dec of
          ConstDecl (id, imps, kity) =>
-          (if (!printgf) then 
+          (if (!printgf) then
 	         ( print "[GF:"
 		 ; print (id^": ")
 	         ; appKiTy (print o GFPrint.printKind)
@@ -253,8 +253,8 @@ fun reconstructDecl (ldec as (_, dec)) =
 	    else (print (id^": ")
 	         ; appKiTy (print o PrettyPrint.printKind)
 		      (print o PrettyPrint.printType) kity
-	         ; print ".\n") 
-          ; if TypeCheck.isEnabled () 
+	         ; print ".\n")
+          ; if TypeCheck.isEnabled ()
             then
                appKiTy TypeCheck.checkKindEC
                   TypeCheck.checkTypeEC kity
@@ -265,7 +265,7 @@ fun reconstructDecl (ldec as (_, dec)) =
        | ObjAbbrev (id, ty, ob) =>
           ( print (id^": "^(PrettyPrint.printType ty)
                    ^" = "^(PrettyPrint.printObj ob)^".\n")
-          ; if TypeCheck.isEnabled () then TypeCheck.checkObjEC (ob, ty) 
+          ; if TypeCheck.isEnabled () then TypeCheck.checkObjEC (ob, ty)
             else () )
 
        | Mode (id, implmd, md) => Timers.time Timers.modes (fn () => checkModeDecl (id, implmd, md)) ()
@@ -274,7 +274,8 @@ fun reconstructDecl (ldec as (_, dec)) =
        | Empty id => ( print ("#empty "^id^".\n")
                      ; Signatur.addEmptyDecl id )
 
-       | Query (opsem, d, e, l, a, ty) =>
+       (* Unification-based semantics. *)
+       | Query (OpSemUnif, d, e, l, a, ty) =>
          (* d : let-depth-bound * = inf
           * e : expected number of solutions * = ?
           * l : number of solutions to look for * = inf
@@ -310,33 +311,8 @@ fun reconstructDecl (ldec as (_, dec)) =
                    else ()
                  ; Timers.time Timers.solving (fn () => OpSem.solveEC (implty, scUnif)) ()
                  ; e = SOME (!solCount) orelse runQueryUnif (n-1) )
-             fun scMatch N = ( (* print ("Solution: "^PrettyPrint.printObj N^"\n") *)
-               (* ;  *)app printInst lvars
-                     ; solCount := !solCount + 1
-                     ; if TypeCheck.isEnabled ()
-                       then (print "Double checking object type... "
-                            ; TypeCheck.checkObjEC (N, implty)
-                            ; print "done") else ()
-                     ; if l = SOME (!solCount)
-                       then raise stopSearchExn
-                       else () )
-             fun runQueryMatch 0 = false
-               | runQueryMatch n =
-                 ( solCount := 0
-                 ; if a > 1
-                   then print ("Iteration "^Int.toString (a+1-n)^"\n")
-                   else ()
-                 ; Timers.time Timers.solving (fn () => OpSemModed.solveEC (implty, scMatch)) ()
-                 ; e = SOME (!solCount) orelse runQueryMatch (n-1) )
-             val (runQuery, fcLimit) = case opsem of
-                                           OpSemUnif => (runQueryUnif, OpSem.fcLimit)
-                                         | OpSemMatch => (runQueryMatch, OpSemModed.fcLimit)
+             val (runQuery, fcLimit) = (runQueryUnif, OpSem.fcLimit)
              val () = fcLimit := d
-             (* TODO: check that query is a goal. The code below does not work because the mode
-              * checker does not handle UCVar's (ImplicitVars) present in queries. They should be
-              * treated as existentials *)
-             (* fun isGoal ty = ((ModeCheck.modeCheckGoal (normalizeType ty); true) *)
-             (*                  handle ModeCheck.ModeCheckError _ => false) *)
              fun isGoal _ = true
          in
            if a = 0 orelse l = SOME 0
@@ -352,8 +328,6 @@ fun reconstructDecl (ldec as (_, dec)) =
                                     \Uncheckable since expected number of\
                                     \ solutions is\ngreater than the number of\
                                     \ solutions to look for\n")
-           else if opsem = OpSemMatch andalso not (isGoal ty)
-           then raise ExnDeclError (GeneralErr, "Goal is not well moded\n")
            else if (runQuery a handle stopSearchExn => false)
            then print "Query ok.\n"
            else if isSome e
@@ -363,40 +337,55 @@ fun reconstructDecl (ldec as (_, dec)) =
            else ()
          end
 
-       | Trace (count, sty) =>
-         let
-           val () =
-               print ("Trace "
-                      ^(case count of NONE => "*" | SOME i => Int.toString i)
-                      ^" "^PrettyPrint.printSyncType sty^"\n")
-           val (count', _) = OpSem.trace count sty
-         in
-           if not (isSome count) orelse count = SOME count'
-           then print ("Success: "^Int.toString count'^" steps\n")
-           else ( print ("Trace failed, expected "^Int.toString (valOf count)
-                         ^" steps but only "^Int.toString count'
-                         ^" taken\n")
-                ; raise QueryFailed (#1 ldec))
-         end
 
-       | Exec (count, sty) =>
-         let
-           val () =
-               print ("Exec "
-                      ^(case count of NONE => "*" | SOME i => Int.toString i)
-                      ^" "^PrettyPrint.printSyncType sty^"\n")
-           val (count', context) = OpSem.exec count sty
-         in
-           if not (isSome count) orelse count = SOME count'
-           then ( print ("Success: "^Int.toString count'^" steps\n"))
-           else ( print ("Exec failed, expected "^Int.toString (valOf count)
-                         ^" steps but only "^Int.toString count'
-                         ^" taken\n")
-                ; raise QueryFailed (#1 ldec))
-         end
+       (* NOTE: Trace and Exec are, for the moment, only handled in the backend
+        * It may change in the future
+        * This implies that only moded programs can be traced *)
+
+       (* | Trace (count, sty) => *)
+       (*   let *)
+       (*     val () = *)
+       (*         print ("Trace " *)
+       (*                ^(case count of NONE => "*" | SOME i => Int.toString i) *)
+       (*                ^" "^PrettyPrint.printSyncType sty^"\n") *)
+       (*     val (count', _) = OpSem.trace count sty *)
+       (*   in *)
+       (*     if not (isSome count) orelse count = SOME count' *)
+       (*     then print ("Success: "^Int.toString count'^" steps\n") *)
+       (*     else ( print ("Trace failed, expected "^Int.toString (valOf count) *)
+       (*                   ^" steps but only "^Int.toString count' *)
+       (*                   ^" taken\n") *)
+       (*          ; raise QueryFailed (#1 ldec)) *)
+       (*   end *)
+
+       (* | Exec (count, sty) => *)
+       (*   let *)
+       (*     val () = *)
+       (*         print ("Exec " *)
+       (*                ^(case count of NONE => "*" | SOME i => Int.toString i) *)
+       (*                ^" "^PrettyPrint.printSyncType sty^"\n") *)
+       (*     val (count', context) = OpSem.exec count sty *)
+       (*   in *)
+       (*     if not (isSome count) orelse count = SOME count' *)
+       (*     then ( print ("Success: "^Int.toString count'^" steps\n")) *)
+       (*     else ( print ("Exec failed, expected "^Int.toString (valOf count) *)
+       (*                   ^" steps but only "^Int.toString count' *)
+       (*                   ^" taken\n") *)
+       (*          ; raise QueryFailed (#1 ldec)) *)
+       (*   end *)
+       | Trace (count, sty) => ()
+       | Exec (count, sty) => ()
+
+       (* Match-based semantics for moded queries is handled by the backend *)
+       | Query (OpSemMatch, d, e, l, a, ty) =>
+           (* TODO: check that goal is well moded *)
+           ()
 
       val () = if isDirective dec then ()
                else Signatur.sigAddDecl dec
+
+      (* Calling backend *)
+      val () = Backend.processDecl dec
 
     in () end
     handle ExnDeclError es => raise ReconError (es, ldec)

@@ -21,11 +21,12 @@ structure OpSemCtx :> OPSEMCTX =
 struct
 
 open Binarymap
+structure ISyn = InternalSyntax
 
 exception ExnCtx of string
 
 (* Each cell in the context contains its deBruijn index *)
-type 'a localvar = int * string * 'a * Context.modality
+type 'a localvar = int * string * 'a * ISyn.modality
 
 (* A context is composed of four lists:
  * - linear part (all names ""),
@@ -33,7 +34,7 @@ type 'a localvar = int * string * 'a * Context.modality
  * - non-dependent intuitionistic part (all names ""),
  * - dependent intuitionistic part (real names)
  * Internal invariant: each list is ordered by index *)
-type 'a localCtx = (int, string * 'a * Context.modality) dict
+type 'a localCtx = (int, string * 'a * ISyn.modality) dict
 type 'a context = int * 'a localCtx * 'a localCtx * 'a localCtx
 
 fun updatePos f (k, (x, a, m)) = (f k, (x, a, m))
@@ -67,8 +68,8 @@ fun linearIndices (diff, lvLin, _, _) =
 
 
 
-(* findNonDep : (int * string * 'a * Context.modality -> bool) -> 'a context
-                -> (int * string * 'a * Context.modality) option *)
+(* findNonDep : (int * string * 'a * ISyn.modality -> bool) -> 'a context
+                -> (int * string * 'a * ISyn.modality) option *)
 fun findNonDep f (diff, lvLin, lvAff, lvNd) =
     let
       fun myFind [] = NONE
@@ -89,9 +90,9 @@ fun ctx2list (ctx as (diff, _, _, _)) =
             LESS => ("_", NONE, NONE) :: trans (n+1) (h::t)
           | EQUAL => (x, SOME a, SOME m) :: trans (n+1) t
           | GREATER => raise Fail "Internal error: invariant broke in ctx2list"
-      fun ppM Context.LIN = "^"
-        | ppM Context.AFF = "@"
-        | ppM Context.INT = "!"
+      fun ppM ISyn.LIN = "^"
+        | ppM ISyn.AFF = "@"
+        | ppM ISyn.INT = "!"
       fun pp (k, x, a, m) = Int.toString k ^": "^ppM m^", "
     in
       trans 1 (unifyCtx ctx)
@@ -110,21 +111,21 @@ fun ctxIntPart (diff, _, _, lvNd) = (diff, mkDict Int.compare, mkDict Int.compar
 
 fun ctxAffPart (diff, _, lvAff, lvNd) = (diff, mkDict Int.compare, lvAff, lvNd)
 
-(* removeHyp : 'a context * int * Context.modality -> 'a context *)
+(* removeHyp : 'a context * int * ISyn.modality -> 'a context *)
 fun removeHyp ((ctx as (diff, lvLin, lvAff, lvNd)), n, m) =
     ( case m of
-        Context.LIN => (diff, #1 (remove (lvLin, n-diff)), lvAff, lvNd)
-      | Context.AFF => (diff, lvLin, #1 (remove (lvAff, n-diff)), lvNd)
+        ISyn.LIN => (diff, #1 (remove (lvLin, n-diff)), lvAff, lvNd)
+      | ISyn.AFF => (diff, lvLin, #1 (remove (lvAff, n-diff)), lvNd)
       | _ => ctx
     ) handle NotFound => raise Fail "Internal error: removeHyp"
 
 
-(* ctxPush : string * Context.modality * 'a * 'a context -> 'a context *)
+(* ctxPush : string * ISyn.modality * 'a * 'a context -> 'a context *)
 fun ctxPush (x, m, a, (ctx as (diff, lvLin, lvAff, lvNd))) =
     case m of
-      Context.LIN => (diff+1, insert (lvLin, ~diff, ("", a, m)), lvAff, lvNd)
-    | Context.AFF => (diff+1, lvLin, insert (lvAff, ~diff, ("", a, m)), lvNd)
-    | Context.INT =>
+      ISyn.LIN => (diff+1, insert (lvLin, ~diff, ("", a, m)), lvAff, lvNd)
+    | ISyn.AFF => (diff+1, lvLin, insert (lvAff, ~diff, ("", a, m)), lvNd)
+    | ISyn.INT =>
       ( case x of
           NONE =>  (diff+1, lvLin, lvAff, insert (lvNd, ~diff, ("", a, m)))
         | SOME _ => (diff+1, lvLin, lvAff, lvNd) )
@@ -143,7 +144,7 @@ fun remNeg (diff, lvLin, lvAff, lvNd) =
 
 fun nonDepPart (diff, lvLin, lvAff, lvNd) = (diff, listItems lvLin @ listItems lvAff @ listItems lvNd)
 
-(* ctxPushList : (string * Context.modality * 'a) list -> 'a context -> 'a context *)
+(* ctxPushList : (string * ISyn.modality * 'a) list -> 'a context -> 'a context *)
 fun ctxPushList xs ctx = List.foldl (fn ((x, m, a), ctx) => ctxPush (x, m, a, ctx)) ctx xs
 
 

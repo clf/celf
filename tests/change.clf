@@ -3,6 +3,11 @@ nickel: type.
 dime: type.
 quarter: type.
 
+#mode penny.
+#mode nickel.
+#mode dime.
+#mode quarter.
+
 pn: penny * penny * penny * penny * penny -o { nickel }.
 np: nickel -o { penny * penny * penny * penny * penny }.
 nd: nickel * nickel -o { dime }.
@@ -10,8 +15,8 @@ dn: dime -o { nickel * nickel }.
 nq: nickel * nickel * nickel * nickel * nickel -o { quarter }.
 qn: quarter -o { nickel * nickel * nickel * nickel * nickel }.
 
-make_change : 
-   quarter -o { penny * penny * penny * penny * penny * dime * dime } = 
+make_change :
+   quarter -o { penny * penny * penny * penny * penny * dime * dime } =
  \q. { let {[n1, [n2, [n3, [n4, n5]]]]} = qn q in
        let {d1} = nd [n3, n5] in
        let {d2} = nd [n1, n4] in

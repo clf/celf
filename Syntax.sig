@@ -520,6 +520,7 @@ val unsafeCastS : apxSyncType -> syncType
 
 val normalizeKind : kind -> nfKind
 val normalizeType : asyncType -> nfAsyncType
+val normalizeSyncType : syncType -> nfSyncType
 val normalizeObj : obj -> nfObj
 val normalizeExpObj : expObj -> nfExpObj
 val normalizeMonadObj : monadObj -> nfMonadObj

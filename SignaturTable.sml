@@ -55,7 +55,7 @@ fun updDecl (ConstDecl (c, _, Ty ty)) =
 		end
   | updDecl _ = ()
 
-fun update () = app updDecl (Signatur.getSigDelta ())
+fun update () = app updDecl (rev (Signatur.getSigDelta ()))
 
 (* getCandMonad : unit -> (string * lr list * asyncType) list *)
 fun getCandMonad () = ( update () ; !candMonad )
