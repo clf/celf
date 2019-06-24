@@ -32,6 +32,7 @@ success kruskal.clf
 success lambda-env.clf
 queryFailed lambda-env-fail.clf
 success ldp2.clf
+success linordlam.clf
 success listset.clf
 typeErr lp-horn.clf
 parseErr lp.clf

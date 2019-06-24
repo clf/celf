@@ -1,0 +1,52 @@
+% Enumeration of linear/ordered lambda terms in HOAS, using indices to
+% control size and ordering constraints
+
+nat : type.
+z : nat.
+s : nat -o nat.
+
+n0 : nat = z. n1 : nat = s n0. n2 : nat = s n1. n3 : nat = s n2.
+n4 : nat = s n3. n5 : nat = s n4. n6 : nat = s n5. n7 : nat = s n6.
+n8 : nat = s n7. n9 : nat = s n8. n10 : nat = s n9. n11 : nat = s n10.
+n12 : nat = s n11. n13 : nat = s n12. n14 : nat = s n13.
+
+% ltm M N represents linear terms with N-M subterms
+ltm : nat -> nat -> type.
+llam : (ltm P (s P) -o ltm M N) -o ltm M (s N).
+lapp : ltm M N -o ltm N P -o ltm M (s P).
+
+#query * 1 * 1 ltm z n2.
+#query * 5 * 1 ltm z n5.
+#query * 60 * 1 ltm z n8.
+% #query * 1105 * 1 ltm z n11.
+% #query * 27120 * 1 ltm z n14.
+% cf. https://oeis.org/A062980
+
+% otm X Y M N represents ordered terms with Y-X free vars and N-M subterms
+otm : nat -> nat -> nat -> nat -> type.
+olam : (otm Y (s Y) P (s P) -o otm X (s Y) M N) -o otm X Y M (s N).
+oapp : otm X Y M N -o otm Y Z N P -o otm X Z M (s P).
+
+#query * 1 * 1 otm z z z n2.
+#query * 4 * 1 otm z z z n5.
+#query * 32 * 1 otm z z z n8.
+% #query * 336 * 1 otm z z z n11.
+% #query * 4096 * 1 otm z z z n14.
+% cf. https://oeis.org/A002005
+
+lt : nat -> nat -> type.
+lt/zs : lt z (s Y).
+lt/ss : lt M N -o lt (s M) (s N).
+
+% otm+ X Y M N represents ordered terms with Y-X free vars and N-M subterms,
+% and no closed subterms
+otm+ : nat -> nat -> nat -> nat -> type.
+olam+ : lt X Y -o (otm+ Y (s Y) P (s P) -o otm+ X (s Y) M N) -o otm+ X Y M (s N).
+oapp+ : otm+ X Y M N -o otm+ Y Z N P -o otm+ X Z M (s P).
+
+#query * 1 * 1 otm+ z (s z) z n1 -o otm+ z (s z) z n1.
+#query * 1 * 1 otm+ z (s z) z n1 -o otm+ z (s z) z n4.
+#query * 4 * 1 otm+ z (s z) z n1 -o otm+ z (s z) z n7.
+#query * 24 * 1 otm+ z (s z) z n1 -o otm+ z (s z) z n10.
+% #query * 176 * 1 otm+ z (s z) z n1 -o otm+ z (s z) z n13.
+% cf. https://oeis.org/A000309
