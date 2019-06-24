@@ -299,7 +299,7 @@ let
             then print "Query ok.\n"
             else if isSome e 
             then
-             ( print "Query failed\n"
+             ( print ("Query failed: expected "^Int.toString (valOf e)^" solutions but found "^Int.toString (!solCount)^"\n")
              ; raise QueryFailed (#1 ldec))
             else ()
          end
